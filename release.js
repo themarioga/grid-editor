@@ -6,7 +6,7 @@ const fs = require("fs");
 const readline = require('readline').createInterface({
   input: process.stdin,
   output: process.stdout
-})
+});
 
 /**
  * Prepare a major, minor or patch release.
@@ -34,8 +34,8 @@ console.log(`Current version: ${currentVersion}`);
 const newVersionParts = versionParts
   .slice()
   .map((value, i) => {
-    if (i == typeIndex) value++;
-    if (i > typeIndex) value = 0;
+    if (i == typeIndex) { value++; }
+    if (i > typeIndex) { value = 0; }
     return value;
   });
 const newVersion = newVersionParts.join('.');
@@ -49,13 +49,13 @@ if (existingTags.includes(newTag)) {
 }
 
 execSync('npm run build', { stdio: 'inherit' });
-replaceInFile('package.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`)
-replaceInFile('bower.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`)
+replaceInFile('package.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`);
+replaceInFile('bower.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`);
 // package-lock.json records the version twice: at the top level and on the
 // root package entry. Both must match package.json or npm publish complains.
 // This is a JSON edit, not a regex: the lockfile has a "version" key for every
 // dependency and a regex would rewrite all of them.
-setLockfileVersion('package-lock.json', newVersion)
+setLockfileVersion('package-lock.json', newVersion);
 execSync('git add -A');
 
 confirm(`This will:
@@ -85,7 +85,7 @@ function confirm(question) {
       readline.close();
       resolve(answer);
     });
-  })
+  });
 }
 
 function replaceInFile(filename, searchValue, replaceValue) {

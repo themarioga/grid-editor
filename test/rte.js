@@ -1,11 +1,14 @@
 /**
  * Browser tests for the rich text editor integrations.
  *
- * Run with `npm test`. This drives the example pages in a real Chrome, against
- * the real editors loaded from their CDNs, because the things that break in
- * these integrations are things only a browser does: an inline editor taking
- * focus, and the attributes an editor restores on the element it was attached
- * to when it is removed again.
+ * Run with `npm test`, or on its own with `node test/rte.js`. This drives the
+ * example pages in a real Chrome, against the real editors loaded from their
+ * CDNs, because the things that break in these integrations are things only a
+ * browser does: an inline editor taking focus, and the attributes an editor
+ * restores on the element it was attached to when it is removed again.
+ *
+ * The editors come from a CDN rather than from `test/vendor`, so the runner
+ * skips this suite when there is no network.
  *
  * Tests run against the built files in `dist`, so run `npm run build` first if
  * you changed anything under `src`.
@@ -13,26 +16,8 @@
 
 var path = require('path');
 var cdp = require('./cdp');
-var serve = require('./server').serve;
 
 var sleep = cdp.sleep;
-var ROOT = path.join(__dirname, '..');
-var SCREENSHOTS = path.join(__dirname, 'screenshots');
-
-var results = [];
-
-function check(name, passed, detail) {
-    results.push({ name: name, passed: !!passed });
-    console.log(
-        (passed ? 'PASS  ' : 'FAIL  ') + name +
-        (detail ? '\n        ' + JSON.stringify(detail) : '')
-    );
-}
-
-function skip(name, reason) {
-    results.push({ name: name, skipped: true });
-    console.log('SKIP  ' + name + '\n        ' + reason);
-}
 
 /**
  * The editor state of the first content area, as seen from the page.
@@ -48,16 +33,14 @@ var CONTENT_AREA_STATE = `
     };
 `;
 
-async function tinymceTests(browser, base) {
-    var page = await browser.newPage();
-
-    await cdp.goto(page, base + '/example/index.html');
+async function tinymceTests(t) {
+    var page = await t.page('/example/index.html');
     await page.waitFor(
         `window.jQuery && window.tinymce && jQuery('#myGrid').data('grideditor')`,
         { label: 'dependencies and grid editor' }
     );
 
-    check('the page boots with the grid editor initialized', true, await page.eval(`
+    t.check('the page boots with the grid editor initialized', true, await page.eval(`
         return {
             jquery: jQuery.fn.jquery,
             tinymce: tinymce.majorVersion + '.' + tinymce.minorVersion,
@@ -84,18 +67,18 @@ async function tinymceTests(browser, base) {
             toolbar: !!document.querySelector('.tox-tinymce-inline'),
         };
     `);
-    check('clicking a content area starts an inline editor on it',
+    t.check('clicking a content area starts an inline editor on it',
         editing.editorsOpen === 1 && editing.storedInData && editing.active &&
         editing.contenteditable === 'true' && editing.inline && editing.attachedToContentArea,
         editing);
-    check('the new editor takes focus and shows its inline toolbar',
+    t.check('the new editor takes focus and shows its inline toolbar',
         editing.focused && editing.toolbar, editing);
 
     await page.type('HELLO_FROM_CHROME ');
     var typed = await page.eval(`return { content: tinymce.get()[0].getContent().slice(0, 120) };`);
-    check('typing reaches the editor', typed.content.indexOf('HELLO_FROM_CHROME') !== -1, typed);
+    t.check('typing reaches the editor', typed.content.indexOf('HELLO_FROM_CHROME') !== -1, typed);
 
-    await page.screenshot(path.join(SCREENSHOTS, 'tinymce-editing.png'));
+    await page.screenshot(path.join(t.screenshots, 'tinymce-editing.png'));
 
     // getHtml has to hand back markup with no trace of the editor in it
     var exported = await page.eval(`
@@ -113,11 +96,11 @@ async function tinymceTests(browser, base) {
             stillEditing: jQuery('.ge-canvas').hasClass('ge-editing'),
         };
     `);
-    check('getHtml returns markup with no editor leftovers',
+    t.check('getHtml returns markup with no editor leftovers',
         exported.keptTypedText && !exported.contenteditable && !exported.dataMce &&
         !exported.mceClasses && !exported.spellcheck && !exported.idAttribute && !exported.toolsDrawer,
         exported);
-    check('getHtml removes the live editor and leaves the grid editor editing',
+    t.check('getHtml removes the live editor and leaves the grid editor editing',
         exported.editorsOpen === 0 && exported.stillEditing, exported);
 
     // An editor that restores its class attribute on removal used to put
@@ -125,7 +108,7 @@ async function tinymceTests(browser, base) {
     await page.click('.ge-content');
     await sleep(2500);
     var reEdited = await page.eval(CONTENT_AREA_STATE);
-    check('a content area is still editable after getHtml',
+    t.check('a content area is still editable after getHtml',
         reEdited.editorsOpen === 1 && reEdited.editorAttached, reEdited);
 
     // tinymce.init is asynchronous and getHtml deinits then inits
@@ -151,7 +134,7 @@ async function tinymceTests(browser, base) {
             activeContentAreas: jQuery('#myGrid .ge-content.active').length,
         };
     `);
-    check('a deinit during an in-flight init strands no editor',
+    t.check('a deinit during an in-flight init strands no editor',
         settled.editorsOpen === 0 && !settled.activeEditor && settled.pendingRemove === undefined &&
         !settled.editorAttached && settled.contenteditableElements === 0 &&
         settled.inlineToolbars === 0 && settled.activeContentAreas === 0,
@@ -160,7 +143,7 @@ async function tinymceTests(browser, base) {
     await page.click('.ge-content');
     await sleep(2500);
     var afterRace = await page.eval(CONTENT_AREA_STATE);
-    check('a content area that lost that race is editable again afterwards',
+    t.check('a content area that lost that race is editable again afterwards',
         afterRace.editorsOpen === 1 && afterRace.editorAttached && afterRace.pendingRemove === undefined,
         afterRace);
 
@@ -190,7 +173,7 @@ async function tinymceTests(browser, base) {
             menubar: !!document.querySelector('.tox-menubar'),
         });
     `);
-    check('init_instance_callback and the pre-6 oninit each fire once, with the user config applied',
+    t.check('init_instance_callback and the pre-6 oninit each fire once, with the user config applied',
         callbacks.init_instance_callback === 1 && callbacks.oninit === 1 &&
         callbacks.sameEditor === true && callbacks.menubar === false,
         callbacks);
@@ -210,7 +193,7 @@ async function tinymceTests(browser, base) {
     await sleep(400);
     await page.click('.ge-content');
     await sleep(2000);
-    check('the source code button deinits and inits again cleanly',
+    t.check('the source code button deinits and inits again cleanly',
         sourceMode.editorsOpen === 0 && sourceMode.textareaVisible && sourceMode.textareaClean === true,
         Object.assign(sourceMode, { editableAfterwards: (await page.eval(CONTENT_AREA_STATE)).editorAttached }));
 
@@ -229,17 +212,16 @@ async function tinymceTests(browser, base) {
             placeholderCleared: contentArea.html().indexOf('Lorem ipsum dolores') === -1,
         };
     `);
-    check('a content area in a newly added row becomes editable and drops its placeholder',
+    t.check('a content area in a newly added row becomes editable and drops its placeholder',
         added.contentAreas > before.contentAreas && newArea.editorAttached && newArea.placeholderCleared,
         Object.assign({ before: before.contentAreas, after: added.contentAreas }, newArea));
 
     var errors = page.errors();
-    check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
+    t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
 
     // The other two pages wiring up tinyMCE
     for (var name of ['index-autosave.html', 'wrap_content.html']) {
-        var other = await browser.newPage();
-        await cdp.goto(other, base + '/example/' + name);
+        var other = await t.page('/example/' + name);
         await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
 
         // The autosave page starts from an empty grid, so give it a row first
@@ -257,7 +239,7 @@ async function tinymceTests(browser, base) {
             };
         `);
         var otherErrors = other.errors();
-        check('example/' + name + ' boots and starts an editor without errors',
+        t.check('example/' + name + ' boots and starts an editor without errors',
             otherErrors.length === 0 && state.editorsOpen === 1 && state.activeContentAreas === 1,
             Object.assign(state, { errors: otherErrors.slice(0, 5) }));
     }
@@ -267,10 +249,8 @@ async function tinymceTests(browser, base) {
  * The deinit path these tests cover is shared by every integration, so check
  * the other two examples through one edit cycle as well.
  */
-async function otherEditorTests(browser, base) {
-    var page = await browser.newPage();
-
-    await cdp.goto(page, base + '/example/ckeditor.html');
+async function otherEditorTests(t) {
+    var page = await t.page('/example/ckeditor.html');
     await page.waitFor(`window.CKEDITOR && jQuery('#myGrid').data('grideditor')`, { label: 'ckeditor page' });
 
     var state = `return {
@@ -291,39 +271,26 @@ async function otherEditorTests(browser, base) {
     // 4.22.1 is the last release under the open source licence, so its
     // "consider upgrading" notice is expected and not a test failure
     var ckErrors = page.errors([/version is not secure/]);
-    check('ckeditor edits, exports clean html and edits again',
+    t.check('ckeditor edits, exports clean html and edits again',
         ckediting.instances === 1 && afterExport.instances === 0 && !afterExport.rteActive &&
         ckReEdited.instances === 1 && !/contenteditable|cke_|ge-rte-active/.test(html) && ckErrors.length === 0,
         { editing: ckediting, afterExport: afterExport, reEdited: ckReEdited, errors: ckErrors.slice(0, 3) });
 
-    skip('summernote edits, exports clean html and edits again',
+    t.skip('summernote edits, exports clean html and edits again',
         'summernote 0.9.1 calls $.now(), which jQuery 4 removed, so ' +
         'example/summernote.html cannot initialize an editor at all.');
 }
 
-async function main() {
-    var server = await serve(ROOT);
-    var browser = await cdp.launchChrome();
+module.exports = {
+    name: 'rte',
+    description: 'rich text editor integrations',
+    requiresNetwork: true,
+    run: async function(t) {
+        await tinymceTests(t);
+        await otherEditorTests(t);
+    },
+};
 
-    try {
-        await tinymceTests(browser, server.url);
-        await otherEditorTests(browser, server.url);
-    } catch (error) {
-        console.log('\nThe run stopped early: ' + (error && error.stack || error));
-        results.push({ name: 'the run completed', passed: false });
-    } finally {
-        browser.close();
-        await server.close();
-    }
-
-    var failed = results.filter(function(result) { return result.passed === false; });
-    var skipped = results.filter(function(result) { return result.skipped; });
-    console.log(
-        '\n' + (results.length - failed.length - skipped.length) + ' passed, ' +
-        failed.length + ' failed, ' + skipped.length + ' skipped'
-    );
-
-    process.exitCode = failed.length ? 1 : 0;
+if (require.main === module) {
+    require('./run').main(['rte']);
 }
-
-main();

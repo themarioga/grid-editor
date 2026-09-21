@@ -16,16 +16,41 @@ During development, you can also run `npm run watch` to automatically rebuild on
 Running the tests
 =================
 
-The tests drive the example pages in a real Chrome, against the real editors
-loaded from their CDNs, so they need Chrome or Chromium installed and an
-internet connection. They test the files in the `dist` directory, so build
-first:
+The tests drive real pages in a real Chrome over the DevTools protocol, so they
+need Chrome or Chromium installed. They test the files in the `dist` directory,
+so build first:
 
 * `npm run build`
 * `npm test`
 
 There is nothing extra to install: the tests use node and Chrome, and start
-their own web server. Set `CHROME=/path/to/chrome` if your browser is not on
-the PATH under a name they look for, `HEADFUL=1` to watch the run in a visible
-window, or `CHROME_LOG=1` to see Chrome's own output. A run leaves a screenshot
-of the editor in `test/screenshots`.
+their own web server. `npm test` runs every suite in `test/` in one Chrome and
+prints one summary, and exits non-zero if anything failed. To run a single
+suite, pass part of its name:
+
+* `npm test -- rte`
+
+A suite can also be run on its own with `node test/rte.js`.
+
+The fixture pages in `test/fixtures` load jQuery, jQuery UI and Bootstrap from
+`test/vendor` rather than from a CDN, so most of the suite runs offline. The
+rich text editor suite is the exception: it loads tinyMCE, CKEditor and
+Summernote from their CDNs to test against the real editors, and the runner
+skips it, with a reason, when there is no network. `OFFLINE=1 npm test` forces
+that path.
+
+Set `CHROME=/path/to/chrome` if your browser is not on the PATH under a name
+the tests look for, `HEADFUL=1` to watch the run in a visible window, or
+`CHROME_LOG=1` to see Chrome's own output. A run leaves a screenshot of the
+editor in `test/screenshots`.
+
+See `test/vendor/README.md` for what is vendored and how to refresh it, and the
+comment at the top of `test/run.js` for what a suite looks like.
+
+Linting
+=======
+
+* `npm run lint`
+
+The configuration lives in `eslint.config.js`. Keep it clean: almost every rule
+is a warning, so warnings are the output that matters.

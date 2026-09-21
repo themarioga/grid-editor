@@ -25,8 +25,8 @@ $.fn.gridEditor = function( options ) {
         if (grideditor) {
             grideditor.remove();
         }
-        return;
-    } 
+        return self;
+    }
     
     /** Initialize plugin */
 
@@ -75,9 +75,9 @@ $.fn.gridEditor = function( options ) {
         // Copy html to sourceElement if a source textarea is given
         if (settings.source_textarea) {
             var sourceHtml = $(settings.source_textarea).val();
-            if(sourceHtml.length > 0 && $('<div>'+sourceHtml+'</div>').find('.row').addBack('.row').length == 0) {
-                var row = createRow();
-                var column = createColumn(12).appendTo(row);
+            if (sourceHtml.length > 0 && $('<div>' + sourceHtml + '</div>').find('.row').addBack('.row').length == 0) {
+                var sourceRow = createRow();
+                var column = createColumn(12).appendTo(sourceRow);
                 column.find('.ge-content').html(sourceHtml);
                 sourceHtml = column.html();
             } 
@@ -115,7 +115,7 @@ $.fn.gridEditor = function( options ) {
                             createColumn(i).appendTo(row);
                         });
                         init();
-                        if (row[0].scrollIntoView) row[0].scrollIntoView({behavior: 'smooth'});
+                        if (row[0].scrollIntoView) { row[0].scrollIntoView({behavior: 'smooth'}); }
                     })
                     .appendTo(addRowGroup)
                 ;
@@ -135,9 +135,9 @@ $.fn.gridEditor = function( options ) {
             var layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
                 '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">Desktop</button>' +
                     '<div class="dropdown-menu" role="menu">' +
-                        '<a class="dropdown-item" data-width="auto" title="Desktop">Desktop</a>'+
-                        '<a class="dropdown-item" title="Tablet">Tablet'+
-                        '<a class="dropdown-item" title="Phone">Phone</a>'+
+                        '<a class="dropdown-item" data-width="auto" title="Desktop">Desktop</a>' +
+                        '<a class="dropdown-item" title="Tablet">Tablet' +
+                        '<a class="dropdown-item" title="Phone">Phone</a>' +
                     '</div>' +
                 '</div>')
                 .on('click', 'a', function() {
@@ -373,7 +373,7 @@ $.fn.gridEditor = function( options ) {
         function getColumnSizes(row) {
             var layout = colClasses[curColClassIndex];
             var size = 0;
-            row.find('> [class*="'+layout+'"]').each(function(){
+            row.find('> [class*="' + layout + '"]').each(function(){
                 size += getColSize($(this));
             });
             return size;

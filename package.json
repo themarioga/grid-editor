@@ -1,8 +1,10 @@
 {
   "scripts": {
     "build": "grunt",
+    "lint": "eslint .",
     "start": "npm run watch",
-    "test": "node test/rte.js",
+    "test": "node test/run.js",
+    "test:vendor": "node test/vendor/update.js",
     "watch": "grunt watch"
   },
   "repository": {
@@ -10,6 +12,7 @@
     "url": "git+https://github.com/Frontwise/grid-editor.git"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
     "grunt": "^1.6.3",
     "grunt-cli": "^1.5.0",
     "grunt-contrib-clean": "^2.0.1",

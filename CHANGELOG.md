@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
+  web server across every suite in `test/`, prints one summary and exits
+  non-zero on any failure. `npm test -- rte` runs a single suite, and
+  `node test/rte.js` still works on its own.
+- Vendored test dependencies under `test/vendor` (jQuery, jQuery UI, Bootstrap
+  and bootstrap-icons), and a base fixture page in `test/fixtures` that loads
+  them, so the suite runs with the network switched off. The rich text editor
+  suite keeps loading the editors from their CDNs and is skipped, with a
+  reason, when there is no network.
+- `npm run lint`, on a flat `eslint.config.js` for eslint 9, with eslint pinned
+  in devDependencies. The old `.eslintrc` named `babel-eslint` and
+  pre-flat-config rule names, so it had stopped running on a current eslint.
+
+### Changed
+- `$(el).gridEditor('remove')` returns the jQuery object instead of
+  `undefined`, so it chains like the other methods.
+
 ## [2.0.0] - 2026-09-21
 ### Changed
 - **BREAKING:** Migrate from Bootstrap 4 to Bootstrap 5. The layout mode
