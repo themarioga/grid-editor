@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   works, and `init_instance_callback` is now honoured too.
 
 ### Added
+- Browser tests for the rich text editor integrations, run with `npm test`.
+  They drive the example pages in a real Chrome over the DevTools protocol,
+  against the real editors, since what breaks in these integrations only
+  happens in a browser. They need node and Chrome, and nothing else: see
+  BUILDING.md.
 - `example/index-autosave.html`, demonstrating auto save to localStorage plus
   layout import/export, by [@Ka-Bar](https://github.com/Ka-Bar).
 - Example dependencies updated to current releases: jQuery 4.0.0, jQuery UI

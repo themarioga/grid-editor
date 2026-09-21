@@ -2,6 +2,7 @@
   "scripts": {
     "build": "grunt",
     "start": "npm run watch",
+    "test": "node test/rte.js",
     "watch": "grunt watch"
   },
   "repository": {
