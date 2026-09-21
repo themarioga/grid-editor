@@ -9,13 +9,13 @@
     "url": "git+https://github.com/Frontwise/grid-editor.git"
   },
   "devDependencies": {
-    "grunt": "^1.0.4",
-    "grunt-cli": "^1.3.2",
-    "grunt-contrib-clean": "^2.0.0",
-    "grunt-contrib-concat": "^1.0.1",
-    "grunt-contrib-cssmin": "^3.0.0",
-    "grunt-contrib-less": "^2.0.0",
-    "grunt-contrib-uglify": "^4.0.1",
+    "grunt": "^1.6.3",
+    "grunt-cli": "^1.5.0",
+    "grunt-contrib-clean": "^2.0.1",
+    "grunt-contrib-concat": "^2.1.0",
+    "grunt-contrib-cssmin": "^5.0.0",
+    "grunt-contrib-less": "^3.0.0",
+    "grunt-contrib-uglify": "^5.2.2",
     "grunt-contrib-watch": "^1.1.0"
   },
   "name": "@frontwise/grid-editor",
