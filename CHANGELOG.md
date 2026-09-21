@@ -19,9 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layout import/export, by [@Ka-Bar](https://github.com/Ka-Bar).
 - Example dependencies updated to current releases: jQuery 4.0.0, jQuery UI
   1.14.2, Bootstrap 5.3.8, Bootstrap Icons 1.13.1, summernote 0.9.1 and
-  CKEditor 4.22.1. CKEditor stays on 4.22.1 deliberately: it is the last
-  release under the GPL/LGPL/MPL triple licence, as 4.23.0 and above are
-  CKEditor 4 LTS under the commercial Extended Support Model.
+  CKEditor 4.22.1 and TinyMCE 5.10.9. Two of those stop short of the latest
+  release on purpose. CKEditor stays on 4.22.1 because it is the last under
+  the GPL/LGPL/MPL triple licence; 4.23.0 and above are CKEditor 4 LTS under
+  the commercial Extended Support Model. TinyMCE stays on 5.10.9 because the
+  `jquery.tinymce.js` shim the integration is built on was dropped after 5.x,
+  and because 7.x is GPL-2.0-or-later and 8.x is commercial.
 
 ### Fixed
 - Guard the rich text editor lookup. A `content_types` entry with no matching
