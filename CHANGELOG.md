@@ -13,18 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bootstrap-icons instead of Font Awesome. The default `iconClass` for custom
   `row_tools` and `col_tools` is now `bi bi-wrench`.
   Based on work by [@vahidalvandi](https://github.com/vahidalvandi).
+- **BREAKING:** The tinyMCE integration now targets tinyMCE 6 and no longer
+  uses the `jquery.tinymce.js` plugin, which tinyMCE dropped after 5.x. Pages
+  using `content_types: ['tinymce']` must load tinyMCE 6 and must stop loading
+  the jQuery integration plugin. A `tinymce.config.oninit` callback still
+  works, and `init_instance_callback` is now honoured too.
 
 ### Added
 - `example/index-autosave.html`, demonstrating auto save to localStorage plus
   layout import/export, by [@Ka-Bar](https://github.com/Ka-Bar).
 - Example dependencies updated to current releases: jQuery 4.0.0, jQuery UI
-  1.14.2, Bootstrap 5.3.8, Bootstrap Icons 1.13.1, summernote 0.9.1 and
-  CKEditor 4.22.1 and TinyMCE 5.10.9. Two of those stop short of the latest
-  release on purpose. CKEditor stays on 4.22.1 because it is the last under
-  the GPL/LGPL/MPL triple licence; 4.23.0 and above are CKEditor 4 LTS under
-  the commercial Extended Support Model. TinyMCE stays on 5.10.9 because the
-  `jquery.tinymce.js` shim the integration is built on was dropped after 5.x,
-  and because 7.x is GPL-2.0-or-later and 8.x is commercial.
+  1.14.2, Bootstrap 5.3.8, Bootstrap Icons 1.13.1, summernote 0.9.1,
+  CKEditor 4.22.1 and TinyMCE 6.8.6. CKEditor stops short of the latest
+  release on purpose: 4.22.1 is the last under the GPL/LGPL/MPL triple
+  licence, as 4.23.0 and above are CKEditor 4 LTS under the commercial
+  Extended Support Model. TinyMCE stops at 6.8.6 because it is the last MIT
+  licensed release; 7.x is GPL-2.0-or-later and 8.x is commercial.
 
 ### Fixed
 - Guard the rich text editor lookup. A `content_types` entry with no matching

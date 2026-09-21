@@ -16,6 +16,11 @@ needed__. What changes is what you load on the page:
 * If you pass custom `row_tools` or `col_tools`, their default `iconClass` is
   now `bi bi-wrench`. Any `iconClass` you pass explicitly as `fa fa-*` must be
   changed to a bootstrap icons class.
+* If you use `content_types: ['tinymce']`, load __tinyMCE 6__ and stop loading
+  the `jquery.tinymce.js` integration plugin. TinyMCE dropped that plugin after
+  5.x, so the integration now calls `tinymce.init()` directly. A
+  `tinymce.config.oninit` callback keeps working, and `init_instance_callback`
+  is honoured as well.
 
 Upgrading from grid-editor `0.*` to `1.*`
 =========================================

@@ -15,7 +15,7 @@ Installation
 ------------
 
 * __Dependencies:__ Grid Editor depends on jQuery, jQuery UI, Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
-    * If you want to use the tincyMCE integration, include tinyMCE and tinyMCE jQuery plugin as well.
+    * If you want to use the tinyMCE integration, include tinyMCE 6 as well. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
     * If you want to use the summernote integration, include summernote as well.
     * If you want to use the CKEditor integration... you get the point.
 * [Download the latest version of Grid Editor](https://github.com/Frontwise/grid-editor/archive/master.zip) and include it in your page: 
@@ -184,7 +184,7 @@ $('#myGrid').gridEditor({
 ```
 
 __`tinymce.config`:__ Specify tinyMCE config, when using the `tinymce` `content_types`.
-See the [tinyMCE documentation](http://www.tinymce.com/wiki.php/Configuration).
+See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/6/).
 Also check out the [tinymce example](https://transfer.frontwise.com/frontwise/grid-editor/example/index.html).
 
 ```javascript
