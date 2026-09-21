@@ -219,9 +219,13 @@
   max-width: 400px;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-xs .col-sm-1 {
   flex: 0 0 auto;
@@ -785,102 +789,14 @@
   max-width: 576px;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
-}
-.ge-canvas.ge-layout-sm .col-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .col-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-sm .offset-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-sm .offset-11 {
-  margin-left: 0;
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-sm .col-md-1 {
   flex: 0 0 auto;
@@ -1254,6 +1170,99 @@
 .ge-canvas.ge-layout-sm .offset-xxl-11 {
   margin-left: 0;
 }
+.ge-canvas.ge-layout-sm .col-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-sm .col-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-sm .col-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-sm .col-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-sm .col-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-sm .col-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-sm .col-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-sm .col-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-sm .col-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-sm .col-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-sm .col-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-sm .col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-sm .offset-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-sm .offset-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-sm .offset-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-sm .offset-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-sm .offset-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-sm .offset-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-sm .offset-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-sm .offset-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-sm .offset-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-sm .offset-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-sm .offset-11 {
+  margin-left: 91.66666667%;
+}
 .ge-canvas.ge-layout-sm .col-sm-1 {
   flex: 0 0 auto;
   width: 8.33333333%;
@@ -1351,195 +1360,15 @@
   max-width: 768px;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
-}
-.ge-canvas.ge-layout-md .col-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .offset-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .col-sm-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .col-sm-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-md .offset-sm-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-md .offset-sm-11 {
-  margin-left: 0;
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-md .col-lg-1 {
   flex: 0 0 auto;
@@ -1820,6 +1649,192 @@
 .ge-canvas.ge-layout-md .offset-xxl-11 {
   margin-left: 0;
 }
+.ge-canvas.ge-layout-md .col-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-md .col-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-md .col-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-md .col-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-md .col-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-md .col-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-md .col-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-md .col-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-md .col-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-md .col-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-md .col-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-md .col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-md .offset-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-md .offset-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-md .offset-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-md .offset-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-md .col-sm-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-md .col-sm-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-md .col-sm-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-md .col-sm-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-md .col-sm-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-md .col-sm-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-md .col-sm-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-md .col-sm-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-md .col-sm-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-md .col-sm-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-md .col-sm-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-md .col-sm-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-md .offset-sm-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-sm-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-sm-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-md .offset-sm-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-sm-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-sm-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-md .offset-sm-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-sm-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-md .offset-sm-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-md .offset-sm-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-md .offset-sm-11 {
+  margin-left: 91.66666667%;
+}
 .ge-canvas.ge-layout-md .col-md-1 {
   flex: 0 0 auto;
   width: 8.33333333%;
@@ -1917,288 +1932,16 @@
   max-width: 992px;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
-}
-.ge-canvas.ge-layout-lg .col-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .offset-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .col-sm-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-sm-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .offset-sm-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-sm-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .col-md-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .col-md-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-lg .offset-md-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-lg .offset-md-11 {
-  margin-left: 0;
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-lg .col-xl-1 {
   flex: 0 0 auto;
@@ -2386,6 +2129,285 @@
 .ge-canvas.ge-layout-lg .offset-xxl-11 {
   margin-left: 0;
 }
+.ge-canvas.ge-layout-lg .col-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-lg .col-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-lg .col-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-lg .col-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-lg .offset-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-lg .offset-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-lg .offset-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-lg .offset-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-sm-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-sm-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-sm-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-lg .col-sm-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-sm-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-sm-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-lg .col-sm-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-sm-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-sm-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-lg .col-sm-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-sm-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-sm-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-sm-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-md-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-md-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-md-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-lg .col-md-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-md-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-md-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-lg .col-md-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-md-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-md-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-lg .col-md-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .col-md-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-lg .col-md-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-lg .offset-md-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-md-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-md-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-lg .offset-md-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-md-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-md-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-lg .offset-md-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-md-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-lg .offset-md-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-lg .offset-md-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-lg .offset-md-11 {
+  margin-left: 91.66666667%;
+}
 .ge-canvas.ge-layout-lg .col-lg-1 {
   flex: 0 0 auto;
   width: 8.33333333%;
@@ -2483,381 +2505,17 @@
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
-}
-.ge-canvas.ge-layout-xl .col-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .offset-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .col-sm-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-sm-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .offset-sm-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-sm-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .col-md-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-md-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .offset-md-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-md-11 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .col-lg-1 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-2 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-3 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-4 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-5 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-6 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-7 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-8 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-9 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-10 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-11 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .col-lg-12 {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: none;
-}
-.ge-canvas.ge-layout-xl .offset-lg-1 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-2 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-3 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-4 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-5 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-6 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-7 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-8 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-9 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-10 {
-  margin-left: 0;
-}
-.ge-canvas.ge-layout-xl .offset-lg-11 {
-  margin-left: 0;
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-xl .col-xxl-1 {
   flex: 0 0 auto;
@@ -2951,6 +2609,378 @@
 }
 .ge-canvas.ge-layout-xl .offset-xxl-11 {
   margin-left: 0;
+}
+.ge-canvas.ge-layout-xl .col-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-xl .col-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-xl .col-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-xl .col-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xl .offset-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-xl .offset-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-xl .offset-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-xl .offset-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-sm-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-sm-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-sm-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-xl .col-sm-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-sm-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-sm-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-xl .col-sm-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-sm-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-sm-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-xl .col-sm-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-sm-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-sm-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-sm-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-md-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-md-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-md-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-xl .col-md-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-md-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-md-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-xl .col-md-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-md-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-md-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-xl .col-md-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-md-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-md-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xl .offset-md-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-md-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-md-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-xl .offset-md-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-md-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-md-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-xl .offset-md-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-md-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-md-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-xl .offset-md-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-md-11 {
+  margin-left: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-lg-1 {
+  flex: 0 0 auto;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-lg-2 {
+  flex: 0 0 auto;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-lg-3 {
+  flex: 0 0 auto;
+  width: 25%;
+  max-width: 25%;
+}
+.ge-canvas.ge-layout-xl .col-lg-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-lg-5 {
+  flex: 0 0 auto;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-lg-6 {
+  flex: 0 0 auto;
+  width: 50%;
+  max-width: 50%;
+}
+.ge-canvas.ge-layout-xl .col-lg-7 {
+  flex: 0 0 auto;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-lg-8 {
+  flex: 0 0 auto;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-lg-9 {
+  flex: 0 0 auto;
+  width: 75%;
+  max-width: 75%;
+}
+.ge-canvas.ge-layout-xl .col-lg-10 {
+  flex: 0 0 auto;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .col-lg-11 {
+  flex: 0 0 auto;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
+}
+.ge-canvas.ge-layout-xl .col-lg-12 {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-1 {
+  margin-left: 8.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-2 {
+  margin-left: 16.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-3 {
+  margin-left: 25%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-4 {
+  margin-left: 33.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-5 {
+  margin-left: 41.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-6 {
+  margin-left: 50%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-7 {
+  margin-left: 58.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-8 {
+  margin-left: 66.66666667%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-9 {
+  margin-left: 75%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-10 {
+  margin-left: 83.33333333%;
+}
+.ge-canvas.ge-layout-xl .offset-lg-11 {
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xl .col-xl-1 {
   flex: 0 0 auto;
@@ -3049,474 +3079,483 @@
   max-width: none;
   margin-left: auto;
   margin-right: auto;
-  /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-  /* the active tier stays on */
+  /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
+  /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-canvas.ge-layout-xxl .col-1 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-2 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-3 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 25%;
+  max-width: 25%;
 }
 .ge-canvas.ge-layout-xxl .col-4 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-5 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-6 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 50%;
+  max-width: 50%;
 }
 .ge-canvas.ge-layout-xxl .col-7 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-8 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-9 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 75%;
+  max-width: 75%;
 }
 .ge-canvas.ge-layout-xxl .col-10 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-11 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-12 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 .ge-canvas.ge-layout-xxl .offset-1 {
-  margin-left: 0;
+  margin-left: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-2 {
-  margin-left: 0;
+  margin-left: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-3 {
-  margin-left: 0;
+  margin-left: 25%;
 }
 .ge-canvas.ge-layout-xxl .offset-4 {
-  margin-left: 0;
+  margin-left: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-5 {
-  margin-left: 0;
+  margin-left: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-6 {
-  margin-left: 0;
+  margin-left: 50%;
 }
 .ge-canvas.ge-layout-xxl .offset-7 {
-  margin-left: 0;
+  margin-left: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-8 {
-  margin-left: 0;
+  margin-left: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-9 {
-  margin-left: 0;
+  margin-left: 75%;
 }
 .ge-canvas.ge-layout-xxl .offset-10 {
-  margin-left: 0;
+  margin-left: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-11 {
-  margin-left: 0;
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-1 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-2 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-3 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 25%;
+  max-width: 25%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-4 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-5 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-6 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 50%;
+  max-width: 50%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-7 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-8 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-9 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 75%;
+  max-width: 75%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-10 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-11 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-sm-12 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-1 {
-  margin-left: 0;
+  margin-left: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-2 {
-  margin-left: 0;
+  margin-left: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-3 {
-  margin-left: 0;
+  margin-left: 25%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-4 {
-  margin-left: 0;
+  margin-left: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-5 {
-  margin-left: 0;
+  margin-left: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-6 {
-  margin-left: 0;
+  margin-left: 50%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-7 {
-  margin-left: 0;
+  margin-left: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-8 {
-  margin-left: 0;
+  margin-left: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-9 {
-  margin-left: 0;
+  margin-left: 75%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-10 {
-  margin-left: 0;
+  margin-left: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-sm-11 {
-  margin-left: 0;
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-md-1 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-md-2 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-md-3 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 25%;
+  max-width: 25%;
 }
 .ge-canvas.ge-layout-xxl .col-md-4 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-md-5 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-md-6 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 50%;
+  max-width: 50%;
 }
 .ge-canvas.ge-layout-xxl .col-md-7 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-md-8 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-md-9 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 75%;
+  max-width: 75%;
 }
 .ge-canvas.ge-layout-xxl .col-md-10 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-md-11 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-md-12 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-1 {
-  margin-left: 0;
+  margin-left: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-2 {
-  margin-left: 0;
+  margin-left: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-3 {
-  margin-left: 0;
+  margin-left: 25%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-4 {
-  margin-left: 0;
+  margin-left: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-5 {
-  margin-left: 0;
+  margin-left: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-6 {
-  margin-left: 0;
+  margin-left: 50%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-7 {
-  margin-left: 0;
+  margin-left: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-8 {
-  margin-left: 0;
+  margin-left: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-9 {
-  margin-left: 0;
+  margin-left: 75%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-10 {
-  margin-left: 0;
+  margin-left: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-md-11 {
-  margin-left: 0;
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-1 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-2 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-3 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 25%;
+  max-width: 25%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-4 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-5 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-6 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 50%;
+  max-width: 50%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-7 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-8 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-9 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 75%;
+  max-width: 75%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-10 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-11 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-lg-12 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-1 {
-  margin-left: 0;
+  margin-left: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-2 {
-  margin-left: 0;
+  margin-left: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-3 {
-  margin-left: 0;
+  margin-left: 25%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-4 {
-  margin-left: 0;
+  margin-left: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-5 {
-  margin-left: 0;
+  margin-left: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-6 {
-  margin-left: 0;
+  margin-left: 50%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-7 {
-  margin-left: 0;
+  margin-left: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-8 {
-  margin-left: 0;
+  margin-left: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-9 {
-  margin-left: 0;
+  margin-left: 75%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-10 {
-  margin-left: 0;
+  margin-left: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-lg-11 {
-  margin-left: 0;
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-1 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 8.33333333%;
+  max-width: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-2 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 16.66666667%;
+  max-width: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-3 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 25%;
+  max-width: 25%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-4 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 33.33333333%;
+  max-width: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-5 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 41.66666667%;
+  max-width: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-6 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 50%;
+  max-width: 50%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-7 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 58.33333333%;
+  max-width: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-8 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 66.66666667%;
+  max-width: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-9 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 75%;
+  max-width: 75%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-10 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 83.33333333%;
+  max-width: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-11 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 91.66666667%;
+  max-width: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xl-12 {
   flex: 0 0 auto;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-1 {
-  margin-left: 0;
+  margin-left: 8.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-2 {
-  margin-left: 0;
+  margin-left: 16.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-3 {
-  margin-left: 0;
+  margin-left: 25%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-4 {
-  margin-left: 0;
+  margin-left: 33.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-5 {
-  margin-left: 0;
+  margin-left: 41.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-6 {
-  margin-left: 0;
+  margin-left: 50%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-7 {
-  margin-left: 0;
+  margin-left: 58.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-8 {
-  margin-left: 0;
+  margin-left: 66.66666667%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-9 {
-  margin-left: 0;
+  margin-left: 75%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-10 {
-  margin-left: 0;
+  margin-left: 83.33333333%;
 }
 .ge-canvas.ge-layout-xxl .offset-xl-11 {
-  margin-left: 0;
+  margin-left: 91.66666667%;
 }
 .ge-canvas.ge-layout-xxl .col-xxl-1 {
   flex: 0 0 auto;

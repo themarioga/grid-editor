@@ -121,6 +121,36 @@ async function effectiveClassTests(t) {
     t.check('the all view renders what the browser would, which at this width is the widest tier',
         measured.all === 8, measured);
 
+    // The tier classes cascade upward, as Bootstrap's do: a column that says
+    // nothing about md is whatever the nearest smaller tier said
+    var cascaded = await page.eval(MEASURE + `
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html(
+            '<div class="row">' +
+            '<div class="column col-4"><div class="ge-content"><p>x</p></div></div>' +
+            '<div class="column col-3 col-lg-6"><div class="ge-content"><p>x</p></div></div>' +
+            '</div>'
+        );
+        window.fixture.init();
+
+        const set = jQuery('#myGrid');
+        const columns = jQuery('#myGrid .column');
+        const seen = {};
+
+        for (const view of ${JSON.stringify(VIEWS)}) {
+            set.gridEditor('changeView', view);
+            await settle();
+            seen[view] = [units(columns[0], 'width'), units(columns[1], 'width')];
+        }
+
+        return seen;
+    `);
+    t.check('a tier with nothing of its own shows what the nearest smaller tier said',
+        JSON.stringify(cascaded.xs) === '[4,3]' && JSON.stringify(cascaded.sm) === '[4,3]' &&
+        JSON.stringify(cascaded.md) === '[4,3]' && JSON.stringify(cascaded.lg) === '[4,6]' &&
+        JSON.stringify(cascaded.xl) === '[4,6]' && JSON.stringify(cascaded.xxl) === '[4,6]',
+        cascaded);
+
     var offsets = await page.eval(MEASURE + `
         jQuery('#myGrid').gridEditor('destroy');
         jQuery('#myGrid').html(

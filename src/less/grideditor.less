@@ -273,26 +273,35 @@
         margin-left: auto;
         margin-right: auto;
 
-        /* Order matters: the tiers that are off are written first, so the
-           active tier's rules win between two rules of equal specificity */
-        .ge-tiers-off(@i);
-        .ge-columns-on(extract(@ge-col-prefixes, @i));
-        .ge-offsets-on(extract(@ge-offset-prefixes, @i));
+        /* Wider tiers are switched off, then every tier up to and including
+           this one is switched on in ascending order. That reproduces
+           Bootstrap's own cascade inside the preview: a column carrying only
+           col-4 is four units wide at sm too, and col-sm-6 overrides it
+           because it is written afterwards. All these rules have the same
+           specificity, so the order they are written in is the rule. */
+        .ge-tiers-above-off(@i);
+        .ge-tiers-upto-on(@i);
     }
 
     .ge-layout-modes(@i + 1);
 }
 
-.ge-tiers-off(@active, @j: 1) when (@j =< length(@ge-tiers)) {
-    .ge-tier-off(@j, @active);
-    .ge-tiers-off(@active, @j + 1);
+.ge-tiers-above-off(@active, @j: 1) when (@j =< length(@ge-tiers)) {
+    .ge-tier-above-off(@j, @active);
+    .ge-tiers-above-off(@active, @j + 1);
 }
-.ge-tier-off(@j, @active) when (@j = @active) {
-    /* the active tier stays on */
+.ge-tier-above-off(@j, @active) when (@j =< @active) {
+    /* this tier applies at the active one, so it is written by the pass below */
 }
-.ge-tier-off(@j, @active) when not (@j = @active) {
+.ge-tier-above-off(@j, @active) when (@j > @active) {
     .ge-columns-off(extract(@ge-col-prefixes, @j));
     .ge-offsets-off(extract(@ge-offset-prefixes, @j));
+}
+
+.ge-tiers-upto-on(@active, @j: 1) when (@j =< @active) {
+    .ge-columns-on(extract(@ge-col-prefixes, @j));
+    .ge-offsets-on(extract(@ge-offset-prefixes, @j));
+    .ge-tiers-upto-on(@active, @j + 1);
 }
 
 .ge-columns-on(@prefix, @i: 1) when (@i =< @ge-columns) {

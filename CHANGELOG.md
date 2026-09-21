@@ -151,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its class and nothing else.
 - The layout mode LESS is list-driven over the breakpoint table instead of
   taking exactly four tier arguments, and covers offsets as well as columns.
+  A preview reproduces Bootstrap's cascade rather than showing one tier in
+  isolation: a column carrying only `col-4` is four units wide in the `sm`
+  preview too, and `col-sm-6` overrides it. The 2.x code switched every other
+  tier off, which only worked because every column was seeded with a class per
+  tier.
 
 - A canceled `before-resize` on a drag is refused on every step of the drag
   rather than before it starts: jQuery UI's `resizable` ignores `false` from
