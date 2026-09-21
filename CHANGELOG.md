@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example/index-autosave.html`, demonstrating auto save to localStorage plus
   layout import/export, by [@Ka-Bar](https://github.com/Ka-Bar).
 
+### Fixed
+- Guard the rich text editor lookup. A `content_types` entry with no matching
+  registered editor, or an empty `content_types`, made `getHtml`, `remove`,
+  add row and add column throw on an undefined editor. They now no-op for that
+  content area, matching how `initRTE` already behaved.
+
 ## [1.0.8]
 - Fix for moving rows in columns #117
 

@@ -250,7 +250,10 @@ $.fn.gridEditor = function( options ) {
             canvas.removeClass('ge-editing');
             var contents = canvas.find('.ge-content').removeClass('ge-rte-active').each(function() {
                 var content = $(this);
-                getRTE(content.data('ge-content-type')).deinit(settings, content);
+                var rte = getRTE(content.data('ge-content-type'));
+                if (rte) {
+                    rte.deinit(settings, content);
+                }
             });
             canvas.find('.ge-tools-drawer').remove();
             removeSortable();
@@ -509,10 +512,11 @@ $.fn.gridEditor = function( options ) {
         }
 
         function createColumn(size) {
+            var rte = getRTE(settings.content_types[0]);
             return $('<div/>')
                 .addClass(colClasses.map(function(c) { return c + size; }).join(' '))
                 .append(createDefaultContentWrapper().html(
-                    getRTE(settings.content_types[0]).initialContent)
+                    rte ? rte.initialContent : '')
                 )
             ;
         }
