@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [2.0.0] - 2026-09-21
 ### Changed
 - **BREAKING:** Migrate from Bootstrap 4 to Bootstrap 5. The layout mode
   dropdown now uses `data-bs-toggle`, so consumers must load Bootstrap 5.
