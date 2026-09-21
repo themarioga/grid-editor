@@ -38,6 +38,11 @@
                                     if (callback) {
                                         callback.call(this);
                                     }
+
+                                    // The editor owns what is inside the
+                                    // content area now, so the grid editor is
+                                    // told to put its own furniture back
+                                    contentArea.trigger('ge-rte-ready');
                                     
                                     contentArea.summernote('focus');
                                 }

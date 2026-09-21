@@ -31,6 +31,8 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.add_column` | Add column | Row drawer, adds a column |
 | `tool.delete_row` | Remove row | Row drawer |
 | `tool.delete_column` | Remove col | Column drawer |
+| `tool.delete_element` | Remove element | Element drawer |
+| `tool.element_info` | Element: {name} | Tooltip of the element drawer's info tool. `{name}` is the element's `data-ge-label`, its `data-ge-element` type, or both |
 | `tool.column_narrower` | Make column narrower\n(hold shift for min) | Column drawer, the `-` tool. Two lines |
 | `tool.column_wider` | Make column wider\n(hold shift for max) | Column drawer, the `+` tool. Two lines |
 | `tool.indent_decrease` | Decrease indent\n(hold shift for none) | Column drawer, removes offset units |
@@ -60,6 +62,7 @@ cancels `grideditor:before-delete` and asks in its own way.
 | --- | --- | --- |
 | `confirm.delete_row` | Delete row? | Before a row is removed |
 | `confirm.delete_column` | Delete column? | Before a column is removed |
+| `confirm.delete_element` | Delete element? | Before an element is removed |
 
 
 view.*

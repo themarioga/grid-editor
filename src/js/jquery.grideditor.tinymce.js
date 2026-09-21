@@ -52,6 +52,12 @@
 
                         contentArea.data('ge-tinymce', editor);
 
+                        // The editor rewrote what is inside this content area
+                        // while it took it over, so whatever the grid editor
+                        // had in there is gone. Saying so lets it put its own
+                        // furniture back (see RTE_READY in the core).
+                        contentArea.trigger('ge-rte-ready');
+
                         // Bring focus to text field
                         editor.focus();
 

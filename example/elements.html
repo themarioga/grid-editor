@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.14.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="../dist/jquery.grideditor.min.js"></script>
+
+    <style>
+        /* The host styles its own elements. Grid editor only adds its drawer
+           and, while editing, the outline that says "this is one thing". */
+        .my-app-quote { border-left: 4px solid #999; padding-left: 12px; font-style: italic; }
+        .my-app-tag-placeholder {
+            display: inline-block;
+            border: 1px dashed #999;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            color: #666;
+            background: #f7f7f7;
+        }
+    </style>
+
+    <script>
+        $(function() {
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6,6]],
+                content_types: ['tinymce'],
+
+                elements: {
+                    // The default. Only nodes carrying this attribute are
+                    // elements, so nothing becomes one because of where it
+                    // happens to sit.
+                    selector: '[data-ge-element]',
+
+                    // Turn this on for a page that configures no rich text
+                    // editor and injects its own markup: every child of a
+                    // content area is then an element.
+                    auto: false,
+                },
+
+                // Host tools on every element drawer, same shape as row_tools
+                element_tools: [{
+                    title: 'Edit this element',
+                    iconClass: 'bi bi-pencil',
+                    className: 'my-app-edit',
+                    on: {
+                        click: function() {
+                            var element = $(this).closest('.ge-element');
+                            alert('The host would open its own editor for ' +
+                                element.attr('data-ge-element') + ' here.');
+                        },
+                    },
+                }],
+            });
+
+            // An element with no visual output of its own: the host supplies a
+            // placeholder to see and move while editing, and strips it in its
+            // own save step. Grid editor needs no feature for this - the
+            // element level controls already apply (spec 4.4).
+            $('#addTag').on('click', function() {
+                var contentArea = $('#myGrid .ge-content').first();
+
+                $('#myGrid').gridEditor('createElement',
+                    '<span class="my-app-tag-placeholder">Analytics tag</span>',
+                    { type: 'analytics-tag', label: 'Analytics', appendTo: contentArea }
+                );
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            });
+        });
+    </script>
+
+    <title>Grid Editor elements example</title>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-8">
+                <h1 class="h4">Element level controls</h1>
+                <p class="form-text">
+                    An element is a node inside a content area that the editor
+                    treats as one movable, deletable thing instead of as rich
+                    text. The host marks them with
+                    <code>data-ge-element</code>, optionally naming them with
+                    <code>data-ge-label</code>. Each one gets a drawer of its
+                    own: move, an info tool, the host's own tools, and delete.
+                    They drag between content areas as well as within one.
+                </p>
+                <p class="form-text">
+                    Click the text around an element to edit it as text; the
+                    element itself stays atomic while the editor is open.
+                </p>
+                <button class="btn btn-sm btn-secondary" id="addTag" type="button">Add an analytics tag</button>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="ge-content" data-ge-content-type="tinymce">
+                        <p>Ordinary text, edited in place by tinyMCE.</p>
+
+                        <blockquote class="my-app-quote" data-ge-element="quote" data-ge-label="Pull quote">
+                            <p>An element the host owns and styles.</p>
+                        </blockquote>
+
+                        <p>More ordinary text, after the element.</p>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="ge-content" data-ge-content-type="tinymce">
+                        <p>A second content area. Drag an element's drawer from
+                        the left column into this one.</p>
+
+                        <div data-ge-element="figure" data-ge-label="Figure">
+                            <p><strong>Figure 1.</strong> Another element, of a different type.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

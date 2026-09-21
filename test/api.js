@@ -284,7 +284,10 @@ async function createTests(t) {
             type: element.attr('data-ge-element'),
             label: element.attr('data-ge-label'),
             cssClass: element.attr('class'),
-            keptHostMarkup: element.html(),
+            // The element carries its drawer now that it is on the canvas,
+            // so what matters is that the host's own markup is still in there
+            keptHostMarkup: element.find('.my-app-tag').length === 1 &&
+                element.find('.my-app-tag').text() === 'Analytics tag',
             plainDetached: plain.parent().length === 0,
             plainType: plain.attr('data-ge-element'),
             plainLabel: plain.attr('data-ge-label'),
@@ -294,7 +297,7 @@ async function createTests(t) {
     t.check('createElement wraps host markup, marks it and places it',
         element.placed && element.type === 'analytics-tag' && element.label === 'Analytics' &&
         element.cssClass === 'ge-element' &&
-        element.keptHostMarkup === '<span class="my-app-tag">Analytics tag</span>' &&
+        element.keptHostMarkup &&
         element.plainDetached && element.plainType === 'element' &&
         element.plainLabel === undefined && element.canvasStillEditing,
         element);

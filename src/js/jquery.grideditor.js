@@ -89,6 +89,25 @@ function labelKeyFor(view) {
     return tier ? tier.labelKey : ALL_VIEW_LABEL_KEY;
 }
 
+/**
+ * Settings that are objects of grid-editor's own keys rather than something
+ * the host owns outright. A host naming one of their keys means "this one is
+ * different", not "forget the others", so these are filled in from their
+ * defaults instead of being replaced wholesale.
+ */
+var NESTED_SETTINGS = {
+    elements: {
+        enabled: 'auto', // 'auto' turns them on when the page has any
+        selector: '[data-ge-element]', // What the host marks an element with
+        auto: false, // Treat every child of a content area as an element
+    },
+    resize: {
+        enabled: true,
+        handles: 'e', // Which edges carry a handle, as jQuery UI names them
+        balance: 'next', // 'next' takes the units out of the following column
+    },
+};
+
 var warned = {};
 
 /**
@@ -206,17 +225,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                                         } ]
                                     */
             'row_tools'         : [],
+            'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
+            'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
             'default_view'      : ALL_VIEW,
-            'resize'            : { // Resizing a column by dragging its edge
-                enabled: true,
-                handles: 'e', // Which edges carry a handle, as jQuery UI names them
-                balance: 'next', // 'next' takes the units out of the following column
-            },
+            'resize'            : NESTED_SETTINGS.resize, // Resizing a column by dragging its edge
             'resizable_options' : {}, // Merged into every jQuery UI resizable
             'source_textarea'   : '',
             'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
@@ -225,6 +242,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'confirm_delete'    : true, // Ask before deleting a row or a column
             'sortable_options'  : {} // Merged into every jQuery UI sortable
         }, optionsOrMethod);
+
+        // Merged rather than replaced, so `elements: { auto: true }` keeps the
+        // default selector instead of losing it
+        $.each(NESTED_SETTINGS, function(name, defaults) {
+            settings[name] = $.extend({}, defaults, settings[name]);
+        });
 
 
         // Elems
@@ -548,6 +571,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             /* Init RTE on click */
             canvas.on('click', '.ge-content', initRTE);
+
+            // A rich text editor rewrites the content area as it takes over,
+            // which costs the element drawers inside it. The integrations say
+            // when their editor is ready, and the drawers go back in.
+            canvas.on('ge-rte-ready', '.ge-content', function() {
+                markElements();
+            });
         }
 
         /**
@@ -704,6 +734,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             wrapContent();
             createRowControls();
             createColControls();
+            markElements();
             makeSortable();
             makeResizable();
             switchLayout(curView);
@@ -724,6 +755,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 content.removeClass('ge-rte-active');
             });
             canvas.find('.ge-tools-drawer').remove();
+            unmarkElements();
             removeSortable();
             removeResizable();
             runFilter(false);
@@ -747,6 +779,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             htmlTextArea.remove();
             $(window).off('scroll', onScroll);
             canvas.off('click', '.ge-content', initRTE);
+            canvas.off('ge-rte-ready', '.ge-content');
             canvas.removeData('grideditor');
         }
 
@@ -754,6 +787,104 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             warnOnceHere('remove', 'remove() is deprecated and will be removed in a later ' +
                 'release. Use destroy(), which does the same thing.');
             destroy();
+        }
+
+        /* --------------------------------------------------------------
+         * Element level controls.
+         *
+         * An element is a node inside a content area that the editor treats
+         * as one movable, deletable thing instead of as rich text. Which
+         * nodes those are is the host's decision: it marks them, or it turns
+         * elements.auto on and every child of a content area counts.
+         * -------------------------------------------------------------- */
+
+        function elementsEnabled() {
+            if (settings.elements.enabled !== 'auto') { return !!settings.elements.enabled; }
+
+            return settings.elements.auto || canvas.find(settings.elements.selector).length > 0;
+        }
+
+        /** The elements of one content area: its marked children, or all of them. */
+        function elementsIn(contentArea) {
+            return settings.elements.auto
+                ? contentArea.children()
+                : contentArea.children(settings.elements.selector);
+        }
+
+        /**
+         * Give every element its class, its drawer and, while editing, the
+         * contenteditable="false" that makes a rich text editor treat it as
+         * one atomic thing rather than as text it may rewrite.
+         *
+         * The class is re-applied on every init rather than trusted to
+         * survive: an editor that snapshots and restores the markup inside a
+         * content area can drop it, and the marking that identifies an
+         * element lives in a data attribute for exactly that reason.
+         */
+        function markElements() {
+            if (!elementsEnabled()) { return; }
+
+            canvas.find('.ge-content').each(function() {
+                elementsIn($(this)).each(function() {
+                    var element = $(this).addClass('ge-element').attr('contenteditable', 'false');
+
+                    if (element.find('> .ge-tools-drawer').length) { return; }
+
+                    createElementControls(element);
+                });
+            });
+        }
+
+        function unmarkElements() {
+            canvas.find('.ge-element').each(function() {
+                var element = $(this).removeClass('ge-element').removeAttr('contenteditable');
+
+                // A host element that had no class of its own should not come
+                // back from getHtml carrying an empty one
+                if (!element.attr('class')) { element.removeAttr('class'); }
+            });
+        }
+
+        function createElementControls(element) {
+            // data-mce-bogus="all" is how tinyMCE is told that a node is the
+            // editor's furniture rather than content: it leaves the subtree
+            // alone and keeps it out of what it serializes. Without it the
+            // drawer's tools are inline elements with no text, which is
+            // exactly what its cleanup removes, so an element inside an open
+            // editor would lose its move and delete tools.
+            var drawer = $('<div class="ge-tools-drawer ge-element-drawer" />')
+                .attr('data-mce-bogus', 'all')
+                .prependTo(element)
+            ;
+
+            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            createTool(drawer, t('tool.element_info', { name: elementName(element) }),
+                'ge-element-info', 'bi bi-info-circle');
+
+            settings.element_tools.forEach(function(hostTool) {
+                createTool(drawer, hostTool.title || '', hostTool.className || '',
+                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
+            });
+
+            createTool(drawer, t('tool.delete_element'), 'ge-delete-element', 'bi bi-trash', function() {
+                deleteNode('element', element, t('confirm.delete_element'), function(removed) {
+                    element.animate({ opacity: 'hide', height: 'hide' }, 300, removed);
+                });
+            });
+        }
+
+        /**
+         * What the info tool calls this element: its label, its type, or both.
+         * An element found by elements.auto has neither, so it is named after
+         * its tag, which is the only thing it has said about itself.
+         */
+        function elementName(element) {
+            var type = element.attr('data-ge-element');
+            var label = element.attr('data-ge-label');
+
+            if (label && type) { return label + ' (' + type + ')'; }
+
+            return label || type || element[0].tagName.toLowerCase();
         }
 
         function createRowControls() {
@@ -1138,6 +1269,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 connectWith: '.ge-canvas, .ge-canvas .column',
             }, shared, settings.sortable_options));
 
+            // Elements move within a content area and between them, with
+            // their own drawer as the handle
+            if (elementsEnabled()) {
+                canvas.find('.ge-content').sortable($.extend({
+                    items: '> .ge-element',
+                    connectWith: '.ge-canvas .ge-content',
+                }, shared, settings.sortable_options));
+            }
+
             /**
              * jQuery UI cannot refuse a drag once it has started, so a
              * canceled before-move is remembered here and undone on drop
@@ -1370,7 +1510,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // Only where a sortable was actually made: deinit() is a public
             // method now, and jQuery UI throws when asked to destroy a widget
             // that is not there, so calling deinit() twice would fail.
-            canvas.add(canvas.find('.column')).add(canvas.find('.row')).each(function() {
+            canvas.add(canvas.find('.column')).add(canvas.find('.row'))
+                .add(canvas.find('.ge-content')).each(function() {
                 var node = $(this);
                 if (node.data('ui-sortable')) {
                     node.sortable('destroy');
@@ -1680,6 +1821,8 @@ $.fn.gridEditor.locales = {
         'tool.add_column': 'Add column',
         'tool.delete_row': 'Remove row',
         'tool.delete_column': 'Remove col',
+        'tool.delete_element': 'Remove element',
+        'tool.element_info': 'Element: {name}',
         'tool.column_narrower': 'Make column narrower\n(hold shift for min)',
         'tool.column_wider': 'Make column wider\n(hold shift for max)',
         'tool.indent_decrease': 'Decrease indent\n(hold shift for none)',
@@ -1692,6 +1835,7 @@ $.fn.gridEditor.locales = {
         'row.add': 'Add row {layout}',
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
+        'confirm.delete_element': 'Delete element?',
         'view.all': 'All sizes',
         'view.xs': 'Phone',
         'view.sm': 'Tablet',

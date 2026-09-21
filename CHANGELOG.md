@@ -80,6 +80,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation. They carry the same payload as the resize pair, with `from` and
   `to` as offsets.
 - `example/breakpoints.html`, showing the six tiers and the all view.
+- Element level controls, the level below a column. A node inside a content
+  area that the host marks with `data-ge-element` becomes an element: one
+  movable, deletable thing rather than rich text. Each gets a drawer with
+  move, an info tool named from `data-ge-element`/`data-ge-label`, the host's
+  own `element_tools`, and delete. Elements sort within a content area and
+  between content areas, and their events carry `kind: 'element'`.
+- The `elements` setting: `selector` (default `[data-ge-element]`), `auto`
+  (default `false`, treats every child of a content area as an element, for a
+  page that configures no rich text editor) and `enabled` (default `'auto'`,
+  which turns the feature on when the page has any elements).
+- Elements inside a content area get `contenteditable="false"` while editing,
+  so a rich text editor treats them as atomic rather than as text to rewrite.
+  Checked against a real tinyMCE, not assumed.
+- `example/elements.html`, including the pattern for an element with no visual
+  output of its own: the host supplies a placeholder and its own tools, which
+  is all spec 4.4 asks for.
 - Resizing a column by dragging its edge. jQuery UI `resizable` on every
   column, east handle by default, with `resize.enabled`, `resize.handles`,
   `resize.balance` and `resizable_options` to steer it. The column follows the
@@ -162,6 +178,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its start handler, unlike its `draggable`. Nothing is written either way.
 - `getHtml` output no longer carries an empty `style` attribute where an
   inline width was stripped.
+
+- Settings that are objects of grid-editor's own keys - `elements` and
+  `resize` - are merged with their defaults rather than replaced, so naming
+  one key no longer silently drops the others.
+- The rich text editor integrations fire `ge-rte-ready` on the content area
+  once their editor is up. An editor rewrites what is inside the content area
+  as it takes over, which costs the element drawers in it; this is how they
+  are put back.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still

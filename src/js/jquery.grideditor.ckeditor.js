@@ -36,7 +36,12 @@
                                     if (callback) {
                                         callback.call(this, evt);
                                     }
-                                    
+
+                                    // The editor owns what is inside the
+                                    // content area now, so the grid editor is
+                                    // told to put its own furniture back
+                                    contentArea.trigger('ge-rte-ready');
+
                                     instance.focus();
                                 }
                             }

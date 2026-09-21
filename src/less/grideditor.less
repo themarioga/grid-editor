@@ -3,6 +3,8 @@
 @rowTextColor: #666;
 @colColor: #2FA4E7;
 @colTextColor: darken(@colColor, 10%);
+@elementColor: #7B5EA7;
+@elementTextColor: darken(@elementColor, 5%);
 
 .ge-mainControls {
     position: relative;
@@ -173,6 +175,29 @@
     /* Content area */
     .ge-content-type-tinymce.active {
         outline: 1px dotted #333;
+    }
+
+    /* Elements: the level below a column, inside a content area. Dashed
+       rather than solid, so a page full of them still reads as content */
+    .ge-element {
+        position: relative;
+        outline: 1px dashed @elementColor;
+        margin-bottom: @editGutter;
+        padding: 0 @editGutter;
+
+        > .ge-element-drawer {
+            background: fadeout(@elementColor, 85%);
+            margin: 0 -@editGutter @editGutter;
+            width: calc(~"100% +" 2 * @editGutter);
+
+            > a {
+                color: @elementTextColor;
+                padding: 2px 5px;
+            }
+            > a.ge-element-info {
+                cursor: default;
+            }
+        }
     }
     
     /* Sorting */

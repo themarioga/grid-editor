@@ -60,6 +60,8 @@
 /* While editing */
 .ge-canvas.ge-editing {
   /* Content area */
+  /* Elements: the level below a column, inside a content area. Dashed
+       rather than solid, so a page full of them still reads as content */
   /* Sorting */
   /* A size change should read as a movement rather than a jump, but not
        while the pointer is dragging the edge: there the column follows the
@@ -147,6 +149,24 @@
 }
 .ge-canvas.ge-editing .ge-content-type-tinymce.active {
   outline: 1px dotted #333;
+}
+.ge-canvas.ge-editing .ge-element {
+  position: relative;
+  outline: 1px dashed #7B5EA7;
+  margin-bottom: 5px;
+  padding: 0 5px;
+}
+.ge-canvas.ge-editing .ge-element > .ge-element-drawer {
+  background: rgba(123, 94, 167, 0.15);
+  margin: 0 -5px 5px;
+  width: calc(100% + 2 * 5px);
+}
+.ge-canvas.ge-editing .ge-element > .ge-element-drawer > a {
+  color: #6f5398;
+  padding: 2px 5px;
+}
+.ge-canvas.ge-editing .ge-element > .ge-element-drawer > a.ge-element-info {
+  cursor: default;
 }
 .ge-canvas.ge-editing .ui-sortable-placeholder {
   background: rgba(255, 255, 0, 0.2);

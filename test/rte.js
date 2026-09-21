@@ -216,6 +216,74 @@ async function tinymceTests(t) {
         added.contentAreas > before.contentAreas && newArea.editorAttached && newArea.placeholderCleared,
         Object.assign({ before: before.contentAreas, after: added.contentAreas }, newArea));
 
+    // An element sitting in the same content area as text: the editor has to
+    // treat it as one atomic thing, and hand it back unchanged
+    await page.eval(`
+        jQuery('#myGrid').gridEditor('remove');
+        jQuery('#myGrid').html(
+            // The content type attribute is what an editor is started from,
+            // and a hand written content area has to carry it like the ones
+            // the editor wraps for itself do
+            '<div class="row"><div class="col-lg-12">' +
+            '<div class="ge-content" data-ge-content-type="tinymce">' +
+            '<p>Text before the element.</p>' +
+            '<div data-ge-element="callout" data-ge-label="Callout"><p>Inside the element.</p></div>' +
+            '<p>Text after the element.</p>' +
+            '</div></div></div>'
+        );
+        jQuery('#myGrid').gridEditor({ new_row_layouts: [[12]], content_types: ['tinymce'] });
+        return jQuery('#myGrid .ge-element').length;
+    `);
+    await page.click('.ge-content');
+    await sleep(2500);
+
+    var withElement = await page.eval(`
+        const element = jQuery('#myGrid .ge-element').first();
+        const editor = tinymce.get()[0];
+        return {
+            editorOpen: !!editor,
+            elementKept: element.length === 1,
+            contenteditable: element.attr('contenteditable'),
+            drawer: element.find('> .ge-tools-drawer').length,
+            tools: element.find('> .ge-tools-drawer > a').map(function() {
+                return jQuery(this).attr('class').split(' ')[0];
+            }).get().join(','),
+            typeKept: element.attr('data-ge-element'),
+            marked: element.hasClass('ge-element'),
+            editorSeesItAsAtomic: editor ? editor.dom.getAttrib(element[0], 'contenteditable') : null,
+        };
+    `);
+    t.check('an element inside an active editor is atomic, not text it may rewrite',
+        withElement.editorOpen && withElement.elementKept &&
+        withElement.contenteditable === 'false' && withElement.drawer === 1 &&
+        withElement.typeKept === 'callout' && withElement.marked &&
+        withElement.editorSeesItAsAtomic === 'false',
+        withElement);
+    t.check('the element keeps its tools after the editor has rewritten the content area',
+        withElement.tools === 'ge-move,ge-element-info,ge-delete-element', withElement);
+
+    var exportedElement = await page.eval(`
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        return {
+            html: html,
+            keptElement: /data-ge-element="callout"/.test(html),
+            keptLabel: /data-ge-label="Callout"/.test(html),
+            keptInnerText: html.indexOf('Inside the element.') !== -1,
+            keptTextAround: html.indexOf('Text before the element.') !== -1 &&
+                html.indexOf('Text after the element.') !== -1,
+            drawer: /ge-tools-drawer/.test(html),
+            editable: /contenteditable/i.test(html),
+            marking: /class="[^"]*ge-element/.test(html),
+            mce: /data-mce|mce-content-body/i.test(html),
+        };
+    `);
+    t.check('an element survives a round trip through the editor unchanged',
+        exportedElement.keptElement && exportedElement.keptLabel &&
+        exportedElement.keptInnerText && exportedElement.keptTextAround &&
+        !exportedElement.drawer && !exportedElement.editable &&
+        !exportedElement.marking && !exportedElement.mce,
+        Object.assign({}, exportedElement, { html: exportedElement.html.slice(0, 220) }));
+
     var errors = page.errors();
     t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
 
