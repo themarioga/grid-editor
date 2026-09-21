@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.14.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript, then the locales the page offers. English is
+         built into the plugin; every other language is a file of its own. -->
+    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/locales/grideditor.es.js"></script>
+
+    <script>
+        $(function() {
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6,6], [9,3]],
+                content_types: [],
+                locale: 'es',
+
+                // Individual keys can be overridden without a locale file,
+                // which is how a host uses its own word for something
+                locale_strings: {},
+            });
+
+            // Switching language at runtime re-renders the controls
+            $('#language').on('change', function() {
+                $('#myGrid').gridEditor('setLocale', this.value);
+            });
+        });
+    </script>
+
+    <title>Grid Editor locale example</title>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-6">
+                <label class="form-label" for="language">Idioma / Language</label>
+                <select class="form-select" id="language">
+                    <option value="es" selected>Español</option>
+                    <option value="en">English</option>
+                </select>
+                <p class="form-text">
+                    The tool tooltips, the layout mode dropdown, the add row
+                    buttons, the settings panel and the delete confirms all
+                    follow this dropdown. Hover a tool to read its tooltip.
+                </p>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1>Editor de rejilla</h1>
+                    <p>Pasa el ratón por encima de las herramientas para ver los textos traducidos.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <p>Una columna de ocho unidades.</p>
+                </div>
+                <div class="col-lg-4">
+                    <p>Una columna de cuatro unidades.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

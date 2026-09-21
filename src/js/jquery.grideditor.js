@@ -28,7 +28,7 @@ var METHODS = {
     createContainer:  { value: true, unimplemented: true },
     addTab:           { value: true, unimplemented: true },
     addAccordionItem: { value: true, unimplemented: true },
-    setLocale:        { unimplemented: true },
+    setLocale:        {},
 };
 
 /**
@@ -43,12 +43,42 @@ var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
  * column class the editor writes comes from this table.
  */
 var LAYOUT_MODES = [
-    { key: 'lg', colClass: 'col-lg-', cssClass: 'ge-layout-desktop', label: 'Desktop' },
-    { key: 'sm', colClass: 'col-sm-', cssClass: 'ge-layout-tablet', label: 'Tablet' },
-    { key: 'xs', colClass: 'col-', cssClass: 'ge-layout-phone', label: 'Phone' },
+    { key: 'lg', colClass: 'col-lg-', cssClass: 'ge-layout-desktop', labelKey: 'view.lg' },
+    { key: 'sm', colClass: 'col-sm-', cssClass: 'ge-layout-tablet', labelKey: 'view.sm' },
+    { key: 'xs', colClass: 'col-', cssClass: 'ge-layout-phone', labelKey: 'view.xs' },
 ];
 
 var warned = {};
+
+/**
+ * Translate one key.
+ *
+ * Lookup order is locale_strings, then the selected locale, then English,
+ * then the key itself, so a missing string is a visible key and never an
+ * empty tooltip. `params` fills {name} placeholders.
+ *
+ * Exposed as $.fn.gridEditor.t for the editor integrations in the other
+ * source files, which are handed the settings and have no instance of their
+ * own.
+ */
+function translate(settings, key, params) {
+    var locales = $.fn.gridEditor.locales;
+    var locale = locales[settings.locale] || {};
+    var overrides = settings.locale_strings || {};
+    var string = overrides[key];
+
+    if (string === undefined) { string = locale[key]; }
+    if (string === undefined) { string = locales.en[key]; }
+
+    if (string === undefined) {
+        warnOnce('locale:' + key, 'no string for "' + key + '" in any locale, showing the key');
+        string = key;
+    }
+
+    return string.replace(/\{(\w+)\}/g, function(placeholder, name) {
+        return params && params[name] !== undefined ? params[name] : placeholder;
+    });
+}
 
 function warn(message) {
     if (window.console && window.console.warn) {
@@ -139,6 +169,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             'source_textarea'   : '',
+            'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
+            'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
             'confirm_delete'    : true, // Ask before deleting a row or a column
             'sortable_options'  : {} // Merged into every jQuery UI sortable
@@ -162,6 +194,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (warnedHere[key]) { return; }
             warnedHere[key] = true;
             warn(message);
+        }
+
+        /** This instance's strings, in the locale its settings asked for. */
+        function t(key, params) {
+            return translate(settings, key, params);
+        }
+
+        /**
+         * Swap language at runtime. The controls carry their strings in
+         * attributes, so they are rebuilt rather than patched.
+         */
+        function setLocale(code) {
+            settings.locale = code;
+            handle.settings = settingsCopy();
+
+            mainControls.remove();
+            createMainControls();
+            reset();
         }
 
         var operationDepth = 0; // Operations running right now
@@ -367,7 +417,20 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             
             htmlTextArea = $('<textarea class="ge-html-output"/>').insertBefore(canvas);
 
-            /* Create main controls*/
+            createMainControls();
+
+            // Make controls fixed on scroll
+            $(window).on('scroll', onScroll);
+
+            /* Init RTE on click */
+            canvas.on('click', '.ge-content', initRTE);
+        }
+
+        /**
+         * The toolbar above the canvas. Separate from setup() because every
+         * string in it comes from the locale, so setLocale() rebuilds it.
+         */
+        function createMainControls() {
             mainControls = $('<div class="ge-mainControls" />').insertBefore(htmlTextArea);
             wrapper = $('<div class="ge-wrapper ge-top" />').appendTo(mainControls);
 
@@ -375,7 +438,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             addRowGroup = $('<div class="ge-addRowGroup btn-group" />').appendTo(wrapper);
             $.each(settings.new_row_layouts, function(j, layout) {
                 var btn = $('<a class="btn btn-sm btn-primary" />')
-                    .attr('title', 'Add row ' + layout.join('-'))
+                    .attr('title', t('row.add', { layout: layout.join('-') }))
                     .on('click', function() {
                         var row = createRow();
                         layout.forEach(function(i) {
@@ -406,12 +469,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             // Buttons on right
             layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
-                '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">Desktop</button>' +
-                    '<div class="dropdown-menu" role="menu">' +
-                        '<a class="dropdown-item" data-width="auto" title="Desktop">Desktop</a>' +
-                        '<a class="dropdown-item" title="Tablet">Tablet' +
-                        '<a class="dropdown-item" title="Phone">Phone</a>' +
-                    '</div>' +
+                '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>' +
+                    '<div class="dropdown-menu" role="menu"></div>' +
                 '</div>')
                 .on('click', 'a', function() {
                     // Through changeView, so the dropdown and the method are
@@ -420,10 +479,20 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 })
                 .appendTo(wrapper)
             ;
+            LAYOUT_MODES.forEach(function(mode) {
+                $('<a class="dropdown-item" />')
+                    .attr('title', t(mode.labelKey))
+                    .text(t(mode.labelKey))
+                    .appendTo(layoutDropdown.find('.dropdown-menu'))
+                ;
+            });
+            layoutDropdown.find('button').text(t(LAYOUT_MODES[curColClassIndex].labelKey));
+
             var btnGroup = $('<div class="btn-group pull-right"/>')
                 .appendTo(wrapper)
             ;
-            var htmlButton = $('<button title="Edit Source Code" type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>')
+            var htmlButton = $('<button type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>')
+                .attr('title', t('tool.edit_source'))
                 .on('click', function() {
                     if (htmlButton.hasClass('active')) {
                         canvas.empty().html(htmlTextArea.val()).show();
@@ -443,7 +512,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 })
                 .appendTo(btnGroup)
             ;
-            var previewButton = $('<button title="Preview" type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>')
+            var previewButton = $('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>')
+                .attr('title', t('tool.preview'))
                 .on('mouseenter', function() {
                     canvas.removeClass('ge-editing');
                 })
@@ -457,12 +527,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 })
                 .appendTo(btnGroup)
             ;
-
-            // Make controls fixed on scroll
-            $(window).on('scroll', onScroll);
-
-            /* Init RTE on click */
-            canvas.on('click', '.ge-content', initRTE);
         }
         
         function onScroll(e) {
@@ -570,19 +634,20 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (row.find('> .ge-tools-drawer').length) { return; }
 
                 var drawer = $('<div class="ge-tools-drawer" />').prependTo(row);
-                createTool(drawer, 'Move', 'ge-move', 'bi bi-arrows-move');
-                createTool(drawer, 'Settings', '', 'bi bi-gear-fill', function() {
+                createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+                createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
                     details.toggle();
                 });
-                settings.row_tools.forEach(function(t) {
-                    createTool(drawer, t.title || '', t.className || '', t.iconClass || 'bi bi-wrench', t.on);
+                settings.row_tools.forEach(function(hostTool) {
+                    createTool(drawer, hostTool.title || '', hostTool.className || '',
+                        hostTool.iconClass || 'bi bi-wrench', hostTool.on);
                 });
-                createTool(drawer, 'Remove row', '', 'bi bi-trash', function() {
-                    deleteNode('row', row, 'Delete row?', function(removed) {
+                createTool(drawer, t('tool.delete_row'), 'ge-delete-row', 'bi bi-trash', function() {
+                    deleteNode('row', row, t('confirm.delete_row'), function(removed) {
                         row.slideUp(removed);
                     });
                 });
-                createTool(drawer, 'Add column', 'ge-add-column', 'bi bi-plus-circle', function() {
+                createTool(drawer, t('tool.add_column'), 'ge-add-column', 'bi bi-plus-circle', function() {
                     var column = createColumn(3);
 
                     addNode('column', column, function() {
@@ -601,9 +666,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 var drawer = $('<div class="ge-tools-drawer" />').prependTo(col);
 
-                createTool(drawer, 'Move', 'ge-move', 'bi bi-arrows-move');
+                createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
 
-                createTool(drawer, 'Make column narrower\n(hold shift for min)', 'ge-decrease-col-width', 'bi bi-dash-lg', function(e) {
+                createTool(drawer, t('tool.column_narrower'), 'ge-decrease-col-width', 'bi bi-dash-lg', function(e) {
                     var colSizes = settings.valid_col_sizes;
                     var curColClass = colClasses[curColClassIndex];
                     var curColSizeIndex = colSizes.indexOf(getColSize(col, curColClass));
@@ -614,7 +679,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     resizeColumn(col, curColClass, Math.max(newSize, 1), 'tool');
                 });
 
-                createTool(drawer, 'Make column wider\n(hold shift for max)', 'ge-increase-col-width', 'bi bi-plus-lg', function(e) {
+                createTool(drawer, t('tool.column_wider'), 'ge-increase-col-width', 'bi bi-plus-lg', function(e) {
                     var colSizes = settings.valid_col_sizes;
                     var curColClass = colClasses[curColClassIndex];
                     var curColSizeIndex = colSizes.indexOf(getColSize(col, curColClass));
@@ -626,16 +691,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     resizeColumn(col, curColClass, Math.min(newSize, MAX_COL_SIZE), 'tool');
                 });
 
-                createTool(drawer, 'Settings', '', 'bi bi-gear-fill', function() {
+                createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
                     details.toggle();
                 });
                 
-                settings.col_tools.forEach(function(t) {
-                    createTool(drawer, t.title || '', t.className || '', t.iconClass || 'bi bi-wrench', t.on);
+                settings.col_tools.forEach(function(hostTool) {
+                    createTool(drawer, hostTool.title || '', hostTool.className || '',
+                        hostTool.iconClass || 'bi bi-wrench', hostTool.on);
                 });
 
-                createTool(drawer, 'Remove col', '', 'bi bi-trash', function() {
-                    deleteNode('column', col, 'Delete column?', function(removed) {
+                createTool(drawer, t('tool.delete_column'), 'ge-delete-column', 'bi bi-trash', function() {
+                    deleteNode('column', col, t('confirm.delete_column'), function(removed) {
                         col.animate({
                             opacity: 'hide',
                             width: 'hide',
@@ -644,7 +710,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     });
                 });
 
-                createTool(drawer, 'Add row', 'ge-add-row', 'bi bi-plus-circle', function() {
+                createTool(drawer, t('tool.add_row'), 'ge-add-row', 'bi bi-plus-circle', function() {
                     var row = createRow();
                     row.append(createColumn(6)).append(createColumn(6));
 
@@ -688,9 +754,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var detailsDiv = $('<div class="ge-details" />');
 
             $('<input class="ge-id" />')
-                .attr('placeholder', 'id')
+                .attr('placeholder', t('tool.id_placeholder'))
                 .val(container.attr('id'))
-                .attr('title', 'Set a unique identifier')
+                .attr('title', t('tool.id_title'))
                 .appendTo(detailsDiv)
                 .change(function() {
                     container.attr('id', this.value);
@@ -701,7 +767,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             cssClasses.forEach(function(rowClass) {
                 var btn = $('<a class="btn btn-sm btn-default" />')
                     .html(rowClass.label)
-                    .attr('title', rowClass.title ? rowClass.title : 'Toggle "' + rowClass.label + '" styling')
+                    .attr('title', rowClass.title ? rowClass.title : t('tool.toggle_class', { label: rowClass.label }))
                     .toggleClass('active btn-primary', container.hasClass(rowClass.cssClass))
                     .on('click', function() {
                         btn.toggleClass('active btn-primary');
@@ -1052,7 +1118,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             LAYOUT_MODES.forEach(function(mode, i) {
                 canvas.toggleClass(mode.cssClass, i == colClassIndex);
             });
-            layoutDropdown.find('button').text(LAYOUT_MODES[colClassIndex].label);
+            layoutDropdown.find('button').text(t(LAYOUT_MODES[colClassIndex].labelKey));
         }
 
         /**
@@ -1117,6 +1183,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createRow: apiCreateRow,
             createColumn: apiCreateColumn,
             createElement: apiCreateElement,
+            setLocale: setLocale,
             canvas: canvas,
             settings: settingsCopy(),
         };
@@ -1141,5 +1208,46 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 };
 
 $.fn.gridEditor.RTEs = {};
+
+/** Translator for the editor integrations, which get settings and no instance. */
+$.fn.gridEditor.t = translate;
+
+/**
+ * Locale registry: code -> { key: string }.
+ *
+ * English is built in rather than shipped as a file, because it is where every
+ * lookup ends: a page that loads no locale file still has a complete UI.
+ * Removing a key from it is a breaking change. Locale files register
+ * themselves here, see src/js/locales/.
+ *
+ * Every key is listed in docs/locale-keys.md, which test/locales.js holds to
+ * this catalogue in both directions.
+ */
+$.fn.gridEditor.locales = {
+    en: {
+        'tool.move': 'Move',
+        'tool.settings': 'Settings',
+        'tool.add_row': 'Add row',
+        'tool.add_column': 'Add column',
+        'tool.delete_row': 'Remove row',
+        'tool.delete_column': 'Remove col',
+        'tool.column_narrower': 'Make column narrower\n(hold shift for min)',
+        'tool.column_wider': 'Make column wider\n(hold shift for max)',
+        'tool.edit_source': 'Edit Source Code',
+        'tool.preview': 'Preview',
+        'tool.id_placeholder': 'id',
+        'tool.id_title': 'Set a unique identifier',
+        'tool.toggle_class': 'Toggle "{label}" styling',
+        'row.add': 'Add row {layout}',
+        'confirm.delete_row': 'Delete row?',
+        'confirm.delete_column': 'Delete column?',
+        'view.lg': 'Desktop',
+        'view.sm': 'Tablet',
+        'view.xs': 'Phone',
+        'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
+        'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the ckeditor and jquery adapter js files.',
+        'error.summernote_missing': 'Summernote not available! Make sure you loaded the Summernote js file.',
+    },
+};
 
 })( jQuery );

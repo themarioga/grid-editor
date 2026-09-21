@@ -4,9 +4,7 @@
         init: function(settings, contentAreas) {
 
             if (!window.CKEDITOR) {
-                console.error(
-                    'CKEditor not available! Make sure you loaded the ckeditor and jquery adapter js files.'
-                );
+                console.error($.fn.gridEditor.t(settings, 'error.ckeditor_missing'));
             }
 
             var self = this;

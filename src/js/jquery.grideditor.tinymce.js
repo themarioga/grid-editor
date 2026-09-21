@@ -20,7 +20,7 @@
         init: function(settings, contentAreas) {
 
             if (!window.tinymce) {
-                console.error('tinyMCE not available! Make sure you loaded the tinyMCE js file.');
+                console.error($.fn.gridEditor.t(settings, 'error.tinymce_missing'));
                 return;
             }
 

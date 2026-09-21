@@ -5,7 +5,7 @@
         init: function(settings, contentAreas) {
             
             if (!jQuery().summernote) {
-                console.error('Summernote not available! Make sure you loaded the Summernote js file.');
+                console.error($.fn.gridEditor.t(settings, 'error.summernote_missing'));
             }
 
             var self = this;

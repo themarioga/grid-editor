@@ -144,15 +144,14 @@ async function dispatchTests(t) {
             container: set.gridEditor('createContainer', 'tabs'),
             tab: set.gridEditor('addTab', jQuery()),
             item: set.gridEditor('addAccordionItem', jQuery()),
-            locale: set.gridEditor('setLocale', 'es') === set,
             repeated: set.gridEditor('createContainer', 'tabs'),
             warnings: window.warnings.filter(w => /not implemented/.test(w)),
         };
     `);
     t.check('a method a later phase fills in returns null and warns once',
         unimplemented.container === null && unimplemented.tab === null &&
-        unimplemented.item === null && unimplemented.locale && unimplemented.repeated === null &&
-        unimplemented.warnings.length === 4,
+        unimplemented.item === null && unimplemented.repeated === null &&
+        unimplemented.warnings.length === 3,
         unimplemented);
 
     var errors = page.errors();

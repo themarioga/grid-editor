@@ -38,6 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inside a handler run when the operation that called them has finished,
   instead of rebuilding the canvas underneath it.
 - `callbacks`, `confirm_delete` and `sortable_options` settings.
+- Translatable UI strings. Every user-visible string - the tool tooltips, the
+  add-row buttons, the layout mode dropdown, the settings panel, the delete
+  confirms and the "editor not available" console errors - now comes from
+  `t(key)`, with `{name}` interpolation. Lookup order is `locale_strings`, the
+  selected locale, English, then the key itself, which is shown and logged
+  once rather than leaving an empty tooltip.
+- `$.fn.gridEditor.locales`, with `locales.en` built into the main bundle as
+  the fallback, and `$.fn.gridEditor.t(settings, key)` for editor
+  integrations. `locale` and `locale_strings` settings, and a `setLocale`
+  method that re-renders the controls.
+- A Spanish locale, `dist/locales/grideditor.es.js`, built from
+  `src/js/locales/grideditor.es.js`. It translates every key in `locales.en`,
+  which `test/locales.js` asserts, so a change that adds a string adds its
+  Spanish in the same commit. *Not yet reviewed by a native speaker.*
+- `docs/locale-keys.md`: the key catalogue, hand-written, with
+  `test/locales.js` holding it to the source in both directions.
+- `example/locale.html`: an example page with a language dropdown calling
+  `setLocale`.
+- The build copies and minifies each `src/js/locales/*.js` into `dist/locales/`
+  individually, with a watch target of its own. The main bundle is unchanged:
+  the `src/js/*.js` glob does not descend.
+- `ge-settings`, `ge-delete-row` and `ge-delete-column` classes on the tools
+  that had none, so hosts and tests can find them without matching a tooltip
+  that is now translated.
 - A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
   web server across every suite in `test/`, prints one summary and exits
   non-zero on any failure. `npm test -- rte` runs a single suite, and
@@ -74,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adding a node brings the canvas up to date with `init()` rather than a full
   `deinit`/`init`, so inserting a row somewhere else no longer closes the rich
   text editor the user is typing in.
+
+- The layout mode dropdown is built from the layout mode table rather than
+  from a markup string, which also restores the closing tag the Tablet item
+  had been missing.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still
