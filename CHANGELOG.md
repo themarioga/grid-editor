@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `example/index-autosave.html`, demonstrating auto save to localStorage plus
   layout import/export, by [@Ka-Bar](https://github.com/Ka-Bar).
+- Example dependencies updated to current releases: jQuery 4.0.0, jQuery UI
+  1.14.2, Bootstrap 5.3.8, Bootstrap Icons 1.13.1, summernote 0.9.1 and
+  CKEditor 4.22.1. CKEditor stays on 4.22.1 deliberately: it is the last
+  release under the GPL/LGPL/MPL triple licence, as 4.23.0 and above are
+  CKEditor 4 LTS under the commercial Extended Support Model.
 
 ### Fixed
 - Guard the rich text editor lookup. A `content_types` entry with no matching
