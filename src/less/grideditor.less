@@ -5,6 +5,8 @@
 @colTextColor: darken(@colColor, 10%);
 @elementColor: #7B5EA7;
 @elementTextColor: darken(@elementColor, 5%);
+@containerColor: #1D8A5E;
+@containerTextColor: darken(@containerColor, 5%);
 
 .ge-mainControls {
     position: relative;
@@ -175,6 +177,115 @@
     /* Content area */
     .ge-content-type-tinymce.active {
         outline: 1px dotted #333;
+    }
+
+    /* Containers: tabs, accordions and popups. A container sits in a column
+       beside the content areas, and each of its panes is an ordinary region */
+    .ge-container {
+        position: relative;
+        border: 1px solid @containerColor;
+        padding: 0 @editGutter @editGutter;
+        margin-bottom: @editGutter;
+
+        > .ge-container-drawer {
+            background: fadeout(@containerColor, 80%);
+
+            > a {
+                color: @containerTextColor;
+            }
+        }
+    }
+
+    /* A pane's own drawer is small and sits with its label rather than
+       above it: a tab strip is a row of tabs, not a stack of them */
+    .ge-pane-drawer {
+        display: inline-flex;
+        align-items: center;
+        width: auto;
+        margin: 0;
+        background: transparent;
+
+        > a {
+            padding: 2px 4px;
+            color: @containerTextColor;
+        }
+    }
+
+    .ge-tab {
+        display: flex;
+        align-items: center;
+
+        > .ge-pane-drawer {
+            padding-left: 4px;
+        }
+        .nav-link {
+            padding-left: 4px;
+        }
+    }
+
+    /* The label is edited in place, so it needs to look like it can be */
+    .ge-pane-label {
+        &:hover {
+            outline: 1px dotted @containerTextColor;
+        }
+        &[contenteditable="true"] {
+            outline: 1px solid @containerTextColor;
+            cursor: text;
+        }
+    }
+
+    .tab-content > .tab-pane {
+        padding: @editGutter 0;
+    }
+
+    /* Every accordion item is open while editing, whatever the authored
+       state is: a pane nobody can reach is a pane nobody can edit. The
+       authored state lives in data-ge-open and goes back on the way out */
+    .accordion-collapse {
+        display: block;
+    }
+    .ge-accordion-item > .ge-pane-drawer {
+        padding: 2px 0;
+    }
+
+    /* A popup is rendered unfolded and in place: a plain block with its
+       body as an ordinary region. Bootstrap's modal JS is never asked to
+       open it, so there is no backdrop, no focus trap and no scroll lock */
+    .ge-container-popup {
+        .modal {
+            display: block;
+            position: static;
+            z-index: auto;
+            overflow: visible;
+            /* Bootstrap keeps a modal at opacity 0 and its dialog shifted up
+               until it adds .show, which only its own JS does. The editor
+               never asks it to, so the fade is undone here instead */
+            opacity: 1;
+            transition: none;
+        }
+        .modal-dialog {
+            margin: @editGutter 0;
+            max-width: none;
+            pointer-events: auto;
+            transform: none;
+            transition: none;
+        }
+        .modal-content {
+            box-shadow: none;
+        }
+        .ge-popup-trigger {
+            margin-bottom: @editGutter;
+        }
+
+        /* Folded away, for a page with several popups on it */
+        &.ge-popup-collapsed .modal {
+            display: none;
+        }
+    }
+
+    /* A trigger pointing at a popup that is not there any more */
+    .ge-popup-orphan {
+        outline: 2px dashed #d9534f;
     }
 
     /* Elements: the level below a column, inside a content area. Dashed

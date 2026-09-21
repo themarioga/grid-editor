@@ -32,6 +32,10 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.delete_row` | Remove row | Row drawer |
 | `tool.delete_column` | Remove col | Column drawer |
 | `tool.delete_element` | Remove element | Element drawer |
+| `tool.delete_container` | Remove container | Container drawer |
+| `tool.delete_pane` | Remove pane | Drawer of a tab or an accordion item |
+| `tool.rename` | Double click to rename | Tooltip of a pane's label, which is edited in place |
+| `tool.toggle_popup` | Fold this popup away while editing | Popup drawer. Editing shows a popup unfolded, and this folds it away |
 | `tool.element_info` | Element: {name} | Tooltip of the element drawer's info tool. `{name}` is the element's `data-ge-label`, its `data-ge-element` type, or both |
 | `tool.column_narrower` | Make column narrower\n(hold shift for min) | Column drawer, the `-` tool. Two lines |
 | `tool.column_wider` | Make column wider\n(hold shift for max) | Column drawer, the `+` tool. Two lines |
@@ -52,6 +56,24 @@ row.*
 | `row.add` | Add row {layout} | Tooltip of each toolbar add-row button. `{layout}` is the column layout, as in `6-6` |
 
 
+container.*
+-----------
+
+The containers: tabs, accordions and popups, and the panes inside them.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `container.add_tabs` | Tabs | Toolbar button that adds a tabs container |
+| `container.add_tab` | Add tab | Container drawer, adds a pane |
+| `container.tab_label` | Tab {number} | Label of a new tab. `{number}` is its position |
+| `container.add_accordion` | Accordion | Toolbar button that adds an accordion |
+| `container.add_accordion_item` | Add item | Container drawer, adds an item |
+| `container.accordion_label` | Item {number} | Label of a new accordion item |
+| `container.add_popup` | Popup | Toolbar button that adds a popup |
+| `container.popup_title` | Title | Title of a new popup, in its modal header |
+| `container.popup_trigger` | Open | Label of the button a popup makes to open itself |
+
+
 confirm.*
 ---------
 
@@ -63,6 +85,9 @@ cancels `grideditor:before-delete` and asks in its own way.
 | `confirm.delete_row` | Delete row? | Before a row is removed |
 | `confirm.delete_column` | Delete column? | Before a column is removed |
 | `confirm.delete_element` | Delete element? | Before an element is removed |
+| `confirm.delete_container` | Delete this container and everything in it? | Before a container is removed |
+| `confirm.delete_tab` | Delete this tab and everything in it? | Before a tab and its pane are removed |
+| `confirm.delete_accordion_item` | Delete this item and everything in it? | Before an accordion item is removed |
 
 
 view.*
@@ -100,6 +125,6 @@ all the same: the developer reading them is the one who chose the locale.
 Namespaces not in use yet
 -------------------------
 
-`container.*`, `element.*` and `column.*` are reserved for the containers,
-element level controls and offset tools that later phases of 3.0 add. They are
-listed in `docs/spec-3.0.md` section 7.3 and have no keys yet.
+`element.*` and `column.*` are reserved by `docs/spec-3.0.md` section 7.3 and
+have no keys yet: the element and offset strings that exist live under
+`tool.*` and `confirm.*`, next to the tools they belong to.

@@ -96,6 +96,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example/elements.html`, including the pattern for an element with no visual
   output of its own: the host supplies a placeholder and its own tools, which
   is all spec 4.4 asks for.
+- Containers: tabs, accordions and popups. A container is marked with
+  `data-ge-container` and holds panes, and every pane is an ordinary canvas
+  region, so rows, columns, content areas and elements nest inside one exactly
+  as they do at the top level. Containers nest too. Each gets a drawer with
+  move, add pane, delete and the host's `container_tools`; panes get their own
+  drawer, their own `tab_tools`/`accordion_tools`, and a label edited in place.
+  The toolbar offers one button per type, listed in the `containers` setting.
+- `createContainer(type, options)`, `addTab(container, options)` and
+  `addAccordionItem(container, options)`, which complete the method table.
+  Every container and pane operation goes through the add, delete and move
+  events, with `kind` naming the type: `tabs`, `accordion`, `popup`, `tab`,
+  `accordion-item`.
+- Tabs: a sortable strip whose panes follow their tabs, so the output reads in
+  tab order.
+- Accordions: `stay_open`, every item shown while editing with the authored
+  state kept in `data-ge-open` and restored on the way out, and items that drag
+  into any other accordion on the canvas, taking that accordion's
+  `data-bs-parent` and its idea of whether several items may be open.
+- Popups: a Bootstrap modal plus its trigger, rendered unfolded and static
+  while editing so its body is an ordinary region - no backdrop, no focus trap,
+  no `bootstrap.Modal` instantiated. The drawer folds it away. Any node the
+  host marks with `data-ge-popup-target` is a trigger: grid-editor leaves the
+  markup alone and writes Bootstrap's attributes onto it at `getHtml` time. A
+  trigger whose popup is gone is re-pointed when exactly one popup is left in
+  its column, and otherwise marked `.ge-popup-orphan` and reported through
+  `grideditor:popup-orphan`. It is never deleted.
+- `example/containers.html`, with all three types, a host trigger, two levels
+  of nesting, and a button that opens the exported html as a real page with
+  Bootstrap and no grid-editor.
 - Resizing a column by dragging its edge. jQuery UI `resizable` on every
   column, east handle by default, with `resize.enabled`, `resize.handles`,
   `resize.balance` and `resizable_options` to steer it. The column follows the
@@ -186,6 +215,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once their editor is up. An editor rewrites what is inside the content area
   as it takes over, which costs the element drawers in it; this is how they
   are put back.
+
+- While editing, a Bootstrap toggle the editor needs to keep quiet is moved
+  aside - `data-bs-toggle` becomes `data-ge-bs-toggle` - rather than fought
+  with. Bootstrap binds its data-api handlers on the document in the capture
+  phase, so a listener on the node itself cannot stop one.
+- `wrapContent` no longer wraps the editor's own furniture. jQuery UI's resize
+  handle was being treated as loose content and wrapped into a content area of
+  its own on the next `init`, so a canvas collected an empty content area per
+  column per reset. It also leaves containers alone, since a container sits in
+  the column beside the content areas rather than inside one.
+- The instance handle is in place before the first `init` runs, so a host
+  handler that fires during initialization can already reach the editor.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still

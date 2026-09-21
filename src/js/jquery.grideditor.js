@@ -25,9 +25,9 @@ var METHODS = {
     createRow:        { value: true },
     createColumn:     { value: true },
     createElement:    { value: true },
-    createContainer:  { value: true, unimplemented: true },
-    addTab:           { value: true, unimplemented: true },
-    addAccordionItem: { value: true, unimplemented: true },
+    createContainer:  { value: true },
+    addTab:           { value: true },
+    addAccordionItem: { value: true },
     setLocale:        {},
 };
 
@@ -57,6 +57,9 @@ var BREAKPOINTS = [
  * pages want: a layout that needs no per-device tuning is written once and
  * lands on all six prefixes.
  */
+/** The container types grid-editor knows how to build and to edit. */
+var CONTAINER_TYPES = ['tabs', 'accordion', 'popup'];
+
 var ALL_VIEW = 'all';
 var ALL_VIEW_LABEL_KEY = 'view.all';
 
@@ -226,6 +229,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                                     */
             'row_tools'         : [],
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
+            'container_tools'   : [], // Host tools on container drawers
+            'tab_tools'         : [], // Host tools on tab drawers
+            'accordion_tools'   : [], // Host tools on accordion item drawers
+            'containers'        : CONTAINER_TYPES.slice(), // Which the toolbar offers
             'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
@@ -255,11 +262,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             mainControls,
             wrapper, // controls wrapper
             addRowGroup,
+            addContainerGroup,
             layoutDropdown,
             htmlTextArea
         ;
         var curView = settings.default_view; // Breakpoint key, or 'all'
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
+
+        // Before anything else, because the instance handle hands the canvas
+        // to hosts and the rest of setup() runs at the end of this function
+        canvas = baseElem.addClass('ge-canvas');
 
         function warnOnceHere(key, message) {
             if (warnedHere[key]) { return; }
@@ -529,6 +541,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function kindOf(node) {
+            if (node.attr('data-ge-container')) { return node.attr('data-ge-container'); }
+            if (node.hasClass('ge-tab')) { return 'tab'; }
+            if (node.hasClass('ge-accordion-item')) { return 'accordion-item'; }
             if (node.hasClass('row')) { return 'row'; }
             if (node.hasClass('column')) { return 'column'; }
             if (node.hasClass('ge-element')) { return 'element'; }
@@ -555,13 +570,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             newRow.find('.col-lg-12').append(children);
         }
 
-        setup();
-        init();
+        // setup() and init() run at the end of this function, once every
+        // table and helper below has been assigned: the toolbar is built from
+        // the container registry, and a var declared later is not there yet.
 
         function setup() {
-            /* Setup canvas */
-            canvas = baseElem.addClass('ge-canvas');
-            
             htmlTextArea = $('<textarea class="ge-html-output"/>').insertBefore(canvas);
 
             createMainControls();
@@ -571,6 +584,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             /* Init RTE on click */
             canvas.on('click', '.ge-content', initRTE);
+
+            /* A trigger is often a link, and a link still navigates even
+               with its Bootstrap attributes suspended */
+            canvas.on('click', '.ge-popup-trigger, [data-ge-popup-target]', function(e) {
+                if (canvas.hasClass('ge-editing')) { e.preventDefault(); }
+            });
 
             // A rich text editor rewrites the content area as it takes over,
             // which costs the element drawers inside it. The integrations say
@@ -590,6 +609,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             // Add row
             addRowGroup = $('<div class="ge-addRowGroup btn-group" />').appendTo(wrapper);
+            addContainerGroup = $('<div class="ge-addContainerGroup btn-group" />');
             $.each(settings.new_row_layouts, function(j, layout) {
                 var btn = $('<a class="btn btn-sm btn-primary" />')
                     .attr('title', t('row.add', { layout: layout.join('-') }))
@@ -619,6 +639,34 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 });
                 icon += '</div>';
                 btn.append(icon);
+            });
+
+            addContainerGroup.appendTo(wrapper);
+
+            // A container starts in a row of its own, the way the add row
+            // buttons next to these ones do
+            settings.containers.forEach(function(type) {
+                var definition = CONTAINERS[type];
+                if (!definition) { return; }
+
+                $('<a class="btn btn-sm btn-primary ge-add-container" />')
+                    .attr('title', t(definition.labelKey))
+                    .attr('data-ge-container-type', type)
+                    .append('<i class="bi bi-plus"></i>')
+                    .append($('<span />').text(t(definition.labelKey)))
+                    .on('click', function() {
+                        var row = createRow();
+                        var column = createColumn(MAX_COL_SIZE).appendTo(row);
+                        var container = definition.create({});
+
+                        column.find('> .ge-content').replaceWith(container);
+
+                        addNode(type, container, function() {
+                            row.appendTo(canvas);
+                        }, { parent: canvas, source: 'tool' });
+                    })
+                    .appendTo(addContainerGroup)
+                ;
             });
 
             // Buttons on right
@@ -734,6 +782,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             wrapContent();
             createRowControls();
             createColControls();
+            markContainers();
+            wirePopupTriggers();
             markElements();
             makeSortable();
             makeResizable();
@@ -755,6 +805,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 content.removeClass('ge-rte-active');
             });
             canvas.find('.ge-tools-drawer').remove();
+            writePopupTriggerAttributes();
+            unmarkContainers();
             unmarkElements();
             removeSortable();
             removeResizable();
@@ -885,6 +937,617 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (label && type) { return label + ' (' + type + ')'; }
 
             return label || type || element[0].tagName.toLowerCase();
+        }
+
+        /* --------------------------------------------------------------
+         * Containers: tabs, accordions and popups.
+         *
+         * A container holds panes, and a pane is an ordinary canvas region -
+         * rows, columns, content areas and elements nest inside one exactly
+         * as they do at the top level, because init() walks the whole canvas
+         * and does not care how deep it is.
+         *
+         * What a container is, is said by data-ge-container. The ge-* classes
+         * are editing furniture and come off with everything else, so a host
+         * restyling the markup cannot break detection and getHtml stays clean.
+         * -------------------------------------------------------------- */
+
+        var containerCounter = 0;
+
+        /**
+         * Ids go into the markup rather than into jQuery data: Bootstrap's
+         * toggles are written in terms of them, and the markup has to survive
+         * getHtml with those toggles still pointing at the right panes.
+         */
+        function containerId(type) {
+            containerCounter++;
+
+            return 'ge-' + type + '-' + containerCounter + '-' +
+                Math.random().toString(36).slice(2, 6);
+        }
+
+        /** A pane's starting content: one full width column, ready to edit. */
+        function defaultRegion() {
+            var row = createRow();
+            createColumn(MAX_COL_SIZE).appendTo(row);
+            return row;
+        }
+
+        function containerTypeOf(container) {
+            return container.attr('data-ge-container');
+        }
+
+        function markContainers() {
+            canvas.find('[data-ge-container]').each(function() {
+                var container = $(this);
+                var type = containerTypeOf(container);
+                var definition = CONTAINERS[type];
+
+                if (!definition) {
+                    warnOnceHere('container:' + type, 'unknown container type "' + type + '"');
+                    return;
+                }
+
+                container.addClass('ge-container ge-container-' + type);
+                definition.mark(container);
+
+                if (!container.find('> .ge-tools-drawer').length) {
+                    createContainerControls(container, type, definition);
+                }
+            });
+        }
+
+        function unmarkContainers() {
+            canvas.find('[data-ge-container]').each(function() {
+                var container = $(this);
+                var definition = CONTAINERS[containerTypeOf(container)];
+
+                if (definition) { definition.unmark(container); }
+
+                container.removeClass('ge-container ge-container-' + containerTypeOf(container));
+                if (!container.attr('class')) { container.removeAttr('class'); }
+            });
+        }
+
+        function createContainerControls(container, type, definition) {
+            var drawer = $('<div class="ge-tools-drawer ge-container-drawer" />').prependTo(container);
+
+            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            if (definition.addPane) {
+                createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
+                    var pane = definition.addPane(container, {});
+
+                    addNode(definition.paneKind, pane, function() {}, {
+                        parent: container,
+                        source: 'tool',
+                        container: container,
+                    });
+                });
+            }
+
+            settings.container_tools.forEach(function(hostTool) {
+                createTool(drawer, hostTool.title || '', hostTool.className || '',
+                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
+            });
+
+            if (definition.tools) { definition.tools(drawer, container); }
+
+            createTool(drawer, t('tool.delete_container'), 'ge-delete-container', 'bi bi-trash', function() {
+                deleteNode(type, container, t('confirm.delete_container'), function(removed) {
+                    container.slideUp(removed);
+                });
+            });
+        }
+
+        /**
+         * A pane drawer: small, inline, and made the same way for every
+         * container type so a tab and an accordion item behave alike.
+         */
+        function createPaneControls(pane, kind, hostTools, confirmText, remove) {
+            var drawer = $('<div class="ge-tools-drawer ge-pane-drawer" />').prependTo(pane);
+
+            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+
+            hostTools.forEach(function(hostTool) {
+                createTool(drawer, hostTool.title || '', hostTool.className || '',
+                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
+            });
+
+            createTool(drawer, t('tool.delete_pane'), 'ge-delete-pane', 'bi bi-trash', function() {
+                deleteNode(kind, pane, confirmText, function(removed) {
+                    remove(removed);
+                });
+            });
+
+            return drawer;
+        }
+
+        /**
+         * Take a Bootstrap toggle away from a node, and give it back later.
+         *
+         * Bootstrap binds its data-api handlers on the document in the
+         * capture phase, so a listener on the node cannot stop one: the
+         * document sees the click first. What does work is leaving nothing
+         * for its selector to match, so the attribute is moved aside while
+         * the editor needs the control not to react, and moved back on the
+         * way out.
+         */
+        function suspendToggles(scope) {
+            scope.find('[data-bs-toggle], [data-bs-dismiss]').addBack('[data-bs-toggle], [data-bs-dismiss]')
+                .each(function() {
+                    var node = $(this);
+
+                    ['toggle', 'dismiss'].forEach(function(name) {
+                        var value = node.attr('data-bs-' + name);
+                        if (value === undefined) { return; }
+
+                        node.attr('data-ge-bs-' + name, value).removeAttr('data-bs-' + name);
+                    });
+                });
+        }
+
+        function resumeToggles(scope) {
+            scope.find('[data-ge-bs-toggle], [data-ge-bs-dismiss]').addBack('[data-ge-bs-toggle], [data-ge-bs-dismiss]')
+                .each(function() {
+                    var node = $(this);
+
+                    ['toggle', 'dismiss'].forEach(function(name) {
+                        var value = node.attr('data-ge-bs-' + name);
+                        if (value === undefined) { return; }
+
+                        node.attr('data-bs-' + name, value).removeAttr('data-ge-bs-' + name);
+                    });
+                });
+        }
+
+        /**
+         * Rename a label in place. The label sits inside the button Bootstrap
+         * toggles from, so the toggle is suspended while the label is being
+         * edited: typing in a tab's name must not switch tabs.
+         */
+        function makeLabelEditable(label) {
+            if (label.data('ge-editable')) { return; }
+
+            var toggle = label.closest('[data-bs-toggle], [data-ge-bs-toggle]');
+
+            label.data('ge-editable', true)
+                .attr('title', t('tool.rename'))
+                .on('dblclick', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    suspendToggles(toggle);
+                    label.attr('contenteditable', 'true').trigger('focus');
+                    window.getSelection().selectAllChildren(label[0]);
+                })
+                .on('keydown', function(e) {
+                    if (label.attr('contenteditable') !== 'true') { return; }
+
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        label.trigger('blur');
+                    }
+                })
+                .on('blur', function() {
+                    label.removeAttr('contenteditable');
+                    resumeToggles(toggle);
+                })
+            ;
+        }
+
+        /* ----------------------------------------------------------- tabs */
+
+        function addTabTo(container, options) {
+            options = options || {};
+
+            var strip = container.find('> .nav-tabs');
+            var content = container.find('> .tab-content');
+            var id = containerId('tab');
+            var number = strip.children('.nav-item').length + 1;
+
+            $('<li class="nav-item ge-tab" role="presentation" />')
+                .append($('<button class="nav-link" type="button" role="tab" data-bs-toggle="tab" />')
+                    .attr('data-bs-target', '#' + id)
+                    .attr('aria-controls', id)
+                    .append($('<span class="ge-pane-label" />')
+                        .text(options.label || t('container.tab_label', { number: number })))
+                )
+                .appendTo(strip)
+            ;
+
+            var pane = $('<div class="tab-pane fade" role="tabpanel" tabindex="0" />')
+                .attr('id', id)
+                .append(defaultRegion())
+                .appendTo(content)
+            ;
+
+            if (options.activate || number === 1) { activatePane(container, pane); }
+
+            return pane;
+        }
+
+        /** Exactly one tab is the active one, in the strip and in the content. */
+        function activatePane(container, pane) {
+            var id = pane.attr('id');
+
+            container.find('> .tab-content > .tab-pane').removeClass('show active');
+            pane.addClass('show active');
+
+            container.find('> .nav-tabs .nav-link').each(function() {
+                var button = $(this);
+                var active = button.attr('data-bs-target') === '#' + id;
+
+                button.toggleClass('active', active).attr('aria-selected', active ? 'true' : 'false');
+            });
+        }
+
+        /* ------------------------------------------------------ accordion */
+
+        /**
+         * An accordion whose items carry no data-bs-parent is one Bootstrap
+         * lets you open several items in at once. The markup is the state:
+         * there is nothing else to remember it in.
+         */
+        function staysOpen(container, ignore) {
+            var items = container.find('> .accordion > .accordion-item > .accordion-collapse');
+
+            if (ignore) { items = items.not(ignore.find('> .accordion-collapse')); }
+
+            return items.length > 0 && !items.filter('[data-bs-parent]').length;
+        }
+
+        function addAccordionItemTo(container, options) {
+            options = options || {};
+
+            var accordion = container.find('> .accordion');
+            var id = containerId('acc-item');
+            var number = accordion.children('.accordion-item').length + 1;
+            var open = options.open === undefined ? number === 1 : !!options.open;
+            var stayOpen = options.stay_open === undefined ? staysOpen(container) : !!options.stay_open;
+
+            var item = $('<div class="accordion-item ge-accordion-item" />').appendTo(accordion);
+
+            $('<h2 class="accordion-header" />')
+                .append($('<button class="accordion-button" type="button" data-bs-toggle="collapse" />')
+                    .attr('data-bs-target', '#' + id)
+                    .attr('aria-expanded', open ? 'true' : 'false')
+                    .toggleClass('collapsed', !open)
+                    .append($('<span class="ge-pane-label" />')
+                        .text(options.label || t('container.accordion_label', { number: number }))))
+                .appendTo(item)
+            ;
+
+            var collapse = $('<div class="accordion-collapse collapse" />')
+                .attr('id', id)
+                .attr('data-ge-open', open ? 'true' : 'false')
+                .toggleClass('show', open)
+                .appendTo(item)
+            ;
+
+            if (!stayOpen) { collapse.attr('data-bs-parent', '#' + accordion.attr('id')); }
+
+            return $('<div class="accordion-body" />').append(defaultRegion()).appendTo(collapse);
+        }
+
+        /**
+         * An item dropped into another accordion collapses against the one it
+         * landed in, and takes on that accordion's idea of whether several
+         * items may be open at once.
+         */
+        function reparentAccordionItem(container, item) {
+            var accordion = item.closest('.accordion');
+            var collapse = item.find('> .accordion-collapse');
+
+            // The item that just arrived still carries the parent it had
+            // where it came from, so it is not asked what this accordion does
+            if (staysOpen(container, item)) {
+                collapse.removeAttr('data-bs-parent');
+            } else {
+                collapse.attr('data-bs-parent', '#' + accordion.attr('id'));
+            }
+        }
+
+        function tabOf(container, pane) {
+            return container.find('> .nav-tabs .nav-link[data-bs-target="#' + pane.attr('id') + '"]')
+                .closest('.nav-item');
+        }
+
+        /* ---------------------------------------------------------- popup */
+
+        function popupIdOf(container) {
+            return container.attr('data-ge-popup-id');
+        }
+
+        /**
+         * A trigger is any node the host marked with data-ge-popup-target,
+         * plus the button the container makes for itself. Ids go stale - a
+         * popup deleted, a trigger pasted from another page - so what can be
+         * repaired is repaired, and the rest is reported rather than removed.
+         * Grid-editor never deletes a node the host wrote.
+         */
+        function wirePopupTriggers() {
+            canvas.find('[data-ge-popup-target]').each(function() {
+                var trigger = $(this).addClass('ge-popup-trigger');
+                var wanted = trigger.attr('data-ge-popup-target');
+
+                // Bootstrap's own attributes are written at getHtml time, not
+                // while editing, so a click here cannot open a real modal
+                trigger.removeAttr('data-bs-toggle').removeAttr('data-bs-target');
+
+                if (canvas.find('[data-ge-popup-id="' + wanted + '"]').length) {
+                    trigger.removeClass('ge-popup-orphan');
+                    return;
+                }
+
+                var nearby = trigger.closest('.column').find('[data-ge-popup-id]');
+
+                if (nearby.length === 1) {
+                    trigger.attr('data-ge-popup-target', popupIdOf(nearby)).removeClass('ge-popup-orphan');
+                    return;
+                }
+
+                trigger.addClass('ge-popup-orphan');
+
+                operate(function() {
+                    emit('popup-orphan', payloadFor('popup', trigger, {
+                        parent: trigger.parent(),
+                        source: 'api',
+                        missing: wanted,
+                    }));
+                });
+            });
+        }
+
+        /**
+         * On the way out, every trigger gets the attributes that make
+         * Bootstrap open the modal in the authored page. An orphan gets
+         * nothing, because there is nothing to point it at.
+         */
+        function writePopupTriggerAttributes() {
+            canvas.find('[data-ge-popup-target]').each(function() {
+                var trigger = $(this);
+                var wanted = trigger.attr('data-ge-popup-target');
+
+                // The warning marking is editing furniture, whether or not
+                // the trigger can be wired up
+                trigger.removeClass('ge-popup-orphan');
+                if (!trigger.attr('class')) { trigger.removeAttr('class'); }
+
+                if (!canvas.find('[data-ge-popup-id="' + wanted + '"]').length) { return; }
+
+                trigger.attr('data-bs-toggle', 'modal').attr('data-bs-target', '#' + wanted);
+            });
+        }
+
+        function paneOf(container, tab) {
+            return container.find(tab.find('.nav-link').attr('data-bs-target'));
+        }
+
+        /**
+         * What each container type is made of, and what has to happen to one
+         * while it is being edited. Everything type specific lives here; the
+         * core above treats them all the same.
+         */
+        var CONTAINERS = {
+            tabs: {
+                labelKey: 'container.add_tabs',
+                addPaneKey: 'container.add_tab',
+                paneKind: 'tab',
+
+                create: function(options) {
+                    var container = $('<div />').attr('data-ge-container', 'tabs');
+                    var labels = options.labels || [];
+                    var count = options.tabs || labels.length || 2;
+
+                    $('<ul class="nav nav-tabs" role="tablist" />').appendTo(container);
+                    $('<div class="tab-content" />').appendTo(container);
+
+                    for (var i = 0; i < count; i++) {
+                        addTabTo(container, { label: labels[i] });
+                    }
+
+                    return container;
+                },
+
+                addPane: addTabTo,
+
+                mark: function(container) {
+                    container.find('> .tab-content > .tab-pane').addClass('ge-tab-pane');
+
+                    container.find('> .nav-tabs > .nav-item').each(function() {
+                        var tab = $(this).addClass('ge-tab');
+
+
+                        makeLabelEditable(labelIn(tab.find('.nav-link')));
+
+                        if (tab.find('> .ge-tools-drawer').length) { return; }
+
+                        createPaneControls(tab, 'tab', settings.tab_tools, t('confirm.delete_tab'),
+                            function(removed) {
+                                var pane = paneOf(container, tab);
+                                var wasActive = pane.hasClass('active');
+
+                                tab.fadeOut(200, function() {
+                                    pane.remove();
+                                    removed();
+
+                                    var first = container.find('> .tab-content > .tab-pane').first();
+                                    if (wasActive && first.length) { activatePane(container, first); }
+                                });
+                            });
+                    });
+                },
+
+                unmark: function(container) {
+                    resumeToggles(container);
+                    container.find('.ge-tab-pane').removeClass('ge-tab-pane');
+                    unwrapLabels(container);
+                },
+
+                /** Panes read in tab order, whatever order they were dropped in. */
+                afterPaneMove: function(container) {
+                    var content = container.find('> .tab-content');
+
+                    container.find('> .nav-tabs > .nav-item').each(function() {
+                        content.append(paneOf(container, $(this)));
+                    });
+                },
+            },
+
+            accordion: {
+                labelKey: 'container.add_accordion',
+                addPaneKey: 'container.add_accordion_item',
+                paneKind: 'accordion-item',
+
+                create: function(options) {
+                    var container = $('<div />').attr('data-ge-container', 'accordion');
+                    var labels = options.labels || [];
+                    var count = options.items || labels.length || 2;
+
+                    $('<div class="accordion" />')
+                        .attr('id', containerId('accordion'))
+                        .appendTo(container)
+                    ;
+
+                    for (var i = 0; i < count; i++) {
+                        addAccordionItemTo(container, {
+                            label: labels[i],
+                            open: i === 0,
+                            stay_open: options.stay_open,
+                        });
+                    }
+
+                    return container;
+                },
+
+                addPane: addAccordionItemTo,
+
+                mark: function(container) {
+                    container.find('> .accordion > .accordion-item').each(function() {
+                        var item = $(this).addClass('ge-accordion-item');
+                        var collapse = item.find('> .accordion-collapse');
+
+                        // What the author wanted, before Bootstrap's own
+                        // toggles get a chance to change it while editing.
+                        // Every item is shown while editing (the stylesheet
+                        // does that), so this is the only record of it.
+                        if (collapse.attr('data-ge-open') === undefined) {
+                            collapse.attr('data-ge-open', collapse.hasClass('show') ? 'true' : 'false');
+                        }
+
+                        suspendToggles(item.find('> .accordion-header .accordion-button'));
+                        makeLabelEditable(labelIn(item.find('> .accordion-header .accordion-button')));
+
+                        if (item.find('> .ge-tools-drawer').length) { return; }
+
+                        createPaneControls(item, 'accordion-item', settings.accordion_tools,
+                            t('confirm.delete_accordion_item'), function(removed) {
+                                item.slideUp(200, removed);
+                            });
+                    });
+                },
+
+                unmark: function(container) {
+                    resumeToggles(container);
+
+                    container.find('> .accordion > .accordion-item').each(function() {
+                        var collapse = $(this).find('> .accordion-collapse');
+                        var open = collapse.attr('data-ge-open') === 'true';
+
+                        collapse.toggleClass('show', open);
+                        $(this).find('> .accordion-header .accordion-button')
+                            .toggleClass('collapsed', !open)
+                            .attr('aria-expanded', open ? 'true' : 'false')
+                        ;
+                    });
+
+                    container.find('.ge-accordion-item').removeClass('ge-accordion-item');
+                    unwrapLabels(container);
+                },
+
+                afterPaneMove: function(container, item) {
+                    reparentAccordionItem(container, item);
+                },
+            },
+
+            popup: {
+                labelKey: 'container.add_popup',
+                paneKind: 'popup',
+
+                create: function(options) {
+                    var id = containerId('popup');
+                    var container = $('<div />')
+                        .attr('data-ge-container', 'popup')
+                        .attr('data-ge-popup-id', id)
+                    ;
+
+                    if (options.trigger !== false) {
+                        $('<button type="button" class="btn btn-primary ge-popup-trigger" />')
+                            .attr('data-ge-popup-target', id)
+                            .text(options.trigger_label || t('container.popup_trigger'))
+                            .appendTo(container)
+                        ;
+                    }
+
+                    var dialog = $('<div class="modal-dialog" />');
+                    if (options.size) { dialog.addClass('modal-' + options.size); }
+
+                    $('<div class="modal fade" tabindex="-1" aria-hidden="true" />')
+                        .attr('id', id)
+                        .append(dialog.append($('<div class="modal-content" />')
+                            .append($('<div class="modal-header" />')
+                                .append($('<h5 class="modal-title" />')
+                                    .append($('<span class="ge-pane-label" />')
+                                        .text(options.title || t('container.popup_title'))))
+                                .append('<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>'))
+                            .append($('<div class="modal-body" />').append(defaultRegion()))))
+                        .appendTo(container)
+                    ;
+
+                    return container;
+                },
+
+                mark: function(container) {
+                    // Nothing in a popup may reach Bootstrap while editing:
+                    // the modal is rendered unfolded and static, and a real
+                    // modal opening over it would be the editor fighting
+                    // itself
+                    suspendToggles(container.find('[data-bs-dismiss]'));
+                    makeLabelEditable(labelIn(container.find('.modal-title')));
+                },
+
+                unmark: function(container) {
+                    resumeToggles(container);
+                    container.removeClass('ge-popup-collapsed');
+                    unwrapLabels(container);
+                },
+
+                /** A page of unfolded modals stays workable if they can be folded away. */
+                tools: function(drawer, container) {
+                    createTool(drawer, t('tool.toggle_popup'), 'ge-toggle-popup', 'bi bi-chevron-bar-contract',
+                        function() {
+                            container.toggleClass('ge-popup-collapsed');
+                        });
+                },
+            },
+        };
+
+        /** The label inside a pane's button, wrapped so it can be edited alone. */
+        function labelIn(button) {
+            var label = button.find('> .ge-pane-label');
+
+            if (!label.length) {
+                label = $('<span class="ge-pane-label" />').text(button.text().trim());
+                button.empty().append(label);
+            }
+
+            return label;
+        }
+
+        function unwrapLabels(scope) {
+            scope.find('.ge-pane-label').each(function() {
+                $(this).removeData('ge-editable').contents().unwrap();
+            });
         }
 
         function createRowControls() {
@@ -1269,6 +1932,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 connectWith: '.ge-canvas, .ge-canvas .column',
             }, shared, settings.sortable_options));
 
+            // A tab strip sorts its own tabs, and the panes follow them
+            canvas.find('.ge-container-tabs > .nav-tabs').sortable($.extend({
+                items: '> .ge-tab',
+            }, shared, settings.sortable_options));
+
+            // Accordion items sort within their accordion and into any other
+            canvas.find('.ge-container-accordion > .accordion').sortable($.extend({
+                items: '> .ge-accordion-item',
+                connectWith: '.ge-canvas .ge-container-accordion > .accordion',
+            }, shared, settings.sortable_options));
+
             // Elements move within a content area and between them, with
             // their own drawer as the handle
             if (elementsEnabled()) {
@@ -1322,6 +1996,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     return; // A drag that went nowhere is not a move
                 }
 
+                var container = node.closest('[data-ge-container]');
+                var definition = CONTAINERS[containerTypeOf(container)];
+                if (definition && definition.afterPaneMove) {
+                    definition.afterPaneMove(container, node, from);
+                }
+
                 // No init() here, unlike an add: the node brought its drawer
                 // with it, and jQuery UI is still finishing the drag, so this
                 // is the wrong moment to rebuild the widgets it is using.
@@ -1331,6 +2011,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                         source: 'dragdrop',
                         from: from,
                         to: to,
+                        container: container.length ? container : undefined,
                     }));
                 });
             }
@@ -1511,7 +2192,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // method now, and jQuery UI throws when asked to destroy a widget
             // that is not there, so calling deinit() twice would fail.
             canvas.add(canvas.find('.column')).add(canvas.find('.row'))
-                .add(canvas.find('.ge-content')).each(function() {
+                .add(canvas.find('.ge-content')).add(canvas.find('.nav-tabs'))
+                .add(canvas.find('.accordion')).each(function() {
                 var node = $(this);
                 if (node.data('ui-sortable')) {
                     node.sortable('destroy');
@@ -1603,6 +2285,42 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
+         * A container of the given type, with its panes already in it.
+         */
+        function apiCreateContainer(type, options) {
+            options = options || {};
+
+            var definition = CONTAINERS[type];
+            if (!definition) {
+                warn('createContainer: no such container type "' + type + '"');
+                return null;
+            }
+
+            return place(definition.create(options), type, options);
+        }
+
+        /** A pane appended to a container, through the add events. */
+        function addPaneTo(container, type, options) {
+            container = $(container);
+            options = options || {};
+
+            var definition = CONTAINERS[containerTypeOf(container)];
+
+            if (!definition || containerTypeOf(container) !== type) {
+                warn('this is not a ' + type + ' container');
+                return null;
+            }
+
+            var pane = definition.addPane(container, options);
+
+            return addNode(definition.paneKind, pane, function() {}, {
+                parent: container,
+                source: 'api',
+                container: container,
+            });
+        }
+
+        /**
          * Host markup wrapped as a grid-editor element (spec 4.5). What is
          * inside stays the host's; grid-editor owns the wrapper only.
          */
@@ -1678,23 +2396,43 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             canvas.find('.column').each(function() {
                 var col = $(this);
                 var contents = $();
+
                 col.children().each(function() {
                     var child = $(this);
-                    if (child.is('.row, .ge-tools-drawer, .ge-content')) {
-                        doWrap(contents);
+
+                    // The editor's own furniture is not content and not a
+                    // boundary either. jQuery UI's resize handle used to be
+                    // treated as content and wrapped into a content area of
+                    // its own on the next init.
+                    if (child.is('.ge-tools-drawer, .ui-resizable-handle')) { return; }
+
+                    // A container sits in the column beside the content
+                    // areas, not inside one, so it ends a run of loose
+                    // content rather than joining it
+                    if (child.is('.row, .ge-content, [data-ge-container]')) {
+                        contents = doWrap(contents);
                     } else {
                         contents = contents.add(child);
                     }
                 });
+
                 doWrap(contents);
             });
         }
+
+        /**
+         * Wrap a run of loose column content in a content area, and hand back
+         * an empty set: the caller has to forget what it just wrapped, or the
+         * next boundary wraps the same nodes again and leaves the first
+         * wrapper behind, empty.
+         */
         function doWrap(contents) {
             if (contents.length) {
-                var container = createDefaultContentWrapper().insertAfter(contents.last());
-                contents.appendTo(container);
-                contents = $();
+                var contentArea = createDefaultContentWrapper().insertAfter(contents.last());
+                contents.appendTo(contentArea);
             }
+
+            return $();
         }
 
         function createDefaultContentWrapper() {
@@ -1773,6 +2511,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createRow: apiCreateRow,
             createColumn: apiCreateColumn,
             createElement: apiCreateElement,
+            createContainer: apiCreateContainer,
+            addTab: function(container, options) { return addPaneTo(container, 'tabs', options); },
+            addAccordionItem: function(container, options) {
+                return addPaneTo(container, 'accordion', options);
+            },
             setLocale: setLocale,
             canvas: canvas,
             settings: settingsCopy(),
@@ -1790,6 +2533,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         });
 
         baseElem.data('grideditor', handle);
+
+        setup();
+        init();
 
     });
 
@@ -1822,6 +2568,10 @@ $.fn.gridEditor.locales = {
         'tool.delete_row': 'Remove row',
         'tool.delete_column': 'Remove col',
         'tool.delete_element': 'Remove element',
+        'tool.delete_container': 'Remove container',
+        'tool.delete_pane': 'Remove pane',
+        'tool.rename': 'Double click to rename',
+        'tool.toggle_popup': 'Fold this popup away while editing',
         'tool.element_info': 'Element: {name}',
         'tool.column_narrower': 'Make column narrower\n(hold shift for min)',
         'tool.column_wider': 'Make column wider\n(hold shift for max)',
@@ -1833,9 +2583,21 @@ $.fn.gridEditor.locales = {
         'tool.id_title': 'Set a unique identifier',
         'tool.toggle_class': 'Toggle "{label}" styling',
         'row.add': 'Add row {layout}',
+        'container.add_tabs': 'Tabs',
+        'container.add_tab': 'Add tab',
+        'container.tab_label': 'Tab {number}',
+        'container.add_accordion': 'Accordion',
+        'container.add_accordion_item': 'Add item',
+        'container.accordion_label': 'Item {number}',
+        'container.add_popup': 'Popup',
+        'container.popup_title': 'Title',
+        'container.popup_trigger': 'Open',
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
         'confirm.delete_element': 'Delete element?',
+        'confirm.delete_container': 'Delete this container and everything in it?',
+        'confirm.delete_tab': 'Delete this tab and everything in it?',
+        'confirm.delete_accordion_item': 'Delete this item and everything in it?',
         'view.all': 'All sizes',
         'view.xs': 'Phone',
         'view.sm': 'Tablet',

@@ -140,21 +140,18 @@ async function dispatchTests(t) {
     t.check('an unknown method warns once and chains',
         unknown.chained && unknown.warnings.length === 1, unknown);
 
-    var unimplemented = await page.eval(`
+    var wrongArguments = await page.eval(`
         const set = jQuery('#myGrid');
         return {
-            container: set.gridEditor('createContainer', 'tabs'),
-            tab: set.gridEditor('addTab', jQuery()),
-            item: set.gridEditor('addAccordionItem', jQuery()),
-            repeated: set.gridEditor('createContainer', 'tabs'),
-            warnings: window.warnings.filter(w => /not implemented/.test(w)),
+            unknownType: set.gridEditor('createContainer', 'carousel'),
+            wrongContainer: set.gridEditor('addTab', jQuery('#myGrid .row').first()),
+            warnings: window.warnings.filter(w => /container/.test(w)),
         };
     `);
-    t.check('a method a later phase fills in returns null and warns once',
-        unimplemented.container === null && unimplemented.tab === null &&
-        unimplemented.item === null && unimplemented.repeated === null &&
-        unimplemented.warnings.length === 3,
-        unimplemented);
+    t.check('a create call that cannot be honoured says so and returns null',
+        wrongArguments.unknownType === null && wrongArguments.wrongContainer === null &&
+        wrongArguments.warnings.length === 2,
+        wrongArguments);
 
     var errors = page.errors();
     t.check('the dispatch tests logged no errors', errors.length === 0, errors.slice(0, 5));
