@@ -212,6 +212,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
             'default_view'      : ALL_VIEW,
+            'resize'            : { // Resizing a column by dragging its edge
+                enabled: true,
+                handles: 'e', // Which edges carry a handle, as jQuery UI names them
+                balance: 'next', // 'next' takes the units out of the following column
+            },
+            'resizable_options' : {}, // Merged into every jQuery UI resizable
             'source_textarea'   : '',
             'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
             'locale_strings'    : {}, // Overrides for individual keys
@@ -394,33 +400,48 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * The budget is checked per tier and the whole change is refused if
          * any tier has no room, so a resize never half lands.
          */
-        function resizeColumn(col, size, source) {
+        /**
+         * What resizing this column to `size` would write, or null when the
+         * budget refuses it or there is nothing to change.
+         *
+         * Refused rather than quietly clamped: the offset is something the
+         * user set, and a tool that rewrites it is a tool that lies. The plan
+         * covers every tier the view writes, so a resize never half lands.
+         */
+        function planSize(col, size) {
             var tiers = tiersFor(curView);
-            var from = currentSize(col);
             var wanted = tiers.map(function(tier) {
                 return clamp({ size: size, offset: getEffectiveOffset(col, tier) || 0 });
             });
 
-            // Refused rather than quietly clamped: the offset is something the
-            // user set, and a tool that rewrites it is a tool that lies
-            if (wanted.some(function(request) { return request.refused; })) { return false; }
+            if (wanted.some(function(request) { return request.refused; })) { return null; }
 
             var unchanged = tiers.every(function(tier, i) {
                 return getSize(col, tier) === wanted[i].size;
             });
-            if (unchanged) { return false; } // Not a resize, so not reported as one
+            if (unchanged) { return null; }
+
+            return { tiers: tiers, sizes: wanted, size: wanted[0].size };
+        }
+
+        function writeSize(col, plan) {
+            plan.tiers.forEach(function(tier, i) { setSize(col, tier, plan.sizes[i].size); });
+            stripPixelWidths(col);
+        }
+
+        /** Resize a column from a tool, announcing it either side. */
+        function resizeColumn(col, size, source) {
+            var from = currentSize(col);
+            var plan = planSize(col, size);
+
+            if (!plan) { return false; }
 
             return operate(function() {
-                var payload = payloadFor('column', col, {
-                    source: source,
-                    from: from,
-                    to: wanted[0].size,
-                });
+                var payload = payloadFor('column', col, { source: source, from: from, to: plan.size });
 
                 if (!emit('before-resize', payload)) { return false; }
 
-                tiers.forEach(function(tier, i) { setSize(col, tier, wanted[i].size); });
-                stripPixelWidths(col);
+                writeSize(col, plan);
                 emit('after-resize', payload);
 
                 return true;
@@ -684,6 +705,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createRowControls();
             createColControls();
             makeSortable();
+            makeResizable();
             switchLayout(curView);
         }
 
@@ -703,6 +725,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
             canvas.find('.ge-tools-drawer').remove();
             removeSortable();
+            removeResizable();
             runFilter(false);
         }
         
@@ -1085,11 +1108,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * canvas once the size class has been written.
          */
         function stripPixelWidths(scope) {
-            scope.find('.column').addBack('.column').css({
-                width: '',
-                height: '',
-                left: '',
-                top: '',
+            scope.find('.column').addBack('.column').each(function() {
+                var col = $(this);
+
+                col.css({ width: '', height: '', left: '', top: '' });
+
+                // Clearing the last property leaves style="" behind, which is
+                // an editor leftover like any other
+                if (!col.attr('style')) { col.removeAttr('style'); }
             });
         }
 
@@ -1168,6 +1194,176 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     }));
                 });
             }
+        }
+
+        /**
+         * Resizing a column by dragging its edge.
+         *
+         * The handle sits on the column's edge and the sort handle is the
+         * drawer, so the two gestures never fight over the same pixels. The
+         * column follows the pointer in pixels while dragging, the drawer says
+         * which class it would land on, and the pixels are snapped to whole
+         * units and thrown away on drop.
+         */
+        function makeResizable() {
+            if (!settings.resize.enabled) { return; }
+
+            canvas.find('.column').each(function() {
+                var col = $(this);
+                if (col.data('ui-resizable')) { return; }
+
+                $('<span class="ge-resize-size" />').appendTo(col.find('> .ge-tools-drawer'));
+
+                col.resizable($.extend({
+                    handles: settings.resize.handles,
+                    start: resizeStart,
+                    resize: resizeMove,
+                    stop: resizeStop,
+                }, settings.resizable_options));
+            });
+        }
+
+        function removeResizable() {
+            canvas.find('.column').each(function() {
+                var col = $(this);
+                if (col.data('ui-resizable')) { col.resizable('destroy'); }
+            });
+
+            canvas.find('.ge-resize-size').remove();
+            stripPixelWidths(canvas);
+        }
+
+        /**
+         * The units a pixel width comes to, snapped to whole ones and held
+         * inside the same budget the tools obey. With balance 'next' the
+         * column may grow into its neighbour, which is what dragging the
+         * divider between two columns looks like it should do.
+         */
+        function snapUnits(col, pixels) {
+            var row = col.parent();
+            var style = window.getComputedStyle(row[0]);
+            var content = row[0].clientWidth -
+                parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+
+            var units = Math.round(pixels / content * MAX_COL_SIZE);
+            var next = balanceSibling(col);
+
+            // With a sibling to balance against, the drag may take that
+            // column's units but not its last one. Without one, the row is
+            // allowed to wrap - that is what balance false means - so the only
+            // limit is the column's own budget against its indent.
+            var room = next
+                ? currentSize(col) + currentSize(next) - smallest(settings.valid_col_sizes)
+                : MAX_COL_SIZE - currentOffset(col);
+
+            return Math.min(
+                Math.max(units, smallest(settings.valid_col_sizes)),
+                Math.max(room, smallest(settings.valid_col_sizes)),
+                largest(settings.valid_col_sizes)
+            );
+        }
+
+        /** The column that absorbs the delta, when the host asked for that. */
+        function balanceSibling(col) {
+            if (settings.resize.balance !== 'next') { return null; }
+
+            var next = col.nextAll('.column').first();
+            return next.length ? next : null;
+        }
+
+        function resizeReadout(col, text) {
+            col.find('> .ge-tools-drawer > .ge-resize-size').text(text);
+        }
+
+        function sizeLabel(units) {
+            return (curView === ALL_VIEW ? BREAKPOINTS[0].colPrefix : leadingTier().colPrefix) + units;
+        }
+
+        /**
+         * A canceled before-resize refuses the drag.
+         *
+         * jQuery UI's resizable ignores false from its start handler - unlike
+         * draggable, and unlike what the spec assumed - so the refusal is
+         * carried on the column and every step of the drag returns false,
+         * which the widget does honour. Nothing is written and the column ends
+         * where it began.
+         */
+        function resizeStart(e, ui) {
+            var col = $(this);
+            var from = currentSize(col);
+
+            var allowed = operate(function() {
+                return emit('before-resize', payloadFor('column', col, {
+                    source: 'dragdrop',
+                    from: from,
+                    to: null, // Not known until the pointer stops
+                }));
+            });
+
+            if (!allowed) {
+                col.data('ge-resize-refused', true);
+                return false;
+            }
+
+            col.data('ge-resize-from', from);
+            resizeReadout(col, sizeLabel(from));
+
+            return undefined;
+        }
+
+        function resizeMove(e, ui) {
+            var col = $(this);
+
+            if (col.data('ge-resize-refused')) { return false; }
+
+            resizeReadout(col, sizeLabel(snapUnits(col, ui.size.width)));
+
+            return undefined;
+        }
+
+        function resizeStop(e, ui) {
+            var col = $(this);
+            var from = col.data('ge-resize-from');
+            var units = snapUnits(col, ui.size.width);
+
+            col.removeData('ge-resize-from');
+            resizeReadout(col, '');
+            stripPixelWidths(col);
+
+            if (col.data('ge-resize-refused') || from === undefined) {
+                col.removeData('ge-resize-refused');
+                return;
+            }
+
+            // A drag of a couple of pixels lands on the size it started from,
+            // and is not a resize
+            if (units === from) { return; }
+
+            var plan = planSize(col, units);
+            if (!plan) { return; }
+
+            operate(function() {
+                writeSize(col, plan);
+                balanceAfterResize(col, plan.size - from);
+
+                emit('after-resize', payloadFor('column', col, {
+                    source: 'dragdrop',
+                    from: from,
+                    to: plan.size,
+                }));
+            });
+        }
+
+        /**
+         * Move the delta into the following column, so a full row stays full.
+         * It is part of the same gesture, so it is not announced separately.
+         */
+        function balanceAfterResize(col, delta) {
+            var next = balanceSibling(col);
+            if (!next || !delta) { return; }
+
+            var plan = planSize(next, currentSize(next) - delta);
+            if (plan) { writeSize(next, plan); }
         }
 
         function removeSortable() {

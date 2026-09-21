@@ -240,6 +240,56 @@ Session.prototype.drag = async function(fromSelector, toSelector, options) {
     await sleep(250);
 };
 
+/**
+ * Drag an element by a pixel delta, for gestures aimed at nothing in
+ * particular: a resize handle is dragged a distance, not onto a target.
+ */
+Session.prototype.dragBy = async function(selector, dx, dy, options) {
+    options = options || {};
+
+    var start = await this.eval(
+        'const node = document.querySelector(' + JSON.stringify(selector) + ');' +
+        'if (!node) { return null; }' +
+        'node.scrollIntoView({ block: "center" });' +
+        'await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));' +
+        'const box = node.getBoundingClientRect();' +
+        'return { x: box.left + box.width / 2, y: box.top + box.height / 2 };'
+    );
+
+    if (!start) { throw new Error('no element to drag: ' + selector); }
+
+    var steps = options.steps || 8;
+
+    await this.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x: start.x,
+        y: start.y,
+        button: 'left',
+        clickCount: 1,
+    });
+
+    for (var step = 1; step <= steps; step++) {
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x: start.x + (dx || 0) * step / steps,
+            y: start.y + (dy || 0) * step / steps,
+            button: 'left',
+            buttons: 1,
+        });
+        await sleep(30);
+    }
+
+    await this.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: start.x + (dx || 0),
+        y: start.y + (dy || 0),
+        button: 'left',
+        clickCount: 1,
+    });
+
+    await sleep(300);
+};
+
 Session.prototype.type = async function(text) {
     await this.send('Input.insertText', { text: text });
     await sleep(100);

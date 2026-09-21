@@ -80,6 +80,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation. They carry the same payload as the resize pair, with `from` and
   `to` as offsets.
 - `example/breakpoints.html`, showing the six tiers and the all view.
+- Resizing a column by dragging its edge. jQuery UI `resizable` on every
+  column, east handle by default, with `resize.enabled`, `resize.handles`,
+  `resize.balance` and `resizable_options` to steer it. The column follows the
+  pointer in pixels, its drawer shows the class it would land on, and on drop
+  the pixels are snapped to whole units with `round(width / rowWidth * 12)`,
+  clamped by the same budget the tools obey. `resize.balance: 'next'` takes
+  the units out of the following column so a full row stays full; `false`
+  leaves the row to wrap. The resize handle is on the column's edge and the
+  sort handle is the drawer, so the two gestures never share a pixel.
 - A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
   web server across every suite in `test/`, prints one summary and exits
   non-zero on any failure. `npm test -- rte` runs a single suite, and
@@ -142,6 +151,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its class and nothing else.
 - The layout mode LESS is list-driven over the breakpoint table instead of
   taking exactly four tier arguments, and covers offsets as well as columns.
+
+- A canceled `before-resize` on a drag is refused on every step of the drag
+  rather than before it starts: jQuery UI's `resizable` ignores `false` from
+  its start handler, unlike its `draggable`. Nothing is written either way.
+- `getHtml` output no longer carries an empty `style` attribute where an
+  inline width was stripped.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still
