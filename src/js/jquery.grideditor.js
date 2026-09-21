@@ -38,15 +38,56 @@ var METHODS = {
 var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
 
 /**
- * The layout modes, in the order the dropdown lists them, which is also the
- * order 2.x callers passed as a numeric index to switch between them. Every
- * column class the editor writes comes from this table.
+ * Bootstrap 5's breakpoints, smallest first, which is the order the cascade
+ * runs in: a size written for a tier applies to every wider tier that does not
+ * override it. Every size and offset class grid-editor reads or writes comes
+ * from this table, so adding a tier is a row here and nothing else.
  */
-var LAYOUT_MODES = [
-    { key: 'lg', colClass: 'col-lg-', cssClass: 'ge-layout-desktop', labelKey: 'view.lg' },
-    { key: 'sm', colClass: 'col-sm-', cssClass: 'ge-layout-tablet', labelKey: 'view.sm' },
-    { key: 'xs', colClass: 'col-', cssClass: 'ge-layout-phone', labelKey: 'view.xs' },
+var BREAKPOINTS = [
+    { key: 'xs', colPrefix: 'col-', offsetPrefix: 'offset-', min: 0, preview: 400, labelKey: 'view.xs' },
+    { key: 'sm', colPrefix: 'col-sm-', offsetPrefix: 'offset-sm-', min: 576, preview: 576, labelKey: 'view.sm' },
+    { key: 'md', colPrefix: 'col-md-', offsetPrefix: 'offset-md-', min: 768, preview: 768, labelKey: 'view.md' },
+    { key: 'lg', colPrefix: 'col-lg-', offsetPrefix: 'offset-lg-', min: 992, preview: 992, labelKey: 'view.lg' },
+    { key: 'xl', colPrefix: 'col-xl-', offsetPrefix: 'offset-xl-', min: 1200, preview: 1200, labelKey: 'view.xl' },
+    { key: 'xxl', colPrefix: 'col-xxl-', offsetPrefix: 'offset-xxl-', min: 1400, preview: null, labelKey: 'view.xxl' },
 ];
+
+/**
+ * The view that edits every tier at once. It is the default, and the one most
+ * pages want: a layout that needs no per-device tuning is written once and
+ * lands on all six prefixes.
+ */
+var ALL_VIEW = 'all';
+var ALL_VIEW_LABEL_KEY = 'view.all';
+
+/** Every view key the dropdown can offer, in the order it offers them. */
+var VIEW_KEYS = [ALL_VIEW].concat(BREAKPOINTS.map(function(tier) { return tier.key; }));
+
+/** What the three layout mode indexes of 2.x meant. */
+var LEGACY_VIEW_INDEXES = ['lg', 'sm', 'xs'];
+
+var MAX_COL_SIZE = 12;
+var MAX_COL_OFFSET = 11;
+
+function breakpoint(key) {
+    for (var i = 0; i < BREAKPOINTS.length; i++) {
+        if (BREAKPOINTS[i].key === key) { return BREAKPOINTS[i]; }
+    }
+    return null;
+}
+
+/** The tiers a view writes to: one, or all six in the all view. */
+function tiersFor(view) {
+    if (view === ALL_VIEW) { return BREAKPOINTS.slice(); }
+
+    var tier = breakpoint(view);
+    return tier ? [tier] : [];
+}
+
+function labelKeyFor(view) {
+    var tier = breakpoint(view);
+    return tier ? tier.labelKey : ALL_VIEW_LABEL_KEY;
+}
 
 var warned = {};
 
@@ -168,6 +209,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
+            'default_view'      : ALL_VIEW,
             'source_textarea'   : '',
             'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
             'locale_strings'    : {}, // Overrides for individual keys
@@ -185,9 +229,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             layoutDropdown,
             htmlTextArea
         ;
-        var colClasses = LAYOUT_MODES.map(function(mode) { return mode.colClass; });
-        var curColClassIndex = 0; // Index of the column class we are manipulating currently
-        var MAX_COL_SIZE = 12;
+        var curView = settings.default_view; // Breakpoint key, or 'all'
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
 
         function warnOnceHere(key, message) {
@@ -346,25 +388,86 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Change one column's size through the events. How the size is written
-         * is untouched: the sizing core owns that (spec 5.1).
+         * Resize a column through the events, writing the tiers the current
+         * view covers: one in a per-breakpoint view, all six in the all view.
+         *
+         * The budget is checked per tier and the whole change is refused if
+         * any tier has no room, so a resize never half lands.
          */
-        function resizeColumn(col, colClass, size, source) {
-            var from = getColSize(col, colClass);
-            if (from === size) { return; } // Not a resize, so not reported as one
+        function resizeColumn(col, size, source) {
+            var tiers = tiersFor(curView);
+            var from = currentSize(col);
+            var wanted = tiers.map(function(tier) {
+                return clamp({ size: size, offset: getEffectiveOffset(col, tier) || 0 });
+            });
 
-            operate(function() {
+            // Refused rather than quietly clamped: the offset is something the
+            // user set, and a tool that rewrites it is a tool that lies
+            if (wanted.some(function(request) { return request.refused; })) { return false; }
+
+            var unchanged = tiers.every(function(tier, i) {
+                return getSize(col, tier) === wanted[i].size;
+            });
+            if (unchanged) { return false; } // Not a resize, so not reported as one
+
+            return operate(function() {
                 var payload = payloadFor('column', col, {
                     source: source,
                     from: from,
-                    to: size,
+                    to: wanted[0].size,
                 });
 
-                if (!emit('before-resize', payload)) { return; }
+                if (!emit('before-resize', payload)) { return false; }
 
-                setColSize(col, colClass, size, function() {
-                    operate(function() { emit('after-resize', payload); });
+                tiers.forEach(function(tier, i) { setSize(col, tier, wanted[i].size); });
+                stripPixelWidths(col);
+                emit('after-resize', payload);
+
+                return true;
+            });
+        }
+
+        /**
+         * Indent a column, shrinking it when the budget needs it: the offset
+         * is what the user asked for, so it is the one that gets its way.
+         */
+        function indentColumn(col, offset, source) {
+            var tiers = tiersFor(curView);
+            var from = currentOffset(col);
+
+            offset = Math.min(Math.max(offset, 0), MAX_COL_OFFSET);
+
+            var unchanged = tiers.every(function(tier) {
+                return (getOffset(col, tier) || 0) === offset;
+            });
+            if (unchanged) { return false; }
+
+            return operate(function() {
+                var payload = payloadFor('column', col, {
+                    source: source,
+                    from: from,
+                    to: offset,
                 });
+
+                if (!emit('before-indent', payload)) { return false; }
+
+                tiers.forEach(function(tier) {
+                    var was = getEffectiveSize(col, tier);
+                    var wanted = clamp({ size: was, offset: offset, leading: 'offset' });
+
+                    setOffset(col, tier, wanted.offset);
+
+                    // Only where the budget actually forced the column to give
+                    // way; otherwise an indent would write size classes for
+                    // tiers nobody asked it to touch
+                    if (wanted.size !== null && wanted.size !== was) {
+                        setSize(col, tier, wanted.size);
+                    }
+                });
+
+                emit('after-indent', payload);
+
+                return true;
             });
         }
 
@@ -475,18 +578,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .on('click', 'a', function() {
                     // Through changeView, so the dropdown and the method are
                     // one path rather than two that have to agree
-                    changeView(LAYOUT_MODES[$(this).index()].key);
+                    changeView($(this).attr('data-ge-view'));
                 })
                 .appendTo(wrapper)
             ;
-            LAYOUT_MODES.forEach(function(mode) {
+            settings.layout_modes.forEach(function(view) {
                 $('<a class="dropdown-item" />')
-                    .attr('title', t(mode.labelKey))
-                    .text(t(mode.labelKey))
+                    .attr('data-ge-view', view)
+                    .attr('title', t(labelKeyFor(view)))
+                    .text(t(labelKeyFor(view)))
                     .appendTo(layoutDropdown.find('.dropdown-menu'))
                 ;
             });
-            layoutDropdown.find('button').text(t(LAYOUT_MODES[curColClassIndex].labelKey));
+            layoutDropdown.find('button').text(t(labelKeyFor(curView)));
 
             var btnGroup = $('<div class="btn-group pull-right"/>')
                 .appendTo(wrapper)
@@ -580,7 +684,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createRowControls();
             createColControls();
             makeSortable();
-            switchLayout(curColClassIndex);
+            switchLayout(curView);
         }
 
         function deinit() {
@@ -608,6 +712,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function getHtml() {
             deinit();
+            stripPixelWidths(canvas);
             var html = canvas.html();
             init();
             return html;
@@ -669,26 +774,25 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
 
                 createTool(drawer, t('tool.column_narrower'), 'ge-decrease-col-width', 'bi bi-dash-lg', function(e) {
-                    var colSizes = settings.valid_col_sizes;
-                    var curColClass = colClasses[curColClassIndex];
-                    var curColSizeIndex = colSizes.indexOf(getColSize(col, curColClass));
-                    var newSize = colSizes[clamp(curColSizeIndex - 1, 0, colSizes.length - 1)];
-                    if (e.shiftKey) {
-                        newSize = colSizes[0];
-                    }
-                    resizeColumn(col, curColClass, Math.max(newSize, 1), 'tool');
+                    resizeColumn(col, e.shiftKey
+                        ? smallest(settings.valid_col_sizes)
+                        : stepThrough(settings.valid_col_sizes, currentSize(col), -1),
+                        'tool');
                 });
 
                 createTool(drawer, t('tool.column_wider'), 'ge-increase-col-width', 'bi bi-plus-lg', function(e) {
-                    var colSizes = settings.valid_col_sizes;
-                    var curColClass = colClasses[curColClassIndex];
-                    var curColSizeIndex = colSizes.indexOf(getColSize(col, curColClass));
-                    var newColSizeIndex = clamp(curColSizeIndex + 1, 0, colSizes.length - 1);
-                    var newSize = colSizes[newColSizeIndex];
-                    if (e.shiftKey) {
-                        newSize = getColSize(col) + getColumnSpare(col.parent());
-                    }
-                    resizeColumn(col, curColClass, Math.min(newSize, MAX_COL_SIZE), 'tool');
+                    resizeColumn(col, e.shiftKey ? widestFor(col) : stepThrough(settings.valid_col_sizes, currentSize(col), 1), 'tool');
+                });
+
+                createTool(drawer, t('tool.indent_decrease'), 'ge-decrease-col-offset', 'bi bi-text-indent-left', function(e) {
+                    indentColumn(col, e.shiftKey
+                        ? smallest(settings.valid_col_offsets)
+                        : stepThrough(settings.valid_col_offsets, currentOffset(col), -1),
+                        'tool');
+                });
+
+                createTool(drawer, t('tool.indent_increase'), 'ge-increase-col-offset', 'bi bi-text-indent-right', function(e) {
+                    indentColumn(col, e.shiftKey ? deepestFor(col) : stepThrough(settings.valid_col_offsets, currentOffset(col), 1), 'tool');
                 });
 
                 createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
@@ -723,17 +827,68 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
         }
 
-        function getColumnSpare(row) {
-            return MAX_COL_SIZE - getColumnSizes(row);
+        /**
+         * The tier the tools read when they need one number.
+         *
+         * In a per-breakpoint view that is the tier being edited. In the all
+         * view it is the widest tier, because the canvas is not constrained
+         * there and the widest tier is what the user is looking at: clicking
+         * "narrower" on a column authored as col-lg-6 should take it to 5,
+         * not to 11 because no xs class was ever written.
+         */
+        function leadingTier() {
+            return curView === ALL_VIEW ? BREAKPOINTS[BREAKPOINTS.length - 1] : breakpoint(curView);
         }
 
-        function getColumnSizes(row) {
-            var layout = colClasses[curColClassIndex];
-            var size = 0;
-            row.find('> [class*="' + layout + '"]').each(function(){
-                size += getColSize($(this));
-            });
-            return size;
+        function currentSize(col) {
+            var size = getEffectiveSize(col, leadingTier());
+            return size === null ? MAX_COL_SIZE : size;
+        }
+
+        function currentOffset(col) {
+            return getEffectiveOffset(col, leadingTier()) || 0;
+        }
+
+        /** The next value a tool moves to, one step along the allowed list. */
+        function stepThrough(values, from, direction) {
+            var index = values.indexOf(from);
+
+            if (index === -1) {
+                // A value the host did not allow: step to the nearest one it did
+                return values.reduce(function(best, value) {
+                    return Math.abs(value - from) < Math.abs(best - from) ? value : best;
+                }, values[0]);
+            }
+
+            return values[Math.min(Math.max(index + direction, 0), values.length - 1)];
+        }
+
+        function smallest(values) {
+            return values.reduce(function(a, b) { return Math.min(a, b); }, MAX_COL_SIZE);
+        }
+
+        function largest(values) {
+            return values.reduce(function(a, b) { return Math.max(a, b); }, 0);
+        }
+
+        /**
+         * The widest this column can be: everything the row has left, minus
+         * its own indent. What "hold shift for max" means.
+         */
+        function widestFor(col) {
+            var room = spare(col.parent(), leadingTier(), col) - currentOffset(col);
+
+            return Math.min(largest(settings.valid_col_sizes), Math.max(room, 1));
+        }
+
+        /**
+         * The deepest this column can be indented and still have a unit of
+         * itself left inside the row.
+         */
+        function deepestFor(col) {
+            var room = spare(col.parent(), leadingTier(), col) - currentSize(col);
+
+            return Math.min(largest(settings.valid_col_offsets), Math.max(room, 0));
         }
 
         function createTool(drawer, title, className, iconClass, eventHandlers) {
@@ -780,70 +935,162 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return detailsDiv;
         }
 
+        /**
+         * Make sure every column is marked as one, and that a column with no
+         * sizing at all gets some.
+         *
+         * Deliberately conservative: a column that carries any size class is
+         * left exactly as authored. Seeding every tier would put six classes
+         * on every column now that there are six tiers, and the smallest tier
+         * already applies to the wider ones, so one class is enough for a
+         * column that had none.
+         */
         function addAllColClasses() {
             canvas.find('.column, div[class*="col-"]').each(function() {
-                var col = $(this);
+                var col = $(this).addClass('column');
 
-                var size = 2;
-                var sizes = getColSizes(col);
-                if (sizes.length) {
-                    size = sizes[0].size;
-                }
+                if (sizedTiers(col).length) { return; }
 
-                var elemClass = col.attr('class');
-                colClasses.forEach(function(colClass) {
-                    if (elemClass.indexOf(colClass) == -1) {
-                        col.addClass(colClass + size);
-                    }
-                });
+                setSize(col, BREAKPOINTS[0], MAX_COL_SIZE);
+            });
+        }
 
-                col.addClass('column');
+        /* --------------------------------------------------------------
+         * The sizing core.
+         *
+         * Everything that reads or writes a size or an offset class goes
+         * through here: the width and indent tools, drag resize,
+         * createColumn and the getHtml cleanup. One place owns the class
+         * names, the 12 unit budget and what an absent class means.
+         * -------------------------------------------------------------- */
+
+        /** The units a column is given at one tier, or null if that tier says nothing. */
+        function getSize(col, tier) {
+            return readUnits(col, tier.colPrefix);
+        }
+
+        /** The units a column is indented by at one tier, or null. */
+        function getOffset(col, tier) {
+            return readUnits(col, tier.offsetPrefix);
+        }
+
+        /**
+         * What actually applies at a tier: its own class, or the nearest
+         * smaller tier that has one, because that is how Bootstrap cascades.
+         * Null when no tier below it says anything either.
+         *
+         * Not a "return the first thing I found" fallback: it walks the tiers
+         * downward from the one asked about, so an offset lookup can never
+         * answer with a size, and a lookup for one tier can never answer with
+         * a wider tier's value.
+         */
+        function getEffectiveSize(col, tier) {
+            return readEffective(col, tier, getSize);
+        }
+
+        function getEffectiveOffset(col, tier) {
+            return readEffective(col, tier, getOffset);
+        }
+
+        function readEffective(col, tier, read) {
+            for (var i = BREAKPOINTS.indexOf(tier); i >= 0; i--) {
+                var units = read(col, BREAKPOINTS[i]);
+                if (units !== null) { return units; }
+            }
+
+            return null;
+        }
+
+        function readUnits(col, prefix) {
+            var match = new RegExp('(?:^|\\s)' + prefix + '(\\d+)(?:\\s|$)').exec(col.attr('class') || '');
+            return match ? parseInt(match[1], 10) : null;
+        }
+
+        function writeUnits(col, prefix, units) {
+            var classes = (col.attr('class') || '').split(/\s+/).filter(function(name) {
+                return name !== '' && !new RegExp('^' + prefix + '\\d+$').test(name);
+            });
+
+            if (units !== null) { classes.push(prefix + units); }
+
+            col.attr('class', classes.join(' '));
+        }
+
+        function setSize(col, tier, units) {
+            writeUnits(col, tier.colPrefix, units);
+        }
+
+        /** An offset of 0 is written as no class at all, which is what it means. */
+        function setOffset(col, tier, units) {
+            writeUnits(col, tier.offsetPrefix, units ? units : null);
+        }
+
+        /** The tiers a column carries an explicit size for. */
+        function sizedTiers(col) {
+            return BREAKPOINTS.filter(function(tier) {
+                return getSize(col, tier) !== null;
             });
         }
 
         /**
-         * Return the column size for colClass, or a size from a different
-         * class if it was not found.
-         * Returns null if no size whatsoever was found.
+         * The units left in a row at one tier, counting every sibling's size
+         * and offset. What "hold shift for max" grows into.
          */
-        function getColSize(col, colClass) {
-            var sizes = getColSizes(col);
-            for (var i = 0; i < sizes.length; i++) {
-                if (sizes[i].colClass == colClass) {
-                    return sizes[i].size;
-                }
-            }
-            if (sizes.length) {
-                return sizes[0].size;
-            }
-            return null;
-        }
+        function spare(row, tier, ignore) {
+            var used = 0;
 
-        function getColSizes(col) {
-            var result = [];
-            colClasses.forEach(function(colClass) {
-                var re = new RegExp(colClass + '(\\d+)', 'i');
-                if (re.test(col.attr('class'))) {
-                    result.push({
-                        colClass: colClass,
-                        size: parseInt(re.exec(col.attr('class'))[1])
-                    });
-                }
+            row.children('.column').each(function() {
+                var sibling = $(this);
+                if (ignore && sibling[0] === ignore[0]) { return; }
+
+                used += (getEffectiveSize(sibling, tier) || 0) + (getEffectiveOffset(sibling, tier) || 0);
             });
-            return result;
+
+            return MAX_COL_SIZE - used;
         }
 
-        function setColSize(col, colClass, size, done) {
-            var re = new RegExp('(' + colClass + '(\\d+))', 'i');
-            var reResult = re.exec(col.attr('class'));
-            if (reResult && parseInt(reResult[2]) !== size) {
-                // switchClass animates, and writes the new class when it is
-                // finished, so anything that has to see the class waits
-                col.switchClass(reResult[1], colClass + size, 50, done);
-            } else {
-                col.addClass(colClass + size);
-                if (done) { done(); }
+        /**
+         * The 12 unit budget, in one place: a column's size plus its offset
+         * never exceeds 12 at any tier.
+         *
+         * Which of the two gives way is the caller's decision, expressed by
+         * which one it marks as leading. Growing an offset shrinks the column;
+         * growing a column with no room left is refused, so the tool visibly
+         * does nothing rather than quietly rewriting an offset the user set.
+         */
+        function clamp(request) {
+            var size = request.size === null || request.size === undefined ? null : request.size;
+            var offset = request.offset === null || request.offset === undefined ? 0 : request.offset;
+
+            offset = Math.min(Math.max(offset, 0), MAX_COL_OFFSET);
+
+            if (size === null) { return { size: null, offset: offset, refused: false }; }
+
+            size = Math.min(Math.max(size, 1), MAX_COL_SIZE);
+
+            if (size + offset <= MAX_COL_SIZE) {
+                return { size: size, offset: offset, refused: false };
             }
+
+            if (request.leading === 'offset') {
+                return { size: MAX_COL_SIZE - offset, offset: offset, refused: false };
+            }
+
+            return { size: null, offset: offset, refused: true };
+        }
+
+        /**
+         * Drag resize leaves an inline pixel width behind, and jQuery UI adds
+         * its own. Neither belongs in the markup a host saves, or in the
+         * canvas once the size class has been written.
+         */
+        function stripPixelWidths(scope) {
+            scope.find('.column').addBack('.column').css({
+                width: '',
+                height: '',
+                left: '',
+                top: '',
+            });
         }
 
         function makeSortable() {
@@ -1010,12 +1257,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 size = MAX_COL_SIZE;
             }
 
-            var column = createColumn(size);
+            var column = createColumn(size, options.offset);
             if (options.content !== undefined) {
                 column.find('.ge-content').html(options.content);
             }
-            // options.offset arrives with the sizing core (spec 5.1), which is
-            // the one place allowed to write offset classes.
 
             return place(column, 'column', options);
         }
@@ -1054,14 +1299,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return Object.freeze(copy);
         }
 
-        function createColumn(size) {
+        /**
+         * A column sized for the current view: one tier, or every tier in the
+         * all view. `offset` indents it, within the same 12 unit budget.
+         */
+        function createColumn(size, offset) {
             var rte = getRTE(settings.content_types[0]);
-            return $('<div/>')
-                .addClass(colClasses.map(function(c) { return c + size; }).join(' '))
-                .append(createDefaultContentWrapper().html(
-                    rte ? rte.initialContent : '')
-                )
+            var column = $('<div class="column"/>')
+                .append(createDefaultContentWrapper().html(rte ? rte.initialContent : ''))
             ;
+
+            tiersFor(curView).forEach(function(tier) {
+                var wanted = clamp({ size: size, offset: offset || 0, leading: 'offset' });
+
+                setSize(column, tier, wanted.size === null ? size : wanted.size);
+                setOffset(column, tier, wanted.offset);
+            });
+
+            return column;
         }
 
         /**
@@ -1112,56 +1367,54 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             ;
         }
 
-        function switchLayout(colClassIndex) {
-            curColClassIndex = colClassIndex;
+        /**
+         * Constrain the canvas to the view's preview width and make that
+         * tier's classes the effective ones. The all view constrains nothing:
+         * every tier is live, which is how the page will really render.
+         */
+        function switchLayout(view) {
+            curView = view;
 
-            LAYOUT_MODES.forEach(function(mode, i) {
-                canvas.toggleClass(mode.cssClass, i == colClassIndex);
+            VIEW_KEYS.forEach(function(key) {
+                canvas.toggleClass('ge-layout-' + key, key === view);
             });
-            layoutDropdown.find('button').text(t(LAYOUT_MODES[colClassIndex].labelKey));
+            layoutDropdown.find('button').text(t(labelKeyFor(view)));
         }
 
         /**
-         * The layout mode index for a breakpoint key, or for the numeric index
-         * 2.x callers used. Null for anything this build does not have.
+         * The view key a caller asked for, or null. 2.x callers passed a
+         * layout mode index, which still works and says so once.
          */
-        function layoutModeIndex(view) {
+        function viewKey(view) {
             if (typeof view == 'number') {
                 warnOnceHere('changeView-index', 'changeView(' + view + '): layout modes are ' +
-                    'identified by breakpoint key now, so pass ' +
-                    JSON.stringify(LAYOUT_MODES.map(function(mode) { return mode.key; })) + '. ' +
-                    'Numeric indexes still work but will be dropped.');
-                return LAYOUT_MODES[view] ? view : null;
+                    'identified by breakpoint key now, so pass one of ' +
+                    JSON.stringify(VIEW_KEYS) + '. Numeric indexes still work, ' +
+                    'but they mean what they meant in 2.x (' +
+                    LEGACY_VIEW_INDEXES.join(', ') + ') and will be dropped.');
+                return LEGACY_VIEW_INDEXES[view] || null;
             }
 
-            for (var i = 0; i < LAYOUT_MODES.length; i++) {
-                if (LAYOUT_MODES[i].key === view) { return i; }
-            }
-
-            return null;
+            return VIEW_KEYS.indexOf(view) === -1 ? null : view;
         }
 
         function changeView(view) {
-            var index = layoutModeIndex(view);
+            var key = viewKey(view);
 
-            if (index === null) {
+            if (key === null) {
                 warn('changeView(' + JSON.stringify(view) + '): no such layout mode');
                 return;
             }
 
-            switchLayout(index);
+            switchLayout(key);
         }
 
         function getView() {
-            return LAYOUT_MODES[curColClassIndex].key;
+            return curView;
         }
         
         function getRTE(type) {
             return $.fn.gridEditor.RTEs[type];
-        }
-        
-        function clamp(input, min, max) {
-            return Math.min(max, Math.max(min, input));
         }
 
         /**
@@ -1233,6 +1486,8 @@ $.fn.gridEditor.locales = {
         'tool.delete_column': 'Remove col',
         'tool.column_narrower': 'Make column narrower\n(hold shift for min)',
         'tool.column_wider': 'Make column wider\n(hold shift for max)',
+        'tool.indent_decrease': 'Decrease indent\n(hold shift for none)',
+        'tool.indent_increase': 'Increase indent\n(hold shift for max)',
         'tool.edit_source': 'Edit Source Code',
         'tool.preview': 'Preview',
         'tool.id_placeholder': 'id',
@@ -1241,9 +1496,13 @@ $.fn.gridEditor.locales = {
         'row.add': 'Add row {layout}',
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
-        'view.lg': 'Desktop',
-        'view.sm': 'Tablet',
+        'view.all': 'All sizes',
         'view.xs': 'Phone',
+        'view.sm': 'Tablet',
+        'view.md': 'Small desktop',
+        'view.lg': 'Desktop',
+        'view.xl': 'Large desktop',
+        'view.xxl': 'Widescreen',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
         'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the ckeditor and jquery adapter js files.',
         'error.summernote_missing': 'Summernote not available! Make sure you loaded the Summernote js file.',

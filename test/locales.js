@@ -23,13 +23,13 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 /**
  * Every locale key the source actually asks for: the literal keys in `t()`
- * calls, and the keys tables hold under a `...Key` property, which is how the
- * layout modes name their labels.
+ * calls, and the keys named by a `...Key` property or constant, which is how
+ * the breakpoint table names the label of each view.
  */
 function keysUsedInSource() {
     var patterns = [
         /\bt\(\s*(?:settings,\s*)?'([^']+)'/g,
-        /\w*Key\s*:\s*'([^']+)'/g,
+        /\w+(?:Key|KEY)\s*[:=]\s*'([^']+)'/g,
     ];
     var keys = {};
 
@@ -266,16 +266,17 @@ async function spanishTests(t) {
             back: jQuery('#myGrid .ge-move').first().attr('title'),
             controls: jQuery('.ge-mainControls').length,
             view: jQuery('#myGrid').gridEditor('getView'),
+            english_view: english.view,
             editing: jQuery('#myGrid').hasClass('ge-editing'),
             settings: jQuery('#myGrid').data('grideditor').settings.locale,
         };
     `);
     t.check('setLocale re-renders the toolbar and the drawers, both ways',
         switched.english.move === 'Move' && switched.spanish.move === 'Mover' &&
-        switched.spanish.view === 'Escritorio' && switched.spanish.addRow === 'Añadir fila 12' &&
+        switched.spanish.view === 'Todos los tamaños' && switched.spanish.addRow === 'Añadir fila 12' &&
         switched.spanish.source === 'Editar el código fuente' &&
         switched.back === 'Move' && switched.controls === 1 &&
-        switched.view === 'lg' && switched.editing,
+        switched.english_view === 'All sizes' && switched.view === 'all' && switched.editing,
         switched);
     t.check('setLocale leaves one set of controls and reports the locale it switched to',
         switched.controls === 1 && switched.settings === 'en', switched);
@@ -314,10 +315,18 @@ async function spanishTests(t) {
                 overflowing.push({ text: jQuery(this).text().trim(), scroll: this.scrollWidth, client: this.clientWidth });
             }
         });
+        const menuOpen = jQuery('.ge-layout-mode .dropdown-menu').is(':visible');
+        const itemWidths = jQuery('.ge-layout-mode a').map(function() { return this.clientWidth; }).get();
+
+        // The open menu hangs outside the toolbar by design, so close it
+        // before asking whether the toolbar itself fits
+        jQuery('.ge-layout-mode .dropdown-toggle').trigger('click');
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         return {
             overflowing: overflowing,
-            menuOpen: jQuery('.ge-layout-mode .dropdown-menu').is(':visible'),
-            itemWidths: jQuery('.ge-layout-mode a').map(function() { return this.clientWidth; }).get(),
+            menuOpen: menuOpen,
+            itemWidths: itemWidths,
             toolbarFits: jQuery('.ge-wrapper')[0].scrollWidth <= jQuery('.ge-wrapper')[0].clientWidth + 1,
         };
     `);

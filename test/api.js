@@ -83,6 +83,7 @@ async function dispatchTests(t) {
         return {
             html: typeof set.gridEditor('getHtml'),
             view: set.gridEditor('getView'),
+            viewAfterChange: (set.gridEditor('changeView', 'md'), set.gridEditor('getView')),
             init: set.gridEditor('init') === set,
             deinit: set.gridEditor('deinit') === set,
             reset: set.gridEditor('reset') === set,
@@ -93,7 +94,8 @@ async function dispatchTests(t) {
         };
     `);
     t.check('each method returns what the spec says it returns',
-        returns.html === 'string' && returns.view === 'lg' && returns.init && returns.deinit &&
+        returns.html === 'string' && returns.view === 'all' && returns.viewAfterChange === 'md' &&
+        returns.init && returns.deinit &&
         returns.reset && returns.changeView && returns.createRow && returns.createColumn &&
         returns.createElement,
         returns);
@@ -311,7 +313,7 @@ async function viewTests(t) {
     var byKey = await page.eval(`
         const set = jQuery('#myGrid');
         const seen = {};
-        ['lg', 'sm', 'xs'].forEach(function(key) {
+        ['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'].forEach(function(key) {
             set.gridEditor('changeView', key);
             seen[key] = {
                 view: set.gridEditor('getView'),
@@ -321,27 +323,29 @@ async function viewTests(t) {
         });
         return seen;
     `);
-    t.check('changeView switches to each layout mode and getView reports it',
-        byKey.lg.view === 'lg' && byKey.sm.view === 'sm' && byKey.xs.view === 'xs' &&
-        byKey.lg.canvasClass.join() === 'ge-layout-desktop' &&
-        byKey.sm.canvasClass.join() === 'ge-layout-tablet' &&
-        byKey.xs.canvasClass.join() === 'ge-layout-phone',
+    t.check('changeView switches to every view and getView reports it',
+        Object.keys(byKey).every(function(key) {
+            return byKey[key].view === key && byKey[key].canvasClass.join() === 'ge-layout-' + key;
+        }),
         byKey);
     t.check('the layout mode dropdown follows changeView',
-        byKey.lg.dropdown === 'Desktop' && byKey.sm.dropdown === 'Tablet' &&
-        byKey.xs.dropdown === 'Phone',
+        byKey.all.dropdown === 'All sizes' && byKey.lg.dropdown === 'Desktop' &&
+        byKey.xxl.dropdown === 'Widescreen' && byKey.xs.dropdown === 'Phone',
         byKey);
 
     var dropdownDriven = await page.eval(`
         jQuery('#myGrid').gridEditor('changeView', 'lg');
-        jQuery('.ge-layout-mode a').eq(1).trigger('click');
+        jQuery('.ge-layout-mode a[data-ge-view="sm"]').trigger('click');
         return {
             view: jQuery('#myGrid').gridEditor('getView'),
             dropdown: jQuery('.ge-layout-mode button').text(),
+            items: jQuery('.ge-layout-mode a').map(function() { return jQuery(this).attr('data-ge-view'); }).get(),
         };
     `);
     t.check('the dropdown and the method are the same path',
-        dropdownDriven.view === 'sm' && dropdownDriven.dropdown === 'Tablet', dropdownDriven);
+        dropdownDriven.view === 'sm' && dropdownDriven.dropdown === 'Tablet' &&
+        dropdownDriven.items.join(',') === 'all,xs,sm,md,lg,xl,xxl',
+        dropdownDriven);
 
     var numeric = await page.eval(`
         const set = jQuery('#myGrid');
@@ -502,7 +506,7 @@ async function multipleCanvasTests(t) {
     t.check('a method applies to every canvas in the set, and a value comes from the first',
         state.instances === 2 && state.canvases === 2 && state.controls === 2 &&
         state.afterDeinit === 0 && state.afterInit && state.htmlIsFirstCanvas &&
-        state.viewOfFirst === 'lg',
+        state.viewOfFirst === 'all',
         state);
 
     var errors = page.errors();

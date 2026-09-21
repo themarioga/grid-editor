@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.14.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="../dist/jquery.grideditor.min.js"></script>
+
+    <script>
+        $(function() {
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
+                content_types: [],
+
+                // The default: every size and offset change is written to all
+                // six breakpoints at once. Switch the dropdown to a single
+                // breakpoint to tune that one on its own.
+                default_view: 'all',
+
+                // A host that wants the old three-mode feel can offer three
+                // layout_modes: ['all', 'lg', 'sm', 'xs'],
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            });
+        });
+    </script>
+
+    <title>Grid Editor breakpoints example</title>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-8">
+                <h1 class="h4">Six breakpoints, and "all sizes"</h1>
+                <p class="form-text">
+                    The dropdown on the right of the toolbar picks the layout
+                    mode. In <strong>All sizes</strong> the canvas renders as
+                    the browser would, and the width and indent tools write
+                    every breakpoint at once. Pick a single breakpoint and the
+                    canvas narrows to that tier's width, that tier's classes
+                    become the effective ones whatever your window is doing,
+                    and the tools write only that tier.
+                </p>
+                <p class="form-text">
+                    The row below starts with a different size per tier, so
+                    switching modes visibly changes it: 3 units on phone, 4 on
+                    tablet, 6 on desktop, 8 on widescreen. The second row shows
+                    offsets, which are indented per tier in the same way.
+                </p>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="row">
+                <div class="col-3 col-sm-4 col-md-5 col-lg-6 col-xl-7 col-xxl-8">
+                    <h2 class="h5">Sized per tier</h2>
+                    <p>3 on phone, 4 on tablet, 5 on small desktop, 6 on desktop, 7 on large, 8 on widescreen.</p>
+                </div>
+                <div class="col-9 col-sm-8 col-md-7 col-lg-6 col-xl-5 col-xxl-4">
+                    <h2 class="h5">And the rest of the row</h2>
+                    <p>The two columns always add up to twelve units.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-8 offset-2 col-lg-4 offset-lg-8">
+                    <h2 class="h5">Indented</h2>
+                    <p>Centred on phone, pushed to the right on desktop.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

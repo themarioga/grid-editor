@@ -62,6 +62,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ge-settings`, `ge-delete-row` and `ge-delete-column` classes on the tools
   that had none, so hosts and tests can find them without matching a tooltip
   that is now translated.
+- All six Bootstrap 5 breakpoints, plus an `all` view that writes every one of
+  them at once and is the new default. `changeView` takes a key (`xs`…`xxl` or
+  `all`), `getView` returns it, `layout_modes` says which the dropdown offers
+  and `default_view` says where the editor starts. The canvas gets
+  `ge-layout-<key>`, which constrains it to that tier's width and makes that
+  tier's classes the effective ones whatever the window is doing.
+- Column offsets: two indent tools per column, `valid_col_offsets`, and
+  `createColumn(size, { offset: n })`. Offsets are visualized in every layout
+  mode, and shift-click takes a column to the row's edge or back to none.
+- A sizing core that owns every size and offset class the editor reads or
+  writes, with one 12 unit budget for all of them. Its getters answer for the
+  tier they were asked about, and follow Bootstrap's own cascade downward when
+  a tier says nothing, rather than returning the first value they happen to
+  find.
+- `before-indent` and `after-indent`, so the indent tools are not a silent
+  operation. They carry the same payload as the resize pair, with `from` and
+  `to` as offsets.
+- `example/breakpoints.html`, showing the six tiers and the all view.
 - A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
   web server across every suite in `test/`, prints one summary and exits
   non-zero on any failure. `npm test -- rte` runs a single suite, and
@@ -102,6 +120,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The layout mode dropdown is built from the layout mode table rather than
   from a markup string, which also restores the closing tag the Tablet item
   had been missing.
+
+- **BREAKING:** the layout mode classes on the canvas are `ge-layout-xs`
+  through `ge-layout-xxl` and `ge-layout-all`, replacing `ge-layout-desktop`,
+  `ge-layout-tablet` and `ge-layout-phone`.
+- **BREAKING:** `addAllColClasses` is conservative now. A column that carries
+  any size class is left exactly as authored, instead of being seeded with one
+  class per tier; a column with no sizing at all gets a single `col-12`, which
+  applies at every tier. With six tiers the old behaviour would have put six
+  classes on every column.
+- The size a tool starts from is the one that applies at the tier being
+  edited, following the cascade: in the all view that is the widest tier,
+  which is what the unconstrained canvas is showing.
+- Growing a column is refused when its indent leaves no room, rather than
+  silently rewriting the indent. Growing an indent shrinks the column, because
+  the indent is the thing the user just asked for.
+- Size changes are written directly and animated by the stylesheet, rather
+  than through jQuery UI's `switchClass`, so `after-resize` fires with the
+  class already on the column.
+- `getHtml` strips inline pixel widths, so a drag-resized column exports as
+  its class and nothing else.
+- The layout mode LESS is list-driven over the breakpoint table instead of
+  taking exactly four tier arguments, and covers offsets as well as columns.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still

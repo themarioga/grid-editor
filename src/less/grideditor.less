@@ -179,38 +179,146 @@
         min-height: 50px;
         max-height: 100px;
     }
+
+    /* A size change should read as a movement rather than a jump, but not
+       while the pointer is dragging the edge: there the column follows the
+       pointer and a transition only lags behind it */
+    .column {
+        transition: width 120ms ease, margin-left 120ms ease;
+    }
+    .column.ui-resizable-resizing {
+        transition: none;
+    }
+
+    /* Resizing. jQuery UI's own stylesheet is not a dependency, so the handle
+       is styled here: a grip on the column's edge, clear of the drawer, which
+       is what keeps the resize gesture and the sort gesture apart */
+    .column > .ui-resizable-handle {
+        position: absolute;
+        display: block;
+        z-index: 10;
+    }
+    .column > .ui-resizable-e,
+    .column > .ui-resizable-w {
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        cursor: ew-resize;
+        background: fadeout(@colColor, 70%);
+
+        &:hover {
+            background: @colColor;
+        }
+    }
+    .column > .ui-resizable-e {
+        right: -1px;
+    }
+    .column > .ui-resizable-w {
+        left: -1px;
+    }
+
+    /* The units the column would land on, shown in its drawer while dragging */
+    .ge-tools-drawer > .ge-resize-size {
+        display: none;
+        float: right;
+        padding: 5px;
+        font-size: 11px;
+        color: @colTextColor;
+    }
+    .column.ui-resizable-resizing > .ge-tools-drawer > .ge-resize-size {
+        display: block;
+    }
+}
+
+/* The handle belongs to editing, and never to the output */
+.ge-canvas:not(.ge-editing) .ui-resizable-handle {
+    display: none;
 }
 
 /* Layout modes */
 
-// xs = ''
-.layoutMode(phone, col, col-sm, col-md, col-lg, col-xl, 400px);
-.layoutMode(tablet, col-sm, col, col-md, col-lg, col-xl, 800px);
-.layoutMode(desktop, col-lg, col, col-sm, col-md, col-xl, none);
+/*
+ * One row per Bootstrap 5 breakpoint, in the same order as the BREAKPOINTS
+ * table in the plugin. A layout mode previews one tier: the canvas is
+ * constrained to that tier's width, that tier's column and offset classes are
+ * made effective whatever the window is doing, and every other tier's classes
+ * are switched off - otherwise a wide window would keep showing the widest
+ * tier's classes no matter which mode is selected.
+ *
+ * The all view constrains nothing and switches nothing off: it renders the
+ * page as the browser would, which is the point of it.
+ */
 
-.layoutMode(@type, @e, @d1, @d2, @d3, @d4, @maxWidth) {
-    .ge-canvas.ge-layout-@{type} {
-        max-width: @maxWidth;
+@ge-tiers: xs, sm, md, lg, xl, xxl;
+@ge-col-prefixes: col, col-sm, col-md, col-lg, col-xl, col-xxl;
+@ge-offset-prefixes: offset, offset-sm, offset-md, offset-lg, offset-xl, offset-xxl;
+@ge-previews: 400px, 576px, 768px, 992px, 1200px, none;
+@ge-columns: 12;
+
+.ge-canvas.ge-layout-all {
+    max-width: none;
+}
+
+.ge-layout-modes(@i: 1) when (@i =< length(@ge-tiers)) {
+    @tier: extract(@ge-tiers, @i);
+
+    .ge-canvas.ge-layout-@{tier} {
+        max-width: extract(@ge-previews, @i);
         margin-left: auto;
         margin-right: auto;
-        .disable-columns(@d1, @d2, @d3, @d4);
-        .generate-columns(@e);
+
+        /* Order matters: the tiers that are off are written first, so the
+           active tier's rules win between two rules of equal specificity */
+        .ge-tiers-off(@i);
+        .ge-columns-on(extract(@ge-col-prefixes, @i));
+        .ge-offsets-on(extract(@ge-offset-prefixes, @i));
     }
+
+    .ge-layout-modes(@i + 1);
 }
 
-.disable-columns(@d1, @d2, @d3, @d4, @i: 1) when (@i =< 12) {
-  .@{d1}-@{i},
-  .@{d2}-@{i},
-  .@{d3}-@{i} {
-    width: inherit;
-  }
-  .disable-columns(@d1, @d2, @d3, @d4, (@i + 1));
+.ge-tiers-off(@active, @j: 1) when (@j =< length(@ge-tiers)) {
+    .ge-tier-off(@j, @active);
+    .ge-tiers-off(@active, @j + 1);
+}
+.ge-tier-off(@j, @active) when (@j = @active) {
+    /* the active tier stays on */
+}
+.ge-tier-off(@j, @active) when not (@j = @active) {
+    .ge-columns-off(extract(@ge-col-prefixes, @j));
+    .ge-offsets-off(extract(@ge-offset-prefixes, @j));
 }
 
-.generate-columns(@e, @i: 1) when (@i =< 12) {
-  .@{e}-@{i} {
-    flex: 0 0 @i * 8.33333333333%;
-    max-width: @i * 8.33333333333%;
-  }
-  .generate-columns(@e, (@i + 1));
+.ge-columns-on(@prefix, @i: 1) when (@i =< @ge-columns) {
+    .@{prefix}-@{i} {
+        flex: 0 0 auto;
+        width: percentage((@i / @ge-columns));
+        max-width: percentage((@i / @ge-columns));
+    }
+    .ge-columns-on(@prefix, (@i + 1));
 }
+
+.ge-columns-off(@prefix, @i: 1) when (@i =< @ge-columns) {
+    .@{prefix}-@{i} {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+    }
+    .ge-columns-off(@prefix, (@i + 1));
+}
+
+.ge-offsets-on(@prefix, @i: 1) when (@i < @ge-columns) {
+    .@{prefix}-@{i} {
+        margin-left: percentage((@i / @ge-columns));
+    }
+    .ge-offsets-on(@prefix, (@i + 1));
+}
+
+.ge-offsets-off(@prefix, @i: 1) when (@i < @ge-columns) {
+    .@{prefix}-@{i} {
+        margin-left: 0;
+    }
+    .ge-offsets-off(@prefix, (@i + 1));
+}
+
+.ge-layout-modes();

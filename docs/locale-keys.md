@@ -33,6 +33,8 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.delete_column` | Remove col | Column drawer |
 | `tool.column_narrower` | Make column narrower\n(hold shift for min) | Column drawer, the `-` tool. Two lines |
 | `tool.column_wider` | Make column wider\n(hold shift for max) | Column drawer, the `+` tool. Two lines |
+| `tool.indent_decrease` | Decrease indent\n(hold shift for none) | Column drawer, removes offset units |
+| `tool.indent_increase` | Increase indent\n(hold shift for max) | Column drawer, adds offset units |
 | `tool.edit_source` | Edit Source Code | Toolbar, swaps the canvas for its html |
 | `tool.preview` | Preview | Toolbar, hides the editing furniture while held |
 | `tool.id_placeholder` | id | Placeholder of the id input in the settings panel |
@@ -63,15 +65,20 @@ cancels `grideditor:before-delete` and asks in its own way.
 view.*
 ------
 
-The layout mode dropdown: one key per breakpoint the build offers, used for
-both the dropdown item and the button that shows the current mode. Short
-strings — they share a line with the other toolbar buttons.
+The layout mode dropdown: one key per view the build offers, used for both the
+dropdown item and the button that shows the current mode. The key is the view
+key, so a locale covers a new breakpoint by adding `view.<key>`. Short strings
+— they share a line with the other toolbar buttons.
 
 | Key | English | Where |
 | --- | --- | --- |
-| `view.lg` | Desktop | Layout mode writing `col-lg-*` |
-| `view.sm` | Tablet | Layout mode writing `col-sm-*` |
-| `view.xs` | Phone | Layout mode writing `col-*` |
+| `view.all` | All sizes | The default view, which writes every breakpoint at once |
+| `view.xs` | Phone | Layout mode writing `col-*` and `offset-*` |
+| `view.sm` | Tablet | Layout mode writing `col-sm-*` and `offset-sm-*` |
+| `view.md` | Small desktop | Layout mode writing `col-md-*` and `offset-md-*` |
+| `view.lg` | Desktop | Layout mode writing `col-lg-*` and `offset-lg-*` |
+| `view.xl` | Large desktop | Layout mode writing `col-xl-*` and `offset-xl-*` |
+| `view.xxl` | Widescreen | Layout mode writing `col-xxl-*` and `offset-xxl-*` |
 
 
 error.*

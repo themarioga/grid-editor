@@ -212,7 +212,7 @@ async function orderingTests(t) {
     t.check('the payload carries the documented fields',
         added.before.kind === 'row' && added.before.nodeIsJquery &&
         added.before.parentIsCanvas && added.before.canvasIsGrid &&
-        added.before.breakpoint === 'lg' && added.before.source === 'tool' &&
+        added.before.breakpoint === 'all' && added.before.source === 'tool' &&
         added.before.keys === 'breakpoint,canvas,kind,node,parent,source' &&
         added.generic.kind === 'row' && added.after.kind === 'row',
         added);
@@ -426,26 +426,27 @@ async function deleteTests(t) {
 async function resizeTests(t) {
     var page = await recordingPage(t);
 
-    var before = await page.eval(`
-        const column = jQuery('#myGrid > .row').eq(1).children('.column').first();
-        window.column = column;
-        const classes = column.attr('class');
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
-        return { classes: classes, logDuringAnimation: window.log.slice() };
-    `);
-    await sleep(300);
     var resized = await page.eval(`
+        const column = jQuery('#myGrid > .row').eq(1).children('.column').first();
+        const before = column.attr('class');
+
+        // What the column looked like at the moment after-resize was
+        // delivered, so the class cannot be written after the announcement
+        jQuery('#myGrid').on('grideditor:after-resize', function() {
+            window.classesWhenAnnounced = column.attr('class');
+        });
+        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+
         return {
-            after: window.column.attr('class'),
+            before: before,
+            after: column.attr('class'),
+            whenAnnounced: window.classesWhenAnnounced,
             log: window.log,
             payload: window.payloads['event:after-resize'],
         };
     `);
-    resized.before = before.classes;
-    t.check('after-resize waits for the class to actually be written',
-        before.logDuringAnimation.indexOf('event:after-resize') === -1 &&
-        resized.log.indexOf('event:after-resize') !== -1,
-        { during: before.logDuringAnimation, after: resized.log });
+    t.check('the size class is on the column by the time after-resize fires',
+        /col-lg-5/.test(resized.whenAnnounced || ''), resized);
     t.check('a width tool announces the resize with the sizes it moved between',
         /col-lg-6/.test(resized.before) && /col-lg-5/.test(resized.after) &&
         resized.log.join('|') === [
@@ -464,7 +465,6 @@ async function resizeTests(t) {
         const column = jQuery('#myGrid > .row').eq(1).children('.column').first();
         const before = column.attr('class');
         column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
-        await new Promise(resolve => setTimeout(resolve, 300));
 
         return {
             unchanged: column.attr('class') === before,
@@ -478,15 +478,26 @@ async function resizeTests(t) {
         window.restart();
         const column = jQuery('#myGrid > .row').first().children('.column').first();
         const widen = column.find('> .ge-tools-drawer .ge-increase-col-width');
+
+        // The first one is a real change: the column was full width at lg and
+        // unsized below it, and the all view writes every tier
         widen.trigger(jQuery.Event('click', { shiftKey: true }));
-        await new Promise(resolve => setTimeout(resolve, 300));
+        const firstClick = window.log.slice();
+        window.log = [];
+
+        // The second one asks for exactly what is already there
+        widen.trigger(jQuery.Event('click', { shiftKey: true }));
+
         return {
             classes: column.attr('class'),
-            log: window.log,
+            firstClick: firstClick,
+            secondClick: window.log,
         };
     `);
     t.check('a width tool that would not change the size fires nothing',
-        /col-lg-12/.test(noop.classes) && noop.log.length === 0, noop);
+        /col-12/.test(noop.classes) && /col-xxl-12/.test(noop.classes) &&
+        noop.firstClick.length === 4 && noop.secondClick.length === 0,
+        noop);
 
     var errors = page.errors();
     t.check('the resize tests logged no errors', errors.length === 0, errors.slice(0, 5));
