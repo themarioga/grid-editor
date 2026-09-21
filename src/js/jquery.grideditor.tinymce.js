@@ -1,4 +1,20 @@
 (function($) {
+
+    // tinyMCE snapshots the target element's attributes when an inline editor is
+    // created and restores them on remove(), so this has to run *after* remove()
+    // to keep the grid editor's own class and tinyMCE's leftovers off the element.
+    function cleanUp(contentArea) {
+        contentArea
+            .removeClass('active')
+            .removeClass('ge-rte-active')
+            .removeAttr('id')
+            .removeAttr('style')
+            .removeAttr('spellcheck')
+            .removeAttr('contenteditable')
+            .removeAttr('data-mce-style')
+        ;
+    }
+
     $.fn.gridEditor.RTEs.tinymce = {
 
         init: function(settings, contentAreas) {
@@ -28,6 +44,9 @@
                         if (contentArea.data('ge-tinymce-pending-remove')) {
                             contentArea.removeData('ge-tinymce-pending-remove');
                             editor.remove();
+                            // deinit already ran and cannot clean up after this
+                            // late remove(), so do it here instead
+                            cleanUp(contentArea);
                             return;
                         }
 
@@ -68,14 +87,7 @@
                     contentArea.data('ge-tinymce-pending-remove', true);
                 }
 
-                contentArea
-                    .removeClass('active')
-                    .removeAttr('id')
-                    .removeAttr('style')
-                    .removeAttr('spellcheck')
-                    .removeAttr('contenteditable')
-                    .removeAttr('data-mce-style')
-                ;
+                cleanUp(contentArea);
             });
         },
 

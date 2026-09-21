@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   licensed release; 7.x is GPL-2.0-or-later and 8.x is commercial.
 
 ### Fixed
+- Clear `ge-rte-active` after the rich text editor has been torn down rather
+  than before. An inline editor may restore the class attribute it snapshotted
+  when it was created, as tinyMCE does, which put the class straight back and
+  made `initRTE` ignore every later click: no content area could be edited
+  again after a single `getHtml()` or `remove()`. The tinyMCE integration now
+  also cleans up after the late removal it can perform from
+  `init_instance_callback`, which used to leave `active` behind and arm a
+  pending-remove flag that destroyed the next editor created on that content
+  area. This affected the pre-6 integration too.
 - Guard the rich text editor lookup. A `content_types` entry with no matching
   registered editor, or an empty `content_types`, made `getHtml`, `remove`,
   add row and add column throw on an undefined editor. They now no-op for that

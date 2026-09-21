@@ -248,12 +248,17 @@ $.fn.gridEditor = function( options ) {
 
         function deinit() {
             canvas.removeClass('ge-editing');
-            var contents = canvas.find('.ge-content').removeClass('ge-rte-active').each(function() {
+            var contents = canvas.find('.ge-content').each(function() {
                 var content = $(this);
                 var rte = getRTE(content.data('ge-content-type'));
                 if (rte) {
                     rte.deinit(settings, content);
                 }
+                // Cleared after rte.deinit, not before: an editor can restore the
+                // class attribute it snapshotted when it was created, which would
+                // leave ge-rte-active in place and make initRTE ignore every later
+                // click on this content area.
+                content.removeClass('ge-rte-active');
             });
             canvas.find('.ge-tools-drawer').remove();
             removeSortable();
