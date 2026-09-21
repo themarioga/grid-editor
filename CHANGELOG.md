@@ -20,6 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `createContainer`, `addTab`, `addAccordionItem` and `setLocale` are
   registered but not implemented yet: calling one warns and returns `null`
   rather than doing nothing silently.
+- Host callbacks. Every operation is announced twice: as a jQuery event on the
+  canvas - the specific name, then the generic one - and as the matching
+  `settings.callbacks` entry. `grideditor:before-add-row`,
+  `-column`, `-element` and their `after-` counterparts, the generic
+  `grideditor:before-add`/`after-add`, plus `before-delete`/`after-delete`,
+  `before-move`/`after-move` and `before-resize`/`after-resize`. Every payload
+  carries `kind`, `node`, `parent`, `canvas`, `breakpoint` and `source`
+  (`tool`, `api` or `dragdrop`); a move adds `from`/`to` positions and a
+  resize the sizes it moved between.
+- Canceling. `preventDefault()` on either event, or `false` from the callback,
+  cancels a `before-*`: nothing is inserted, deleted or resized, no `after-*`
+  fires, and a canceled `create*` returns `null`. A canceled move is put back
+  with jQuery UI's own `cancel`, since a drag cannot be refused once it has
+  started.
+- A re-entrancy queue: `init`, `reset` and the `create*` methods called from
+  inside a handler run when the operation that called them has finished,
+  instead of rebuilding the canvas underneath it.
+- `callbacks`, `confirm_delete` and `sortable_options` settings.
 - A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
   web server across every suite in `test/`, prints one summary and exits
   non-zero on any failure. `npm test -- rte` runs a single suite, and
@@ -43,6 +61,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The layout modes come from one table, which `changeView`, `getView`, the
   column classes and the mode dropdown all read. Clicking the dropdown now
   goes through `changeView`.
+
+- Deleting a row or a column goes through `before-delete`, then the confirm,
+  then `after-delete` once the animation has finished. The host's handler runs
+  first on purpose: a host that cancels to show its own dialog never wants the
+  built-in confirm to have appeared already. `confirm_delete: false` skips the
+  built-in one.
+- `after-resize` fires once the column class has actually been written, rather
+  than while jQuery UI is still animating the class swap.
+- A drag that ends where it started is not reported as a move, and dragging a
+  content area reports `kind: 'content'`.
+- Adding a node brings the canvas up to date with `init()` rather than a full
+  `deinit`/`init`, so inserting a row somewhere else no longer closes the rich
+  text editor the user is typing in.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still

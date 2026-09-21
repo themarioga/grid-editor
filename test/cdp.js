@@ -168,6 +168,78 @@ Session.prototype.click = async function(selector, nth) {
     await sleep(150);
 };
 
+/**
+ * Drag one element onto another with real mouse events, which is the only way
+ * to exercise a jQuery UI sortable: it listens for mousedown, a move past its
+ * distance threshold, and mouseup, and works out where the item landed from
+ * the pointer position.
+ *
+ * The drop point is the middle of the target by default. `options.xRatio` and
+ * `options.yRatio` aim somewhere else inside it, which is how a test says
+ * "drop before this one" (0.25, 0.25 - its upper left quarter) rather than
+ * relying on where the middle happens to land once the placeholder has
+ * reflowed the row. `options.dx`/`options.dy` shift the point in pixels, and
+ * `options.steps` is how many moves the pointer makes on the way, since one
+ * jump is not always enough for the widget to notice the intersection.
+ */
+Session.prototype.drag = async function(fromSelector, toSelector, options) {
+    options = options || {};
+
+    var points = await this.eval(
+        'const from = document.querySelector(' + JSON.stringify(fromSelector) + ');' +
+        'const to = document.querySelector(' + JSON.stringify(toSelector) + ');' +
+        'if (!from || !to) { return null; }' +
+        'from.scrollIntoView({ block: "center" });' +
+        'await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));' +
+        'const a = from.getBoundingClientRect();' +
+        'const b = to.getBoundingClientRect();' +
+        'return {' +
+        '    from: { x: a.left + a.width / 2, y: a.top + a.height / 2 },' +
+        '    to: { x: b.left + b.width * ' + (options.xRatio || 0.5) + ',' +
+        '           y: b.top + b.height * ' + (options.yRatio || 0.5) + ' },' +
+        '};'
+    );
+
+    if (!points) {
+        throw new Error('no elements to drag from ' + fromSelector + ' to ' + toSelector);
+    }
+
+    var target = {
+        x: points.to.x + (options.dx || 0),
+        y: points.to.y + (options.dy || 0),
+    };
+    var steps = options.steps || 8;
+
+    await this.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x: points.from.x,
+        y: points.from.y,
+        button: 'left',
+        clickCount: 1,
+    });
+
+    for (var step = 1; step <= steps; step++) {
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x: points.from.x + (target.x - points.from.x) * step / steps,
+            y: points.from.y + (target.y - points.from.y) * step / steps,
+            button: 'left',
+            buttons: 1,
+        });
+        await sleep(30);
+    }
+
+    await this.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: target.x,
+        y: target.y,
+        button: 'left',
+        clickCount: 1,
+    });
+
+    await sleep(250);
+};
+
 Session.prototype.type = async function(text) {
     await this.send('Input.insertText', { text: text });
     await sleep(100);

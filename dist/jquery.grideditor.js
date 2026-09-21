@@ -138,7 +138,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            'source_textarea'   : ''
+            'source_textarea'   : '',
+            'callbacks'         : {}, // before_*/after_* functions, the events by another route
+            'confirm_delete'    : true, // Ask before deleting a row or a column
+            'sortable_options'  : {} // Merged into every jQuery UI sortable
         }, optionsOrMethod);
 
 
@@ -159,6 +162,181 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (warnedHere[key]) { return; }
             warnedHere[key] = true;
             warn(message);
+        }
+
+        var operationDepth = 0; // Operations running right now
+        var deferredWork = []; // What handlers asked for while one was running
+
+        /**
+         * The payload every notification carries. Built here, and only here,
+         * so no caller assembles one by hand and gets a field wrong.
+         *
+         * `parent` is where the node is going, or where it is coming from on a
+         * delete, which is not the same as node.parent() while the node is
+         * still detached - so an add passes it in.
+         */
+        function payloadFor(kind, node, extra) {
+            return $.extend({
+                kind: kind,
+                node: node,
+                parent: node.parent(),
+                canvas: canvas,
+                breakpoint: getView(),
+                source: 'api',
+            }, extra || {});
+        }
+
+        /**
+         * Deliver one notification twice: as a jQuery event on the canvas -
+         * the specific name first, then the generic one - and as the matching
+         * settings.callbacks entries. Everything is delivered whatever the
+         * first listener says, and the answer is whether any of them canceled,
+         * which only means something for a before-* notification.
+         */
+        function emit(name, payload) {
+            var names = [name];
+            var generic = name.replace(/^(before|after)-add-.+$/, '$1-add');
+            if (generic !== name) { names.push(generic); }
+
+            var canceled = false;
+
+            names.forEach(function(eventName) {
+                var event = $.Event('grideditor:' + eventName);
+                canvas.trigger(event, [payload]);
+                if (event.isDefaultPrevented()) { canceled = true; }
+            });
+
+            names.forEach(function(eventName) {
+                var callback = settings.callbacks[eventName.replace(/-/g, '_')];
+                if (typeof callback == 'function' && callback(payload) === false) {
+                    canceled = true;
+                }
+            });
+
+            return !canceled;
+        }
+
+        /**
+         * One operation, from its before-* notification to its after-* one.
+         *
+         * Anything a handler asks the editor to do while the operation runs is
+         * queued and played back once it finishes, so a handler cannot reset
+         * the canvas out from under the operation that called it.
+         */
+        function operate(body) {
+            operationDepth++;
+            try {
+                return body();
+            } finally {
+                operationDepth--;
+                if (operationDepth === 0) {
+                    while (deferredWork.length) {
+                        deferredWork.shift()();
+                    }
+                }
+            }
+        }
+
+        /** Run `work` now, or after the running operation if there is one. */
+        function defer(work) {
+            if (operationDepth === 0) {
+                work();
+                return;
+            }
+
+            deferredWork.push(work);
+        }
+
+        /**
+         * Insert a node: ask, insert, bring the canvas up to date so the new
+         * markup has its controls, then announce it. Hands back the node, or
+         * null when a handler canceled.
+         *
+         * The update is init() rather than reset(): a reset deinitializes
+         * every rich text editor on the canvas, and adding a row somewhere
+         * else is no reason to close the editor the user is typing in.
+         */
+        function addNode(kind, node, insert, extra) {
+            return operate(function() {
+                var payload = payloadFor(kind, node, extra);
+
+                if (!emit('before-add-' + kind, payload)) { return null; }
+
+                insert();
+                init();
+                emit('after-add-' + kind, payload);
+
+                return node;
+            });
+        }
+
+        /**
+         * Remove a node: ask the host, then the user, then remove it, update
+         * the canvas and announce it once the animation has finished.
+         *
+         * The host's handler goes first on purpose. A host that cancels
+         * before-delete to show a dialog of its own does not want the built-in
+         * confirm to have popped up already.
+         */
+        function deleteNode(kind, node, message, animate) {
+            operate(function() {
+                var payload = payloadFor(kind, node, { source: 'tool' });
+
+                if (!emit('before-delete', payload)) { return; }
+                if (settings.confirm_delete && !window.confirm(message)) { return; }
+
+                animate(function() {
+                    node.remove();
+                    operate(function() {
+                        init();
+                        emit('after-delete', payload);
+                    });
+                });
+            });
+        }
+
+        /**
+         * Change one column's size through the events. How the size is written
+         * is untouched: the sizing core owns that (spec 5.1).
+         */
+        function resizeColumn(col, colClass, size, source) {
+            var from = getColSize(col, colClass);
+            if (from === size) { return; } // Not a resize, so not reported as one
+
+            operate(function() {
+                var payload = payloadFor('column', col, {
+                    source: source,
+                    from: from,
+                    to: size,
+                });
+
+                if (!emit('before-resize', payload)) { return; }
+
+                setColSize(col, colClass, size, function() {
+                    operate(function() { emit('after-resize', payload); });
+                });
+            });
+        }
+
+        /**
+         * Where a node sits, for the from/to of a move. Tool drawers are not
+         * counted, so the index is the one a host would recognize.
+         */
+        function positionOf(node) {
+            var parent = node.parent();
+
+            return {
+                parent: parent,
+                index: parent.children().not('.ge-tools-drawer').index(node),
+            };
+        }
+
+        function kindOf(node) {
+            if (node.hasClass('row')) { return 'row'; }
+            if (node.hasClass('column')) { return 'column'; }
+            if (node.hasClass('ge-element')) { return 'element'; }
+            if (node.hasClass('ge-content')) { return 'content'; }
+            return 'node';
         }
         
         // Copy html to sourceElement if a source textarea is given
@@ -199,12 +377,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 var btn = $('<a class="btn btn-sm btn-primary" />')
                     .attr('title', 'Add row ' + layout.join('-'))
                     .on('click', function() {
-                        var row = createRow().appendTo(canvas);
+                        var row = createRow();
                         layout.forEach(function(i) {
                             createColumn(i).appendTo(row);
                         });
-                        init();
-                        if (row[0].scrollIntoView) { row[0].scrollIntoView({behavior: 'smooth'}); }
+
+                        var added = addNode('row', row, function() {
+                            row.appendTo(canvas);
+                        }, { parent: canvas, source: 'tool' });
+
+                        if (added && row[0].scrollIntoView) {
+                            row[0].scrollIntoView({behavior: 'smooth'});
+                        }
                     })
                     .appendTo(addRowGroup)
                 ;
@@ -394,15 +578,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     createTool(drawer, t.title || '', t.className || '', t.iconClass || 'bi bi-wrench', t.on);
                 });
                 createTool(drawer, 'Remove row', '', 'bi bi-trash', function() {
-                    if (window.confirm('Delete row?')) {
-                        row.slideUp(function() {
-                            row.remove();
-                        });
-                    }
+                    deleteNode('row', row, 'Delete row?', function(removed) {
+                        row.slideUp(removed);
+                    });
                 });
                 createTool(drawer, 'Add column', 'ge-add-column', 'bi bi-plus-circle', function() {
-                    row.append(createColumn(3));
-                    init();
+                    var column = createColumn(3);
+
+                    addNode('column', column, function() {
+                        row.append(column);
+                    }, { parent: row, source: 'tool' });
                 });
 
                 var details = createDetails(row, settings.row_classes).appendTo(drawer);
@@ -426,7 +611,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     if (e.shiftKey) {
                         newSize = colSizes[0];
                     }
-                    setColSize(col, curColClass, Math.max(newSize, 1));
+                    resizeColumn(col, curColClass, Math.max(newSize, 1), 'tool');
                 });
 
                 createTool(drawer, 'Make column wider\n(hold shift for max)', 'ge-increase-col-width', 'bi bi-plus-lg', function(e) {
@@ -438,7 +623,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     if (e.shiftKey) {
                         newSize = getColSize(col) + getColumnSpare(col.parent());
                     }
-                    setColSize(col, curColClass, Math.min(newSize, MAX_COL_SIZE));
+                    resizeColumn(col, curColClass, Math.min(newSize, MAX_COL_SIZE), 'tool');
                 });
 
                 createTool(drawer, 'Settings', '', 'bi bi-gear-fill', function() {
@@ -450,22 +635,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 });
 
                 createTool(drawer, 'Remove col', '', 'bi bi-trash', function() {
-                    if (window.confirm('Delete column?')) {
+                    deleteNode('column', col, 'Delete column?', function(removed) {
                         col.animate({
                             opacity: 'hide',
                             width: 'hide',
                             height: 'hide'
-                        }, 400, function() {
-                            col.remove();
-                        });
-                    }
+                        }, 400, removed);
+                    });
                 });
 
                 createTool(drawer, 'Add row', 'ge-add-row', 'bi bi-plus-circle', function() {
                     var row = createRow();
-                    col.append(row);
                     row.append(createColumn(6)).append(createColumn(6));
-                    init();
+
+                    addNode('row', row, function() {
+                        col.append(row);
+                    }, { parent: col, source: 'tool' });
                 });
 
                 var details = createDetails(col, settings.col_classes).appendTo(drawer);
@@ -582,35 +767,93 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return result;
         }
 
-        function setColSize(col, colClass, size) {
+        function setColSize(col, colClass, size, done) {
             var re = new RegExp('(' + colClass + '(\\d+))', 'i');
             var reResult = re.exec(col.attr('class'));
             if (reResult && parseInt(reResult[2]) !== size) {
-                col.switchClass(reResult[1], colClass + size, 50);
+                // switchClass animates, and writes the new class when it is
+                // finished, so anything that has to see the class waits
+                col.switchClass(reResult[1], colClass + size, 50, done);
             } else {
                 col.addClass(colClass + size);
+                if (done) { done(); }
             }
         }
 
         function makeSortable() {
-            canvas.find('.row').sortable({
+            var shared = {
+                handle: '> .ge-tools-drawer .ge-move',
+                start: sortStart,
+                stop: sortStop,
+                helper: 'clone',
+            };
+
+            canvas.find('.row').sortable($.extend({
                 items: '> .column',
                 connectWith: '.ge-canvas .row',
-                handle: '> .ge-tools-drawer .ge-move',
-                start: sortStart,
                 tolerance: 'pointer',
-                helper: 'clone',
-            });
-            canvas.add(canvas.find('.column')).sortable({
+            }, shared, settings.sortable_options));
+
+            canvas.add(canvas.find('.column')).sortable($.extend({
                 items: '> .row, > .ge-content',
                 connectWith: '.ge-canvas, .ge-canvas .column',
-                handle: '> .ge-tools-drawer .ge-move',
-                start: sortStart,
-                helper: 'clone',
-            });
+            }, shared, settings.sortable_options));
 
+            /**
+             * jQuery UI cannot refuse a drag once it has started, so a
+             * canceled before-move is remembered here and undone on drop
+             * (spec 2.4). The node carries the mark, because with connected
+             * lists the drop is not always reported by the list that started
+             * the drag.
+             */
             function sortStart(e, ui) {
                 ui.placeholder.css({ height: ui.item.outerHeight()});
+
+                var node = ui.item;
+                var from = positionOf(node);
+
+                node.data('ge-move-from', from);
+                node.removeData('ge-move-canceled');
+
+                operate(function() {
+                    var moving = emit('before-move', payloadFor(kindOf(node), node, {
+                        parent: from.parent,
+                        source: 'dragdrop',
+                        from: from,
+                    }));
+
+                    if (!moving) { node.data('ge-move-canceled', true); }
+                });
+            }
+
+            function sortStop(e, ui) {
+                var node = ui.item;
+                var from = node.data('ge-move-from') || positionOf(node);
+
+                node.removeData('ge-move-from');
+
+                if (node.data('ge-move-canceled')) {
+                    node.removeData('ge-move-canceled');
+                    $(this).sortable('cancel');
+                    return;
+                }
+
+                var to = positionOf(node);
+                if (to.parent[0] === from.parent[0] && to.index === from.index) {
+                    return; // A drag that went nowhere is not a move
+                }
+
+                // No init() here, unlike an add: the node brought its drawer
+                // with it, and jQuery UI is still finishing the drag, so this
+                // is the wrong moment to rebuild the widgets it is using.
+                operate(function() {
+                    emit('after-move', payloadFor(kindOf(node), node, {
+                        parent: to.parent,
+                        source: 'dragdrop',
+                        from: from,
+                        to: to,
+                    }));
+                });
             }
         }
 
@@ -631,12 +874,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Put a freshly created node where the caller asked for it, and reset
-         * the canvas so the new markup gets its controls. With no placement
-         * option the node stays detached, and placing it and calling reset()
-         * is the host's job (spec 1.2).
+         * Put a freshly created node where the caller asked for it, through
+         * the add events, and bring the canvas up to date so the new markup
+         * gets its controls. With no placement option the node stays
+         * detached, and placing it and calling reset() is the host's job
+         * (spec 1.2).
+         *
+         * Returns the node, or null when a handler canceled the add. A call
+         * made from inside an event handler is queued, and then returns the
+         * node without knowing yet whether the add will be canceled.
          */
-        function place(node, options) {
+        function place(node, kind, options) {
             var placement = null;
 
             PLACEMENTS.forEach(function(name) {
@@ -647,11 +895,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (placement === null) { return node; }
 
-            node[placement](options[placement]);
-            // TODO (3.0): fire before-add and after-add here once the event
-            // bus exists, and return null when a before-add handler cancels.
-            reset();
-            return node;
+            var target = $(options[placement]);
+            var parent = (placement === 'appendTo' || placement === 'prependTo')
+                ? target
+                : target.parent();
+
+            var add = function() {
+                return addNode(kind, node, function() {
+                    node[placement](options[placement]);
+                }, { parent: parent, source: 'api' });
+            };
+
+            if (operationDepth > 0) {
+                defer(add);
+                return node;
+            }
+
+            return add();
         }
 
         /**
@@ -670,7 +930,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 createColumn(size).appendTo(row);
             });
 
-            return place(row, options);
+            return place(row, 'row', options);
         }
 
         /**
@@ -691,7 +951,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // options.offset arrives with the sizing core (spec 5.1), which is
             // the one place allowed to write offset classes.
 
-            return place(column, options);
+            return place(column, 'column', options);
         }
 
         /**
@@ -709,7 +969,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 element.attr('data-ge-label', options.label);
             }
 
-            return place(element, options);
+            return place(element, 'element', options);
         }
 
         /**
@@ -845,9 +1105,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         var handle = {
             getHtml: getHtml,
-            init: init,
+            // init and reset are deferred when a handler calls them, so an
+            // operation in flight finishes before the canvas is rebuilt
+            init: function() { defer(init); },
+            reset: function() { defer(reset); },
             deinit: deinit,
-            reset: reset,
             destroy: destroy,
             remove: deprecatedRemove,
             changeView: changeView,

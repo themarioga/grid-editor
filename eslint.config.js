@@ -73,7 +73,7 @@ var PRACTICES = {
     'no-undef-init': 1,
     'no-unused-expressions': 1,
     'no-with': 1,
-    'new-cap': 1,
+    'new-cap': [1, { capIsNewExceptions: ['$.Event', 'jQuery.Event'] }], // jQuery.Event is a factory
     'yoda': 1,
 };
 
