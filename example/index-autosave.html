@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Grid Editor with Auto Save and Import/Export</title>
+
+    <!-- CSS dependencies -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" />
+    <link rel="stylesheet" href="./grideditor.css" />
+
+    <!-- JS dependencies -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/4.3.2/tinymce.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/4.3.2/jquery.tinymce.min.js"></script>
+    <script src="./jquery.grideditor.min.js"></script>
+
+    <script>
+        $(function() {
+            // Initialize grid editor
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6,6], [9,3]],
+                content_types: ['tinymce'],
+            });
+            
+            // // Get resulting html
+            // var html = $('#myGrid').gridEditor('getHtml');
+            // console.log(html);
+        });
+    </script>
+</head>
+<body>
+<div class="container py-3">
+    <h2>Grid Editor 示例 - 自动保存 + 导入导出</h2>
+    <div class="mb-3">
+        <button id="exportBtn" class="btn btn-primary">导出布局</button>
+        <input type="file" id="importInput" class="btn btn-secondary" accept=".html">
+        <button id="resetBtn" class="btn btn-danger">清除草稿</button>
+    </div>
+
+    <form id="editorForm">
+        <div id="myGrid"></div>
+    </form>
+</div>
+<script>
+    const LOCAL_STORAGE_KEY = 'gridEditorLayout';
+
+    function initEditor(initialContent = '') {
+        const $grid = $('#myGrid');
+        $grid.html(initialContent);
+        $grid.gridEditor({
+            new_row_layouts: [[12], [6,6], [4,4,4]],
+            content_types: ['tinymce']
+        });
+    }
+
+    function autoSave() {
+        const html = $('#myGrid').gridEditor('getHtml');
+        localStorage.setItem(LOCAL_STORAGE_KEY, html);
+    }
+
+    $(function () {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        initEditor(saved || $('#myGrid').html());
+
+
+        setInterval(autoSave, 5000);
+
+
+        $('#exportBtn').on('click', () => {
+            const html = $('#myGrid').gridEditor('getHtml');
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'layout.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        $('#importInput').on('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                $('#myGrid').gridEditor('remove');
+                initEditor(e.target.result);
+                autoSave();
+            };
+            reader.readAsText(file);
+        });
+
+        $('#resetBtn').on('click', function () {
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            location.reload();
+        });
+    });
+</script>
+</body>
+</html>
