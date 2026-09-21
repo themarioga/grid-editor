@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- A public API, dispatched from a table instead of a chain of string
+  comparisons: `init`, `deinit`, `reset`, `destroy`, `changeView`, `getView`,
+  `createRow`, `createColumn` and `createElement`, alongside the existing
+  `getHtml`. `create*` methods return the node they made, everything else
+  returns the jQuery set and chains.
+- `create*` accepts `appendTo`, `prependTo`, `insertAfter` and `insertBefore`.
+  Given one, grid-editor places the node and resets the canvas; given none,
+  the node comes back detached for the host to place.
+- `element.data('grideditor')` is documented API: the same methods, plus a
+  frozen copy of `settings` and the `canvas`.
+- `createContainer`, `addTab`, `addAccordionItem` and `setLocale` are
+  registered but not implemented yet: calling one warns and returns `null`
+  rather than doing nothing silently.
 - A test runner, `test/run.js`, behind `npm test`. It shares one Chrome and one
   web server across every suite in `test/`, prints one summary and exits
   non-zero on any failure. `npm test -- rte` runs a single suite, and
@@ -23,6 +36,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `$(el).gridEditor('remove')` returns the jQuery object instead of
   `undefined`, so it chains like the other methods.
+- A method called on an element with no editor on it is a no-op that returns
+  the set, instead of doing nothing in some cases and throwing in others.
+  `getHtml` still reads the element's html.
+- An unknown method name warns once and returns the set.
+- The layout modes come from one table, which `changeView`, `getView`, the
+  column classes and the mode dropdown all read. Clicking the dropdown now
+  goes through `changeView`.
+
+### Deprecated
+- `remove`, in favour of `destroy`, which does the same thing. `remove` still
+  works and warns once per instance.
+
+### Fixed
+- Calling `deinit` twice threw from jQuery UI, which `reset` could reach now
+  that both are public methods.
 
 ## [2.0.0] - 2026-09-21
 ### Changed

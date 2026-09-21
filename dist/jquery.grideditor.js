@@ -3,31 +3,112 @@
  */
 (function( $ ){
 
-$.fn.gridEditor = function( options ) {
+/**
+ * Every method the plugin dispatches, and how to dispatch it.
+ *
+ * `value` marks a method that hands back something other than the jQuery set
+ * - html, a breakpoint key, a created node - so it runs against the first
+ * element of the set only and does not chain. `noInstance` is the answer for
+ * an element that carries no editor; every other method is a no-op returning
+ * the set. `unimplemented` registers a method a later phase fills in, so a
+ * host that calls it early gets told rather than ignored.
+ */
+var METHODS = {
+    getHtml:          { value: true, noInstance: function(element) { return element.html(); } },
+    init:             {},
+    deinit:           {},
+    reset:            {},
+    destroy:          {},
+    remove:           {},
+    changeView:       {},
+    getView:          { value: true },
+    createRow:        { value: true },
+    createColumn:     { value: true },
+    createElement:    { value: true },
+    createContainer:  { value: true, unimplemented: true },
+    addTab:           { value: true, unimplemented: true },
+    addAccordionItem: { value: true, unimplemented: true },
+    setLocale:        { unimplemented: true },
+};
+
+/**
+ * Where a create* call may put the node it just made. The first one given
+ * wins, and giving none leaves the node detached for the host to place.
+ */
+var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
+
+/**
+ * The layout modes, in the order the dropdown lists them, which is also the
+ * order 2.x callers passed as a numeric index to switch between them. Every
+ * column class the editor writes comes from this table.
+ */
+var LAYOUT_MODES = [
+    { key: 'lg', colClass: 'col-lg-', cssClass: 'ge-layout-desktop', label: 'Desktop' },
+    { key: 'sm', colClass: 'col-sm-', cssClass: 'ge-layout-tablet', label: 'Tablet' },
+    { key: 'xs', colClass: 'col-', cssClass: 'ge-layout-phone', label: 'Phone' },
+];
+
+var warned = {};
+
+function warn(message) {
+    if (window.console && window.console.warn) {
+        window.console.warn('grid-editor: ' + message);
+    }
+}
+
+/** Warn about something the host can only usefully be told about once. */
+function warnOnce(key, message) {
+    if (warned[key]) { return; }
+    warned[key] = true;
+    warn(message);
+}
+
+/**
+ * Run a string method against a set of elements.
+ *
+ * An element with no editor on it is not an error: the method is a no-op and
+ * the set comes back for chaining, so host code does not have to check first.
+ * `getHtml` is the exception, because reading an element's html makes sense
+ * whether or not it is being edited.
+ */
+function dispatch(set, name, args) {
+    var descriptor = METHODS[name];
+
+    if (!descriptor) {
+        warnOnce('method:' + name, 'unknown method "' + name + '"');
+        return set;
+    }
+
+    if (descriptor.value) {
+        var element = set.first();
+        if (!element.length) { return null; }
+
+        var instance = element.data('grideditor');
+        if (!instance) {
+            return descriptor.noInstance ? descriptor.noInstance(element) : null;
+        }
+
+        return instance[name].apply(instance, args);
+    }
+
+    set.each(function() {
+        var found = $(this).data('grideditor');
+        if (found) { found[name].apply(found, args); }
+    });
+
+    return set;
+}
+
+$.fn.gridEditor = function( optionsOrMethod ) {
 
     var self = this;
-    var grideditor = self.data('grideditor');
-    
+
     /** Methods **/
-    
-    if (arguments[0] == 'getHtml') {
-        if (grideditor) {
-            grideditor.deinit();
-            var html = self.html();
-            grideditor.init();
-            return html;
-        } else {
-            return self.html();
-        }
+
+    if (typeof optionsOrMethod == 'string') {
+        return dispatch(self, optionsOrMethod, Array.prototype.slice.call(arguments, 1));
     }
-    
-    if (arguments[0] == 'remove') {
-        if (grideditor) {
-            grideditor.remove();
-        }
-        return self;
-    }
-    
+
     /** Initialize plugin */
 
     self.each(function(baseIndex, baseElem) {
@@ -58,7 +139,7 @@ $.fn.gridEditor = function( options ) {
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             'source_textarea'   : ''
-        }, options);
+        }, optionsOrMethod);
 
 
         // Elems
@@ -66,20 +147,28 @@ $.fn.gridEditor = function( options ) {
             mainControls,
             wrapper, // controls wrapper
             addRowGroup,
+            layoutDropdown,
             htmlTextArea
         ;
-        var colClasses = ['col-lg-', 'col-sm-', 'col-'];
+        var colClasses = LAYOUT_MODES.map(function(mode) { return mode.colClass; });
         var curColClassIndex = 0; // Index of the column class we are manipulating currently
         var MAX_COL_SIZE = 12;
+        var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
+
+        function warnOnceHere(key, message) {
+            if (warnedHere[key]) { return; }
+            warnedHere[key] = true;
+            warn(message);
+        }
         
         // Copy html to sourceElement if a source textarea is given
         if (settings.source_textarea) {
             var sourceHtml = $(settings.source_textarea).val();
             if (sourceHtml.length > 0 && $('<div>' + sourceHtml + '</div>').find('.row').addBack('.row').length == 0) {
                 var sourceRow = createRow();
-                var column = createColumn(12).appendTo(sourceRow);
-                column.find('.ge-content').html(sourceHtml);
-                sourceHtml = column.html();
+                var sourceColumn = createColumn(12).appendTo(sourceRow);
+                sourceColumn.find('.ge-content').html(sourceHtml);
+                sourceHtml = sourceColumn.html();
             } 
             baseElem.html(sourceHtml);
         }
@@ -132,7 +221,7 @@ $.fn.gridEditor = function( options ) {
             });
 
             // Buttons on right
-            var layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
+            layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
                 '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">Desktop</button>' +
                     '<div class="dropdown-menu" role="menu">' +
                         '<a class="dropdown-item" data-width="auto" title="Desktop">Desktop</a>' +
@@ -141,9 +230,9 @@ $.fn.gridEditor = function( options ) {
                     '</div>' +
                 '</div>')
                 .on('click', 'a', function() {
-                    var a = $(this);
-                    switchLayout(a.index());
-                    layoutDropdown.find('button').text(a.text());
+                    // Through changeView, so the dropdown and the method are
+                    // one path rather than two that have to agree
+                    changeView(LAYOUT_MODES[$(this).index()].key);
                 })
                 .appendTo(wrapper)
             ;
@@ -265,13 +354,30 @@ $.fn.gridEditor = function( options ) {
             runFilter(false);
         }
         
-        function remove() {
+        /**
+         * The markup as a host would save it: no drawers, no editor, no
+         * sortables. The canvas goes back to editing afterwards.
+         */
+        function getHtml() {
+            deinit();
+            var html = canvas.html();
+            init();
+            return html;
+        }
+
+        function destroy() {
             deinit();
             mainControls.remove();
             htmlTextArea.remove();
             $(window).off('scroll', onScroll);
             canvas.off('click', '.ge-content', initRTE);
             canvas.removeData('grideditor');
+        }
+
+        function deprecatedRemove() {
+            warnOnceHere('remove', 'remove() is deprecated and will be removed in a later ' +
+                'release. Use destroy(), which does the same thing.');
+            destroy();
         }
 
         function createRowControls() {
@@ -509,11 +615,117 @@ $.fn.gridEditor = function( options ) {
         }
 
         function removeSortable() {
-            canvas.add(canvas.find('.column')).add(canvas.find('.row')).sortable('destroy');
+            // Only where a sortable was actually made: deinit() is a public
+            // method now, and jQuery UI throws when asked to destroy a widget
+            // that is not there, so calling deinit() twice would fail.
+            canvas.add(canvas.find('.column')).add(canvas.find('.row')).each(function() {
+                var node = $(this);
+                if (node.data('ui-sortable')) {
+                    node.sortable('destroy');
+                }
+            });
         }
 
         function createRow() {
             return $('<div class="row" />');
+        }
+
+        /**
+         * Put a freshly created node where the caller asked for it, and reset
+         * the canvas so the new markup gets its controls. With no placement
+         * option the node stays detached, and placing it and calling reset()
+         * is the host's job (spec 1.2).
+         */
+        function place(node, options) {
+            var placement = null;
+
+            PLACEMENTS.forEach(function(name) {
+                if (placement === null && options && options[name] !== undefined) {
+                    placement = name;
+                }
+            });
+
+            if (placement === null) { return node; }
+
+            node[placement](options[placement]);
+            // TODO (3.0): fire before-add and after-add here once the event
+            // bus exists, and return null when a before-add handler cancels.
+            reset();
+            return node;
+        }
+
+        /**
+         * A row, optionally with columns in it: createRow([8, 4]).
+         */
+        function apiCreateRow(layout, options) {
+            var row = createRow();
+
+            if (layout !== undefined && !Array.isArray(layout)) {
+                warn('createRow: the layout is an array of column sizes, as in [8, 4]. ' +
+                    'Making an empty row instead.');
+                layout = [];
+            }
+
+            (layout || []).forEach(function(size) {
+                createColumn(size).appendTo(row);
+            });
+
+            return place(row, options);
+        }
+
+        /**
+         * A column of `size` units, optionally holding `options.content`.
+         */
+        function apiCreateColumn(size, options) {
+            options = options || {};
+
+            if (typeof size != 'number') {
+                warn('createColumn: no column size given, using ' + MAX_COL_SIZE);
+                size = MAX_COL_SIZE;
+            }
+
+            var column = createColumn(size);
+            if (options.content !== undefined) {
+                column.find('.ge-content').html(options.content);
+            }
+            // options.offset arrives with the sizing core (spec 5.1), which is
+            // the one place allowed to write offset classes.
+
+            return place(column, options);
+        }
+
+        /**
+         * Host markup wrapped as a grid-editor element (spec 4.5). What is
+         * inside stays the host's; grid-editor owns the wrapper only.
+         */
+        function apiCreateElement(content, options) {
+            options = options || {};
+
+            var element = $('<div class="ge-element" />')
+                .attr('data-ge-element', options.type || 'element')
+                .append(content)
+            ;
+            if (options.label !== undefined) {
+                element.attr('data-ge-label', options.label);
+            }
+
+            return place(element, options);
+        }
+
+        /**
+         * A shallow frozen copy of the settings for the instance handle, so a
+         * host can read what the editor is running with without changing it
+         * behind the editor's back. Arrays are copied; the objects inside them
+         * are the host's own and stay shared.
+         */
+        function settingsCopy() {
+            var copy = {};
+
+            $.each(settings, function(key, value) {
+                copy[key] = Array.isArray(value) ? value.slice() : value;
+            });
+
+            return Object.freeze(copy);
         }
 
         function createColumn(size) {
@@ -577,10 +789,45 @@ $.fn.gridEditor = function( options ) {
         function switchLayout(colClassIndex) {
             curColClassIndex = colClassIndex;
 
-            var layoutClasses = ['ge-layout-desktop', 'ge-layout-tablet', 'ge-layout-phone'];
-            layoutClasses.forEach(function(cssClass, i) {
-                canvas.toggleClass(cssClass, i == colClassIndex);
+            LAYOUT_MODES.forEach(function(mode, i) {
+                canvas.toggleClass(mode.cssClass, i == colClassIndex);
             });
+            layoutDropdown.find('button').text(LAYOUT_MODES[colClassIndex].label);
+        }
+
+        /**
+         * The layout mode index for a breakpoint key, or for the numeric index
+         * 2.x callers used. Null for anything this build does not have.
+         */
+        function layoutModeIndex(view) {
+            if (typeof view == 'number') {
+                warnOnceHere('changeView-index', 'changeView(' + view + '): layout modes are ' +
+                    'identified by breakpoint key now, so pass ' +
+                    JSON.stringify(LAYOUT_MODES.map(function(mode) { return mode.key; })) + '. ' +
+                    'Numeric indexes still work but will be dropped.');
+                return LAYOUT_MODES[view] ? view : null;
+            }
+
+            for (var i = 0; i < LAYOUT_MODES.length; i++) {
+                if (LAYOUT_MODES[i].key === view) { return i; }
+            }
+
+            return null;
+        }
+
+        function changeView(view) {
+            var index = layoutModeIndex(view);
+
+            if (index === null) {
+                warn('changeView(' + JSON.stringify(view) + '): no such layout mode');
+                return;
+            }
+
+            switchLayout(index);
+        }
+
+        function getView() {
+            return LAYOUT_MODES[curColClassIndex].key;
         }
         
         function getRTE(type) {
@@ -591,11 +838,39 @@ $.fn.gridEditor = function( options ) {
             return Math.min(max, Math.max(min, input));
         }
 
-        baseElem.data('grideditor', {
+        /**
+         * The instance handle, documented API as of 3.0: the methods the
+         * plugin dispatches, plus the settings and the canvas. A host holding
+         * this can call several methods without dispatching each one.
+         */
+        var handle = {
+            getHtml: getHtml,
             init: init,
             deinit: deinit,
-            remove: remove,
+            reset: reset,
+            destroy: destroy,
+            remove: deprecatedRemove,
+            changeView: changeView,
+            getView: getView,
+            createRow: apiCreateRow,
+            createColumn: apiCreateColumn,
+            createElement: apiCreateElement,
+            canvas: canvas,
+            settings: settingsCopy(),
+        };
+
+        // Methods a later phase fills in: registered, so calling one gets a
+        // warning and null rather than silence.
+        $.each(METHODS, function(name, descriptor) {
+            if (!descriptor.unimplemented) { return; }
+
+            handle[name] = function() {
+                warnOnceHere(name, name + ' is registered but not implemented in this build yet');
+                return null;
+            };
         });
+
+        baseElem.data('grideditor', handle);
 
     });
 
