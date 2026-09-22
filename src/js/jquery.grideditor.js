@@ -1321,6 +1321,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 getUtility: getUtility,
                 setUtility: setUtility,
                 utilityField: utilityField,
+                bareStyle: bareStyle,
             };
         }
 
@@ -1566,6 +1567,29 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 return true;
             });
+        }
+
+        /**
+         * ge.bareStyle(node, family, property): what a css property comes to
+         * on a node with none of the family's classes, at any breakpoint. The
+         * answer a preview needs for "no class applies here" when that is not
+         * a constant: text-align inherits from the parent, and the host's own
+         * css may float an element. The browser is the only one who knows, so
+         * the classes come off for the moment it takes to ask.
+         */
+        function bareStyle(node, name, property) {
+            var family = familyNamed(name, 'bareStyle');
+            node = $(node).first();
+            if (!family || !node.length) { return null; }
+
+            var original = node.attr('class');
+            BREAKPOINTS.forEach(function(tier) { writeUtility(node, family, tier, null); });
+
+            var value = getComputedStyle(node[0]).getPropertyValue(property);
+
+            if (original === undefined) { node.removeAttr('class'); } else { node.attr('class', original); }
+
+            return value;
         }
 
         /** Bring a node's panel and preview up to date with its classes. */

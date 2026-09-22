@@ -167,6 +167,8 @@
         margin: 0 -@editGutter @editGutter;
         display: block;
         width: calc(~"100% +" 2 * @editGutter);
+        /* Its node may align text, and the drawer's tools would follow */
+        text-align: left;
         
         > a {
             display: inline-block;

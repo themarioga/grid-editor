@@ -401,6 +401,22 @@ async function customPanelTests(t, page) {
         custom.allView === '' && custom.md === '7px', custom);
 }
 
+async function bareStyleTests(t, page) {
+    var read = await page.eval(canvasWith('order-1 order-md-3') + `
+        let handle = null;
+        jQuery.fn.gridEditor.utilities.probe = function(ge) { handle = ge; return { families: [] }; };
+        window.fixture.teardown();
+        window.fixture.init({ plugins: window.fixture.plugins(['testing', 'probe']) });
+        const before = col().attr('class');
+        const bare = handle.bareStyle(col(), 'order', 'order');
+        const unknown = handle.bareStyle(col(), 'nonsense', 'order');
+        return { bare: bare, unknown: unknown, before: before, after: col().attr('class') };
+    `);
+    t.check('bareStyle reads a property with the family\'s classes out of the way, and puts them back',
+        read.bare === '0' && read.unknown === null && read.before === read.after && /order-md-3/.test(read.after),
+        read);
+}
+
 async function pluginSettingTests(t, page) {
     var off = await page.eval(canvasWith('order-1') + `
         window.fixture.teardown();
@@ -429,6 +445,7 @@ module.exports = {
         await previewTests(t, page);
         await nodeKindTests(t, page);
         await customPanelTests(t, page);
+        await bareStyleTests(t, page);
         await pluginSettingTests(t, page);
 
         var errors = page.errors();

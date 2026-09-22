@@ -123,6 +123,7 @@ not change without a major version.
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 | `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
+| `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 
 The add, delete and move events for a container and its panes are fired by the
 editor, not by the plugin: `createPaneControls` handles a pane's delete, and
@@ -239,7 +240,10 @@ What the editor does with a family:
   breakpoint view each node that carries a family's class gets
   `preview(value)` — the value that applies there, or `null` — as inline
   `!important` styles. Return what `null` looks like too: a wider breakpoint's
-  class is still live in a wide window and has to be overruled. The all view
+  class is still live in a wide window and has to be overruled. When what
+  `null` looks like depends on the page — `text-align` inherits, the host's
+  css may float an element — `ge.bareStyle(node, family, property)` asks the
+  browser. Parents are previewed before their children. The all view
   previews nothing, since every breakpoint there is live and what Bootstrap
   shows is the truth. The styles come off on `deinit`, leaving the host's own
   `style` as it was, so `getHtml` never sees them.

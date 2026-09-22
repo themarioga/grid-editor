@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- The `textalign` utility plugin: `text-{bp}-start`, `-center` and `-end` on
+  rows, columns, elements and containers. With no class applying in a view, the
+  preview shows what the node inherits from its parent or the host's css.
+- The `float` utility plugin: `float-{bp}-start`, `-end` and `-none` on
+  elements, with the text of the content area flowing round them.
+- `ge.bareStyle(node, family, property)` on the plugin handle: a property's
+  value with the family's classes out of the way, for previews whose "no
+  class" is not a constant.
+
 ## [4.1.0] - 2026-09-22
 ### Added
 - Utility plugins, a third kind beside containers and features:

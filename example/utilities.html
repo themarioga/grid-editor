@@ -23,6 +23,10 @@
     <script src="../dist/plugins/grideditor.alignment.min.js"></script>
     <script src="../dist/plugins/grideditor.gutters.min.js"></script>
     <script src="../dist/plugins/grideditor.spacing.min.js"></script>
+    <script src="../dist/plugins/grideditor.textalign.min.js"></script>
+    <!-- Float works on elements, so the elements plugin comes first -->
+    <script src="../dist/plugins/grideditor.elements.min.js"></script>
+    <script src="../dist/plugins/grideditor.float.min.js"></script>
 
     <script>
         $(function() {
@@ -101,6 +105,13 @@
                     every panel, each a side and a value. The centred column
                     below gets more padding from small desktop up.
                 </p>
+                <p class="form-text">
+                    <strong>Text alignment:</strong> a field in every panel.
+                    The centred column's text is centred from small desktop
+                    up. <strong>Float:</strong> a field in an element's panel;
+                    the quote in the last row floats to the end from tablet up,
+                    with the text flowing round it.
+                </p>
                 <p class="form-text">Last change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <pre id="html" class="form-text"></pre>
@@ -132,9 +143,19 @@
             </div>
 
             <div class="row justify-content-md-center">
-                <div class="col-12 col-md-6 py-2 py-md-4">
+                <div class="col-12 col-md-6 py-2 py-md-4 text-md-center">
                     <h2 class="h5">Centred</h2>
                     <p>Its row has <code>justify-content-md-center</code>, and it has <code>py-2 py-md-4</code>.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <blockquote data-ge-element="quote" data-ge-label="Pull quote" class="float-sm-end ms-sm-3 p-3 border-start border-4">
+                        A floated element, <code>float-sm-end</code>.
+                    </blockquote>
+                    <p>The text of the content area flows round the quote from tablet up, and runs under it on phones, where it does not float. Switch between Phone and Tablet in the dropdown to see it move, or choose another float in the element's panel.</p>
+                    <p>A second paragraph, so there is enough text to flow.</p>
                 </div>
             </div>
 

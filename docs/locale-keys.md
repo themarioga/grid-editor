@@ -159,6 +159,14 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.side_b` | Bottom | The side of `pb-*` and `mb-*` |
 | `utility.side_s` | Start | The side of `ps-*` and `ms-*` |
 | `utility.side_e` | End | The side of `pe-*` and `me-*` |
+| `utility.text_align` | Text alignment | Label of the textalign plugin's field |
+| `utility.text_start` | Start | Its choice for `text-*-start` |
+| `utility.text_center` | Center | Its choice for `text-*-center` |
+| `utility.text_end` | End | Its choice for `text-*-end` |
+| `utility.float` | Float | Label of the float plugin's field, on an element |
+| `utility.float_start` | Start | Its choice for `float-*-start` |
+| `utility.float_end` | End | Its choice for `float-*-end` |
+| `utility.float_none` | None | Its choice for `float-*-none` |
 | `utility.spacing_gutter` | A column's side padding is its gutter: changing it changes the gutter | Note in a column's spacing group while it carries side padding |
 
 

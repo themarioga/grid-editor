@@ -155,6 +155,8 @@
   margin: 0 -5px 5px;
   display: block;
   width: calc(100% + 2 * 5px);
+  /* Its node may align text, and the drawer's tools would follow */
+  text-align: left;
 }
 .ge-canvas.ge-editing .ge-tools-drawer.ge-picker-open {
   z-index: 200;

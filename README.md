@@ -392,6 +392,8 @@ a plugin in a file of its own:
 <script src="grid-editor/dist/plugins/grideditor.alignment.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.gutters.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.spacing.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.textalign.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.float.min.js"></script>   <!-- after grideditor.elements -->
 ```
 
 | Plugin | Classes | On |
@@ -401,6 +403,8 @@ a plugin in a file of its own:
 | `alignment` | `justify-content-{bp}-*`, `align-items-{bp}-*`; `align-self-{bp}-*` | rows; columns |
 | `gutters` | `g-{bp}-{0–5}`, `gx-{bp}-*`, `gy-{bp}-*` | rows |
 | `spacing` | `{p,m}{,x,y,t,b,s,e}-{bp}-{0–5}`, and `auto` for margin | rows, columns, elements, containers |
+| `textalign` | `text-{bp}-start`, `-center`, `-end` | rows, columns, elements, containers |
+| `float` | `float-{bp}-start`, `-end`, `-none` | elements |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
 panel, and some add a tool to the drawer. In a breakpoint view a change is
