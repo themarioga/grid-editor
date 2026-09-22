@@ -73,17 +73,20 @@ module.exports = function(grunt) {
     },
     
     cssmin: {
-      development: {
+      build: {
+        options: {
+          sourceMap: true,
+        },
         files: {
-          'dist/grideditor.min.css' : ['dist/grideditor.css'],
-        }
-      }
+          'dist/grideditor.min.css': ['dist/grideditor.css'],
+        },
+      },
     },
     
     watch: {
       stylesheets: {
         files: ['src/**/*', 'example/*'],
-        tasks: ['concat:js', 'uglify:build', 'less'],
+        tasks: ['concat:js', 'uglify:build', 'less', 'cssmin'],
         options: {
           spawn: false,
           livereload: true,
@@ -101,6 +104,6 @@ module.exports = function(grunt) {
     
   });
 
-  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'copy:locales']);
+  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy:locales']);
 
 };

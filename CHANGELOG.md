@@ -51,11 +51,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Spanish locale, `dist/locales/grideditor.es.js`, built from
   `src/js/locales/grideditor.es.js`. It translates every key in `locales.en`,
   which `test/locales.js` asserts, so a change that adds a string adds its
-  Spanish in the same commit. *Not yet reviewed by a native speaker.*
+  Spanish in the same commit.
 - `docs/locale-keys.md`: the key catalogue, hand-written, with
   `test/locales.js` holding it to the source in both directions.
 - `example/locale.html`: an example page with a language dropdown calling
   `setLocale`.
+- The stylesheet is minified too: `dist/grideditor.min.css`, with a source map,
+  built and watched alongside the readable one. The task existed and was never
+  run.
 - The build copies and minifies each `src/js/locales/*.js` into `dist/locales/`
   individually, with a watch target of its own. The main bundle is unchanged:
   the `src/js/*.js` glob does not descend.

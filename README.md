@@ -22,7 +22,7 @@ Installation
 
 ```html
 <!-- Make sure jQuery, jQuery UI, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
-<link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.css" />
+<link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
 <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
 ```
 
