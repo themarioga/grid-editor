@@ -12,8 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   breakpoints' own sizes or offsets are taken off, as the utilities have done
   since 4.1. Up to 4.x it wrote all six breakpoints. The resize and indent
   payloads carry `cleared`, with what was taken off.
-- Resize payloads' `from` and `to` can be `'equal'` or `'auto'`, and `source`
-  can be `panel`.
+- Resize payloads' `from` and `to` can be `'equal'` or `'auto'`, `from` is
+  `null` for a column its row sizes, and `source` can be `panel`.
+- `valid_col_sizes` defaults to `[1, … 12, 'equal', 'auto']`.
+- `ge.viewTiers()` returns the one breakpoint a view writes: `xs` in the all
+  view.
+
+See [UPGRADING.md](UPGRADING.md) for what these mean for a host.
 
 ### Added
 - Equal and auto column sizes: Bootstrap's `col` and `col-auto`, at every
@@ -46,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ge.bareStyle(node, family, property)` on the plugin handle: a property's
   value with the family's classes out of the way, for previews whose "no
   class" is not a constant.
+- `example/autocols.html`.
+
+### Fixed
+- The toolbar's layout icons nested each column inside the one before, since
+  jQuery 4 stopped expanding `<div/>`: the icon of `[6, 6]` drew one block.
+- A column's drawer no longer counts towards an auto column's width.
 
 ## [4.1.0] - 2026-09-22
 ### Added

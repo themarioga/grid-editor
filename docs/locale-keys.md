@@ -133,7 +133,7 @@ key, so a locale covers a new breakpoint by adding `view.<key>`. Short strings
 
 | Key | English | Where |
 | --- | --- | --- |
-| `view.all` | All sizes | The default view, which writes every breakpoint at once |
+| `view.all` | All sizes | The default view, which writes one class for every breakpoint |
 | `view.xs` | Phone | Layout mode writing `col-*` and `offset-*` |
 | `view.sm` | Tablet | Layout mode writing `col-sm-*` and `offset-sm-*` |
 | `view.md` | Small desktop | Layout mode writing `col-md-*` and `offset-md-*` |

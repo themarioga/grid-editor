@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+
+    <!-- The editor, and the sections plugin: equal and auto sizes and
+         columns per row are the editor's own, sections are a plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.sections.min.js"></script>
+
+    <script>
+        $(function() {
+            $('#myGrid').gridEditor({
+                content_types: [],
+
+                // Sizes are numbers, 'equal' (col) or 'auto' (col-auto), and a
+                // layout can be a row with columns per row
+                new_row_layouts: [
+                    [12], [6, 6], ['auto', 'equal'], ['equal', 'equal', 'equal'],
+                    { row_cols: { xs: 1, sm: 2, lg: 4 }, columns: 4 },
+                ],
+
+                default_view: 'lg',
+            });
+
+            // A width chosen anywhere - tools, edge, panel - is a resize
+            $('#myGrid').on('grideditor:after-resize', function(e, payload) {
+                $('#last').text('width at ' + payload.breakpoint + ': ' +
+                    (payload.from === null ? 'from the row' : payload.from) + ' → ' +
+                    (payload.to === null ? 'inherit' : payload.to) +
+                    (payload.cleared && payload.cleared.length ? ' (took off ' + payload.cleared.map(function(entry) {
+                        return entry.breakpoint;
+                    }).join(', ') + ')' : ''));
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            });
+        });
+    </script>
+
+    <title>Grid Editor column sizes and sections example</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+
+    <div class="container-fluid px-4">
+
+        <div class="row my-3">
+            <div class="col-lg-8">
+                <h1 class="h4">Column sizes, columns per row, and sections</h1>
+                <p class="form-text">
+                    <strong>Equal and auto.</strong> A column is a number of
+                    twelfths, <em>equal</em> (<code>col</code>: an equal share
+                    of what the row has left) or <em>auto</em>
+                    (<code>col-auto</code>: as wide as its content), at each
+                    breakpoint. Every size is in the <em>Width</em> field of a
+                    column's settings, under Responsive; the width tools and
+                    dragging an edge turn an equal or auto column into a
+                    number, starting from the width it has.
+                </p>
+                <p class="form-text">
+                    <strong>Columns per row.</strong> A row's
+                    <em>Columns per row</em> field shares the line out among
+                    the columns that have no size of their own. The second
+                    section's cards are one per line on phones, two on
+                    tablets, four on desktops.
+                </p>
+                <p class="form-text">
+                    <strong>Sections.</strong> Bootstrap's containers, grouping
+                    rows. Drag rows in and out of them, choose their width in
+                    their settings, and switch views to see each one as wide
+                    as its container would be. <strong>All sizes</strong>
+                    writes one class for every size.
+                </p>
+                <p class="form-text">Last width change: <span id="last">none yet</span></p>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="container">
+                <div class="row">
+                    <div class="col-auto">
+                        <h2 class="h5">Auto</h2>
+                        <p>As wide as this.</p>
+                    </div>
+                    <div class="col">
+                        <h2 class="h5">Equal</h2>
+                        <p>Takes what the auto column leaves.</p>
+                    </div>
+                    <div class="col-3">
+                        <h2 class="h5">Three</h2>
+                        <p>A fixed quarter.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container-lg">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4">
+                    <div class="col"><h2 class="h6">Card one</h2><p>Shared out by the row.</p></div>
+                    <div class="col"><h2 class="h6">Card two</h2><p>Shared out by the row.</p></div>
+                    <div class="col"><h2 class="h6">Card three</h2><p>Shared out by the row.</p></div>
+                    <div class="col"><h2 class="h6">Card four</h2><p>Shared out by the row.</p></div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="h5">A row outside any section</h2>
+                    <p>Full width of the canvas. Drag it into one of the sections above.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container-fluid -->
+
+</body>
+</html>

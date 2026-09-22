@@ -23,9 +23,10 @@
                 new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
                 content_types: [],
 
-                // The default: every size and offset change is written to all
-                // six breakpoints at once. Switch the dropdown to a single
-                // breakpoint to tune that one on its own.
+                // The default: a size or offset change is written once, as the
+                // class with no breakpoint, and replaces what the breakpoints
+                // said. Switch the dropdown to a single breakpoint to tune
+                // that one on its own.
                 default_view: 'all',
 
                 // A host that wants the old three-mode feel can offer three
@@ -55,8 +56,9 @@
                 <p class="form-text">
                     The dropdown on the right of the toolbar picks the layout
                     mode. In <strong>All sizes</strong> the canvas renders as
-                    the browser would, and the width and indent tools write
-                    every breakpoint at once. Pick a single breakpoint and the
+                    the browser would, and the width and indent tools write one
+                    class for every size (<code>col-4</code>), replacing what
+                    the breakpoints had. Pick a single breakpoint and the
                     canvas narrows to that tier's width, that tier's classes
                     become the effective ones whatever your window is doing,
                     and the tools write only that tier.

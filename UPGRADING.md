@@ -1,3 +1,58 @@
+Upgrading from grid-editor `4.*` to `5.*`
+=========================================
+
+One change makes it a major: **the all view writes one class.** Everything
+else in 5.0 is new, and a page that uses none of it edits as it did.
+
+* __A size or an offset set in the all view is the class with no breakpoint.__
+  Up to 4.x the all view wrote all six breakpoints; 5.0 writes the base class
+  and takes the breakpoints' own sizes or offsets off, as the utilities have
+  done since 4.1. The markup means the same on the page and is shorter:
+
+  ```html
+  <!-- 4.x, after "narrower" on a col-lg-6 column in the all view -->
+  <div class="col-5 col-sm-5 col-md-5 col-lg-5 col-xl-5 col-xxl-5">
+
+  <!-- 5.0, the same click -->
+  <div class="col-5">
+  ```
+
+  Reading has not changed: markup with the six classes written out is read as
+  before, and the first change made in the all view simplifies it. What to do:
+  nothing, unless you compare or post-process the html the editor saves and
+  expect six classes. A breakpoint view still writes its own breakpoint alone.
+
+* __Resize and indent payloads carry `cleared` in the all view__, with what the
+  write took off each breakpoint: `[{ breakpoint: 'lg', value: 6 }]`. A
+  listener that checks the payload's keys exactly will see one more.
+
+* __A resize's `from` and `to` can be `'equal'` or `'auto'`__ - Bootstrap's
+  `col` and `col-auto` - and `from` is `null` for a column its row sizes with
+  `row-cols`. `source` can be `panel`, for a width chosen in a column's
+  settings panel. A listener that does arithmetic on them should check
+  `typeof size === 'number'` first. These only happen on columns that use the
+  new sizes.
+
+* __`valid_col_sizes` has two more values by default__, `'equal'` and `'auto'`,
+  which the add column picker and the width field offer. A host that sets its
+  own list keeps it; one that wants the 4.x picker sets
+  `valid_col_sizes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]`.
+
+* __Every column's settings panel has a Width field, and every row's a Columns
+  per row field__, in the Responsive section, which is folded until the user
+  opens it. `row_cols: false` takes the row field away.
+
+* __Columns with `col`, `col-auto`, or in a row with `row-cols-*` are no longer
+  given a `col-12`.__ In 4.x a column with only `col` was not a column at all,
+  and one with `col-auto` got a `col-12` that overrode it; both now edit as
+  Bootstrap renders them. A page that relied on the `col-12` gets the layout
+  its classes describe instead.
+
+New and opt-in, so nothing to do: the `sections` plugin for Bootstrap's
+containers, and the feature hooks it is built on (`blocks`, `regions`,
+`accepts`, `toolbar`). See the [CHANGELOG](CHANGELOG.md) for the full list.
+
+
 Upgrading from grid-editor `3.*` to `4.*`
 =========================================
 

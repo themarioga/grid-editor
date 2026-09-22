@@ -63,8 +63,8 @@ var BREAKPOINTS = [
 
 /**
  * The view that edits every tier at once. It is the default, and the one most
- * pages want: a layout that needs no per-device tuning is written once and
- * lands on all six prefixes.
+ * pages want: a layout that needs no per-device tuning is written once, as the
+ * class with no breakpoint, and applies at every size.
  */
 var ALL_VIEW = 'all';
 var ALL_VIEW_LABEL_KEY = 'view.all';
@@ -3658,8 +3658,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * A column sized for the current view: one tier, or every tier in the
-         * all view. `offset` indents it, within the same 12 unit budget.
+         * A column sized for the current view: its tier, or the base class in
+         * the all view. `offset` indents it, within the same 12 unit budget.
          */
         function createColumn(size, offset) {
             var rte = getRTE(settings.content_types[0]);
