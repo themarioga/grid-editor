@@ -395,6 +395,10 @@ $('#myGrid').gridEditor({
 });
 ```
 
+Grid editor passes `promotion: false`, so tinyMCE's "Upgrade" badge does not
+appear in the menubar of an inline editor sitting in someone's page. Pass
+`promotion: true` in your own config to get it back.
+
 
 Upgrading
 ---------

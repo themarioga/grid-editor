@@ -2811,7 +2811,13 @@ $.fn.gridEditor.locales = {
                 }
                 contentArea.addClass('active');
 
-                var configuration = $.extend({}, userConfig, {
+                var configuration = $.extend({
+                    // tinyMCE's own "Upgrade" badge in the menubar. Off by
+                    // default because an inline editor here is a column of
+                    // someone's page, not tinyMCE's own interface; a host that
+                    // wants it back passes promotion: true.
+                    promotion: false,
+                }, userConfig, {
                     target: this,
                     inline: true,
                     init_instance_callback: function(editor) {

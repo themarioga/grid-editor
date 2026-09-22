@@ -74,6 +74,15 @@ async function tinymceTests(t) {
     t.check('the new editor takes focus and shows its inline toolbar',
         editing.focused && editing.toolbar, editing);
 
+    var promotion = await page.eval(`
+        return {
+            byDefault: document.querySelectorAll('.tox-promotion').length,
+            menubar: !!document.querySelector('.tox-menubar'),
+        };
+    `);
+    t.check('tinyMCE\u2019s upgrade promotion is not shown',
+        promotion.byDefault === 0 && promotion.menubar, promotion);
+
     await page.type('HELLO_FROM_CHROME ');
     var typed = await page.eval(`return { content: tinymce.get()[0].getContent().slice(0, 120) };`);
     t.check('typing reaches the editor', typed.content.indexOf('HELLO_FROM_CHROME') !== -1, typed);

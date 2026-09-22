@@ -211,6 +211,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings that are objects of grid-editor's own keys - `elements` and
   `resize` - are merged with their defaults rather than replaced, so naming
   one key no longer silently drops the others.
+- The tinyMCE integration passes `promotion: false`, so the editor's "Upgrade"
+  badge stays out of the menubar of an inline editor sitting in someone's
+  page. A host that wants it passes `promotion: true` in its own config.
 - The rich text editor integrations fire `ge-rte-ready` on the content area
   once their editor is up. An editor rewrites what is inside the content area
   as it takes over, which costs the element drawers in it; this is how they
