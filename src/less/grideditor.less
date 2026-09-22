@@ -106,6 +106,15 @@
 }
 
 /* The button following the pointer must not be what the pointer is over */
+.ge-drag-helper {
+    opacity: .85;
+    pointer-events: none;
+
+    .ge-tools-drawer {
+        pointer-events: none;
+    }
+}
+
 .ge-toolbar-helper {
     pointer-events: none;
     opacity: 0.85;
@@ -423,12 +432,18 @@
         }
     }
     
-    /* Sorting */
-    .ui-sortable-placeholder {
+    /* Sorting. The dragged node stays in the list and shows where it would
+       land - that is the placeholder - while a copy of it follows the
+       pointer. */
+    .ge-drag-placeholder {
         background: fadeout(yellow, 80%);
-        visibility: visible !important;
+        opacity: 1;
         min-height: 50px;
         max-height: 100px;
+
+        > * {
+            visibility: hidden;
+        }
     }
 
     /* A size change should read as a movement rather than a jump, but not

@@ -69,6 +69,8 @@
         'view.lg': 'Escritorio',
         'view.xl': 'Escritorio grande',
         'view.xxl': 'Pantalla panorámica',
+        'error.sortable_missing': '¡SortableJS no está disponible! Asegúrate de haber cargado el archivo js de Sortable; sin él no se puede arrastrar.',
+        'warning.setting_removed': 'El ajuste {setting} se eliminó en la 4.0. Usa {replacement} en su lugar.',
         'error.tinymce_missing': '¡tinyMCE no está disponible! Asegúrate de haber cargado el archivo js de tinyMCE.',
         'error.ckeditor_missing': '¡CKEditor no está disponible! Asegúrate de haber cargado los archivos js de ckeditor y del adaptador de jQuery.',
         'error.summernote_missing': '¡Summernote no está disponible! Asegúrate de haber cargado el archivo js de Summernote.',

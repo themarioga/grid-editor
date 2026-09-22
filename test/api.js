@@ -510,22 +510,17 @@ async function multipleCanvasTests(t) {
         state);
 
     var groups = await page.eval(`
-        const first = jQuery('#myGrid .row').first();
-        const second = jQuery('#second .row').first();
-        const classesOf = function(list) {
-            return (list.attr('class').match(/ge-sort-\\S+/g) || []).join(',');
+        const groupOf = function(selector) {
+            const instance = Sortable.get(jQuery(selector).first()[0]);
+            return instance ? instance.options.group.name : null;
         };
         return {
-            first: classesOf(first),
-            second: classesOf(second),
-            connectFirst: first.sortable('option', 'connectWith'),
-            connectSecond: second.sortable('option', 'connectWith'),
+            first: groupOf('#myGrid .row'),
+            second: groupOf('#second .row'),
         };
     `);
     t.check('each editor puts its lists in groups of its own',
-        groups.first !== '' && groups.second !== '' && groups.first !== groups.second &&
-        groups.connectFirst === '.' + groups.first && groups.connectSecond === '.' + groups.second,
-        groups);
+        groups.first && groups.second && groups.first !== groups.second, groups);
 
     // The drag that used to work by accident: a column out of one editor and
     // into the other, which took the first editor's drawer with it and fired

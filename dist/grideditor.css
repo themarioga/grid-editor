@@ -76,6 +76,13 @@
   background: #2FA4E7;
 }
 /* The button following the pointer must not be what the pointer is over */
+.ge-drag-helper {
+  opacity: 0.85;
+  pointer-events: none;
+}
+.ge-drag-helper .ge-tools-drawer {
+  pointer-events: none;
+}
 .ge-toolbar-helper {
   pointer-events: none;
   opacity: 0.85;
@@ -114,7 +121,9 @@
   /* A trigger pointing at a popup that is not there any more */
   /* Elements: the level below a column, inside a content area. Dashed
        rather than solid, so a page full of them still reads as content */
-  /* Sorting */
+  /* Sorting. The dragged node stays in the list and shows where it would
+       land - that is the placeholder - while a copy of it follows the
+       pointer. */
   /* A size change should read as a movement rather than a jump, but not
        while the pointer is dragging the edge: there the column follows the
        pointer and a transition only lags behind it */
@@ -364,11 +373,14 @@
 .ge-canvas.ge-editing .ge-element > .ge-element-drawer > a.ge-element-info {
   cursor: default;
 }
-.ge-canvas.ge-editing .ui-sortable-placeholder {
+.ge-canvas.ge-editing .ge-drag-placeholder {
   background: rgba(255, 255, 0, 0.2);
-  visibility: visible !important;
+  opacity: 1;
   min-height: 50px;
   max-height: 100px;
+}
+.ge-canvas.ge-editing .ge-drag-placeholder > * {
+  visibility: hidden;
 }
 .ge-canvas.ge-editing .column {
   transition: width 120ms ease, margin-left 120ms ease;

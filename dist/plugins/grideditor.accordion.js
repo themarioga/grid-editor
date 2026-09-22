@@ -103,7 +103,7 @@ $.fn.gridEditor.containers.accordion = function(ge) {
         // Items sort within their accordion and into any other one
         onSortable: function(sortable) {
             sortable(ge.canvas.find('.ge-container-accordion > .accordion'), {
-                draggable: '> .ge-accordion-item',
+                draggable: '.ge-accordion-item',
                 group: 'accordion',
             });
         },

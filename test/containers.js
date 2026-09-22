@@ -515,6 +515,42 @@ async function moveTests(t) {
         betweenAccordions.moves.length === 1 && betweenAccordions.moves[0][0] === 'accordion-item',
         betweenAccordions);
 
+    // A whole container is a block like a row is, and moves with the rest of
+    // them. In 3.x its move tool was a handle for a list that did not accept
+    // containers, so dragging one did nothing at all.
+    var wholeContainer = await page.eval(`
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html('<div class="row"><div class="column col-12" id="home">' +
+            '<div class="ge-content" id="text"><p>A block above the container, tall enough to aim at.</p></div>' +
+            '</div></div>');
+        window.moves = [];
+        window.fixture.init();
+        const ge = jQuery('#myGrid').data('grideditor');
+        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: jQuery('#home') });
+        tabs.attr('id', 'movable');
+        jQuery('#myGrid').off('grideditor:after-move').on('grideditor:after-move', function(e, payload) {
+            window.moves.push([payload.kind, payload.from.index, payload.to.index]);
+        });
+        return jQuery('#home').children().map(function() {
+            return this.id || this.className.split(' ')[0];
+        }).get().join(',');
+    `);
+    await page.drag('#movable > .ge-tools-drawer .ge-move', '#text', { yRatio: 0.2 });
+    var moved = await page.eval(`
+        return {
+            order: jQuery('#home').children().map(function() {
+                return this.id || this.className.split(' ')[0];
+            }).get().join(','),
+            moves: window.moves,
+        };
+    `);
+    t.check('a whole container moves like any other block, and says it moved',
+        wholeContainer.indexOf('text') < wholeContainer.indexOf('movable') &&
+        moved.order.indexOf('movable') < moved.order.indexOf('text') &&
+        moved.moves.length === 1 && moved.moves[0][0] === 'tabs' &&
+        moved.moves[0][2] === 0,
+        { before: wholeContainer, after: moved });
+
     var errors = page.errors();
     t.check('the container move tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }

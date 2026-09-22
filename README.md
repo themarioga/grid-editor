@@ -39,7 +39,7 @@ from any web server, or from GitHub Pages, with no build step.
 Installation
 ------------
 
-* __Dependencies:__ Grid Editor depends on jQuery, jQuery UI, Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
+* __Dependencies:__ Grid Editor depends on jQuery, jQuery UI, SortableJS, Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
     * If you want to use the tinyMCE integration, include tinyMCE 6 as well. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
     * If you want to use the summernote integration, include summernote as well.
     * If you want to use the CKEditor integration... you get the point.
@@ -52,7 +52,7 @@ npm install @themarioga/grid-editor
 * Or [download the latest version of Grid Editor](https://github.com/themarioga/grid-editor/archive/master.zip) and include it in your page: 
 
 ```html
-<!-- Make sure jQuery, jQuery UI, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
+<!-- Make sure jQuery, jQuery UI, SortableJS, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
 <link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
 <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
 ```
@@ -295,7 +295,19 @@ $('#myGrid').gridEditor({
 
 __`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. The question is asked in a Bootstrap modal the editor builds outside your canvas, in the interface language; a page that loaded Bootstrap's css but not its javascript gets the browser's own confirm instead. Set it to `false` if you cancel `before-delete` and ask in your own way.
 
-__`sortable_options`:__ Merged into every jQuery UI sortable, for hosts that need `cancel`, `tolerance` or a custom `connectWith`.
+__`drag`:__ How a drag behaves, wherever the editor drags something. Named for the gesture rather than for the library underneath, so it survives a change of library.
+
+```javascript
+$('#myGrid').gridEditor({
+    drag: {
+        delay: 0,           // ms to hold before a drag starts
+        touch_delay: 100,   // the same for touch, where 0 eats the page's scrolling
+        threshold: 3,       // px of movement before a gesture counts as a drag
+        animation: 150,     // ms of reordering animation, 0 for none
+        scroll: true,       // scroll the page when a drag reaches its edge
+    },
+});
+```
 
 ### Breakpoints and sizing
 
@@ -321,7 +333,6 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`resizable_options`:__ Merged into every jQuery UI resizable.
 
 ### Elements
 

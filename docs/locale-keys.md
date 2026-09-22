@@ -130,6 +130,8 @@ all the same: the developer reading them is the one who chose the locale.
 
 | Key | English | Where |
 | --- | --- | --- |
+| `error.sortable_missing` | SortableJS not available! … | Logged once when the drag library is not on the page |
+| `warning.setting_removed` | The {setting} setting was removed in 4.0. Use {replacement} instead. | Logged once per removed setting a host still passes |
 | `error.tinymce_missing` | tinyMCE not available! … | `content_types: ['tinymce']` with no tinyMCE loaded |
 | `error.ckeditor_missing` | CKEditor not available! … | `content_types: ['ckeditor']` with no CKEditor loaded |
 | `error.summernote_missing` | Summernote not available! … | `content_types: ['summernote']` with no Summernote loaded |

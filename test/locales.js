@@ -30,6 +30,9 @@ function keysUsedInSource() {
     var patterns = [
         /\bt\(\s*(?:settings,\s*)?'([^']+)'/g,
         /\w+(?:Key|KEY)\s*[:=]\s*'([^']+)'/g,
+        // The table of settings 4.0 removed names its message once, away
+        // from the call that translates it
+        /'(warning\.[\w.]+)'/g,
     ];
     var keys = {};
 

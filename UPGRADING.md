@@ -27,6 +27,28 @@ In progress; 4.0 is not released. What has landed so far:
   }
   ```
 
+* __`sortable_options` and `resizable_options` are gone.__ They existed to hand
+  you the drag library's own options, and 4.0 stops promising there is one: the
+  group names, the handle, the filter and the callbacks are the editor's, and
+  overwriting them breaks the canvas rather than tuning it. What they were used
+  for is now `drag` — `delay`, `touch_delay`, `threshold`, `animation`,
+  `scroll` — and the `resize` block you already have. Passing either warns once
+  and names the replacement.
+
+* __Sorting is SortableJS, not jQuery UI.__ Load `Sortable.min.js` beside the
+  editor. jQuery UI is still needed for resizing and the toolbar palette; that
+  goes too before 4.0 is released. Classes you may have styled:
+
+  | 3.x | 4.0 |
+  | --- | --- |
+  | `.ui-sortable-helper` | `.ge-drag-helper` |
+  | `.ui-sortable-placeholder` | `.ge-drag-placeholder` |
+
+* __A whole container can be dragged now.__ Its move tool was a handle for a
+  list that did not accept containers, so in 3.x dragging one did nothing. It
+  moves like a row does, and fires the same `before-move`/`after-move` with the
+  container's kind.
+
 * __Two editors on one page no longer drag into each other.__ Lists were
   connected by selector — `.ge-canvas .row` matches every canvas on the page —
   so a column could be dragged from one editor into another, carrying the first

@@ -114,6 +114,19 @@ var NESTED_SETTINGS = {
         handles: 'e', // Which edges carry a handle, as jQuery UI names them
         balance: 'next', // 'next' takes the units out of the following column
     },
+    drag: {
+        delay: 0, // Milliseconds to hold before a drag starts
+        touch_delay: 100, // The same for touch, where 0 eats the page's scrolling
+        threshold: 3, // Pixels of movement before a gesture counts as a drag
+        animation: 150, // Milliseconds of reordering animation, 0 for none
+        scroll: true, // Scroll the page when a drag reaches its edge
+    },
+};
+
+/** Settings 4.0 took away, and what a host should reach for instead. */
+var REMOVED_SETTINGS = {
+    sortable_options: 'drag',
+    resizable_options: 'resize',
 };
 
 var warned = {};
@@ -255,19 +268,30 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
             'default_view'      : ALL_VIEW,
             'resize'            : NESTED_SETTINGS.resize, // Resizing a column by dragging its edge
-            'resizable_options' : {}, // Merged into every jQuery UI resizable
             'source_textarea'   : '',
             'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
             'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
             'confirm_delete'    : true, // Ask before deleting a row or a column
-            'sortable_options'  : {} // Merged into every jQuery UI sortable
+            'drag'              : NESTED_SETTINGS.drag // How a drag behaves, whatever drives it
         }, optionsOrMethod);
 
         // Merged rather than replaced, so `elements: { auto: true }` keeps the
         // default selector instead of losing it
         $.each(NESTED_SETTINGS, function(name, defaults) {
             settings[name] = $.extend({}, defaults, settings[name]);
+        });
+
+        // Both handed out the drag toolkit's own options, which 4.0 stops
+        // promising: there is no widget underneath a host should be reaching
+        // for. What they were used for is a setting of the editor's now.
+        $.each(REMOVED_SETTINGS, function(name, replacement) {
+            if (optionsOrMethod && optionsOrMethod[name] !== undefined) {
+                warn($.fn.gridEditor.t(settings, 'warning.setting_removed', {
+                    setting: name,
+                    replacement: replacement,
+                }));
+            }
         });
 
 
@@ -2003,16 +2027,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * The class that marks a list as belonging to a group, which is what
-         * connects one list to another.
+         * A group name, scoped to this editor.
          *
-         * Groups are named by the editor and scoped to this instance: two
-         * editors on one page must not drag into each other, since a node
+         * Two editors on one page must not drag into each other, since a node
          * carries its drawer - and the events that go with it - from the
          * editor that made it.
          */
-        function groupClass(name) {
-            return 'ge-sort-' + name + '-' + instanceId;
+        function groupName(name) {
+            return 'ge-' + name + '-' + instanceId;
+        }
+
+        /** What must never start a drag, whatever the handle is. */
+        function dragCancelSelector() {
+            return settings.drag_handle === 'drawer'
+                // With the whole drawer as the handle, the tools inside it are
+                // still tools: a drag starting on one would swallow its click,
+                // and the settings panel has fields to type in
+                ? '.ge-tools-drawer > a, .ge-details, input, textarea, button, select, option'
+                : 'input, textarea, button, select, option';
         }
 
         /**
@@ -2021,48 +2053,86 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          *
          * A caller says what moves (`draggable`) and what the list connects to
          * (`group`, or none for a list that sorts only within itself); the
-         * handle, the cancel list, the callbacks and the host's options are
-         * this function's business. That is the whole point of it: the toolkit
+         * handle, the filter, the callbacks and the drag settings are this
+         * function's business. That is the whole point of it: the toolkit
          * underneath is named in one place, so replacing it is one function
          * and not thirty call sites.
          */
         function sortable(lists, options) {
+            if (!lists.length || !window.Sortable) { return; }
+
             var wholeDrawer = settings.drag_handle === 'drawer';
-            var group = options.group ? groupClass(options.group) : null;
+            var cancel = dragCancelSelector();
+            var soloGroup = 0;
 
-            if (!lists.length) { return; }
-            if (group) { lists.addClass(group); }
+            lists.each(function() {
+                var list = this;
 
-            lists.sortable($.extend({
-                items: options.draggable,
-                connectWith: group ? '.' + group : false,
+                // A list with no group sorts only within itself, which is what
+                // a tab strip wants: a name of its own, closed both ways
+                var group = options.group
+                    ? { name: groupName(options.group) }
+                    : { name: groupName(options.draggable + '-' + (++soloGroup)), pull: false, put: false };
 
-                handle: wholeDrawer ? '> .ge-tools-drawer' : '> .ge-tools-drawer .ge-move',
+                sortables.push(window.Sortable.create(list, $.extend({
+                    group: group,
+                    draggable: options.draggable,
+                    handle: wholeDrawer ? '.ge-tools-drawer' : '.ge-tools-drawer .ge-move',
 
-                // With the whole drawer as the handle, the tools inside it are
-                // still tools: a drag starting on one would swallow its click,
-                // and the settings panel has fields to type in
-                cancel: wholeDrawer
-                    ? '.ge-tools-drawer > a, .ge-details, input, textarea, button, select, option'
-                    : 'input, textarea, button, select, option',
+                    /**
+                     * Two refusals in one, because SortableJS asks once.
+                     *
+                     * A tool or a form field never starts a drag, as the
+                     * cancel list said before. And only a direct child of
+                     * this list moves: the selector is matched against every
+                     * descendant, so without this the canvas would pick up a
+                     * row nested three columns down and drag that.
+                     */
+                    filter: function(e, item) {
+                        if ($(e.target).closest(cancel, list).length) { return true; }
 
-                start: sortStart,
-                stop: sortStop,
-                helper: 'clone',
-            }, options.options || {}, settings.sortable_options));
+                        return !item || item.parentNode !== list;
+                    },
 
-            lists.each(function() { sortables.push($(this)); });
+                    // A filtered pointerdown is still a click on a tool
+                    preventOnFilter: false,
+
+                    // The HTML5 drag and drop API cannot be driven by
+                    // synthetic events, so the tests could not exist without
+                    // this; it also gives one helper across browsers
+                    forceFallback: true,
+                    fallbackOnBody: true,
+
+                    ghostClass: 'ge-drag-placeholder',
+                    chosenClass: 'ge-drag-chosen',
+                    dragClass: 'ge-drag-helper',
+                    fallbackClass: 'ge-drag-helper',
+
+                    animation: settings.drag.animation,
+                    delay: settings.drag.delay,
+                    delayOnTouchOnly: !settings.drag.delay,
+                    touchStartThreshold: settings.drag.threshold,
+                    scroll: settings.drag.scroll,
+
+                    onStart: sortStart,
+                    onEnd: sortEnd,
+                }, options.options || {})));
+            });
         }
 
         function makeSortable() {
+            if (!window.Sortable) {
+                warnOnceHere('sortable_missing', t('error.sortable_missing'));
+                return;
+            }
+
             sortable(canvas.find('.row'), {
-                draggable: '> .column',
+                draggable: '.column',
                 group: 'column',
-                options: { tolerance: 'pointer' },
             });
 
             sortable(canvas.add(canvas.find('.column')), {
-                draggable: '> .row, > .ge-content',
+                draggable: '.row, .ge-content, [data-ge-container]',
                 group: 'block',
             });
 
@@ -2071,16 +2141,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * jQuery UI cannot refuse a drag once it has started, so a
-         * canceled before-move is remembered here and undone on drop
-         * (spec 2.4). The node carries the mark, because with connected
-         * lists the drop is not always reported by the list that started
-         * the drag.
+         * A drag cannot be refused once it has started, so a canceled
+         * before-move is remembered here and undone on drop (spec 2.4). The
+         * node carries the mark, because with connected lists the drop is not
+         * always reported by the list that started the drag.
          */
-        function sortStart(e, ui) {
-            ui.placeholder.css({ height: ui.item.outerHeight()});
-
-            var node = ui.item;
+        function sortStart(e) {
+            var node = $(e.item);
             var from = positionOf(node);
 
             node.data('ge-move-from', from);
@@ -2097,15 +2164,26 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
         }
 
-        function sortStop(e, ui) {
-            var node = ui.item;
+        /** Put a node back where a refused drag found it. */
+        function putBack(node, from) {
+            var siblings = from.parent.children().not('.ge-tools-drawer').not(node);
+
+            if (!siblings.length || from.index >= siblings.length) {
+                node.appendTo(from.parent);
+            } else {
+                node.insertBefore(siblings.eq(from.index));
+            }
+        }
+
+        function sortEnd(e) {
+            var node = $(e.item);
             var from = node.data('ge-move-from') || positionOf(node);
 
             node.removeData('ge-move-from');
 
             if (node.data('ge-move-canceled')) {
                 node.removeData('ge-move-canceled');
-                $(this).sortable('cancel');
+                putBack(node, from);
                 return;
             }
 
@@ -2121,8 +2199,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             }
 
             // No init() here, unlike an add: the node brought its drawer
-            // with it, and jQuery UI is still finishing the drag, so this
-            // is the wrong moment to rebuild the widgets it is using.
+            // with it, and the drag is still being finished, so this is the
+            // wrong moment to rebuild the lists it is using.
             operate(function() {
                 emit('after-move', payloadFor(kindOf(node), node, {
                     parent: to.parent,
@@ -2152,12 +2230,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 $('<span class="ge-resize-size" />').appendTo(col.find('> .ge-tools-drawer'));
 
-                col.resizable($.extend({
+                col.resizable({
                     handles: settings.resize.handles,
                     start: resizeStart,
                     resize: resizeMove,
                     stop: resizeStop,
-                }, settings.resizable_options));
+                });
             });
         }
 
@@ -2312,13 +2390,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * is none of the editor's business.
          */
         function removeSortable() {
-            $.each(sortables, function(_, list) {
-                if (list.data('ui-sortable')) { list.sortable('destroy'); }
-
-                list.removeClass(function(_i, classes) {
-                    return (classes.match(/\bge-sort-\S+/g) || []).join(' ');
-                });
-            });
+            $.each(sortables, function(_, instance) { instance.destroy(); });
 
             sortables = [];
         }
@@ -2736,6 +2808,8 @@ $.fn.gridEditor.locales = {
         'view.lg': 'Desktop',
         'view.xl': 'Large desktop',
         'view.xxl': 'Widescreen',
+        'error.sortable_missing': 'SortableJS not available! Make sure you loaded the Sortable js file; dragging is off without it.',
+        'warning.setting_removed': 'The {setting} setting was removed in 4.0. Use {replacement} instead.',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
         'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the ckeditor and jquery adapter js files.',
         'error.summernote_missing': 'Summernote not available! Make sure you loaded the Summernote js file.',

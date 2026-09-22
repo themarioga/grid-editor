@@ -131,7 +131,7 @@ $.fn.gridEditor.features.elements = function(ge) {
             if (!elementsEnabled()) { return; }
 
             sortable(ge.canvas.find('.ge-content'), {
-                draggable: '> .ge-element',
+                draggable: '.ge-element',
                 group: 'element',
             });
         },
