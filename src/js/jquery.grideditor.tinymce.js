@@ -64,6 +64,33 @@
                         // furniture back (see RTE_READY in the core).
                         contentArea.trigger('ge-rte-ready');
 
+                        // The inline toolbar is laid out against the element's
+                        // geometry at the moment tinyMCE draws it, and an
+                        // element that has just appeared - a tab pane, an
+                        // accordion body, a column whose width is still
+                        // settling - may not have its own width yet. Asking
+                        // for the ui again once the browser has laid the frame
+                        // out measures it as it now is, instead of leaving a
+                        // toolbar wrapped into a narrow column.
+                        window.requestAnimationFrame(function() {
+                            if (editor.removed || !editor.ui || !editor.ui.show) { return; }
+
+                            editor.ui.show();
+                        });
+
+                        // And again whenever the user comes back to this
+                        // editor: by then the element may have been resized,
+                        // hidden and shown again - a tab switched away from
+                        // and back, a column made narrower - and the toolbar
+                        // is only ever as right as its last measurement.
+                        editor.on('focus', function() {
+                            window.requestAnimationFrame(function() {
+                                if (editor.removed || !editor.ui || !editor.ui.show) { return; }
+
+                                editor.ui.show();
+                            });
+                        });
+
                         // Bring focus to text field
                         editor.focus();
 

@@ -1013,6 +1013,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         
         function initRTE(e) {
             if ($(this).hasClass('ge-rte-active')) { return; }
+
+            // A content area nobody can see - a tab that is not the open one,
+            // a closed accordion item - has no geometry for an editor to lay
+            // its toolbar out against, and nothing anyone can type into
+            if (!$(this).is(':visible')) { return; }
             
             var rte = getRTE($(this).data('ge-content-type'));
             if (rte) {

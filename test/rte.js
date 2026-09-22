@@ -293,6 +293,50 @@ async function tinymceTests(t) {
         !exportedElement.marking && !exportedElement.mce,
         Object.assign({}, exportedElement, { html: exportedElement.html.slice(0, 220) }));
 
+    // A content area inside a container is the awkward case: the pane it sits
+    // in may have just appeared, and the inline toolbar is laid out against
+    // whatever geometry the element has when tinyMCE draws it
+    await page.eval(`
+        jQuery('#myGrid').gridEditor('remove');
+        jQuery('#myGrid').html('<div class="row"><div class="col-lg-12"><div class="ge-content" data-ge-content-type="tinymce"><p>Before</p></div></div></div>');
+        jQuery('#myGrid').gridEditor({ new_row_layouts: [[12]], content_types: ['tinymce'] });
+        jQuery('.ge-addContainerGroup a[data-ge-container-type="tabs"]').trigger('click');
+        window.scrollTo(0, 0);
+        return jQuery('#myGrid [data-ge-container="tabs"]').length;
+    `);
+    await page.click('#myGrid .tab-pane.active .ge-content');
+    await sleep(2500);
+
+    var inTab = await page.eval(`
+        const toolbar = document.querySelector('.tox-tinymce-inline');
+        const area = document.querySelector('#myGrid .tab-pane.active .ge-content');
+        const box = toolbar ? toolbar.getBoundingClientRect() : null;
+
+        return {
+            editors: tinymce.get().length,
+            toolbar: !!toolbar,
+            // Wrapped into a narrow column, the menubar alone takes several
+            // rows and the whole thing is a few hundred pixels tall
+            toolbarWidth: box ? Math.round(box.width) : null,
+            toolbarHeight: box ? Math.round(box.height) : null,
+            areaWidth: Math.round(area.getBoundingClientRect().width),
+        };
+    `);
+    t.check('an editor inside a tab lays its toolbar out against the pane it is in',
+        inTab.editors === 1 && inTab.toolbar && inTab.toolbarHeight < 120 &&
+        inTab.toolbarWidth > 400,
+        inTab);
+
+    var hiddenPane = await page.eval(`
+        jQuery('#myGrid .tab-pane:not(.active) .ge-content').trigger('click');
+        return {
+            editors: tinymce.get().length,
+            activeAreas: jQuery('#myGrid .ge-content.active').length,
+        };
+    `);
+    t.check('a content area in a pane nobody can see does not get an editor at all',
+        hiddenPane.editors === 1 && hiddenPane.activeAreas === 1, hiddenPane);
+
     var errors = page.errors();
     t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
 
