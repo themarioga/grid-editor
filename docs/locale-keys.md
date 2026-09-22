@@ -147,6 +147,9 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.justify_content` | Justify columns | The alignment plugin's `justify-content-*` field, on a row |
 | `utility.align_items` | Align columns | Its `align-items-*` field, on a row |
 | `utility.align_self` | Align self | Its `align-self-*` field, on a column |
+| `utility.gutters` | Gutters | The gutters plugin's `g-*` field, on a row |
+| `utility.gutters_x` | Horizontal gutters | Its `gx-*` field |
+| `utility.gutters_y` | Vertical gutters | Its `gy-*` field |
 
 
 badge.*

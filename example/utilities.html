@@ -21,6 +21,7 @@
     <script src="../dist/plugins/grideditor.visibility.min.js"></script>
     <script src="../dist/plugins/grideditor.order.min.js"></script>
     <script src="../dist/plugins/grideditor.alignment.min.js"></script>
+    <script src="../dist/plugins/grideditor.gutters.min.js"></script>
 
     <script>
         $(function() {
@@ -88,6 +89,12 @@
                     itself). The third row centres its narrow column from
                     small desktop up.
                 </p>
+                <p class="form-text">
+                    <strong>Gutters:</strong> fields in a row's panel. A row
+                    with gutter classes is drawn with its real gutters; the
+                    second row has none on phones and wide ones from small
+                    desktop up.
+                </p>
                 <p class="form-text">Last change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <pre id="html" class="form-text"></pre>
@@ -107,7 +114,7 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row g-0 g-md-5">
                 <div class="col-6">
                     <h2 class="h5">First</h2>
                     <p>Change the views and the utilities of these two.</p>

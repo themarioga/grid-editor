@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `alignment` utility plugin: `justify-content-{bp}-*` and
   `align-items-{bp}-*` on rows, `align-self-{bp}-*` on columns, as fields in
   the settings panel.
+- The `gutters` utility plugin: `g-{bp}-*`, `gx-{bp}-*` and `gy-{bp}-*` on
+  rows. A row with gutter classes is drawn with its real gutters instead of the
+  editor's frame, the preview settles `g` against `gx`/`gy` the way Bootstrap's
+  css does, and choosing `g` takes that breakpoint's `gx` and `gy` off.
+  `utilities.gutters.scale` follows a page that changed `$spacers`.
 - `example/utilities.html`.
 
 ## [4.0.0] - 2026-09-22

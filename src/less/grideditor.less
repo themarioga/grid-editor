@@ -724,3 +724,29 @@
     line-height: 16px;
     pointer-events: none;
 }
+
+/*
+ * The gutters plugin. A row with gutter classes is drawn with its real
+ * gutters rather than the editor's frame: each column padded by half the
+ * horizontal gutter, and the vertical gutter above each column. The row's
+ * own negative top margin, which pairs with that, would pull it over the
+ * row above, so it goes, and the drawer keeps to the edges.
+ */
+.ge-canvas.ge-editing .row.ge-gutters {
+    margin-top: 0;
+
+    > .ge-tools-drawer {
+        margin-top: 0;
+    }
+
+    > .column {
+        padding-left: calc(var(--bs-gutter-x) * .5);
+        padding-right: calc(var(--bs-gutter-x) * .5);
+
+        > .ge-tools-drawer {
+            margin-left: calc(var(--bs-gutter-x) * -.5);
+            margin-right: calc(var(--bs-gutter-x) * -.5);
+            width: calc(100% + var(--bs-gutter-x));
+        }
+    }
+}

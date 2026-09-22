@@ -390,6 +390,7 @@ a plugin in a file of its own:
 <script src="grid-editor/dist/plugins/grideditor.visibility.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.order.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.alignment.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.gutters.min.js"></script>
 ```
 
 | Plugin | Classes | On |
@@ -397,6 +398,7 @@ a plugin in a file of its own:
 | `visibility` | `d-{bp}-none`, `d-{bp}-block`, `d-{bp}-flex` | rows, columns, elements, containers |
 | `order` | `order-{bp}-{first,0–5,last}` | columns |
 | `alignment` | `justify-content-{bp}-*`, `align-items-{bp}-*`; `align-self-{bp}-*` | rows; columns |
+| `gutters` | `g-{bp}-{0–5}`, `gx-{bp}-*`, `gy-{bp}-*` | rows |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
 panel, and some add a tool to the drawer. In a breakpoint view a change is
@@ -417,6 +419,7 @@ $('#myGrid').gridEditor({
     utilities: {
         visibility: { drawer: false },   // no eye in the drawers, the field only
         order: { drawer: false },        // no arrows in the column drawers
+        gutters: { scale: ['0', '.25rem', '.5rem', '1rem', '1.5rem', '3rem'] },  // if you changed $spacers
     },
 });
 ```
