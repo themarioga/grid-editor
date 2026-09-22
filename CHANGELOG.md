@@ -188,6 +188,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class per tier; a column with no sizing at all gets a single `col-12`, which
   applies at every tier. With six tiers the old behaviour would have put six
   classes on every column.
+- The add row tool in a column's drawer adds an empty row. It used to add one
+  with two half width columns in it, which is a layout decision the tool has no
+  business making: the new row's own drawer is where columns are added.
 - The size a tool starts from is the one that applies at the tier being
   edited, following the cascade: in the all view that is the widest tier,
   which is what the unconstrained canvas is showing.

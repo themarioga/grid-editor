@@ -219,6 +219,26 @@ async function orderingTests(t) {
     t.check('the row the toolbar announced is the row it added',
         /row/.test(added.before.node) && added.columns === 2, added);
 
+    var nestedRow = await page.eval(`
+        window.restart();
+        const column = jQuery('#myGrid .column').first();
+
+        column.find('> .ge-tools-drawer .ge-add-row').trigger('click');
+        const row = column.find('> .row').last();
+
+        return {
+            rows: column.find('> .row').length,
+            columns: row.children('.column').length,
+            drawer: row.find('> .ge-tools-drawer').length,
+            canAddColumns: row.find('> .ge-tools-drawer .ge-add-column').length,
+            announced: window.log.filter(name => /add-row/.test(name)),
+        };
+    `);
+    t.check('the add row tool adds an empty row, with the drawer to fill it',
+        nestedRow.rows === 1 && nestedRow.columns === 0 && nestedRow.drawer === 1 &&
+        nestedRow.canAddColumns === 1 && nestedRow.announced.length === 4,
+        nestedRow);
+
     var toolsAndApi = await page.eval(`
         window.restart();
         const ge = jQuery('#myGrid').data('grideditor');

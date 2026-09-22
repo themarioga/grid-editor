@@ -1736,8 +1736,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 });
 
                 createTool(drawer, t('tool.add_row'), 'ge-add-row', 'bi bi-plus-circle', function() {
+                    // An empty row: the columns in it are the next decision,
+                    // and its drawer's add column tool is where that is made
                     var row = createRow();
-                    row.append(createColumn(6)).append(createColumn(6));
 
                     addNode('row', row, function() {
                         col.append(row);
