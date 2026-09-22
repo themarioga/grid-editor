@@ -389,12 +389,14 @@ a plugin in a file of its own:
 ```html
 <script src="grid-editor/dist/plugins/grideditor.visibility.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.order.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.alignment.min.js"></script>
 ```
 
 | Plugin | Classes | On |
 | --- | --- | --- |
 | `visibility` | `d-{bp}-none`, `d-{bp}-block`, `d-{bp}-flex` | rows, columns, elements, containers |
 | `order` | `order-{bp}-{first,0–5,last}` | columns |
+| `alignment` | `justify-content-{bp}-*`, `align-items-{bp}-*`; `align-self-{bp}-*` | rows; columns |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
 panel, and some add a tool to the drawer. In a breakpoint view a change is

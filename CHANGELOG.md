@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   earlier or later in the view being edited without moving the markup, and
   take the classes off again once the row is back in the markup's order. A
   column ordered by class says so in a corner of the canvas.
+- The `alignment` utility plugin: `justify-content-{bp}-*` and
+  `align-items-{bp}-*` on rows, `align-self-{bp}-*` on columns, as fields in
+  the settings panel.
 - `example/utilities.html`.
 
 ## [4.0.0] - 2026-09-22

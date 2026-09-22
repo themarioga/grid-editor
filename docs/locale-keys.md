@@ -144,6 +144,9 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.order_last` | Last | Its choice for `order-*-last` |
 | `tool.order_earlier` | Earlier in this view | The order plugin's left arrow in a column drawer |
 | `tool.order_later` | Later in this view | Its right arrow |
+| `utility.justify_content` | Justify columns | The alignment plugin's `justify-content-*` field, on a row |
+| `utility.align_items` | Align columns | Its `align-items-*` field, on a row |
+| `utility.align_self` | Align self | Its `align-self-*` field, on a column |
 
 
 badge.*

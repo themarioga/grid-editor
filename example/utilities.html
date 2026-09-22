@@ -20,6 +20,7 @@
     <script src="../dist/jquery.grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.visibility.min.js"></script>
     <script src="../dist/plugins/grideditor.order.min.js"></script>
+    <script src="../dist/plugins/grideditor.alignment.min.js"></script>
 
     <script>
         $(function() {
@@ -81,6 +82,12 @@
                     without moving the markup. In the second row, "Second"
                     comes first on phones only.
                 </p>
+                <p class="form-text">
+                    <strong>Alignment:</strong> fields in the panel of a row
+                    (justify and align its columns) and of a column (align
+                    itself). The third row centres its narrow column from
+                    small desktop up.
+                </p>
                 <p class="form-text">Last change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <pre id="html" class="form-text"></pre>
@@ -108,6 +115,13 @@
                 <div class="col-6 order-first order-sm-0">
                     <h2 class="h5">Second</h2>
                     <p>First on phones, with <code>order-first order-sm-0</code>.</p>
+                </div>
+            </div>
+
+            <div class="row justify-content-md-center">
+                <div class="col-12 col-md-6">
+                    <h2 class="h5">Centred</h2>
+                    <p>Its row has <code>justify-content-md-center</code>.</p>
                 </div>
             </div>
 
