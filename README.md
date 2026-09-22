@@ -16,22 +16,25 @@ It provides integration plugins for the following rich text editors to edit colu
 Demos
 -----
 
+__[Try it live](https://themarioga.github.io/grid-editor/example/)__ &mdash; every
+demo below, running on GitHub Pages.
+
 Every page under `example/` is a working editor, and they are static: served
 from any web server, or from GitHub Pages, with no build step.
 [example/index.html](example/index.html) lists them all.
 
-| Demo | What it shows |
-| --- | --- |
-| [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas |
-| [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view |
-| [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself |
-| [example/containers.html](example/containers.html) | Tabs, accordions and popups, two levels deep |
-| [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output |
-| [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher |
-| [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE |
-| [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE |
-| [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid |
-| [example/autosave.html](example/autosave.html) | Saving the html as the user edits |
+| Demo | What it shows | |
+| --- | --- | --- |
+| [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas | [live](https://themarioga.github.io/grid-editor/example/basic.html) |
+| [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view | [live](https://themarioga.github.io/grid-editor/example/breakpoints.html) |
+| [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
+| [example/containers.html](example/containers.html) | Tabs, accordions and popups, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
+| [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output | [live](https://themarioga.github.io/grid-editor/example/elements.html) |
+| [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher | [live](https://themarioga.github.io/grid-editor/example/locale.html) |
+| [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/ckeditor.html) |
+| [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
+| [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
+| [example/autosave.html](example/autosave.html) | Saving the html as the user edits | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
 
 Installation
 ------------
