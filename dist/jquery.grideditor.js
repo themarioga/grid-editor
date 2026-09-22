@@ -1,5 +1,8 @@
 /**
- * Frontwise grid editor plugin.
+ * Grid editor plugin.
+ *
+ * A fork of https://github.com/Friendly-Pixel/grid-editor by Simon Epskamp,
+ * maintained at https://github.com/themarioga/grid-editor.
  */
 (function( $ ){
 

@@ -3,7 +3,11 @@ Grid Editor
 
 Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns, indent them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once. It also edits tabs, accordions and popups, and any markup you mark as an element, and it tells your application about every change it makes.
 
-(Looking for the __bootstrap 3 support__? Use version 0 in the [bootstrap_3 branch](https://github.com/Frontwise/grid-editor/tree/bootstrap_3))
+This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
+by Simon Epskamp, carrying it on from 2.x. It is published as
+`@themarioga/grid-editor`.
+
+(Looking for the __bootstrap 3 support__? Use version 0 in the [bootstrap_3 branch](https://github.com/Friendly-Pixel/grid-editor/tree/bootstrap_3))
 
 It provides integration plugins for the following rich text editors to edit column content: TinyMCE, summernote and CKEditor.
 
@@ -36,7 +40,13 @@ Installation
     * If you want to use the tinyMCE integration, include tinyMCE 6 as well. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
     * If you want to use the summernote integration, include summernote as well.
     * If you want to use the CKEditor integration... you get the point.
-* [Download the latest version of Grid Editor](https://github.com/Frontwise/grid-editor/archive/master.zip) and include it in your page: 
+* From npm:
+
+```
+npm install @themarioga/grid-editor
+```
+
+* Or [download the latest version of Grid Editor](https://github.com/themarioga/grid-editor/archive/master.zip) and include it in your page: 
 
 ```html
 <!-- Make sure jQuery, jQuery UI, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
@@ -431,9 +441,9 @@ $('form.myForm').on('submit', function() {
 ### Rich text editor options
 
 Grid editor comes bundles with support for the following rich text editors (RTEs): 
-* [TinyMCE](http://www.tinymce.com/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/basic.html)
-* [summernote](http://summernote.org/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/summernote.html)
-* [CKEditor](http://ckeditor.com/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/ckeditor.html)
+* [TinyMCE](http://www.tinymce.com/) - [(example)](example/basic.html)
+* [summernote](http://summernote.org/) - [(example)](example/summernote.html)
+* [CKEditor](http://ckeditor.com/) - [(example)](example/ckeditor.html)
 
 __`content_types`:__ Specify the RTE to use. Valid values: `['tinymce']`, `['summernote']`, `['ckeditor']`. Default value: `['tinymce']`.
 
@@ -445,7 +455,7 @@ $('#myGrid').gridEditor({
 
 __`ckeditor.config`:__ Specify ckeditor config, when using the `ckeditor` `content_types`.
 See the [CKEditor documentation](http://docs.ckeditor.com/). 
-Also check out the [ckeditor example](https://transfer.frontwise.com/frontwise/grid-editor/example/ckeditor.html).
+Also check out the [ckeditor example](example/ckeditor.html).
 
 ```javascript
 $('#myGrid').gridEditor({
@@ -457,7 +467,7 @@ $('#myGrid').gridEditor({
 
 __`summernote.config`:__ Specify summernote config, when using the `summernote` `content_types`.
 See the [summernote documentation](http://summernote.org/deep-dive/). 
-Also check out the [summernote example](https://transfer.frontwise.com/frontwise/grid-editor/example/summernote.html).
+Also check out the [summernote example](example/summernote.html).
 
 ```javascript
 $('#myGrid').gridEditor({
@@ -469,7 +479,7 @@ $('#myGrid').gridEditor({
 
 __`tinymce.config`:__ Specify tinyMCE config, when using the `tinymce` `content_types`.
 See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/6/).
-Also check out the [tinymce example](https://transfer.frontwise.com/frontwise/grid-editor/example/basic.html).
+Also check out the [tinymce example](example/basic.html).
 
 ```javascript
 $('#myGrid').gridEditor({
@@ -504,4 +514,8 @@ If you want to help out, please first read [CONTRIBUTING.md](CONTRIBUTING.md)
 Attribution
 -----------
 
-Grid Editor was heavily inspired by [Neokoenig's grid manager](https://github.com/neokoenig/jQuery-gridmanager)
+Grid Editor was written by [Simon Epskamp](https://github.com/Friendly-Pixel) at
+Frontwise, and lives at [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor).
+Everything from 3.x on is this fork; the MIT license, and the credit, are his.
+
+It was heavily inspired by [Neokoenig's grid manager](https://github.com/neokoenig/jQuery-gridmanager)
