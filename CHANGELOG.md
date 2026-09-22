@@ -175,9 +175,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pre-flat-config rule names, so it had stopped running on a current eslint.
 
 ### Changed
-- The example pages are named after what they show: `example/index.html` is
-  now `example/basic.html` and `example/index-autosave.html` is
-  `example/autosave.html`. `example/demos.html` indexes them all.
+- The example pages are named after what they show: the tinyMCE demo that was
+  `example/index.html` is `example/basic.html`, and `example/index-autosave.html`
+  is `example/autosave.html`. `example/index.html` is now an index of the demos,
+  so opening `example/` lands on a list rather than on one of them.
 - `$(el).gridEditor('remove')` returns the jQuery object instead of
   `undefined`, so it chains like the other methods.
 - A method called on an element with no editor on it is a no-op that returns

@@ -14,7 +14,7 @@ Demos
 
 Every page under `example/` is a working editor, and they are static: served
 from any web server, or from GitHub Pages, with no build step.
-[example/demos.html](example/demos.html) lists them all.
+[example/index.html](example/index.html) lists them all.
 
 | Demo | What it shows |
 | --- | --- |
