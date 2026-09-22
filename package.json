@@ -21,7 +21,8 @@
     "grunt-contrib-cssmin": "^5.0.0",
     "grunt-contrib-less": "^3.0.0",
     "grunt-contrib-uglify": "^5.2.2",
-    "grunt-contrib-watch": "^1.1.0"
+    "grunt-contrib-watch": "^1.1.0",
+    "sortablejs": "^1.15.6"
   },
   "name": "@themarioga/grid-editor",
   "description": "Visual javascript editor for the bootstrap grid system, written as a jQuery plugin.",

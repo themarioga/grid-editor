@@ -1,7 +1,7 @@
 /**
  * Tests for the test fixtures themselves.
  *
- * The fixture pages under `test/fixtures` load jQuery, jQuery UI and Bootstrap
+ * The fixture pages under `test/fixtures` load jQuery, SortableJS and Bootstrap
  * from `test/vendor`, which is what lets the rest of the suites run with the
  * network switched off. That property is easy to lose by copying a CDN link
  * into a new fixture, so it is asserted here: every request the page makes has
@@ -24,7 +24,8 @@ var LOADED = `
             .map(entry => entry.name)
             .filter(name => name.indexOf(window.location.origin + '/') !== 0),
         jquery: jQuery.fn.jquery,
-        jqueryUi: jQuery.ui && jQuery.ui.version,
+        sortable: window.Sortable && Sortable.version,
+        jqueryUi: !!window.jQuery.ui,
         bootstrap: window.bootstrap && bootstrap.Tooltip.VERSION,
         icons: getComputedStyle(document.querySelector('.ge-tools-drawer .bi'), '::before').fontFamily,
         plugin: typeof jQuery.fn.gridEditor,
@@ -38,8 +39,9 @@ async function run(t) {
     t.check('the fixture loads every dependency from the test server, not a CDN',
         loaded.external.length === 0, loaded.external.slice(0, 5));
     t.check('the vendored dependencies are the versions the fixture expects',
-        /^4\./.test(loaded.jquery) && /^1\.14\./.test(loaded.jqueryUi) &&
-        /^5\.3\./.test(loaded.bootstrap) && loaded.plugin === 'function',
+        /^4\./.test(loaded.jquery) && /^1\.15\./.test(loaded.sortable) &&
+        /^5\.3\./.test(loaded.bootstrap) && loaded.plugin === 'function' &&
+        loaded.jqueryUi === false,
         loaded);
     t.check('the vendored icon font is the one the tool drawers render with',
         /bootstrap-icons/.test(loaded.icons), loaded);

@@ -147,10 +147,9 @@
     
     .ge-tools-drawer {
         /* Positioned, so a tool can hang a picker off itself. Deliberately
-           not stacked above anything the rest of the time: jQuery UI's resize
-           handle carries an inline z-index of 90 and runs down the column's
-           edge, and a drawer sitting over it would take the clicks meant for
-           the handle. */
+           not stacked above anything the rest of the time: the resize handle
+           runs down the column's edge, and a drawer sitting over it would take
+           the clicks meant for the handle. */
         position: relative;
         -webkit-touch-callout: none;
 

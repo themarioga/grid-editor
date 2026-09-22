@@ -111,7 +111,7 @@ var NESTED_SETTINGS = {
     },
     resize: {
         enabled: true,
-        handles: 'e', // Which edges carry a handle, as jQuery UI names them
+        handles: 'e', // Which edges carry a handle: 'e', 'w', or 'e, w'
         balance: 'next', // 'next' takes the units out of the following column
     },
     drag: {
@@ -1611,9 +1611,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             var room = spare(row, leadingTier());
 
-            // The drawer it hangs off is raised while it is open: every
-            // drawer sits above jQuery UI's handles, so without this the
-            // drawer of the column below takes the clicks meant for the picker
+            // The drawer it hangs off is raised while it is open: drawers sit
+            // below the resize handles, so without this the drawer of the
+            // column below takes the clicks meant for the picker
             tool.closest('.ge-tools-drawer').addClass('ge-picker-open');
 
             sizePicker = $('<div class="ge-size-picker" />').appendTo(tool);
@@ -2066,9 +2066,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Drag resize leaves an inline pixel width behind, and jQuery UI adds
-         * its own. Neither belongs in the markup a host saves, or in the
-         * canvas once the size class has been written.
+         * Drag resize leaves an inline pixel width behind: the column follows
+         * the pointer in pixels while the gesture lasts. It does not belong in
+         * the markup a host saves, or in the canvas once the size class has
+         * been written.
          */
         function stripPixelWidths(scope) {
             scope.find('.column').addBack('.column').each(function() {
@@ -2671,9 +2672,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     var child = $(this);
 
                     // The editor's own furniture is not content and not a
-                    // boundary either. jQuery UI's resize handle used to be
-                    // treated as content and wrapped into a content area of
-                    // its own on the next init.
+                    // boundary either. The resize handle used to be treated as
+                    // content and wrapped into a content area of its own on
+                    // the next init.
                     if (child.is('.ge-tools-drawer, .ge-resize-handle')) { return; }
 
                     // A container sits in the column beside the content

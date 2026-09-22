@@ -170,7 +170,7 @@ Session.prototype.click = async function(selector, nth) {
 
 /**
  * Drag one element onto another with real mouse events, which is the only way
- * to exercise a jQuery UI sortable: it listens for mousedown, a move past its
+ * to exercise a drag: the editor listens for a press, a move past its
  * distance threshold, and mouseup, and works out where the item landed from
  * the pointer position.
  *

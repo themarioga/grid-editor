@@ -19,8 +19,17 @@ and the files in `src/js/locales/` and `src/js/plugins/` one by one under
 `dist/locales/` and `dist/plugins/`. Neither of those two directories is part
 of the main bundle: the `src/js/*.js` glob does not descend, so a page loads
 the languages and the container plugins it actually wants. See
-[docs/plugins.md](docs/plugins.md) for what a container plugin is. Locale files are
-deliberately not part of the main bundle: a page loads only the languages it
+[docs/plugins.md](docs/plugins.md) for what a container plugin is.
+
+One more file comes out of it: `dist/jquery.grideditor.bundle.min.js`, the
+minified editor concatenated with the copy of SortableJS in `node_modules`,
+for pages that would rather load one file than two. It carries both MIT
+notices, it is built after the minified editor because it is made of it, and a
+page loads it *or* the editor and SortableJS separately, never both. The
+version is pinned in `package.json`, so refreshing it is an `npm update
+sortablejs` and a rebuild.
+
+Locale files are deliberately not part of the main bundle: a page loads only the languages it
 offers. English is the exception and lives in the bundle, because it is the
 fallback every string lookup ends at. See `docs/locale-keys.md` for the keys,
 and `src/js/locales/grideditor.es.js` for what a locale file looks like.
@@ -44,7 +53,7 @@ suite, pass part of its name:
 
 A suite can also be run on its own with `node test/rte.js`.
 
-The fixture pages in `test/fixtures` load jQuery, jQuery UI and Bootstrap from
+The fixture pages in `test/fixtures` load jQuery, SortableJS and Bootstrap from
 `test/vendor` rather than from a CDN, so most of the suite runs offline. The
 rich text editor suite is the exception: it loads tinyMCE, CKEditor and
 Summernote from their CDNs to test against the real editors, and the runner

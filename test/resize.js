@@ -1,7 +1,7 @@
 /**
  * Browser tests for resizing a column by dragging its edge.
  *
- * Every check here drives a real pointer: a jQuery UI resizable reports the
+ * Every check here drives a real pointer: the resize gesture reports the
  * pixels the pointer actually moved, and what this feature is about is turning
  * those pixels into whole grid units. The arithmetic is checked against the
  * row's own content width, measured in the page, so the numbers do not depend

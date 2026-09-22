@@ -1,7 +1,7 @@
 /**
  * Downloads the vendored test dependencies.
  *
- * The test fixtures load jQuery, jQuery UI, SortableJS and Bootstrap from
+ * The test fixtures load jQuery, SortableJS and Bootstrap from
  * `test/vendor` rather than from a CDN, so that a test run needs no network.
  * The files are committed; this script exists to refresh them. Run it with
  * `node test/vendor/update.js` after changing a version below, and commit what
@@ -17,10 +17,6 @@ var FILES = [
     {
         file: 'jquery/jquery.min.js',
         url: 'https://code.jquery.com/jquery-4.0.0.min.js',
-    },
-    {
-        file: 'jquery-ui/jquery-ui.min.js',
-        url: 'https://code.jquery.com/ui/1.14.2/jquery-ui.min.js',
     },
     {
         file: 'sortablejs/Sortable.min.js',

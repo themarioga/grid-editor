@@ -38,6 +38,24 @@ module.exports = function(grunt) {
         src: jsFiles,
         dest: 'dist/jquery.grideditor.js',
       },
+
+      // One file for a page that would rather load one: the editor with its
+      // drag library inside it. A page loads this or the pair, never both.
+      bundle: {
+        options: {
+          banner: '/*!\n' +
+            ' * grid-editor <%= pkg.version %> bundled with SortableJS.\n' +
+            ' *\n' +
+            ' * grid-editor: MIT, https://github.com/themarioga/grid-editor\n' +
+            ' * SortableJS: MIT, https://github.com/SortableJS/Sortable\n' +
+            ' */\n',
+        },
+        src: [
+          'node_modules/sortablejs/Sortable.min.js',
+          'dist/jquery.grideditor.min.js',
+        ],
+        dest: 'dist/jquery.grideditor.bundle.min.js',
+      },
     },
     
     uglify: {
@@ -105,7 +123,7 @@ module.exports = function(grunt) {
     watch: {
       stylesheets: {
         files: ['src/**/*', 'example/*'],
-        tasks: ['concat:js', 'uglify:build', 'less', 'cssmin'],
+        tasks: ['concat:js', 'uglify:build', 'less', 'cssmin', 'concat:bundle'],
         options: {
           spawn: false,
           livereload: true,
@@ -131,6 +149,6 @@ module.exports = function(grunt) {
     
   });
 
-  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy']);
+  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy', 'concat:bundle']);
 
 };

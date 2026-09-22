@@ -114,13 +114,12 @@ cancels a `before-*`. What that means depends on the operation:
   then remove the node and call `reset()`. The editor's own confirmation modal
   never appears for a canceled delete — the host's handler runs first, on
   purpose.
-- **Move.** jQuery UI cannot refuse a drag once it has started, so
-  `before-move` fires from the sortable's `start` handler and canceling marks
-  the drag: on drop the item returns to where it came from and no `after-move`
-  fires. The drag is visible and then reverts; it is not prevented outright.
-- **Resize.** From a tool, nothing is written. From a drag, the drag is refused
-  at every step, so the column ends where it began — jQuery UI's `resizable`
-  ignores `false` from its start handler, unlike its `draggable`.
+- **Move.** A drag cannot be refused once it has started, so `before-move`
+  fires as the drag begins and canceling marks it: on drop the item is put back
+  where it came from and no `after-move` fires. The drag is visible and then
+  reverts; it is not prevented outright.
+- **Resize.** From a tool, nothing is written. From a drag, the gesture never
+  starts: the column does not move and nothing is written.
 - **Indent.** Nothing is written.
 
 `after-move` is suppressed when the drop leaves the node in the same parent at

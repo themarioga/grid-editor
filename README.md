@@ -39,7 +39,7 @@ from any web server, or from GitHub Pages, with no build step.
 Installation
 ------------
 
-* __Dependencies:__ Grid Editor depends on jQuery, jQuery UI, SortableJS, Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
+* __Dependencies:__ Grid Editor depends on jQuery, [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
     * If you want to use the tinyMCE integration, include tinyMCE 6 as well. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
     * If you want to use the summernote integration, include summernote as well.
     * If you want to use the CKEditor integration... you get the point.
@@ -52,9 +52,18 @@ npm install @themarioga/grid-editor
 * Or [download the latest version of Grid Editor](https://github.com/themarioga/grid-editor/archive/master.zip) and include it in your page: 
 
 ```html
-<!-- Make sure jQuery, jQuery UI, SortableJS, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
+<!-- Make sure jQuery, SortableJS, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
 <link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+```
+
+Or, for a page that would rather load one file, the editor with SortableJS
+inside it &mdash; one or the other, never both:
+
+```html
+<link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
+<script src="grid-editor/dist/jquery.grideditor.bundle.min.js"></script>
 ```
 
 Usage
@@ -327,7 +336,7 @@ __`resize`:__ Resizing a column by dragging its edge. Defaults:
 $('#myGrid').gridEditor({
     resize: {
         enabled: true,
-        handles: 'e',      // as jQuery UI names them; 'w' for a right to left page
+        handles: 'e',      // 'w' for a right to left page, 'e, w' for both
         balance: 'next',   // the following column absorbs the change; false lets the row wrap
     },
 });

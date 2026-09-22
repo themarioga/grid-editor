@@ -35,9 +35,23 @@ In progress; 4.0 is not released. What has landed so far:
   `scroll` — and the `resize` block you already have. Passing either warns once
   and names the replacement.
 
-* __jQuery UI is not used any more.__ Sorting is SortableJS, which you load
-  beside the editor; resizing a column and carrying a toolbar button onto the
-  canvas are the editor's own pointer code. Classes you may have styled:
+* __jQuery UI is not a dependency.__ Drop its `<script>` and add SortableJS;
+  resizing a column and carrying a toolbar button onto the canvas are the
+  editor's own pointer code now. A page that would rather load one file can
+  load `dist/jquery.grideditor.bundle.min.js`, the editor with SortableJS
+  inside it, instead of the two.
+
+  ```html
+  <!-- 3.x -->
+  <script src="jquery-ui.min.js"></script>
+  <script src="dist/jquery.grideditor.min.js"></script>
+
+  <!-- 4.x -->
+  <script src="Sortable.min.js"></script>
+  <script src="dist/jquery.grideditor.min.js"></script>
+  ```
+
+  Classes you may have styled:
 
   | 3.x | 4.0 |
   | --- | --- |

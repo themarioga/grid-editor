@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `dist/jquery.grideditor.bundle.min.js`: the editor with SortableJS inside it,
+  for pages that would rather load one file than two. A page loads it or the
+  pair, never both.
 - A `drag` setting: `delay`, `touch_delay`, `threshold`, `animation` and
   `scroll`, named for the gesture rather than for the library underneath.
 - A whole container can be dragged. Its move tool used to be a handle for a
   list that did not accept containers, so dragging one did nothing.
 
 ### Removed
+- jQuery UI is no longer a dependency. A page loads jQuery, SortableJS and the
+  editor, which comes to 81.6 kB gzip against 132.8 kB before: 51 kB less, 39%
+  of the page.
 - `sortable_options` and `resizable_options`. Both handed out the drag
   library's own options; `drag` and `resize` replace them, and passing either
   warns once naming the replacement.
