@@ -84,13 +84,24 @@ async function creationTests(t) {
         jQuery('#myGrid').on('grideditor:before-add grideditor:after-add', function(e, payload) {
             window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.source]);
         });
+        window.specific = [];
+        jQuery('#myGrid').on('grideditor:before-add-container grideditor:after-add-container', function(e, payload) {
+            window.specific.push([e.type.replace('grideditor:', ''), payload.kind]);
+        });
 
         ['tabs', 'accordion', 'popup'].forEach(function(type) {
             jQuery('.ge-addContainerGroup a[data-ge-container-type="' + type + '"]').trigger('click');
         });
 
-        return { log: window.log, shape: (function() { ${SHAPE} })() };
+        return { log: window.log, specific: window.specific, shape: (function() { ${SHAPE} })() };
     `);
+    t.check('every container type shares one pair of add events, with the kind saying which',
+        JSON.stringify(announced.specific) === JSON.stringify([
+            ['before-add-container', 'tabs'], ['after-add-container', 'tabs'],
+            ['before-add-container', 'accordion'], ['after-add-container', 'accordion'],
+            ['before-add-container', 'popup'], ['after-add-container', 'popup'],
+        ]),
+        announced.specific);
     t.check('the toolbar offers one button per container type, and each one announces itself',
         announced.shape.containers.join(',') === 'tabs,accordion,popup' &&
         JSON.stringify(announced.log) === JSON.stringify([

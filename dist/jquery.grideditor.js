@@ -390,17 +390,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * else is no reason to close the editor the user is typing in.
          */
         function addNode(kind, node, insert, extra) {
+            var name = addEventName(kind);
+
             return operate(function() {
                 var payload = payloadFor(kind, node, extra);
 
-                if (!emit('before-add-' + kind, payload)) { return null; }
+                if (!emit('before-add-' + name, payload)) { return null; }
 
                 insert();
                 init();
-                emit('after-add-' + kind, payload);
+                emit('after-add-' + name, payload);
 
                 return node;
             });
+        }
+
+        /**
+         * Every container type shares one pair of add events, with the
+         * payload's kind saying which type it was: a host that cares about
+         * containers binds one name, not three.
+         */
+        function addEventName(kind) {
+            return CONTAINER_TYPES.indexOf(kind) === -1 ? kind : 'container';
         }
 
         /**

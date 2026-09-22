@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns, and set different column widths for tablets and phones.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns, indent them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once. It also edits tabs, accordions and popups, and any markup you mark as an element, and it tells your application about every change it makes.
 
 (Looking for the __bootstrap 3 support__? Use version 0 in the [bootstrap_3 branch](https://github.com/Frontwise/grid-editor/tree/bootstrap_3))
 
@@ -39,18 +39,103 @@ var html = $('#myGrid').gridEditor('getHtml');
 Methods
 -------
 
-__`getHtml`:__ Returns the clean html.
-
 ```javascript
-var html = $('#myGrid').gridEditor('getHtml');
+$('#myGrid').gridEditor('method', argument);
 ```
 
-__`remove`:__ Completely remove grideditor.
+| Method | Arguments | Returns | What it does |
+| --- | --- | --- | --- |
+| `getHtml` | — | `String` | The clean html: no drawers, no editor classes, no inline styles |
+| `init` | — | `this` | Run the editing pass over the canvas again. Safe to call after you inject markup |
+| `deinit` | — | `this` | Strip the editing furniture, leave the markup |
+| `reset` | — | `this` | `deinit()` then `init()` |
+| `destroy` | — | `this` | Deinit, drop the controls, unbind, forget the instance |
+| `remove` | — | `this` | Deprecated alias of `destroy` |
+| `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once |
+| `getView` | — | `String` | The view the editor is in |
+| `setLocale` | `code` | `this` | Switch language and re-render the controls |
+| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])` |
+| `createColumn` | `size`, `options?` | `jQuery` | A column. `options`: `offset`, `content` |
+| `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
+| `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
+| `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
+| `addAccordionItem` | `container`, `options?` | `jQuery` | Appends an item, returns its body |
+
+A method called on an element with no editor on it is a no-op that returns the
+set, so host code does not have to check first. `getHtml` is the exception: it
+returns the element's html either way.
+
+The `create*` methods hand back the node they made rather than the jQuery set,
+because you need the node. It comes back **detached**: place it and call
+`reset()`, or pass a parent and let grid-editor do both.
 
 ```javascript
-$('#myGrid').gridEditor('remove');
+// place it yourself
+var row = $('#myGrid').gridEditor('createRow', [8, 4]);
+row.appendTo('#myGrid');
+$('#myGrid').gridEditor('reset');
+
+// or say where it goes: appendTo, prependTo, insertAfter, insertBefore
+$('#myGrid').gridEditor('createRow', [8, 4], { appendTo: '#myGrid' });
 ```
-    
+
+If you are calling several methods in a row, take the instance handle instead
+of dispatching each one. It exposes the same methods, plus the canvas and a
+read-only copy of the settings:
+
+```javascript
+var ge = $('#myGrid').data('grideditor');
+ge.createRow([12], { appendTo: ge.canvas });
+ge.changeView('lg');
+```
+
+Events
+------
+
+Every operation is announced before and after it happens, as a jQuery event on
+the canvas and as a callback. A `before-*` can be canceled.
+
+```javascript
+$('#myGrid').on('grideditor:before-delete', function(e, payload) {
+    if (payload.node.hasClass('locked')) { e.preventDefault(); }
+});
+
+$('#myGrid').gridEditor({
+    callbacks: {
+        after_move: function(payload) { console.log(payload.from, payload.to); },
+    },
+});
+```
+
+The full catalogue, the payload and what canceling each operation does is in
+[docs/events.md](/docs/events.md).
+
+Languages
+---------
+
+The interface ships in English and Spanish. English is built into the plugin;
+every other language is a file you load after it.
+
+| Code | Language | File |
+| --- | --- | --- |
+| `en` | English | built in, and the fallback for every other locale |
+| `es` | Spanish | `dist/locales/grideditor.es.js` |
+
+```html
+<script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<script src="grid-editor/dist/locales/grideditor.es.js"></script>
+<script>$('#myGrid').gridEditor({ locale: 'es' });</script>
+```
+
+Override single strings without a locale file with `locale_strings`, and switch
+language at runtime with `setLocale('es')`. The keys are listed in
+[docs/locale-keys.md](/docs/locale-keys.md).
+
+To contribute a language, copy `src/js/locales/grideditor.es.js`, change the
+code and the strings, run `npm run build`, and open a pull request. A locale
+file that omits keys is fine: the missing ones fall back to English.
+
+
 Options
 -------
 
@@ -127,6 +212,121 @@ $('#myGrid').gridEditor({
 });
 ```
 
+__`valid_col_offsets`:__ The same, for the indent buttons. Default `[0, 1, … 11]`.
+
+__`callbacks`:__ A `before_*`/`after_*` function per operation, the same notifications as the events. Returning `false` from a `before_*` cancels it. See [docs/events.md](/docs/events.md).
+
+```javascript
+$('#myGrid').gridEditor({
+    callbacks: {
+        before_delete: function(payload) { return !payload.node.hasClass('locked'); },
+        after_add_row: function(payload) { console.log('row added', payload.node); },
+    },
+});
+```
+
+__`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. Set it to `false` if you cancel `before-delete` and ask in your own way.
+
+__`sortable_options`:__ Merged into every jQuery UI sortable, for hosts that need `cancel`, `tolerance` or a custom `connectWith`.
+
+### Breakpoints and sizing
+
+__`layout_modes`:__ Which views the toolbar dropdown offers. Default `['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl']`. Offer fewer to keep the feel of 2.x:
+
+```javascript
+$('#myGrid').gridEditor({
+    layout_modes: ['all', 'lg', 'sm', 'xs'],
+});
+```
+
+__`default_view`:__ The view the editor starts in. Default `'all'`, which writes every breakpoint at once — what a layout that needs no per-device tuning wants.
+
+__`resize`:__ Resizing a column by dragging its edge. Defaults:
+
+```javascript
+$('#myGrid').gridEditor({
+    resize: {
+        enabled: true,
+        handles: 'e',      // as jQuery UI names them; 'w' for a right to left page
+        balance: 'next',   // the following column absorbs the change; false lets the row wrap
+    },
+});
+```
+
+__`resizable_options`:__ Merged into every jQuery UI resizable.
+
+### Elements
+
+An element is a node inside a content area that the editor treats as one
+movable, deletable thing instead of as rich text. You mark them:
+
+```html
+<div class="ge-content">
+  <blockquote data-ge-element="quote" data-ge-label="Pull quote">…your markup…</blockquote>
+</div>
+```
+
+__`elements`:__ Defaults:
+
+```javascript
+$('#myGrid').gridEditor({
+    elements: {
+        enabled: 'auto',                 // on when the page has any; true or false to decide yourself
+        selector: '[data-ge-element]',   // what counts as an element
+        auto: false,                     // true treats every child of a content area as one
+    },
+});
+```
+
+__`element_tools`:__ Extra tools on every element drawer, same shape as `row_tools`.
+
+See [example/elements.html](/example/elements.html), which also shows the
+pattern for an element with no visual output of its own.
+
+### Containers
+
+Tabs, accordions and popups. Each holds panes, and a pane is an ordinary
+region: rows, columns, content areas and elements nest inside one exactly as
+they do at the top level.
+
+__`containers`:__ Which container buttons the toolbar offers. Default `['tabs', 'accordion', 'popup']`.
+
+__`container_tools`, `tab_tools`, `accordion_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
+
+```javascript
+var tabs = $('#myGrid').gridEditor('createContainer', 'tabs', {
+    tabs: 2,
+    labels: ['Overview', 'Details'],
+    appendTo: $('#myGrid .column').first(),
+});
+$('#myGrid').gridEditor('addTab', tabs, { label: 'Third', activate: true });
+
+$('#myGrid').gridEditor('createContainer', 'accordion', { items: 3, stay_open: true });
+$('#myGrid').gridEditor('createContainer', 'popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg' });
+```
+
+A popup is a Bootstrap modal plus its trigger. While editing it is rendered
+unfolded in place, so its body is an ordinary region and Bootstrap's modal JS
+is never involved; `getHtml` gives you a closed modal that Bootstrap opens from
+the trigger. Any node in the canvas carrying
+`data-ge-popup-target="<popup id>"` is a trigger too — grid-editor leaves your
+markup alone and writes Bootstrap's attributes onto it in the output.
+
+See [example/containers.html](/example/containers.html).
+
+### Localization
+
+__`locale`:__ The code of a locale in `$.fn.gridEditor.locales`. Default `'en'`.
+
+__`locale_strings`:__ Overrides for individual keys, without a locale file.
+
+```javascript
+$('#myGrid').gridEditor({
+    locale: 'es',
+    locale_strings: { 'tool.move': 'Arrastrar' },
+});
+```
+
 __`source_textarea`:__ Allows to set an already existing textarea as input for grid editor.
 
 ```javascript
@@ -199,7 +399,8 @@ $('#myGrid').gridEditor({
 Upgrading
 ---------
 
-See UPGRADING.md for the changes you have to make when upgrading from grid-editor version 0 to 1.
+See [UPGRADING.md](/UPGRADING.md) for what changes between major versions,
+including 2.x to 3.0.
 
 Building
 --------
