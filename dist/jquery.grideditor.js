@@ -1320,6 +1320,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 breakpoints: BREAKPOINTS.map(function(tier) { return tier.key; }),
                 getUtility: getUtility,
                 setUtility: setUtility,
+                utilityField: utilityField,
             };
         }
 
@@ -1614,6 +1615,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     $.extend(styles, family.preview(effectiveUtility(node, family, tier), node, kind));
                 });
 
+                // A plugin whose families settle one property between them
+                // previews the node as a whole
+                $.each(UTILITIES, function(name, utility) {
+                    if (utility.preview) { $.extend(styles, utility.preview(node, kind, tier.key)); }
+                });
+
                 if (!$.isEmptyObject(styles)) { applyPreview(node, styles); }
             });
         }
@@ -1663,12 +1670,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /**
          * The Responsive section of a node's settings panel: one field per
          * family that applies to the node, reading and writing the view being
-         * edited. Folded until the user unfolds one, and then unfolded on
-         * every node, since whoever wanted it on one wants it on the next.
+         * edited, and whatever fields a plugin builds itself. Folded until the
+         * user unfolds one, and then unfolded on every node, since whoever
+         * wanted it on one wants it on the next.
          */
         function createUtilitiesSection(node) {
-            var families = familiesFor(kindOf(node));
-            if (!families.length) { return null; }
+            var kind = kindOf(node);
+            var fields = familiesFor(kind)
+                .filter(function(family) { return family.panel !== false; })
+                .map(function(family) { return createField(node, family); });
+
+            $.each(UTILITIES, function(name, utility) {
+                var own = utility.panel ? utility.panel(node, kind) : null;
+                if (own && own.length) { fields.push(own); }
+            });
+
+            if (!fields.length) { return null; }
 
             var section = $('<div class="ge-utilities" />')
                 .toggleClass('ge-open', utilitiesOpen)
@@ -1684,80 +1701,96 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             ;
 
             var body = $('<div class="ge-utilities-body" />').appendTo(section);
-
-            families.forEach(function(family) {
-                var field = $('<label class="ge-utility" />')
-                    .attr('data-ge-family', family.name)
-                    .appendTo(body)
-                ;
-
-                $('<span class="ge-utility-label" />')
-                    .text(family.labelKey ? t(family.labelKey) : family.name)
-                    .appendTo(field)
-                ;
-                $('<select />')
-                    .appendTo(field)
-                    .on('change', function() {
-                        setUtility(node, family.name, this.value, { source: 'panel' });
-                    })
-                ;
-                $('<small class="ge-utility-note" />').appendTo(field);
-            });
+            fields.forEach(function(field) { field.appendTo(body); });
 
             renderUtilities(section);
 
             return section;
         }
 
-        /** Fill a section's fields for the view being edited. */
+        /**
+         * One family's field: its label, a select that writes through
+         * setUtility, and a note. Filled by renderField, again whenever the
+         * view or the node's classes change.
+         */
+        function createField(node, family) {
+            var field = $('<label class="ge-utility" />').attr('data-ge-family', family.name);
+
+            $('<span class="ge-utility-label" />')
+                .text(family.labelKey ? t(family.labelKey) : family.name)
+                .appendTo(field)
+            ;
+            $('<select />')
+                .appendTo(field)
+                .on('change', function() {
+                    setUtility(node, family.name, this.value, { source: 'panel' });
+                })
+            ;
+            $('<small class="ge-utility-note" />').appendTo(field);
+
+            return field;
+        }
+
+        /** ge.utilityField(node, family): a field a plugin places in a panel of its own. */
+        function utilityField(node, name) {
+            var family = familyNamed(name, 'utilityField');
+            if (!family) { return $(); }
+
+            var field = createField(node, family);
+            renderField(field, node);
+
+            return field;
+        }
+
+        /** Fill a section's fields, the families' and the plugins' own, for the view being edited. */
         function renderUtilities(section) {
             var node = section.data('ge-node');
-            var kind = kindOf(node);
 
             section.children('.ge-utilities-toggle')
                 .text(t('utility.section', { view: t(labelKeyFor(curView)) }));
 
-            section.find('.ge-utility').each(function() {
-                var field = $(this);
-                var family = FAMILIES[field.attr('data-ge-family')].family;
-                var select = field.children('select').empty();
-                var choices = family.choices ? family.choices(node, kind) : family.values;
-                var own, blank, note = '';
+            section.find('.ge-utility').each(function() { renderField($(this), node); });
+        }
 
-                if (curView === ALL_VIEW) {
-                    own = ownUtility(node, family, BREAKPOINTS[0]);
-                    blank = t('utility.default');
+        function renderField(field, node) {
+            var family = FAMILIES[field.attr('data-ge-family')].family;
+            var select = field.children('select').empty();
+            var choices = family.choices ? family.choices(node, kindOf(node)) : family.values;
+            var own, blank, note = '';
 
-                    var varies = utilityTiers(node, family).filter(function(entry) {
-                        return entry.tier !== BREAKPOINTS[0];
-                    });
-                    if (varies.length) {
-                        note = t('utility.varies', {
-                            breakpoints: varies.map(function(entry) { return entry.tier.key; }).join(', '),
-                        });
-                    }
-                } else {
-                    var tier = breakpoint(curView);
-                    var inherited = inheritedUtility(node, family, tier);
+            if (curView === ALL_VIEW) {
+                own = ownUtility(node, family, BREAKPOINTS[0]);
+                blank = t('utility.default');
 
-                    own = ownUtility(node, family, tier);
-                    blank = inherited
-                        ? t('utility.inherit', { value: labelOf(family, inherited.value), breakpoint: inherited.tier.key })
-                        : t('utility.default');
-                }
-
-                // A value the markup carries is shown even when the family
-                // would not offer it here, rather than shown as something else
-                if (own !== null && choices.indexOf(own) === -1) { choices = choices.concat([own]); }
-
-                $('<option value="" />').text(blank).appendTo(select);
-                choices.forEach(function(value) {
-                    $('<option />').attr('value', value).text(labelOf(family, value)).appendTo(select);
+                var varies = utilityTiers(node, family).filter(function(entry) {
+                    return entry.tier !== BREAKPOINTS[0];
                 });
+                if (varies.length) {
+                    note = t('utility.varies', {
+                        breakpoints: varies.map(function(entry) { return entry.tier.key; }).join(', '),
+                    });
+                }
+            } else {
+                var tier = breakpoint(curView);
+                var inherited = inheritedUtility(node, family, tier);
 
-                select.val(own === null ? '' : own);
-                field.children('.ge-utility-note').text(note).toggle(note !== '');
+                own = ownUtility(node, family, tier);
+                blank = inherited
+                    ? t('utility.inherit', { value: labelOf(family, inherited.value), breakpoint: inherited.tier.key })
+                    : t('utility.default');
+            }
+
+            // A value the markup carries is shown even when the family
+            // would not offer it here, rather than shown as something else
+            if (own !== null && choices.indexOf(own) === -1) { choices = choices.concat([own]); }
+
+            $('<option value="" />').text(blank).appendTo(select);
+            choices.forEach(function(value) {
+                $('<option />').attr('value', value).text(labelOf(family, value)).appendTo(select);
             });
+
+            select.val(own === null ? '' : own);
+            field.children('.ge-utility-note').text(note).toggle(note !== '');
         }
 
         function labelOf(family, value) {

@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   editor's frame, the preview settles `g` against `gx`/`gy` the way Bootstrap's
   css does, and choosing `g` takes that breakpoint's `gx` and `gy` off.
   `utilities.gutters.scale` follows a page that changed `$spacers`.
+- The `spacing` utility plugin: padding and margin on rows, columns, elements
+  and containers, `{p,m}{,x,y,t,b,s,e}-{bp}-*`. The panel has a padding and a
+  margin group, each a side and a value, and the preview settles the fourteen
+  families the way Bootstrap's css does. `utilities.spacing.values` and
+  `.scale` narrow the steps and follow a changed `$spacers`.
+- A utility plugin can build its own panel (`panel`, `ge.utilityField`,
+  families with `panel: false`) and preview a node as a whole (`preview`).
 - `example/utilities.html`.
 
 ## [4.0.0] - 2026-09-22

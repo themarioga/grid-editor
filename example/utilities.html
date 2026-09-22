@@ -22,6 +22,7 @@
     <script src="../dist/plugins/grideditor.order.min.js"></script>
     <script src="../dist/plugins/grideditor.alignment.min.js"></script>
     <script src="../dist/plugins/grideditor.gutters.min.js"></script>
+    <script src="../dist/plugins/grideditor.spacing.min.js"></script>
 
     <script>
         $(function() {
@@ -95,6 +96,11 @@
                     second row has none on phones and wide ones from small
                     desktop up.
                 </p>
+                <p class="form-text">
+                    <strong>Spacing:</strong> a padding and a margin group in
+                    every panel, each a side and a value. The centred column
+                    below gets more padding from small desktop up.
+                </p>
                 <p class="form-text">Last change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <pre id="html" class="form-text"></pre>
@@ -126,9 +132,9 @@
             </div>
 
             <div class="row justify-content-md-center">
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6 py-2 py-md-4">
                     <h2 class="h5">Centred</h2>
-                    <p>Its row has <code>justify-content-md-center</code>.</p>
+                    <p>Its row has <code>justify-content-md-center</code>, and it has <code>py-2 py-md-4</code>.</p>
                 </div>
             </div>
 

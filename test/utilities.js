@@ -365,6 +365,42 @@ async function nodeKindTests(t, page) {
         kinds.html.slice(0, 300));
 }
 
+async function customPanelTests(t, page) {
+    var custom = await page.eval(canvasWith('order-2') + `
+        window.fixture.teardown();
+        jQuery.fn.gridEditor.utilities.custom = function(ge) {
+            return {
+                families: [{ name: 'quiet', prefix: 'quiet', values: ['a'], appliesTo: ['column'], panel: false }],
+                panel: function(node, kind) {
+                    if (kind !== 'row') { return null; }
+                    return jQuery('<div class="ge-custom" />').append(ge.utilityField(node, 'justify'));
+                },
+                preview: function(node, kind, breakpoint) {
+                    return kind === 'column' ? { 'outline-offset': breakpoint === 'md' ? '7px' : '3px' } : {};
+                },
+            };
+        };
+        window.fixture.init({ plugins: window.fixture.plugins(['testing', 'custom']) });
+        const row = jQuery('#myGrid .row').first();
+        const read = {
+            columnFamilies: col().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
+            rowFields: row.find('> .ge-tools-drawer .ge-utility').length,
+            customField: row.find('> .ge-tools-drawer .ge-custom .ge-utility[data-ge-family="justify"]').length,
+            allView: col()[0].style.outlineOffset,
+        };
+        ge().changeView('md');
+        read.md = col()[0].style.outlineOffset;
+        read.customValue = (ge().setUtility(row, 'justify', 'end'), row.find('> .ge-tools-drawer .ge-custom select').val());
+        return read;
+    `);
+    t.check('a family with panel false gets no field of its own',
+        custom.columnFamilies === 'order', custom);
+    t.check('a plugin\'s own panel is placed in the section, and its utilityField follows the classes',
+        custom.customField === 1 && custom.rowFields === 2 && custom.customValue === 'end', custom);
+    t.check('a plugin\'s own preview is applied per breakpoint view, and not in the all view',
+        custom.allView === '' && custom.md === '7px', custom);
+}
+
 async function pluginSettingTests(t, page) {
     var off = await page.eval(canvasWith('order-1') + `
         window.fixture.teardown();
@@ -392,6 +428,7 @@ module.exports = {
         await panelTests(t, page);
         await previewTests(t, page);
         await nodeKindTests(t, page);
+        await customPanelTests(t, page);
         await pluginSettingTests(t, page);
 
         var errors = page.errors();

@@ -122,6 +122,7 @@ not change without a major version.
 | `ge.breakpoints` | Every breakpoint key, smallest first |
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
+| `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
 
 The add, delete and move events for a container and its panes are fired by the
 editor, not by the plugin: `createPaneControls` handles a pane's delete, and
@@ -206,12 +207,15 @@ $.fn.gridEditor.utilities.order = function(ge) {
             labelKey: 'utility.order',     // the field's label, optional
             label: function(value) { … },  // an option's text, optional: the value itself otherwise
             choices: function(node, kind) { … },   // what to offer this node, optional: every value otherwise
+            panel: false,                          // optional: no field of its own, see "A panel of your own"
             preview: function(value, node, kind) { // what the value looks like, see below
                 return { order: value === null ? 0 : value };
             },
         }],
         drawerTools: function(drawer, node, kind) { … },  // optional, tools beside the gear
         onRefresh: function(scope) { … },                 // optional, see below
+        panel: function(node, kind) { … },                // optional, see "A panel of your own"
+        preview: function(node, kind, breakpoint) { … },  // optional, the same
         onViewChange: function(view) { … },               // optional
     };
 };
@@ -252,6 +256,24 @@ change, after a write, after the user types in a classes field — with the node
 whose utilities changed, or the canvas. It is for what a plugin marks the canvas
 with beyond inline styles: the visibility plugin keeps hidden nodes on the
 canvas and fades them there. Whatever it adds, `onDeinit` takes away.
+
+### A panel of your own
+
+A field per family is the right panel for most plugins and the wrong one for
+some: spacing has fourteen families, and fourteen fields. Such a plugin marks
+its families `panel: false` and returns its own element from
+`panel(node, kind)` — or null where it does not apply — and the editor puts it
+in the Responsive section. Inside it, `ge.utilityField(node, family)` makes the
+same field the editor would, and the editor keeps every such field up to date
+with the view and the classes; swapping one field for another is the plugin's
+business. The spacing plugin's panel is a side and one field, and choosing a
+side swaps the field for that side's family.
+
+The same plugins tend to need the node as a whole for the preview, because
+their families settle one property between them — `p-3` and `pt-md-1` both
+set the top padding. A plugin-level `preview(node, kind, breakpoint)` is called
+for every node in a breakpoint view, after the families' own, and returns the
+styles for the node or an empty object.
 
 Two plugins cannot declare the same family name: the second one is ignored,
 with a warning.

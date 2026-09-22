@@ -150,6 +150,16 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.gutters` | Gutters | The gutters plugin's `g-*` field, on a row |
 | `utility.gutters_x` | Horizontal gutters | Its `gx-*` field |
 | `utility.gutters_y` | Vertical gutters | Its `gy-*` field |
+| `utility.padding` | Padding | The spacing plugin's padding group |
+| `utility.margin` | Margin | Its margin group |
+| `utility.side_all` | All sides | The side of `p-*` and `m-*` in a group's side choice |
+| `utility.side_x` | Left and right | The side of `px-*` and `mx-*` |
+| `utility.side_y` | Top and bottom | The side of `py-*` and `my-*` |
+| `utility.side_t` | Top | The side of `pt-*` and `mt-*` |
+| `utility.side_b` | Bottom | The side of `pb-*` and `mb-*` |
+| `utility.side_s` | Start | The side of `ps-*` and `ms-*` |
+| `utility.side_e` | End | The side of `pe-*` and `me-*` |
+| `utility.spacing_gutter` | A column's side padding is its gutter: changing it changes the gutter | Note in a column's spacing group while it carries side padding |
 
 
 badge.*

@@ -198,6 +198,7 @@
 .ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities {
   margin-top: 5px;
   font-size: 11px;
+  /* The spacing plugin: a side and a value per group */
 }
 .ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-toggle {
   color: #333;
@@ -236,6 +237,31 @@
   color: #666;
   font-size: 10px;
   max-width: 160px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group {
+  display: inline-flex;
+  flex-direction: column;
+  /* The group names the field once */
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group > .ge-spacing-side {
+  border: 1px solid #7F7F7F;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 1px 2px;
+  margin-bottom: 2px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group .ge-utility > .ge-utility-label {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-gutter {
+  flex-basis: 100%;
+  color: #666;
+  font-size: 10px;
 }
 .ge-canvas.ge-editing .row {
   background-color: #efefef;
@@ -3990,15 +4016,21 @@
 /*
  * The gutters plugin. A row with gutter classes is drawn with its real
  * gutters rather than the editor's frame: each column padded by half the
- * horizontal gutter, and the vertical gutter above each column. The row's
- * own negative top margin, which pairs with that, would pull it over the
- * row above, so it goes, and the drawer keeps to the edges.
+ * horizontal gutter, and the vertical gutter above each column. Bootstrap
+ * takes the first line's back with a negative top margin on the row, which
+ * here would pull it over the row above, so the row's drawer takes it back
+ * instead and the gap shows between lines of columns only.
  */
 .ge-canvas.ge-editing .row.ge-gutters {
   margin-top: 0;
 }
 .ge-canvas.ge-editing .row.ge-gutters > .ge-tools-drawer {
   margin-top: 0;
+  margin-bottom: calc(5px - var(--bs-gutter-y));
+  /* Bootstrap pads every child of a row by half its gutter, the drawer
+           too; it keeps the padding a row with no gutter class gives it */
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 .ge-canvas.ge-editing .row.ge-gutters > .column {
   padding-left: calc(var(--bs-gutter-x) * 0.5);
