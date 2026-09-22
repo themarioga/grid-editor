@@ -188,6 +188,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class per tier; a column with no sizing at all gets a single `col-12`, which
   applies at every tier. With six tiers the old behaviour would have put six
   classes on every column.
+- `toolbar_drag`, which makes the toolbar a palette: a button dragged onto the
+  canvas creates its row or container where it is dropped, with a line showing
+  where that will be and the canvas opening up so the gaps between rows are
+  something a pointer can hit. A container dropped straight onto the canvas
+  brings the row and column it needs; dropped into a column it goes straight
+  in. `'auto'`, the default, follows `drag_handle: 'drawer'`.
 - `drag_handle`, which says what a drag starts from: the move tool as before,
   or the whole tools drawer, in which case the move tool is not rendered at
   all. The other tools in a draggable drawer keep answering to a click, and a

@@ -185,6 +185,15 @@ $('#myGrid').gridEditor({
 });
 ```
 
+__`toolbar_drag`:__ Whether the toolbar's buttons are a palette: drag one onto the canvas and the row or container it stands for is created where you drop it, with a line showing where that is. `'auto'`, the default, turns it on when `drag_handle` is `'drawer'`, since that is the same idea applied to the toolbar; `true` and `false` decide it outright. Clicking a button still adds at the end either way.
+
+```javascript
+$('#myGrid').gridEditor({
+    drag_handle: 'drawer',
+    toolbar_drag: 'auto',
+});
+```
+
 __`custom_filter`:__ Allows the execution of a custom function before initialization and after de-initialization. Accepts a functions or a function name as string.
 Gives the `canvas` element and `isInit` (true/false) as parameter.
 

@@ -85,6 +85,32 @@
     }
 }
 
+/* While a toolbar button is in the air, the canvas opens up: the gap between
+   two rows is where a drop lands at canvas level instead of inside a column,
+   and it is otherwise too thin to aim at */
+.ge-canvas.ge-editing.ge-dropping {
+    > .row {
+        margin-bottom: 24px;
+    }
+    .column > .row {
+        margin-bottom: 20px;
+    }
+
+    /* Where the block would land */
+    .ge-drop-marker {
+        height: 6px;
+        margin: 4px 0;
+        border-radius: 3px;
+        background: @colColor;
+    }
+}
+
+/* The button following the pointer must not be what the pointer is over */
+.ge-toolbar-helper {
+    pointer-events: none;
+    opacity: 0.85;
+}
+
 /* Dragging by the whole drawer rather than by the move tool */
 .ge-canvas.ge-editing.ge-drag-drawer {
     .ge-tools-drawer {

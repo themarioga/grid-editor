@@ -234,6 +234,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                                     */
             'row_tools'         : [],
             'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
+            'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'container_tools'   : [], // Host tools on container drawers
             'tab_tools'         : [], // Host tools on tab drawers
@@ -276,6 +277,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var curView = settings.default_view; // Breakpoint key, or 'all'
         var confirmDialog = null; // The delete confirmation, built when first needed
         var sizePicker = null; // The open column size picker, if there is one
+        var dropMarker = null; // The line showing where a dragged toolbar button would land
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
 
         // Before anything else, because the instance handle hands the canvas
@@ -724,6 +726,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             $.each(settings.new_row_layouts, function(j, layout) {
                 var btn = $('<a class="btn btn-sm btn-primary" />')
                     .attr('title', t('row.add', { layout: layout.join('-') }))
+                    // What this button makes, in the markup rather than in
+                    // jQuery data: a drag works on a clone of it
+                    .attr('data-ge-toolbar', 'row')
+                    .attr('data-ge-layout', layout.join(','))
                     .on('click', function() {
                         var row = createRow();
                         layout.forEach(function(i) {
@@ -762,6 +768,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 $('<a class="btn btn-sm btn-primary ge-add-container" />')
                     .attr('title', t(definition.labelKey))
+                    .attr('data-ge-toolbar', 'container')
                     .attr('data-ge-container-type', type)
                     .append('<i class="bi bi-plus"></i>')
                     .append($('<span />').text(t(definition.labelKey)))
@@ -841,8 +848,141 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 })
                 .appendTo(btnGroup)
             ;
+
+            makeToolbarDraggable();
         }
         
+        /**
+         * The toolbar's buttons as a palette: drag one onto the canvas and
+         * what it makes is created where it lands, rather than at the end.
+         *
+         * On by default in the mode where everything else is dragged by its
+         * body rather than by a handle, since that is the same idea applied to
+         * the toolbar; toolbar_drag: true or false decides it outright.
+         */
+        function toolbarDrags() {
+            if (settings.toolbar_drag === 'auto') { return settings.drag_handle === 'drawer'; }
+
+            return !!settings.toolbar_drag;
+        }
+
+        function makeToolbarDraggable() {
+            if (!toolbarDrags()) { return; }
+
+            mainControls.find('[data-ge-toolbar]').draggable({
+                helper: function() { return $(this).clone().addClass('ge-toolbar-helper'); },
+                appendTo: 'body',
+                zIndex: 1000,
+                cursorAt: { top: 14, left: 14 },
+
+                start: function() { canvas.addClass('ge-dropping'); },
+                drag: function(e) { showDropMarker(e.pageX, e.pageY); },
+
+                stop: function(e) {
+                    var where = dropPlaceAt(e.pageX, e.pageY);
+
+                    canvas.removeClass('ge-dropping');
+                    hideDropMarker();
+
+                    if (where) { insertFromToolbar($(this), where); }
+                },
+            });
+        }
+
+        /**
+         * Where a drop at this point would put things: which region it lands
+         * in, and which of that region's children it goes before.
+         *
+         * Worked out from the pointer rather than handed to a sortable. The
+         * canvas is a tree of regions that connected sortables fight over -
+         * a column grows as a placeholder is put in it, until it covers the
+         * pointer wherever the pointer goes - and a new block has one
+         * question to answer, which is where it lands.
+         */
+        function dropPlaceAt(pageX, pageY) {
+            var x = pageX - window.scrollX;
+            var y = pageY - window.scrollY;
+            var under = document.elementFromPoint(x, y);
+
+            if (!under) { return null; }
+
+            var region = $(under).closest('.column, .ge-canvas');
+            if (!region.length || (region[0] !== canvas[0] && !canvas[0].contains(region[0]))) {
+                return null;
+            }
+
+            var before = null;
+
+            region.children('.row, .ge-content, [data-ge-container]').each(function() {
+                if (before) { return; }
+
+                var box = this.getBoundingClientRect();
+                if (y < box.top + box.height / 2) { before = $(this); }
+            });
+
+            return { region: region, before: before };
+        }
+
+        /** A line where the block would go, following the pointer. */
+        function showDropMarker(pageX, pageY) {
+            var where = dropPlaceAt(pageX, pageY);
+
+            if (!where) { return hideDropMarker(); }
+
+            if (!dropMarker) { dropMarker = $('<div class="ge-drop-marker" />'); }
+
+            if (where.before) {
+                dropMarker.insertBefore(where.before);
+            } else {
+                dropMarker.appendTo(where.region);
+            }
+
+            return undefined;
+        }
+
+        function hideDropMarker() {
+            if (dropMarker) { dropMarker.remove(); }
+        }
+
+        /**
+         * The row or container a toolbar button stands for, made and put where
+         * the pointer left it.
+         */
+        function insertFromToolbar(button, where) {
+            var container = button.attr('data-ge-toolbar') === 'container';
+            var type = button.attr('data-ge-container-type');
+            var made = container
+                ? CONTAINERS[type].create({})
+                : rowFromLayout(button.attr('data-ge-layout'));
+
+            // A container belongs in a column: dropped straight onto the
+            // canvas it brings a row and a column of its own
+            var placed = made;
+            if (container && !where.region.is('.column')) {
+                placed = createRow();
+                createColumn(MAX_COL_SIZE).appendTo(placed)
+                    .find('> .ge-content').replaceWith(made);
+            }
+
+            return addNode(container ? type : 'row', made, function() {
+                if (where.before) {
+                    placed.insertBefore(where.before);
+                } else {
+                    placed.appendTo(where.region);
+                }
+            }, { parent: where.region, source: 'dragdrop' });
+        }
+
+        function rowFromLayout(layout) {
+            var row = createRow();
+
+            (layout || '').split(',').forEach(function(size) {
+                if (size !== '') { createColumn(parseInt(size, 10)).appendTo(row); }
+            });
+
+            return row;
+        }
+
         function onScroll(e) {
             var $window = $(window);
             
@@ -903,7 +1043,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function deinit() {
-            canvas.removeClass('ge-editing ge-drag-drawer');
+            canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
             var contents = canvas.find('.ge-content').each(function() {
                 var content = $(this);
                 var rte = getRTE(content.data('ge-content-type'));
@@ -917,6 +1057,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 content.removeClass('ge-rte-active');
             });
             closeSizePicker();
+            hideDropMarker();
             canvas.find('.ge-tools-drawer').remove();
             writePopupTriggerAttributes();
             unmarkContainers();
