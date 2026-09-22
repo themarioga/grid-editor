@@ -21,6 +21,7 @@
     <script src="../dist/plugins/grideditor.tabs.min.js"></script>
     <script src="../dist/plugins/grideditor.accordion.min.js"></script>
     <script src="../dist/plugins/grideditor.popup.min.js"></script>
+    <script src="../dist/plugins/grideditor.card.min.js"></script>
 
     <script>
         $(function() {
@@ -76,11 +77,12 @@
             <div class="col-lg-8">
                 <h1 class="h4">Containers</h1>
                 <p class="form-text">
-                    A container holds panes, and every pane is an ordinary
-                    region: rows, columns, content areas and elements nest
-                    inside one exactly as they do at the top level. The three
-                    buttons in the toolbar add a tabs container, an accordion
-                    and a popup.
+                    A container holds regions, and every region is an ordinary
+                    one: rows, columns, content areas and elements nest inside
+                    it exactly as they do at the top level. The four buttons in
+                    the toolbar add a tabs container, an accordion, a popup and
+                    a card &mdash; the first three hold a pane each, a card
+                    holds one region and an editable header.
                 </p>
                 <p class="form-text">
                     While editing, a popup is unfolded in place and an
@@ -89,7 +91,8 @@
                     authored page opens with. Bootstrap's own JS is never
                     asked to do any of it, so there is no backdrop and no focus
                     trap to fight with. Double click a tab or item label to
-                    rename it. The last row shows two levels: tabs inside an
+                    rename it, and a card&rsquo;s header and footer the same
+                    way. The last row shows two levels: tabs inside an
                     accordion item.
                 </p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
@@ -152,6 +155,27 @@
                         Grid editor leaves the markup alone and writes
                         Bootstrap's attributes onto it in the output.
                     </p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <div data-ge-container="card">
+                        <div class="card">
+                            <div class="card-header">A card, whose body is one region</div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="ge-content" data-ge-content-type="tinymce"><p>A card holds no panes, so it is the plainest container there is: a header, this region, and a footer if you want one.</p></div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="ge-content" data-ge-content-type="tinymce"><p>The region is ordinary, so it takes rows and columns of its own &mdash; these two, for instance.</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer text-body-secondary">Double click the header or this footer to rewrite it</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
