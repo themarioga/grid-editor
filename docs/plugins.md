@@ -123,6 +123,7 @@ not change without a major version.
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 | `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
+| `ge.rowFromLayout(layout)` | A detached row from a layout: `[8, 4]`, `['auto', 'equal']` or `{ row_cols, columns }` |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 
 The add, delete and move events for a container and its panes are fired by the
@@ -144,9 +145,28 @@ $.fn.gridEditor.features.elements = function(ge) {
         onDeinit: function() { … },      // every deinit: take it out again
         onContentReady: function(area) { … },  // a rich text editor just took over
         onSortable: function(sortable) { … },  // declare your own sortable lists
+        blocks: '.ge-section',            // more blocks the canvas and the columns move
+        regions: '.ge-section',           // more lists those blocks move in
+        accepts: function(region, node) { … },  // false turns a block away from a region
+        toolbar: [{ labelKey: …, kind: …, create: function() { … } }],  // buttons beside the containers'
     };
 };
 ```
+
+The last four are what the sections plugin is made of, and what a plugin
+needs to put a new kind of block on the canvas:
+
+- **`blocks`** is a selector added to what the canvas and every column move -
+  rows, content areas and containers, the editor's own blocks.
+- **`regions`** is a selector for more lists those blocks move in, in the same
+  group, so a row dragged from the canvas can land in one.
+- **`accepts(region, node)`** can turn a block away from a list: `false` and the
+  drag will not drop it there, whoever's block and whoever's list. With none of
+  these hooks, every block goes everywhere, as before.
+- **`toolbar`** adds buttons beside the containers'. A click appends what
+  `create()` returns to the canvas, announced as `kind`; a drop puts it where it
+  was dropped, or, when that region will not have it, on the canvas just after
+  the block it was dropped in.
 
 - **`onSortable(sortable)`** is handed the function the editor makes all of its
   own lists with. A plugin describes a list; it never touches the drag toolkit

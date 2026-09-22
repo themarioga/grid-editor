@@ -4360,3 +4360,145 @@
   line-height: 16px;
   pointer-events: none;
 }
+/*
+ * The sections plugin: Bootstrap's containers on the canvas. A section is
+ * framed while editing, and in a breakpoint view each container class gets
+ * the max-width it has at that breakpoint - Bootstrap sets it for the
+ * window, and the window is not what a breakpoint view narrows.
+ */
+.ge-canvas.ge-editing > .ge-section {
+  border: 1px dashed #8a6d3b;
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
+.ge-canvas.ge-editing > .ge-section > .ge-section-drawer {
+  background: rgba(138, 109, 59, 0.15);
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+}
+.ge-canvas.ge-editing > .ge-section > .ge-section-drawer > a {
+  color: #785f33;
+}
+/* The width field, in the section's settings panel beside id and classes */
+.ge-canvas.ge-editing .ge-details .ge-section-width {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 11px;
+}
+.ge-canvas.ge-editing .ge-details .ge-section-width select {
+  border: 1px solid #7F7F7F;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 1px 2px;
+}
+.ge-canvas.ge-layout-xs > .container {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xs > .container-sm {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xs > .container-md {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xs > .container-lg {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xs > .container-xl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xs > .container-xxl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-sm > .container {
+  max-width: 540px;
+}
+.ge-canvas.ge-layout-sm > .container-sm {
+  max-width: 540px;
+}
+.ge-canvas.ge-layout-sm > .container-md {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-sm > .container-lg {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-sm > .container-xl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-sm > .container-xxl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-md > .container {
+  max-width: 720px;
+}
+.ge-canvas.ge-layout-md > .container-sm {
+  max-width: 720px;
+}
+.ge-canvas.ge-layout-md > .container-md {
+  max-width: 720px;
+}
+.ge-canvas.ge-layout-md > .container-lg {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-md > .container-xl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-md > .container-xxl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-lg > .container {
+  max-width: 960px;
+}
+.ge-canvas.ge-layout-lg > .container-sm {
+  max-width: 960px;
+}
+.ge-canvas.ge-layout-lg > .container-md {
+  max-width: 960px;
+}
+.ge-canvas.ge-layout-lg > .container-lg {
+  max-width: 960px;
+}
+.ge-canvas.ge-layout-lg > .container-xl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-lg > .container-xxl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xl > .container {
+  max-width: 1140px;
+}
+.ge-canvas.ge-layout-xl > .container-sm {
+  max-width: 1140px;
+}
+.ge-canvas.ge-layout-xl > .container-md {
+  max-width: 1140px;
+}
+.ge-canvas.ge-layout-xl > .container-lg {
+  max-width: 1140px;
+}
+.ge-canvas.ge-layout-xl > .container-xl {
+  max-width: 1140px;
+}
+.ge-canvas.ge-layout-xl > .container-xxl {
+  max-width: 100%;
+}
+.ge-canvas.ge-layout-xxl > .container {
+  max-width: 1320px;
+}
+.ge-canvas.ge-layout-xxl > .container-sm {
+  max-width: 1320px;
+}
+.ge-canvas.ge-layout-xxl > .container-md {
+  max-width: 1320px;
+}
+.ge-canvas.ge-layout-xxl > .container-lg {
+  max-width: 1320px;
+}
+.ge-canvas.ge-layout-xxl > .container-xl {
+  max-width: 1320px;
+}
+.ge-canvas.ge-layout-xxl > .container-xxl {
+  max-width: 1320px;
+}

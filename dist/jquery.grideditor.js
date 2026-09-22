@@ -28,6 +28,7 @@ var METHODS = {
     createRow:        { value: true },
     createColumn:     { value: true },
     createElement:    { value: true },
+    createSection:    { value: true },
     createContainer:  { value: true },
     addTab:           { value: true },
     addAccordionItem: { value: true },
@@ -908,6 +909,29 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 ;
             });
 
+            // A feature plugin's own buttons, beside the containers': what
+            // one makes goes onto the canvas, where the plugin says it belongs
+            $.each(FEATURES, function(name, feature) {
+                (feature.toolbar || []).forEach(function(item, index) {
+                    $('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />')
+                        .attr('title', t(item.labelKey))
+                        .attr('data-ge-toolbar', 'feature')
+                        .attr('data-ge-feature', name)
+                        .attr('data-ge-item', index)
+                        .append('<i class="bi bi-plus"></i>')
+                        .append($('<span />').text(t(item.labelKey)))
+                        .on('click', function() {
+                            var made = item.create();
+
+                            addNode(item.kind, made, function() {
+                                made.appendTo(canvas);
+                            }, { parent: canvas, source: 'tool' });
+                        })
+                        .appendTo(addContainerGroup)
+                    ;
+                });
+            });
+
             // Buttons on right
             layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
                 '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>' +
@@ -1083,14 +1107,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (!under) { return null; }
 
-            var region = $(under).closest('.column, .ge-canvas');
+            var region = $(under).closest(['.column', '.ge-canvas'].concat(pluginHooks('regions')).join(', '));
             if (!region.length || (region[0] !== canvas[0] && !canvas[0].contains(region[0]))) {
                 return null;
             }
 
             var before = null;
 
-            region.children('.row, .ge-content, [data-ge-container]').each(function() {
+            region.children(blockSelector()).each(function() {
                 if (before) { return; }
 
                 var box = this.getBoundingClientRect();
@@ -1098,6 +1122,30 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             return { region: region, before: before };
+        }
+
+        /**
+         * A feature's toolbar button dropped on the canvas. A region that will
+         * not have what it makes - a section dropped on a column - gives way
+         * to the canvas, just after the top level block the pointer was in.
+         */
+        function insertFeatureFromToolbar(button, where) {
+            var item = FEATURES[button.attr('data-ge-feature')].toolbar[parseInt(button.attr('data-ge-item'), 10)];
+            var made = item.create();
+
+            if (!acceptsBlock(where.region, made)) {
+                var top = where.region.parentsUntil(canvas).addBack().first();
+                where = { region: canvas, before: top.length ? top.next() : null };
+                if (where.before && !where.before.length) { where.before = null; }
+            }
+
+            return addNode(item.kind, made, function() {
+                if (where.before) {
+                    made.insertBefore(where.before);
+                } else {
+                    made.appendTo(where.region);
+                }
+            }, { parent: where.region, source: 'dragdrop' });
         }
 
         /** A line where the block would go, following the pointer. */
@@ -1126,6 +1174,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the pointer left it.
          */
         function insertFromToolbar(button, where) {
+            if (button.attr('data-ge-toolbar') === 'feature') {
+                return insertFeatureFromToolbar(button, where);
+            }
+
             var container = button.attr('data-ge-toolbar') === 'container';
             var type = button.attr('data-ge-container-type');
             var made = container
@@ -1482,6 +1534,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 setUtility: setUtility,
                 utilityField: utilityField,
                 bareStyle: bareStyle,
+                rowFromLayout: rowFromLayoutValue,
             };
         }
 
@@ -2991,6 +3044,35 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return 'ge-' + name + '-' + instanceId;
         }
 
+        /**
+         * What the canvas, the columns and the plugins' regions move: rows,
+         * content areas and containers, and whatever blocks a feature adds -
+         * the sections plugin's sections.
+         */
+        function blockSelector() {
+            return ['.row', '.ge-content', '[data-ge-container]'].concat(pluginHooks('blocks')).join(', ');
+        }
+
+        /** A selector every feature plugin may contribute to, under one name. */
+        function pluginHooks(name) {
+            return $.map(FEATURES, function(feature) { return feature[name] || null; });
+        }
+
+        /**
+         * Whether a region will have a block dropped in it. Every block goes
+         * everywhere unless a feature says otherwise: a section only on the
+         * canvas, and only rows in a section.
+         */
+        function acceptsBlock(region, node) {
+            var accepted = true;
+
+            $.each(FEATURES, function(name, feature) {
+                if (accepted && feature.accepts && feature.accepts(region, node) === false) { accepted = false; }
+            });
+
+            return accepted;
+        }
+
         /** What must never start a drag, whatever the handle is. */
         function dragCancelSelector() {
             return settings.drag_handle === 'drawer'
@@ -3027,6 +3109,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 var group = options.group
                     ? { name: groupName(options.group) }
                     : { name: groupName(options.draggable + '-' + (++soloGroup)), pull: false, put: false };
+
+                // A list may turn some of its group's items away. A put
+                // function replaces SortableJS's own test that the item comes
+                // from the same group, so it makes that test too: without it
+                // a column would drop into the canvas, or into another editor
+                if (options.group && options.accepts) {
+                    group.put = function(to, from, dragged) {
+                        return from.options.group.name === group.name && options.accepts($(to.el), $(dragged));
+                    };
+                }
 
                 sortables.push(window.Sortable.create(list, $.extend({
                     group: group,
@@ -3092,9 +3184,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             sortable(canvas.add(canvas.find('.column')), {
-                draggable: '.row, .ge-content, [data-ge-container]',
+                draggable: blockSelector(),
                 group: 'block',
+                accepts: acceptsBlock,
             });
+
+            // A plugin's region can be a block itself - a section is both -
+            // and SortableJS tests a list's own element against the draggable
+            // selector when it counts the list's children, so every child of
+            // a section would count as a block, its drawer first. '>' is
+            // SortableJS for "direct children only", which the list is not.
+            var regions = pluginHooks('regions');
+            if (regions.length) {
+                sortable(canvas.find(regions.join(', ')), {
+                    draggable: '>' + blockSelector(),
+                    group: 'block',
+                    accepts: acceptsBlock,
+                });
+            }
 
             // A plugin makes its own: only it knows which of its parts move
             plugins('onSortable', sortable);
@@ -3722,6 +3829,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 }
 
                 return featureMethods.createElement(content, options);
+            },
+            createSection: function(options) {
+                if (!featureMethods.createSection) {
+                    warnOnceHere('plugin:sections', 'createSection needs the sections plugin: ' +
+                        'include dist/plugins/grideditor.sections.js after the editor');
+                    return null;
+                }
+
+                return featureMethods.createSection(options);
             },
             createContainer: apiCreateContainer,
             addTab: function(container, options) { return addPaneTo(container, 'tabs', options); },

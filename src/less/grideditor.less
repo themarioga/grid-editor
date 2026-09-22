@@ -850,3 +850,69 @@
         pointer-events: none;
     }
 }
+
+/*
+ * The sections plugin: Bootstrap's containers on the canvas. A section is
+ * framed while editing, and in a breakpoint view each container class gets
+ * the max-width it has at that breakpoint - Bootstrap sets it for the
+ * window, and the window is not what a breakpoint view narrows.
+ */
+@ge-section-color: #8a6d3b;
+
+.ge-canvas.ge-editing > .ge-section {
+    border: 1px dashed @ge-section-color;
+    margin-bottom: @editGutter;
+    padding-bottom: @editGutter;
+
+    > .ge-section-drawer {
+        background: fadeout(@ge-section-color, 85%);
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+
+        > a {
+            color: darken(@ge-section-color, 5%);
+        }
+    }
+}
+
+/* The width field, in the section's settings panel beside id and classes */
+.ge-canvas.ge-editing .ge-details .ge-section-width {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 11px;
+
+    select {
+        border: 1px solid #7F7F7F;
+        border-radius: 4px;
+        font-size: 11px;
+        padding: 1px 2px;
+    }
+}
+
+@ge-section-classes: container, container-sm, container-md, container-lg, container-xl, container-xxl;
+@ge-section-from: 2, 2, 3, 4, 5, 6;
+@ge-section-widths: 100%, 540px, 720px, 960px, 1140px, 1320px;
+
+.ge-section-modes(@i: 1) when (@i =< length(@ge-tiers)) {
+    @tier: extract(@ge-tiers, @i);
+    .ge-section-classes(@i, @tier);
+    .ge-section-modes(@i + 1);
+}
+.ge-section-classes(@i, @tier, @k: 1) when (@k =< length(@ge-section-classes)) {
+    .ge-section-width(@i, @tier, extract(@ge-section-classes, @k), extract(@ge-section-from, @k));
+    .ge-section-classes(@i, @tier, @k + 1);
+}
+.ge-section-width(@i, @tier, @class, @from) when (@i >= @from) {
+    .ge-canvas.ge-layout-@{tier} > .@{class} {
+        max-width: extract(@ge-section-widths, @i);
+    }
+}
+.ge-section-width(@i, @tier, @class, @from) when (@i < @from) {
+    .ge-canvas.ge-layout-@{tier} > .@{class} {
+        max-width: 100%;
+    }
+}
+.ge-section-modes();

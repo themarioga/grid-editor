@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does, and the row says in a corner how many it puts per line. Layouts,
   `createRow` and `createColumn` take rows with row-cols, and `row_cols: false`
   takes the field away.
+- The `sections` plugin: Bootstrap's `.container`, `.container-fluid` and
+  `.container-{bp}` as sections on the canvas, grouping rows. Each gets a
+  drawer with a width field, the toolbar a *Section* button, and the API
+  `createSection`. Rows drag in and out of sections, sections drag along the
+  canvas, and a breakpoint view gives each the max-width its container has
+  there.
+- Feature plugins can add blocks, regions and toolbar buttons (`blocks`,
+  `regions`, `accepts`, `toolbar`), and the handle gains `rowFromLayout`.
 - The `textalign` utility plugin: `text-{bp}-start`, `-center` and `-end` on
   rows, columns, elements and containers. With no class applying in a view, the
   preview shows what the node inherits from its parent or the host's css.

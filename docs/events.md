@@ -73,6 +73,7 @@ The payload
 {
     kind: 'row',          // row | column | content | element
                           // tabs | accordion | popup | tab | accordion-item
+                          // section, with the sections plugin
     node: jQuery,         // the node added, deleted, moved or resized
     parent: jQuery,       // where it is going, or where it came from on a delete
     canvas: jQuery,
@@ -107,6 +108,12 @@ The payload
     ],
 }
 ```
+
+A section's width change is announced as a utility change too, with
+`family: 'section'`, `breakpoint: 'all'` and the widths - `'fixed'`, `'fluid'`,
+`'md'` - as `from` and `to`: a section has one container class, whatever the
+breakpoint. Adding a section fires `before-add-section` and `after-add-section`,
+with the generic pair.
 
 `view-change` carries no node: its payload is `canvas`, `breakpoint` (the new
 view), `from` and `to`. A utility's `breakpoint` is the view it was written

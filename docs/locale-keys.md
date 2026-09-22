@@ -83,6 +83,23 @@ The containers: tabs, accordions and popups, and the panes inside them.
 | `container.card_footer` | Card footer | Text of a new card's footer, when it has one |
 
 
+section.*
+---------
+
+The sections plugin: Bootstrap's `.container` and its kin, on the canvas.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `section.add` | Section | Toolbar button that adds a section |
+| `section.width` | Width | Label of a section's width field, in its settings panel |
+| `section.fixed` | Fixed | Its choice for `container` |
+| `section.fluid` | Full width | Its choice for `container-fluid` |
+| `section.from` | Fixed from {breakpoint} | Its choice for `container-{bp}`. `{breakpoint}` is the key |
+| `tool.add_row_to_section` | Add row | Section drawer, adds a row to the section |
+| `tool.delete_section` | Remove section | Section drawer |
+| `confirm.delete_section` | Delete this section and everything in it? | Asked before a section is deleted |
+
+
 confirm.*
 ---------
 

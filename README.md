@@ -97,6 +97,7 @@ $('#myGrid').gridEditor('method', argument);
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
 | `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
 | `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` |
+| `createSection` | `options?` | `jQuery` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
 | `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
@@ -463,6 +464,30 @@ $('#myGrid').gridEditor({
 
 See [example/utilities.html](example/utilities.html), and
 [docs/plugins.md](docs/plugins.md#utility-plugins) for writing one.
+
+### Sections
+
+Bootstrap's `.container`, `.container-fluid` and `.container-{bp}` on the
+canvas, each grouping rows at a width of its own. A plugin, since many pages
+put the whole canvas in a `.container` already:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.sections.min.js"></script>
+```
+
+A container that is a child of the canvas is a section, and gets a drawer:
+move, settings - with a *Width* field for the seven kinds of container - add
+row and delete. The toolbar gets a *Section* button. Rows drag in and out of
+sections, and sections drag along the canvas but not into a column. In a
+breakpoint view each section is as wide as its container would be at that
+breakpoint. They are called sections, not containers, because a container is
+what the tabs, accordion, popup and card plugins make.
+
+```javascript
+$('#myGrid').gridEditor('createSection', { width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
+```
+
+__`sections`:__ `{ widths: ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'] }`, the widths the field offers.
 
 ### Containers
 
