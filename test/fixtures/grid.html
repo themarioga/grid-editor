@@ -23,13 +23,14 @@
     <script src="../vendor/sortablejs/Sortable.min.js"></script>
     <script src="../../dist/jquery.grideditor.js"></script>
 
-    <!-- The container plugins. Loading a file is what makes its type
-         available; the fixture takes all three so a suite can use any. -->
+    <!-- The plugins. Loading a file is what makes its feature available;
+         the fixture takes every one so a suite can use any. -->
     <script src="../../dist/plugins/grideditor.tabs.js"></script>
     <script src="../../dist/plugins/grideditor.accordion.js"></script>
     <script src="../../dist/plugins/grideditor.popup.js"></script>
     <script src="../../dist/plugins/grideditor.card.js"></script>
     <script src="../../dist/plugins/grideditor.elements.js"></script>
+    <script src="../../dist/plugins/grideditor.visibility.js"></script>
 
     <script>
         window.fixture = {
@@ -40,6 +41,15 @@
             settings: {
                 new_row_layouts: [[12], [6, 6], [4, 4, 4]],
                 content_types: [],
+                // Loaded is not used: the utility plugins add tools and
+                // fields to every drawer, which the suites about the grid do
+                // not expect. A suite about one names it on top of these.
+                plugins: ['tabs', 'accordion', 'popup', 'card', 'elements'],
+            },
+
+            /** The plugins setting with `names` on top of the fixture's own. */
+            plugins: function(names) {
+                return this.settings.plugins.concat(names);
             },
 
             /** Initialize the grid editor, with `overrides` on top of the defaults. */

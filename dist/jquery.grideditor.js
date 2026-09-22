@@ -1317,6 +1317,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 viewTiers: function() {
                     return tiersFor(curView).map(function(tier) { return tier.key; });
                 },
+                breakpoints: BREAKPOINTS.map(function(tier) { return tier.key; }),
                 getUtility: getUtility,
                 setUtility: setUtility,
             };
@@ -1594,10 +1595,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function refreshPreviews(scope) {
             clearPreviews(scope);
 
-            if (curView === ALL_VIEW) { return; }
+            if (curView !== ALL_VIEW) { previewTier(scope, breakpoint(curView)); }
 
-            var tier = breakpoint(curView);
+            // Whatever a plugin marks the canvas with to show its utilities
+            // goes stale at the same moments the preview does
+            plugins('onRefresh', scope);
+        }
 
+        function previewTier(scope, tier) {
             utilityNodes(scope).each(function() {
                 var node = $(this);
                 var kind = kindOf(node);

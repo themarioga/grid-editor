@@ -48,6 +48,7 @@ var PLUGIN = `
         };
     };
 
+    window.fixture.settings.plugins = window.fixture.plugins(['testing']);
     window.toolKinds = [];
     window.viewHooks = [];
     window.log = [];

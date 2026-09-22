@@ -666,3 +666,45 @@
 }
 
 .ge-layout-modes();
+
+/*
+ * The visibility plugin. A node Bootstrap would hide is kept on the canvas -
+ * there would be nothing left to click to show it again - and shown the way
+ * the view sees it instead. The selectors outweigh Bootstrap's d-* classes,
+ * which are !important too.
+ */
+.ge-canvas.ge-editing {
+    .ge-visibility {
+        display: block !important;
+    }
+    .row.ge-visibility {
+        display: flex !important;
+    }
+
+    .ge-hidden-in-view {
+        opacity: .45;
+        background-image: repeating-linear-gradient(
+            -45deg, transparent 0, transparent 6px, rgba(0, 0, 0, .07) 6px, rgba(0, 0, 0, .07) 12px
+        );
+    }
+
+    /* The all view: hidden at some breakpoints, said in a corner */
+    [data-ge-hidden-in] {
+        position: relative;
+
+        &::after {
+            content: attr(data-ge-hidden-in);
+            position: absolute;
+            right: 2px;
+            bottom: 2px;
+            z-index: 1;
+            padding: 0 4px;
+            border-radius: 3px;
+            background: rgba(0, 0, 0, .6);
+            color: #fff;
+            font-size: 10px;
+            line-height: 16px;
+            pointer-events: none;
+        }
+    }
+}

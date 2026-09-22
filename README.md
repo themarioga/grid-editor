@@ -30,6 +30,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
 | [example/containers.html](example/containers.html) | Tabs, accordions, popups and cards, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
 | [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output | [live](https://themarioga.github.io/grid-editor/example/elements.html) |
+| [example/utilities.html](example/utilities.html) | Bootstrap's responsive utilities, edited per breakpoint | [live](https://themarioga.github.io/grid-editor/example/utilities.html) |
 | [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher | [live](https://themarioga.github.io/grid-editor/example/locale.html) |
 | [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/ckeditor.html) |
 | [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
@@ -379,6 +380,44 @@ __`element_tools`:__ Extra tools on every element drawer, same shape as `row_too
 
 See [example/elements.html](example/elements.html), which also shows the
 pattern for an element with no visual output of its own.
+
+### Responsive utilities
+
+Bootstrap's responsive utility classes, edited per breakpoint. Each family is
+a plugin in a file of its own:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.visibility.min.js"></script>
+```
+
+| Plugin | Classes | On |
+| --- | --- | --- |
+| `visibility` | `d-{bp}-none`, `d-{bp}-block`, `d-{bp}-flex` | rows, columns, elements, containers |
+
+A plugin puts a field in the *Responsive* section of each drawer's settings
+panel, and some add a tool to the drawer. In a breakpoint view a change is
+written for that breakpoint alone, and the field says what it inherits and from
+where. In the all view it is written once, as the class with no breakpoint, and
+replaces what the breakpoints said. While you edit, the canvas shows what the
+classes mean in the view you are in; `getHtml` returns only the classes.
+
+```javascript
+$('#myGrid').gridEditor('setUtility', column, 'visibility', 'none', 'md');   // d-md-none
+$('#myGrid').gridEditor('getUtility', column, 'visibility', 'lg');           // 'none', inherited
+```
+
+__`utilities`:__ Options for each plugin, under its name.
+
+```javascript
+$('#myGrid').gridEditor({
+    utilities: {
+        visibility: { drawer: false },   // no eye in the drawers, the field only
+    },
+});
+```
+
+See [example/utilities.html](example/utilities.html), and
+[docs/plugins.md](docs/plugins.md#utility-plugins) for writing one.
 
 ### Containers
 

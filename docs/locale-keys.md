@@ -134,6 +134,22 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
 | `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
 | `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |
+| `utility.visibility` | Visibility | Label of the visibility plugin's field |
+| `utility.visibility_hidden` | Hidden | Its choice for `d-*-none` |
+| `utility.visibility_shown` | Shown | Its choice for `d-*-block`, or `d-*-flex` on a row |
+| `tool.hide_in_view` | Hide in this view | The visibility plugin's eye, on a node shown in the view being edited |
+| `tool.show_in_view` | Show in this view | The same eye, on a node hidden there |
+
+
+badge.*
+-------
+
+Text the utility plugins show on the canvas while editing. Never in the
+markup `getHtml` returns.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `badge.hidden_in` | Hidden at {breakpoints} | Corner of a node hidden at some breakpoints, in the all view. `{breakpoints}` is a list of keys |
 
 
 error.*

@@ -17,8 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugins' options.
 - `before-utility`, `after-utility` and `view-change` events. `view-change` is
   new for every host, not only for utility plugins.
-- The plugin handle gains `kindOf`, `view`, `viewTiers`, `getUtility` and
-  `setUtility`, and a utility plugin may add tools beside any drawer's gear.
+- The plugin handle gains `kindOf`, `view`, `viewTiers`, `breakpoints`,
+  `getUtility` and `setUtility`, and a utility plugin may add tools beside any
+  drawer's gear and mark the canvas in `onRefresh`.
+- The `visibility` utility plugin: hide a row, column, element or container at
+  some breakpoints with `d-{bp}-none` and show it at others. An eye in each
+  drawer toggles the view being edited with as few classes as that takes. A
+  hidden node stays on the canvas, faded, and in the all view a badge says at
+  which breakpoints it is hidden.
+- `example/utilities.html`.
 
 ## [4.0.0] - 2026-09-22
 ### Added

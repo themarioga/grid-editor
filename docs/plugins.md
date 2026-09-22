@@ -119,6 +119,7 @@ not change without a major version.
 | `ge.kindOf(node)` | What an event calls a node: `row`, `column`, `element`, a container's type… |
 | `ge.view()` | The view being edited: a breakpoint key, or `'all'` |
 | `ge.viewTiers()` | The breakpoint keys that view writes: one, or all six |
+| `ge.breakpoints` | Every breakpoint key, smallest first |
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 
@@ -210,6 +211,7 @@ $.fn.gridEditor.utilities.order = function(ge) {
             },
         }],
         drawerTools: function(drawer, node, kind) { … },  // optional, tools beside the gear
+        onRefresh: function(scope) { … },                 // optional, see below
         onViewChange: function(view) { … },               // optional
     };
 };
@@ -244,6 +246,12 @@ What the editor does with a family:
 containers and panes — so a plugin checks `kind` and adds nothing where its
 tool does not belong. A tool writes with `ge.setUtility(node, family, value,
 { source: 'tool' })`, and the panel, the classes field and the preview follow.
+
+`onRefresh(scope)` runs whenever the preview is redrawn — on `init`, on a view
+change, after a write, after the user types in a classes field — with the node
+whose utilities changed, or the canvas. It is for what a plugin marks the canvas
+with beyond inline styles: the visibility plugin keeps hidden nodes on the
+canvas and fades them there. Whatever it adds, `onDeinit` takes away.
 
 Two plugins cannot declare the same family name: the second one is ignored,
 with a warning.
