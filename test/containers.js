@@ -111,14 +111,48 @@ async function creationTests(t) {
         ]),
         announced);
 
-    var limited = await page.eval(EMPTY_CANVAS + `
-        window.fixture.init({ containers: ['tabs'] });
-        return jQuery('.ge-addContainerGroup a').map(function() {
-            return jQuery(this).attr('data-ge-container-type');
-        }).get();
+    var loaded = await page.eval(`
+        return {
+            registered: Object.keys(jQuery.fn.gridEditor.containers).sort(),
+            offered: jQuery('.ge-addContainerGroup a').map(function() {
+                return jQuery(this).attr('data-ge-container-type');
+            }).get().sort(),
+        };
     `);
-    t.check('the containers setting says which buttons the toolbar offers',
-        limited.join(',') === 'tabs', limited);
+    t.check('every container plugin the page loaded is offered by the toolbar',
+        loaded.registered.join(',') === 'accordion,popup,tabs' &&
+        loaded.offered.join(',') === 'accordion,popup,tabs',
+        loaded);
+
+    var limited = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init({ plugins: ['tabs'] });
+        return {
+            offered: jQuery('.ge-addContainerGroup a').map(function() {
+                return jQuery(this).attr('data-ge-container-type');
+            }).get(),
+            madeAnyway: jQuery('#myGrid').gridEditor('createContainer', 'accordion'),
+        };
+    `);
+    t.check('the plugins setting narrows that to the ones it names',
+        limited.offered.join(',') === 'tabs' && limited.madeAnyway === null, limited);
+
+    var missing = await page.eval(EMPTY_CANVAS + `
+        window.warnings = [];
+        const original = console.warn;
+        console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); original.apply(console, arguments); };
+
+        window.fixture.init({ plugins: ['tabs', 'carousel'] });
+        console.warn = original;
+
+        return {
+            offered: jQuery('.ge-addContainerGroup a').length,
+            warnings: window.warnings.filter(w => /carousel/.test(w)),
+        };
+    `);
+    t.check('a plugin that was named but never loaded says so and changes nothing else',
+        missing.offered === 1 && missing.warnings.length === 1 &&
+        /not\s+loaded/.test(missing.warnings[0]),
+        missing);
 }
 
 async function paneTests(t) {

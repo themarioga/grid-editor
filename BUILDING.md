@@ -15,8 +15,11 @@ During development, you can also run `npm run watch` to automatically rebuild on
 
 The build emits the plugin as `dist/jquery.grideditor.js`, the stylesheet as
 `dist/grideditor.css`, each with a minified twin and a source map beside it,
-and every locale file in `src/js/locales/` as a file of its own under
-`dist/locales/`. Locale files are
+and the files in `src/js/locales/` and `src/js/plugins/` one by one under
+`dist/locales/` and `dist/plugins/`. Neither of those two directories is part
+of the main bundle: the `src/js/*.js` glob does not descend, so a page loads
+the languages and the container plugins it actually wants. See
+[docs/plugins.md](docs/plugins.md) for what a container plugin is. Locale files are
 deliberately not part of the main bundle: a page loads only the languages it
 offers. English is the exception and lives in the bundle, because it is the
 fallback every string lookup ends at. See `docs/locale-keys.md` for the keys,

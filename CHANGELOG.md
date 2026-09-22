@@ -104,6 +104,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example/elements.html`, including the pattern for an element with no visual
   output of its own: the host supplies a placeholder and its own tools, which
   is all spec 4.4 asks for.
+- Container plugins. Tabs, accordions and popups are not in the main bundle:
+  each is a file under `dist/plugins/`, and loading it is what makes the type
+  available, the way loading a locale file adds a language. A page takes the
+  ones it offers, the toolbar shows a button per loaded plugin, and the
+  `plugins` setting narrows that when a page loads more than it wants to show.
+  A container in the markup whose plugin is not loaded is left alone and comes
+  back out of `getHtml` untouched. `$.fn.gridEditor.containers` is the
+  registry, and [docs/plugins.md](docs/plugins.md) is the contract: what a
+  plugin returns, and the handle it gets to work through.
 - Containers: tabs, accordions and popups. A container is marked with
   `data-ge-container` and holds panes, and every pane is an ordinary canvas
   region, so rows, columns, content areas and elements nest inside one exactly
@@ -265,6 +274,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The instance handle is in place before the first `init` runs, so a host
   handler that fires during initialization can already reach the editor.
 
+- **BREAKING:** the `containers` setting is `plugins`, and it names the
+  container plugins to use rather than a fixed list of built in types. It
+  defaults to every plugin the page loaded.
 - **BREAKING:** `row_classes` and `col_classes` default to `[]`. They used to
   default to a single `Example class` toggle, which shipped a placeholder into
   every host's interface.

@@ -26,6 +26,11 @@ editor integrations are unchanged. Four things do change.
   unaffected — it already has those classes — but new columns are leaner, and
   a column sized only for `lg` now renders as bootstrap renders it below `lg`.
 
+* __Tabs, accordions and popups are plugin files.__ They are not in the main
+  bundle: load `dist/plugins/grideditor.tabs.js` and its neighbours beside the
+  editor for the types your pages use. Nothing to change for a 2.x page, which
+  had none of them; a page that wants them loads two files instead of one.
+
 * __`row_classes` and `col_classes` are empty by default.__ 2.x shipped a
   single `Example class` toggle in every settings panel; if you were relying on
   it, pass the classes you actually want. The panel now has a css class field

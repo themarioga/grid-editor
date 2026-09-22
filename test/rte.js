@@ -293,9 +293,45 @@ async function tinymceTests(t) {
         !exportedElement.marking && !exportedElement.mce,
         Object.assign({}, exportedElement, { html: exportedElement.html.slice(0, 220) }));
 
-    // A content area inside a container is the awkward case: the pane it sits
-    // in may have just appeared, and the inline toolbar is laid out against
-    // whatever geometry the element has when tinyMCE draws it
+    var errors = page.errors();
+    t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
+
+    // The other two pages wiring up tinyMCE
+    for (var name of ['index-autosave.html', 'wrap_content.html']) {
+        var other = await t.page('/example/' + name);
+        await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
+
+        // The autosave page starts from an empty grid, so give it a row first
+        if (!await other.eval(`return jQuery('.ge-content').length;`)) {
+            await other.click('.ge-addRowGroup a', 1);
+            await sleep(400);
+        }
+
+        await other.click('.ge-content');
+        await sleep(2000);
+        var state = await other.eval(`
+            return {
+                editorsOpen: tinymce.get().length,
+                activeContentAreas: jQuery('.ge-content.active').length,
+            };
+        `);
+        var otherErrors = other.errors();
+        t.check('example/' + name + ' boots and starts an editor without errors',
+            otherErrors.length === 0 && state.editorsOpen === 1 && state.activeContentAreas === 1,
+            Object.assign(state, { errors: otherErrors.slice(0, 5) }));
+    }
+}
+
+/**
+ * A content area inside a container is the awkward case: the pane it sits in
+ * may have just appeared, and the inline toolbar is laid out against whatever
+ * geometry the element has when tinyMCE draws it. Checked on the containers
+ * example, which is the page that loads the container plugins.
+ */
+async function containerTests(t) {
+    var page = await t.page('/example/containers.html',
+        `window.tinymce && jQuery('#myGrid').data('grideditor')`);
+
     await page.eval(`
         jQuery('#myGrid').gridEditor('remove');
         jQuery('#myGrid').html('<div class="row"><div class="col-lg-12"><div class="ge-content" data-ge-content-type="tinymce"><p>Before</p></div></div></div>');
@@ -338,32 +374,7 @@ async function tinymceTests(t) {
         hiddenPane.editors === 1 && hiddenPane.activeAreas === 1, hiddenPane);
 
     var errors = page.errors();
-    t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
-
-    // The other two pages wiring up tinyMCE
-    for (var name of ['index-autosave.html', 'wrap_content.html']) {
-        var other = await t.page('/example/' + name);
-        await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
-
-        // The autosave page starts from an empty grid, so give it a row first
-        if (!await other.eval(`return jQuery('.ge-content').length;`)) {
-            await other.click('.ge-addRowGroup a', 1);
-            await sleep(400);
-        }
-
-        await other.click('.ge-content');
-        await sleep(2000);
-        var state = await other.eval(`
-            return {
-                editorsOpen: tinymce.get().length,
-                activeContentAreas: jQuery('.ge-content.active').length,
-            };
-        `);
-        var otherErrors = other.errors();
-        t.check('example/' + name + ' boots and starts an editor without errors',
-            otherErrors.length === 0 && state.editorsOpen === 1 && state.activeContentAreas === 1,
-            Object.assign(state, { errors: otherErrors.slice(0, 5) }));
-    }
+    t.check('example/containers.html logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 /**
@@ -408,6 +419,7 @@ module.exports = {
     requiresNetwork: true,
     run: async function(t) {
         await tinymceTests(t);
+        await containerTests(t);
         await otherEditorTests(t);
     },
 };

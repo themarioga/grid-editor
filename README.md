@@ -340,7 +340,24 @@ Tabs, accordions and popups. Each holds panes, and a pane is an ordinary
 region: rows, columns, content areas and elements nest inside one exactly as
 they do at the top level.
 
-__`containers`:__ Which container buttons the toolbar offers. Default `['tabs', 'accordion', 'popup']`.
+Each type is a plugin, in a file of its own, and loading the file is what makes
+it available:
+
+```html
+<script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.accordion.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.popup.min.js"></script>
+```
+
+The toolbar offers a button per loaded plugin. See [docs/plugins.md](docs/plugins.md)
+for the contract, and for writing one of your own.
+
+__`plugins`:__ Which of the loaded container plugins to use. Every one by default; name them to offer fewer than the page loaded.
+
+```javascript
+$('#myGrid').gridEditor({ plugins: ['tabs'] });
+```
 
 __`container_tools`, `tab_tools`, `accordion_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
 

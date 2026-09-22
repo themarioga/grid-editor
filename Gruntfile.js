@@ -21,6 +21,14 @@ module.exports = function(grunt) {
     src: ['*.js'],
     dest: 'dist/locales/',
   }];
+
+  // Container plugins, likewise: a page loads the ones it wants
+  var pluginFiles = [{
+    expand: true,
+    cwd: 'src/js/plugins/',
+    src: ['*.js'],
+    dest: 'dist/plugins/',
+  }];
   
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
@@ -49,12 +57,23 @@ module.exports = function(grunt) {
           return Object.assign({}, files, { ext: '.min.js', extDot: 'last' });
         }),
       },
+      plugins: {
+        options: {
+          sourceMap: true,
+        },
+        files: pluginFiles.map(function(files) {
+          return Object.assign({}, files, { ext: '.min.js', extDot: 'last' });
+        }),
+      },
     },
     
     copy: {
       // The readable file is what a page loads, next to the minified one
       locales: {
         files: localeFiles,
+      },
+      plugins: {
+        files: pluginFiles,
       },
     },
     
@@ -92,6 +111,14 @@ module.exports = function(grunt) {
           livereload: true,
         },
       },
+      plugins: {
+        files: ['src/js/plugins/*.js'],
+        tasks: ['copy:plugins', 'uglify:plugins'],
+        options: {
+          spawn: false,
+          livereload: true,
+        },
+      },
       locales: {
         files: ['src/js/locales/*.js'],
         tasks: ['copy:locales', 'uglify:locales'],
@@ -104,6 +131,6 @@ module.exports = function(grunt) {
     
   });
 
-  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy:locales']);
+  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy']);
 
 };

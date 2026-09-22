@@ -33,21 +33,28 @@ function keysUsedInSource() {
     ];
     var keys = {};
 
-    fs.readdirSync(SOURCE).filter(function(entry) {
-        return /\.js$/.test(entry);
-    }).forEach(function(entry) {
-        var text = fs.readFileSync(path.join(SOURCE, entry), 'utf8');
+    sourceFiles(SOURCE).forEach(function(file) {
+        var text = fs.readFileSync(file, 'utf8');
 
         patterns.forEach(function(pattern) {
             var match;
             pattern.lastIndex = 0;
             while ((match = pattern.exec(text)) !== null) {
-                keys[match[1]] = entry;
+                keys[match[1]] = file;
             }
         });
     });
 
     return Object.keys(keys).sort();
+}
+
+/** Every javascript file under src, plugins and locales included. */
+function sourceFiles(directory) {
+    return fs.readdirSync(directory, { withFileTypes: true }).reduce(function(found, entry) {
+        var full = path.join(directory, entry.name);
+
+        return found.concat(entry.isDirectory() ? sourceFiles(full) : (/\.js$/.test(entry.name) ? [full] : []));
+    }, []);
 }
 
 /** The keys docs/locale-keys.md documents, read out of its tables. */

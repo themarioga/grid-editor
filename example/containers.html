@@ -17,6 +17,10 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="../dist/jquery.grideditor.min.js"></script>
+    <!-- One file per container type: load the ones this page offers -->
+    <script src="../dist/plugins/grideditor.tabs.min.js"></script>
+    <script src="../dist/plugins/grideditor.accordion.min.js"></script>
+    <script src="../dist/plugins/grideditor.popup.min.js"></script>
 
     <script>
         $(function() {
@@ -24,9 +28,9 @@
                 new_row_layouts: [[12], [6,6]],
                 content_types: ['tinymce'],
 
-                // Which container buttons the toolbar offers. Drop one to
-                // offer fewer: containers: ['tabs', 'accordion'],
-                containers: ['tabs', 'accordion', 'popup'],
+                // Every container plugin the page loaded is offered. Name
+                // them to offer fewer than were loaded:
+                // plugins: ['tabs', 'accordion'],
 
                 // Host tools, same shape as row_tools, on the container
                 // drawer and on each pane's drawer
