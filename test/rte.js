@@ -269,7 +269,7 @@ async function tinymceTests(t) {
         withElement.editorSeesItAsAtomic === 'false',
         withElement);
     t.check('the element keeps its tools after the editor has rewritten the content area',
-        withElement.tools === 'ge-move,ge-element-info,ge-delete-element', withElement);
+        withElement.tools === 'ge-move,ge-element-info,ge-settings,ge-delete-element', withElement);
 
     var exportedElement = await page.eval(`
         const html = jQuery('#myGrid').gridEditor('getHtml');

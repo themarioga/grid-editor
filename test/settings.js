@@ -157,12 +157,97 @@ async function presetTests(t) {
     t.check('the settings tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * The same panel, on the nodes that only got one now: a container, the panes
+ * inside it, and an element.
+ */
+async function everywhereTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var made = await page.eval(`
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html(
+            '<div class="row"><div class="column col-12"><div class="ge-content">' +
+            '<div data-ge-element="quote" class="my-app-quote"><p>An element</p></div>' +
+            '</div></div></div>'
+        );
+        window.fixture.init({ default_view: 'xs' });
+
+        const ge = jQuery('#myGrid').data('grideditor');
+        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: jQuery('#myGrid .column').first() });
+        const accordion = ge.createContainer('accordion', { items: 1, appendTo: jQuery('#myGrid .column').first() });
+
+        const panelOf = function(drawer) {
+            const panel = drawer.find('> .ge-details');
+            return {
+                gear: drawer.find('> .ge-settings').length,
+                id: panel.find('.ge-id').length,
+                classes: panel.find('.ge-classes').val(),
+            };
+        };
+
+        return {
+            container: panelOf(tabs.find('> .ge-tools-drawer')),
+            tab: panelOf(tabs.find('.ge-tab > .ge-tools-drawer')),
+            item: panelOf(accordion.find('.ge-accordion-item > .ge-tools-drawer')),
+            element: panelOf(jQuery('#myGrid .ge-element > .ge-tools-drawer')),
+        };
+    `);
+    t.check('a container, a tab, an accordion item and an element each have the panel',
+        [made.container, made.tab, made.item, made.element].every(function(panel) {
+            return panel.gear === 1 && panel.id === 1;
+        }) && made.element.classes === 'my-app-quote',
+        made);
+
+    var edited = await page.eval(`
+        const accordion = jQuery('#myGrid [data-ge-container="accordion"]');
+        const item = accordion.find('.ge-accordion-item').first();
+        const element = jQuery('#myGrid .ge-element').first();
+
+        accordion.find('> .ge-tools-drawer .ge-id').val('faq').trigger('change');
+        accordion.find('> .ge-tools-drawer .ge-classes').val('my-app-faq').trigger('change');
+        item.find('> .ge-tools-drawer .ge-id').val('faq-one').trigger('change');
+        element.find('> .ge-tools-drawer .ge-classes').val('my-app-quote my-app-pull').trigger('change');
+
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+
+        return {
+            accordion: accordion.attr('id') + '|' + accordion.attr('class'),
+            item: item.attr('id'),
+            element: element.attr('class'),
+            inOutput: {
+                accordion: /id="faq"[^>]*my-app-faq|my-app-faq[^>]*id="faq"/.test(html),
+                item: /id="faq-one"/.test(html),
+                element: /my-app-pull/.test(html),
+                panels: /ge-details|ge-classes/.test(html),
+            },
+        };
+    `);
+    t.check('the id and classes set there are the host\u2019s markup, and survive getHtml',
+        /faq/.test(edited.accordion) && /my-app-faq/.test(edited.accordion) &&
+        edited.item === 'faq-one' && /my-app-pull/.test(edited.element) &&
+        edited.inOutput.accordion && edited.inOutput.item && edited.inOutput.element &&
+        !edited.inOutput.panels,
+        edited);
+
+    var untouched = await page.eval(`
+        const element = jQuery('#myGrid .ge-element').first();
+        return { classes: element.attr('class'), marked: element.attr('data-ge-element') };
+    `);
+    t.check('the editor\u2019s own marking is not something the panel can lose',
+        /ge-element/.test(untouched.classes) && untouched.marked === 'quote', untouched);
+
+    var errors = page.errors();
+    t.check('the panel tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'settings',
     description: 'the id and class panel behind a drawer\'s gear',
     run: async function(t) {
         await panelTests(t);
         await presetTests(t);
+        await everywhereTests(t);
     },
 };
 

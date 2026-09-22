@@ -54,7 +54,7 @@ async function detectionTests(t) {
         marked[0].drawers === 1 && marked[0].editable === 'false',
         marked);
     t.check('an element drawer carries move, info, delete, and says what the element is',
-        marked[0].tools === 'ge-move,ge-element-info,ge-delete-element' &&
+        marked[0].tools === 'ge-move,ge-element-info,ge-settings,ge-delete-element' &&
         marked[0].info === 'Element: Hero (image)',
         marked[0]);
 
@@ -120,7 +120,7 @@ async function detectionTests(t) {
         };
     `);
     t.check('element_tools are added to the drawer like row and column tools',
-        hostTools.tools.join(',') === 'ge-move,ge-element-info,my-app-edit,ge-delete-element' &&
+        hostTools.tools.join(',') === 'ge-move,ge-element-info,ge-settings,my-app-edit,ge-delete-element' &&
         hostTools.clicked === 1,
         hostTools);
 }

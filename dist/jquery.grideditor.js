@@ -233,6 +233,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
+            'element_classes'   : [], // Preset class toggles on an element's settings panel
+            'container_classes' : [], // The same, on a container's panel
+            'pane_classes'      : [], // And on a tab's or an accordion item's
             'container_tools'   : [], // Host tools on container drawers
             'tab_tools'         : [], // Host tools on tab drawers
             'accordion_tools'   : [], // Host tools on accordion item drawers
@@ -1166,6 +1169,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createMoveTool(drawer);
             createTool(drawer, t('tool.element_info', { name: elementName(element) }),
                 'ge-element-info', 'bi bi-info-circle');
+            addSettingsTool(drawer, element, settings.element_classes);
 
             settings.element_tools.forEach(function(hostTool) {
                 createTool(drawer, hostTool.title || '', hostTool.className || '',
@@ -1323,6 +1327,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var drawer = $('<div class="ge-tools-drawer ge-container-drawer" />').prependTo(container);
 
             createMoveTool(drawer);
+            addSettingsTool(drawer, container, settings.container_classes);
             if (definition.addPane) {
                 createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
                     var pane = definition.addPane(container, {});
@@ -1357,6 +1362,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var drawer = $('<div class="ge-tools-drawer ge-pane-drawer" />').prependTo(pane);
 
             createMoveTool(drawer);
+            addSettingsTool(drawer, pane, settings.pane_classes);
 
             hostTools.forEach(function(hostTool) {
                 createTool(drawer, hostTool.title || '', hostTool.className || '',
@@ -1615,9 +1621,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 var drawer = $('<div class="ge-tools-drawer" />').prependTo(row);
                 createMoveTool(drawer);
-                createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
-                    details.toggle();
-                });
+                addSettingsTool(drawer, row, settings.row_classes);
+
                 settings.row_tools.forEach(function(hostTool) {
                     createTool(drawer, hostTool.title || '', hostTool.className || '',
                         hostTool.iconClass || 'bi bi-wrench', hostTool.on);
@@ -1635,7 +1640,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 attachSizePicker(drawer.find('> .ge-add-column'), row);
 
-                var details = createDetails(row, settings.row_classes).appendTo(drawer);
             });
         }
 
@@ -1670,10 +1674,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     indentColumn(col, e.shiftKey ? deepestFor(col) : stepThrough(settings.valid_col_offsets, currentOffset(col), 1), 'tool');
                 });
 
-                createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
-                    details.toggle();
-                });
-                
+                addSettingsTool(drawer, col, settings.col_classes);
+
                 settings.col_tools.forEach(function(hostTool) {
                     createTool(drawer, hostTool.title || '', hostTool.className || '',
                         hostTool.iconClass || 'bi bi-wrench', hostTool.on);
@@ -1699,7 +1701,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     }, { parent: col, source: 'tool' });
                 });
 
-                var details = createDetails(col, settings.col_classes).appendTo(drawer);
             });
         }
 
@@ -1819,6 +1820,20 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             if (!node.attr('class')) { node.removeAttr('class'); }
+        }
+
+        /**
+         * The gear and the panel it opens: the node's id, its css classes, and
+         * whatever preset toggles the host configured for that kind of node.
+         */
+        function addSettingsTool(drawer, node, presets) {
+            var details = createDetails(node, presets || []);
+
+            createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
+                details.toggle();
+            });
+
+            return details.appendTo(drawer);
         }
 
         function createDetails(container, cssClasses) {

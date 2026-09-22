@@ -164,8 +164,9 @@ $('#myGrid').gridEditor({
 });
 ```
 
-The settings button on a row or a column opens a panel with two fields: the
-node's `id`, and its css classes. The classes field shows what your markup put
+The settings button on a row, a column, a container, a tab, an accordion item
+or an element opens a panel with two fields: the node's `id`, and its css
+classes. The classes field shows what your markup put
 there and nothing else — the grid classes, and everything else the editor
 writes, are not yours to lose and are not shown.
 
@@ -179,7 +180,7 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`col_classes`:__ The same as `row_classes`, but for columns.
+__`col_classes`:__ The same as `row_classes`, but for columns. `container_classes`, `pane_classes` and `element_classes` do the same for a container, for a tab or accordion item, and for an element.
 
 __`row_tools`:__ Add extra tool buttons to the row toolbar.
 

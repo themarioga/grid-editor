@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test/locales.js` holding it to the source in both directions.
 - `example/locale.html`: an example page with a language dropdown calling
   `setLocale`.
+- The settings panel is on every drawer: a container, a tab, an accordion item
+  and an element have the same id and class fields as a row and a column, with
+  `container_classes`, `pane_classes` and `element_classes` for preset toggles.
 - The settings panel on a row or a column has a css class field beside the id
   one, so classes can be set at all rather than only toggled from a list the
   host configured. It shows the host's own classes and leaves the grid's and
