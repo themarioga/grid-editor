@@ -122,6 +122,20 @@ key, so a locale covers a new breakpoint by adding `view.<key>`. Short strings
 | `view.xxl` | Widescreen | Layout mode writing `col-xxl-*` and `offset-xxl-*` |
 
 
+utility.*
+---------
+
+The Responsive section of a settings panel, which the utility plugins fill.
+The labels of each utility and its values are the plugins' own keys.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `utility.section` | Responsive: {view} | The section's fold toggle. `{view}` is the label of the view being edited |
+| `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
+| `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
+| `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |
+
+
 error.*
 -------
 

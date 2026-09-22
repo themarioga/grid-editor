@@ -56,6 +56,9 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-indent` | — | yes | before a column's offset changes |
 | `grideditor:after-indent` | — | no | after the offset class is written |
 | `grideditor:popup-orphan` | — | no | on `init`, once per trigger whose popup is missing and cannot be re-pointed |
+| `grideditor:before-utility` | — | yes | before a utility class is written, from the panel, a plugin's tool or `setUtility` |
+| `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
+| `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
 because the indent tools are an operation like any other and announce
@@ -74,7 +77,7 @@ The payload
     parent: jQuery,       // where it is going, or where it came from on a delete
     canvas: jQuery,
     breakpoint: 'lg',     // the view at the time: a breakpoint key, or 'all'
-    source: 'tool',       // tool | api | dragdrop
+    source: 'tool',       // tool | api | dragdrop | panel
 
     // move only
     from: { parent: jQuery, index: 2 },
@@ -89,8 +92,22 @@ The payload
 
     // popup-orphan only
     missing: 'ge-popup-3-a91',   // the id the trigger pointed at
+
+    // utility only
+    family: 'order',      // the utility, as its plugin names it
+    from: '1',            // what applied in the view before, or null
+    to: '2',              // what was asked for; null is "inherit"
+    tiers: ['md'],        // the breakpoints whose class was written
+    cleared: [            // the all view only: what the breakpoints said,
+        { breakpoint: 'lg', value: '3' },   // and the write took away
+    ],
 }
 ```
+
+`view-change` carries no node: its payload is `canvas`, `breakpoint` (the new
+view), `from` and `to`. A utility's `breakpoint` is the view it was written
+in, which `setUtility` can be asked to make a different one from the view on
+screen, and its `source` is `panel`, `tool` or `api`.
 
 `source` matters to a host that both drives the editor from its own palette and
 listens for what the user does: `api` is your own call coming back to you,
@@ -121,6 +138,8 @@ cancels a `before-*`. What that means depends on the operation:
 - **Resize.** From a tool, nothing is written. From a drag, the gesture never
   starts: the column does not move and nothing is written.
 - **Indent.** Nothing is written.
+- **Utility.** Nothing is written, `setUtility` returns `false`, and the panel
+  field goes back to the value that stands.
 
 `after-move` is suppressed when the drop leaves the node in the same parent at
 the same index, and `after-resize` when the snapped size equals the old one, so

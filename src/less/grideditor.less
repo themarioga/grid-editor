@@ -207,6 +207,55 @@
             input.ge-classes {
                 width: 200px;
             }
+
+            /* The utility plugins' fields, folded under one toggle */
+            .ge-utilities {
+                margin-top: 5px;
+                font-size: 11px;
+
+                > .ge-utilities-toggle {
+                    color: #333;
+                    cursor: pointer;
+                    text-decoration: none;
+
+                    &::before {
+                        content: '\25B8';
+                        display: inline-block;
+                        width: 1em;
+                    }
+                }
+                &.ge-open > .ge-utilities-toggle::before {
+                    content: '\25BE';
+                }
+
+                > .ge-utilities-body {
+                    display: none;
+                    flex-wrap: wrap;
+                    gap: 4px 10px;
+                    margin-top: 4px;
+                }
+                &.ge-open > .ge-utilities-body {
+                    display: flex;
+                }
+
+                .ge-utility {
+                    display: inline-flex;
+                    flex-direction: column;
+                    margin: 0;
+
+                    select {
+                        border: 1px solid #7F7F7F;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        padding: 1px 2px;
+                    }
+                }
+                .ge-utility-note {
+                    color: #666;
+                    font-size: 10px;
+                    max-width: 160px;
+                }
+            }
         }
     }
     .row {

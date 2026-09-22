@@ -100,6 +100,8 @@ $('#myGrid').gridEditor('method', argument);
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
 | `addAccordionItem` | `container`, `options?` | `jQuery` | Appends an item, returns its body |
+| `getUtility` | `node`, `family`, `view?` | `String` | A utility plugin's value on a node in a view (the current one by default), or `null` |
+| `setUtility` | `node`, `family`, `value`, `view?` | `Boolean` | Write it through the events; `null` is inherit. `false` if canceled or nothing changed |
 
 A method called on an element with no editor on it is a no-op that returns the
 set, so host code does not have to check first. `getHtml` is the exception: it
@@ -399,7 +401,7 @@ it available:
 The toolbar offers a button per loaded plugin. See [docs/plugins.md](docs/plugins.md)
 for the contract, and for writing one of your own.
 
-__`plugins`:__ Which of the loaded plugins to use, containers and features alike. Every one by default; name them to use fewer than the page loaded.
+__`plugins`:__ Which of the loaded plugins to use, containers, features and utilities alike. Every one by default; name them to use fewer than the page loaded.
 
 ```javascript
 $('#myGrid').gridEditor({ plugins: ['tabs', 'elements'] });

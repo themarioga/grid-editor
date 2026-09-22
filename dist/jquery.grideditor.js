@@ -32,6 +32,8 @@ var METHODS = {
     addTab:           { value: true },
     addAccordionItem: { value: true },
     setLocale:        {},
+    getUtility:       { value: true },
+    setUtility:       { value: true },
 };
 
 /**
@@ -45,14 +47,17 @@ var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
  * runs in: a size written for a tier applies to every wider tier that does not
  * override it. Every size and offset class grid-editor reads or writes comes
  * from this table, so adding a tier is a row here and nothing else.
+ *
+ * `infix` is what Bootstrap's utility classes put between the property and
+ * the value - `order-md-2`, `d-none` - and is empty for the smallest tier.
  */
 var BREAKPOINTS = [
-    { key: 'xs', colPrefix: 'col-', offsetPrefix: 'offset-', min: 0, preview: 400, labelKey: 'view.xs' },
-    { key: 'sm', colPrefix: 'col-sm-', offsetPrefix: 'offset-sm-', min: 576, preview: 576, labelKey: 'view.sm' },
-    { key: 'md', colPrefix: 'col-md-', offsetPrefix: 'offset-md-', min: 768, preview: 768, labelKey: 'view.md' },
-    { key: 'lg', colPrefix: 'col-lg-', offsetPrefix: 'offset-lg-', min: 992, preview: 992, labelKey: 'view.lg' },
-    { key: 'xl', colPrefix: 'col-xl-', offsetPrefix: 'offset-xl-', min: 1200, preview: 1200, labelKey: 'view.xl' },
-    { key: 'xxl', colPrefix: 'col-xxl-', offsetPrefix: 'offset-xxl-', min: 1400, preview: null, labelKey: 'view.xxl' },
+    { key: 'xs', infix: '', colPrefix: 'col-', offsetPrefix: 'offset-', min: 0, preview: 400, labelKey: 'view.xs' },
+    { key: 'sm', infix: 'sm', colPrefix: 'col-sm-', offsetPrefix: 'offset-sm-', min: 576, preview: 576, labelKey: 'view.sm' },
+    { key: 'md', infix: 'md', colPrefix: 'col-md-', offsetPrefix: 'offset-md-', min: 768, preview: 768, labelKey: 'view.md' },
+    { key: 'lg', infix: 'lg', colPrefix: 'col-lg-', offsetPrefix: 'offset-lg-', min: 992, preview: 992, labelKey: 'view.lg' },
+    { key: 'xl', infix: 'xl', colPrefix: 'col-xl-', offsetPrefix: 'offset-xl-', min: 1200, preview: 1200, labelKey: 'view.xl' },
+    { key: 'xxl', infix: 'xxl', colPrefix: 'col-xxl-', offsetPrefix: 'offset-xxl-', min: 1400, preview: null, labelKey: 'view.xxl' },
 ];
 
 /**
@@ -258,7 +263,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'container_tools'   : [], // Host tools on container drawers
             'tab_tools'         : [], // Host tools on tab drawers
             'accordion_tools'   : [], // Host tools on accordion item drawers
-            'plugins'           : null, // Container plugins to use; null means every one loaded
+            'plugins'           : null, // Plugins to use, of any kind; null means every one loaded
+            'utilities'         : {}, // Options for the utility plugins, by plugin name
             'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
@@ -748,6 +754,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // when their editor is ready, and the drawers go back in.
             canvas.on('ge-rte-ready', '.ge-content', function() {
                 plugins('onContentReady', $(this));
+                refreshPreviews($(this));
             });
         }
 
@@ -1136,6 +1143,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             makeSortable();
             makeResizable();
             switchLayout(curView);
+            refreshPreviews(canvas);
         }
 
         function deinit() {
@@ -1156,6 +1164,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             hideDropMarker();
             canvas.find('.ge-tools-drawer').remove();
             plugins('onDeinit');
+            // After the rich text editors have let go of their content areas:
+            // one that rebuilt its area's DOM brought the preview styles back
+            // with it, and the attribute recording them came back too
+            clearPreviews(canvas);
             unmarkContainers();
             removeSortable();
             removeResizable();
@@ -1236,6 +1248,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (wanted(name)) { FEATURES[name] = factory(api); }
             });
 
+            $.each($.fn.gridEditor.utilities, function(name, factory) {
+                if (!wanted(name)) { return; }
+
+                UTILITIES[name] = factory(api);
+                (UTILITIES[name].families || []).forEach(function(family) {
+                    registerFamily(name, UTILITIES[name], family);
+                });
+            });
+
             $.each(FEATURES, function(name, feature) {
                 $.each(feature.methods || {}, function(method, implementation) {
                     featureMethods[method] = implementation;
@@ -1243,7 +1264,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             (settings.plugins || []).forEach(function(name) {
-                if (CONTAINERS[name] || FEATURES[name]) { return; }
+                if (CONTAINERS[name] || FEATURES[name] || UTILITIES[name]) { return; }
 
                 warnOnceHere('plugin:' + name, 'the "' + name + '" plugin is not loaded: ' +
                     'include dist/plugins/grideditor.' + name + '.js after the editor');
@@ -1253,7 +1274,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /**
          * A hook every loaded plugin may have. Containers first, since a
          * feature that looks at the canvas - elements, say - wants the
-         * containers already marked.
+         * containers already marked, and utilities last, since they decorate
+         * nodes the other two may have just made.
          */
         function plugins(hook, argument) {
             $.each(CONTAINERS, function(type, definition) {
@@ -1261,6 +1283,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
             $.each(FEATURES, function(name, feature) {
                 if (feature[hook]) { feature[hook](argument); }
+            });
+            $.each(UTILITIES, function(name, utility) {
+                if (utility[hook]) { utility[hook](argument); }
             });
         }
 
@@ -1287,7 +1312,451 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 emit: emit,
                 payloadFor: payloadFor,
                 operate: operate,
+                kindOf: kindOf,
+                view: getView,
+                viewTiers: function() {
+                    return tiersFor(curView).map(function(tier) { return tier.key; });
+                },
+                getUtility: getUtility,
+                setUtility: setUtility,
             };
+        }
+
+        /* --------------------------------------------------------------
+         * Utilities: Bootstrap's responsive utility classes.
+         *
+         * A utility plugin declares families - order, d, justify-content -
+         * and this is everything that reads or writes one. Every family is
+         * spelled the way Bootstrap spells them all, {prefix}-{infix}-{value}
+         * with no infix at the smallest tier, and cascades the way the size
+         * classes do: a tier that says nothing takes the nearest smaller one.
+         *
+         * The canvas cannot show a breakpoint's utilities by itself. A
+         * per-breakpoint view narrows the canvas, not the viewport, and
+         * Bootstrap's utilities answer to the viewport with !important. So
+         * each node gets what its classes mean at the view being edited,
+         * as inline !important styles, recorded in an attribute so they come
+         * off again - exactly those, leaving the host's own style alone.
+         * -------------------------------------------------------------- */
+
+        var FAMILIES = {}; // Every family the utility plugins declare, by name
+        var UTILITY_NODES = '.row, .column, .ge-element, [data-ge-container]';
+        var PREVIEW_ATTR = 'data-ge-preview';
+        var utilitiesOpen = false; // Whether the panels show their Responsive section unfolded
+
+        function registerFamily(pluginName, utility, family) {
+            var name = family.name || family.prefix;
+
+            if (FAMILIES[name]) {
+                warn('the "' + pluginName + '" plugin declares the utility "' + name +
+                    '", which the "' + FAMILIES[name].plugin + '" plugin already declared: ignored');
+                return;
+            }
+
+            FAMILIES[name] = {
+                plugin: pluginName,
+                family: $.extend({}, family, {
+                    name: name,
+                    values: family.values.map(String),
+                    appliesTo: family.appliesTo || utility.appliesTo || ['row', 'column'],
+                }),
+            };
+        }
+
+        /** The family a caller named, or null and a warning when no plugin declares it. */
+        function familyNamed(name, method) {
+            if (FAMILIES[name]) { return FAMILIES[name].family; }
+
+            warnOnceHere('utility:' + name, method + '(' + JSON.stringify(name) + '): no loaded ' +
+                'plugin declares that utility');
+            return null;
+        }
+
+        /**
+         * Whether a family applies to a kind of node. A container answers to
+         * `container` and to its own type, so a plugin can take them all or
+         * name the ones it means.
+         */
+        function appliesTo(family, kind) {
+            if (family.appliesTo.indexOf(kind) !== -1) { return true; }
+
+            return !!CONTAINERS[kind] && family.appliesTo.indexOf('container') !== -1;
+        }
+
+        function familiesFor(kind) {
+            return $.map(FAMILIES, function(entry) {
+                return appliesTo(entry.family, kind) ? entry.family : null;
+            });
+        }
+
+        function utilityClass(family, tier, value) {
+            return family.prefix + (tier.infix ? '-' + tier.infix : '') + '-' + value;
+        }
+
+        /** The value a node carries a class for at exactly this tier, or null. */
+        function ownUtility(node, family, tier) {
+            var classes = (node.attr('class') || '').split(/\s+/);
+
+            for (var i = 0; i < family.values.length; i++) {
+                if (classes.indexOf(utilityClass(family, tier, family.values[i])) !== -1) {
+                    return family.values[i];
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * The tier below this one that decides the value here, and what it
+         * says, when this tier says nothing itself. Null when nothing below
+         * says anything either.
+         */
+        function inheritedUtility(node, family, tier) {
+            for (var i = BREAKPOINTS.indexOf(tier) - 1; i >= 0; i--) {
+                var value = ownUtility(node, family, BREAKPOINTS[i]);
+                if (value !== null) { return { tier: BREAKPOINTS[i], value: value }; }
+            }
+
+            return null;
+        }
+
+        /** What applies at a tier: its own class, or what it inherits. */
+        function effectiveUtility(node, family, tier) {
+            var own = ownUtility(node, family, tier);
+            if (own !== null) { return own; }
+
+            var inherited = inheritedUtility(node, family, tier);
+            return inherited ? inherited.value : null;
+        }
+
+        /** Every tier the node carries a class of this family for. */
+        function utilityTiers(node, family) {
+            return BREAKPOINTS.map(function(tier) {
+                return { tier: tier, value: ownUtility(node, family, tier) };
+            }).filter(function(entry) { return entry.value !== null; });
+        }
+
+        function writeUtility(node, family, tier, value) {
+            family.values.forEach(function(candidate) {
+                node.removeClass(utilityClass(family, tier, candidate));
+            });
+
+            if (value !== null) { node.addClass(utilityClass(family, tier, value)); }
+            if (!node.attr('class')) { node.removeAttr('class'); }
+        }
+
+        /**
+         * What a view reads. A breakpoint reads what applies there. The all
+         * view reads the class with no infix, since that is what it writes:
+         * the one class that means "the same at every size".
+         */
+        function readUtility(node, family, view) {
+            return view === ALL_VIEW
+                ? ownUtility(node, family, BREAKPOINTS[0])
+                : effectiveUtility(node, family, breakpoint(view));
+        }
+
+        /**
+         * What writing `value` in a view comes to, or null when it changes
+         * nothing. A breakpoint writes its own tier and nothing else. The all
+         * view writes the class with no infix and clears the family from
+         * every other tier, and says what it cleared: choosing one value for
+         * every size is choosing it over what the sizes said.
+         */
+        function planUtility(node, family, view, value) {
+            if (view !== ALL_VIEW) {
+                var tier = breakpoint(view);
+                if (ownUtility(node, family, tier) === value) { return null; }
+
+                return { writes: [{ tier: tier, value: value }], cleared: [] };
+            }
+
+            var writes = [];
+            var cleared = [];
+
+            utilityTiers(node, family).forEach(function(entry) {
+                if (entry.tier === BREAKPOINTS[0]) { return; }
+
+                writes.push({ tier: entry.tier, value: null });
+                cleared.push({ breakpoint: entry.tier.key, value: entry.value });
+            });
+
+            if (ownUtility(node, family, BREAKPOINTS[0]) !== value) {
+                writes.unshift({ tier: BREAKPOINTS[0], value: value });
+            }
+
+            return writes.length ? { writes: writes, cleared: cleared } : null;
+        }
+
+        /** getUtility(node, family, view?): the value that applies, or null. */
+        function getUtility(node, name, view) {
+            node = $(node).first();
+
+            var family = familyNamed(name, 'getUtility');
+            if (!family || !node.length) { return null; }
+
+            var key = view === undefined ? curView : viewKey(view);
+            if (key === null) {
+                warn('getUtility(' + JSON.stringify(view) + '): no such layout mode');
+                return null;
+            }
+
+            return readUtility(node, family, key);
+        }
+
+        /**
+         * setUtility(node, family, value, view?): write a value through the
+         * events. Null is "inherit". The last argument is a view key, or
+         * { view, source } from a plugin that wants its tool named in the
+         * payload. False when a handler canceled or nothing changed.
+         */
+        function setUtility(node, name, value, options) {
+            options = typeof options == 'string' ? { view: options } : (options || {});
+            node = $(node).first();
+
+            var family = familyNamed(name, 'setUtility');
+            if (!family || !node.length) { return false; }
+
+            var view = options.view === undefined ? curView : viewKey(options.view);
+            if (view === null) {
+                warn('setUtility(' + JSON.stringify(options.view) + '): no such layout mode');
+                return false;
+            }
+
+            value = value === null || value === undefined || value === '' ? null : String(value);
+            if (value !== null && family.values.indexOf(value) === -1) {
+                warn('setUtility: ' + JSON.stringify(value) + ' is not a value of "' + name +
+                    '", which takes ' + JSON.stringify(family.values));
+                return false;
+            }
+
+            var kind = kindOf(node);
+            if (!appliesTo(family, kind)) {
+                warn('setUtility: "' + name + '" does not apply to a ' + kind);
+                return false;
+            }
+
+            var plan = planUtility(node, family, view, value);
+            if (!plan) { return false; }
+
+            return operate(function() {
+                var payload = payloadFor(kind, node, {
+                    family: name,
+                    breakpoint: view,
+                    tiers: plan.writes.map(function(write) { return write.tier.key; }),
+                    from: readUtility(node, family, view),
+                    to: value,
+                    cleared: plan.cleared,
+                    source: options.source || 'api',
+                });
+
+                if (!emit('before-utility', payload)) {
+                    // The panel already shows the value that was refused
+                    refreshUtilities(node);
+                    return false;
+                }
+
+                plan.writes.forEach(function(write) {
+                    writeUtility(node, family, write.tier, write.value);
+                });
+                refreshUtilities(node);
+                emit('after-utility', payload);
+
+                return true;
+            });
+        }
+
+        /** Bring a node's panel and preview up to date with its classes. */
+        function refreshUtilities(node) {
+            var details = node.children('.ge-tools-drawer').children('.ge-details');
+
+            details.children('.ge-classes').val(hostClasses(node).join(' '));
+            details.children('.ge-utilities').each(function() { renderUtilities($(this)); });
+            refreshPreviews(node);
+        }
+
+        /* Preview */
+
+        function utilityNodes(scope) {
+            return scope.find(UTILITY_NODES).addBack(UTILITY_NODES);
+        }
+
+        /**
+         * Put what each node's utilities mean at the view being edited on the
+         * node itself. Only nodes that carry a class of a family get anything,
+         * and they get the family's answer for the view even when that is
+         * "nothing": a wider tier's class is still live in a wide window, and
+         * has to be overruled.
+         *
+         * The all view gets nothing. Its canvas is not narrowed, every tier is
+         * live, and what Bootstrap shows is the truth.
+         */
+        function refreshPreviews(scope) {
+            clearPreviews(scope);
+
+            if (curView === ALL_VIEW) { return; }
+
+            var tier = breakpoint(curView);
+
+            utilityNodes(scope).each(function() {
+                var node = $(this);
+                var kind = kindOf(node);
+                var styles = {};
+
+                familiesFor(kind).forEach(function(family) {
+                    if (!family.preview || !utilityTiers(node, family).length) { return; }
+
+                    $.extend(styles, family.preview(effectiveUtility(node, family, tier), node, kind));
+                });
+
+                if (!$.isEmptyObject(styles)) { applyPreview(node, styles); }
+            });
+        }
+
+        /**
+         * Set inline !important styles, which is the one thing that beats
+         * Bootstrap's own !important, and remember what each property was so
+         * it can be put back. The record is an attribute rather than jQuery
+         * data because a rich text editor rebuilds the DOM of the area it
+         * edits, and the record has to come back with the node.
+         */
+        function applyPreview(node, styles) {
+            var style = node[0].style;
+            var was = {};
+
+            $.each(styles, function(property, value) {
+                was[property] = [style.getPropertyValue(property), style.getPropertyPriority(property)];
+                style.setProperty(property, String(value), 'important');
+            });
+
+            node.attr(PREVIEW_ATTR, JSON.stringify(was));
+        }
+
+        function clearPreviews(scope) {
+            scope.find('[' + PREVIEW_ATTR + ']').addBack('[' + PREVIEW_ATTR + ']').each(function() {
+                var node = $(this);
+                var style = this.style;
+                var was = {};
+
+                try { was = JSON.parse(node.attr(PREVIEW_ATTR)) || {}; } catch (error) { /* a mangled record: drop it */ }
+
+                $.each(was, function(property, before) {
+                    if (before && before[0]) {
+                        style.setProperty(property, before[0], before[1]);
+                    } else {
+                        style.removeProperty(property);
+                    }
+                });
+
+                node.removeAttr(PREVIEW_ATTR);
+                if (!node.attr('style')) { node.removeAttr('style'); }
+            });
+        }
+
+        /* The panel */
+
+        /**
+         * The Responsive section of a node's settings panel: one field per
+         * family that applies to the node, reading and writing the view being
+         * edited. Folded until the user unfolds one, and then unfolded on
+         * every node, since whoever wanted it on one wants it on the next.
+         */
+        function createUtilitiesSection(node) {
+            var families = familiesFor(kindOf(node));
+            if (!families.length) { return null; }
+
+            var section = $('<div class="ge-utilities" />')
+                .toggleClass('ge-open', utilitiesOpen)
+                .data('ge-node', node)
+            ;
+
+            $('<a class="ge-utilities-toggle" />')
+                .appendTo(section)
+                .on('click', function() {
+                    utilitiesOpen = !section.hasClass('ge-open');
+                    canvas.find('.ge-utilities').toggleClass('ge-open', utilitiesOpen);
+                })
+            ;
+
+            var body = $('<div class="ge-utilities-body" />').appendTo(section);
+
+            families.forEach(function(family) {
+                var field = $('<label class="ge-utility" />')
+                    .attr('data-ge-family', family.name)
+                    .appendTo(body)
+                ;
+
+                $('<span class="ge-utility-label" />')
+                    .text(family.labelKey ? t(family.labelKey) : family.name)
+                    .appendTo(field)
+                ;
+                $('<select />')
+                    .appendTo(field)
+                    .on('change', function() {
+                        setUtility(node, family.name, this.value, { source: 'panel' });
+                    })
+                ;
+                $('<small class="ge-utility-note" />').appendTo(field);
+            });
+
+            renderUtilities(section);
+
+            return section;
+        }
+
+        /** Fill a section's fields for the view being edited. */
+        function renderUtilities(section) {
+            var node = section.data('ge-node');
+            var kind = kindOf(node);
+
+            section.children('.ge-utilities-toggle')
+                .text(t('utility.section', { view: t(labelKeyFor(curView)) }));
+
+            section.find('.ge-utility').each(function() {
+                var field = $(this);
+                var family = FAMILIES[field.attr('data-ge-family')].family;
+                var select = field.children('select').empty();
+                var choices = family.choices ? family.choices(node, kind) : family.values;
+                var own, blank, note = '';
+
+                if (curView === ALL_VIEW) {
+                    own = ownUtility(node, family, BREAKPOINTS[0]);
+                    blank = t('utility.default');
+
+                    var varies = utilityTiers(node, family).filter(function(entry) {
+                        return entry.tier !== BREAKPOINTS[0];
+                    });
+                    if (varies.length) {
+                        note = t('utility.varies', {
+                            breakpoints: varies.map(function(entry) { return entry.tier.key; }).join(', '),
+                        });
+                    }
+                } else {
+                    var tier = breakpoint(curView);
+                    var inherited = inheritedUtility(node, family, tier);
+
+                    own = ownUtility(node, family, tier);
+                    blank = inherited
+                        ? t('utility.inherit', { value: labelOf(family, inherited.value), breakpoint: inherited.tier.key })
+                        : t('utility.default');
+                }
+
+                // A value the markup carries is shown even when the family
+                // would not offer it here, rather than shown as something else
+                if (own !== null && choices.indexOf(own) === -1) { choices = choices.concat([own]); }
+
+                $('<option value="" />').text(blank).appendTo(select);
+                choices.forEach(function(value) {
+                    $('<option />').attr('value', value).text(labelOf(family, value)).appendTo(select);
+                });
+
+                select.val(own === null ? '' : own);
+                field.children('.ge-utility-note').text(note).toggle(note !== '');
+            });
+        }
+
+        function labelOf(family, value) {
+            return family.label ? family.label(value) : value;
         }
 
         /* --------------------------------------------------------------
@@ -1305,6 +1774,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         var CONTAINERS = {}; // The container plugins in use, by the type each builds
         var FEATURES = {}; // The feature plugins in use, by name
+        var UTILITIES = {}; // The utility plugins in use, by name
         var featureMethods = {}; // The methods those features contribute
         var containerCounter = 0;
 
@@ -1873,6 +2343,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 details.toggle();
             });
 
+            // Beside the gear, because every node that has one is a node a
+            // utility may apply to, whichever plugin built its drawer
+            var kind = kindOf(node);
+            $.each(UTILITIES, function(name, utility) {
+                if (utility.drawerTools) { utility.drawerTools(drawer, node, kind); }
+            });
+
             return details.appendTo(drawer);
         }
 
@@ -1901,6 +2378,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .appendTo(detailsDiv)
                 .on('change', function() {
                     setHostClasses(container, this.value);
+                    refreshUtilities(container);
                 })
             ;
 
@@ -1913,10 +2391,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     .on('click', function() {
                         btn.toggleClass('active btn-primary');
                         container.toggleClass(rowClass.cssClass, btn.hasClass('active'));
+                        refreshUtilities(container);
                     })
                     .appendTo(classGroup)
                 ;
             });
+
+            var utilities = createUtilitiesSection(container);
+            if (utilities) { utilities.appendTo(detailsDiv); }
 
             return detailsDiv;
         }
@@ -2758,7 +3240,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return;
             }
 
+            var from = curView;
             switchLayout(key);
+
+            if (key === from) { return; }
+
+            canvas.find('.ge-utilities').each(function() { renderUtilities($(this)); });
+            refreshPreviews(canvas);
+            plugins('onViewChange', key);
+            emit('view-change', { canvas: canvas, breakpoint: key, from: from, to: key });
         }
 
         function getView() {
@@ -2802,6 +3292,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return addPaneTo(container, 'accordion', options);
             },
             setLocale: setLocale,
+            getUtility: getUtility,
+            setUtility: setUtility,
             canvas: canvas,
             settings: settingsCopy(),
         };
@@ -2852,6 +3344,18 @@ $.fn.gridEditor.containers = {};
  * which of the loaded ones are used.
  */
 $.fn.gridEditor.features = {};
+
+/**
+ * Utility plugins: Bootstrap's responsive utility classes - order-md-2,
+ * d-lg-none - edited per breakpoint. A plugin declares families of classes
+ * and the editor reads them, writes them, puts them in the settings panel and
+ * previews them in each view. Same factory, same `plugins` setting.
+ *
+ *   $.fn.gridEditor.utilities.order = function(ge) {
+ *       return { families: [{ name: 'order', prefix: 'order', values: [...] }] };
+ *   };
+ */
+$.fn.gridEditor.utilities = {};
 
 /** Translator for the editor integrations, which get settings and no instance. */
 $.fn.gridEditor.t = translate;
@@ -2904,6 +3408,10 @@ $.fn.gridEditor.locales = {
         'view.lg': 'Desktop',
         'view.xl': 'Large desktop',
         'view.xxl': 'Widescreen',
+        'utility.section': 'Responsive: {view}',
+        'utility.default': 'Default',
+        'utility.inherit': 'Inherit: {value} (from {breakpoint})',
+        'utility.varies': 'Changes at {breakpoints}; choosing here replaces that',
         'error.sortable_missing': 'SortableJS not available! Make sure you loaded the Sortable js file; dragging is off without it.',
         'warning.setting_removed': 'The {setting} setting was removed in 4.0. Use {replacement} instead.',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',

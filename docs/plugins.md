@@ -14,11 +14,13 @@ the one to read first if you are about to write your own.
 <script src="dist/plugins/grideditor.elements.min.js"></script>
 ```
 
-There are two kinds. A **container plugin** builds a type of container — it
+There are three kinds. A **container plugin** builds a type of container — it
 registers under `$.fn.gridEditor.containers`, and the toolbar offers a button
-for it. A **feature plugin** is anything else the editor can do —
+for it. A **utility plugin** declares families of Bootstrap's responsive
+utility classes — `$.fn.gridEditor.utilities` — and the editor edits them per
+breakpoint. A **feature plugin** is anything else the editor can do —
 `$.fn.gridEditor.features`, hooks into the canvas, and may contribute methods.
-Both are factories called once per editor with the same handle.
+All three are factories called once per editor with the same handle.
 
 The `plugins` setting names which of the loaded ones to use:
 
@@ -114,6 +116,11 @@ not change without a major version.
 | `ge.emit(name, payload)` | Fire an event and its callbacks; false means a handler canceled |
 | `ge.payloadFor(kind, node, extra)` | Build a payload the documented way |
 | `ge.operate(body)` | Run `body` as one operation, so a handler calling back in is queued |
+| `ge.kindOf(node)` | What an event calls a node: `row`, `column`, `element`, a container's type… |
+| `ge.view()` | The view being edited: a breakpoint key, or `'all'` |
+| `ge.viewTiers()` | The breakpoint keys that view writes: one, or all six |
+| `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
+| `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 
 The add, delete and move events for a container and its panes are fired by the
 editor, not by the plugin: `createPaneControls` handles a pane's delete, and
@@ -177,3 +184,71 @@ the plugin.
 Sorting is the one thing a plugin sets up itself, in `mark`, because only the
 plugin knows which of its parts move: the tabs plugin makes its strip sortable
 and puts the panes back in strip order in `afterPaneMove`.
+
+
+Utility plugins
+---------------
+
+A utility plugin edits one of Bootstrap's responsive utility classes — the
+ones spelled `{property}-{breakpoint}-{value}`, like `order-md-2` or
+`d-lg-none` — and hardly has to do anything to do it. It declares **families**,
+and the editor reads, writes, previews and announces them:
+
+```javascript
+$.fn.gridEditor.utilities.order = function(ge) {
+    return {
+        families: [{
+            name: 'order',                 // what events and setUtility call it
+            prefix: 'order',               // order-2, order-md-2, order-xxl-2
+            values: ['first', 0, 1, 2, 3, 4, 5, 'last'],
+            appliesTo: ['column'],         // row | column | element | container | a container type
+            labelKey: 'utility.order',     // the field's label, optional
+            label: function(value) { … },  // an option's text, optional: the value itself otherwise
+            choices: function(node, kind) { … },   // what to offer this node, optional: every value otherwise
+            preview: function(value, node, kind) { // what the value looks like, see below
+                return { order: value === null ? 0 : value };
+            },
+        }],
+        drawerTools: function(drawer, node, kind) { … },  // optional, tools beside the gear
+        onViewChange: function(view) { … },               // optional
+    };
+};
+```
+
+What the editor does with a family:
+
+- **Reading follows the cascade.** A breakpoint's value is its own class or the
+  nearest smaller breakpoint's. The all view reads the class with no infix.
+- **Writing depends on the view.** A breakpoint view writes its own tier and
+  nothing else. The all view writes the class with no infix and takes the
+  family off every other breakpoint, because choosing one value for every size
+  is choosing it over what the sizes said; the event says what it took off.
+  `null` is inherit: the tier's class comes off.
+- **The panel.** Every node with a gear gets a folded *Responsive* section in
+  its settings panel, with a field per family that applies to it. A field shows
+  the view being edited, says what it inherits and from which breakpoint, and
+  follows the classes field when the user types there.
+- **The preview.** A breakpoint view narrows the canvas, not the window, and
+  Bootstrap's utilities answer to the window with `!important`. So in a
+  breakpoint view each node that carries a family's class gets
+  `preview(value)` — the value that applies there, or `null` — as inline
+  `!important` styles. Return what `null` looks like too: a wider breakpoint's
+  class is still live in a wide window and has to be overruled. The all view
+  previews nothing, since every breakpoint there is live and what Bootstrap
+  shows is the truth. The styles come off on `deinit`, leaving the host's own
+  `style` as it was, so `getHtml` never sees them.
+- **The events.** Every write goes through `before-utility`, which can cancel
+  it, and `after-utility`. See [events.md](events.md).
+
+`drawerTools` runs for every drawer that has a gear — rows, columns, elements,
+containers and panes — so a plugin checks `kind` and adds nothing where its
+tool does not belong. A tool writes with `ge.setUtility(node, family, value,
+{ source: 'tool' })`, and the panel, the classes field and the preview follow.
+
+Two plugins cannot declare the same family name: the second one is ignored,
+with a warning.
+
+Plugin options live in the `utilities` setting, under the plugin's name:
+`utilities: { spacing: { values: ['0', '2', '4'] } }`. The editor passes the
+setting through as it is; each plugin fills in its own defaults.
+

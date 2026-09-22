@@ -336,6 +336,69 @@ async function elementTests(t) {
 }
 
 /**
+ * A utility on an element inside an open editor. The preview is inline style
+ * on a node the editor rebuilds as it takes the content area over and again
+ * as it lets go, so what is checked is that the record of it survives both,
+ * and that getHtml hands back the class and nothing of the preview.
+ */
+async function utilityTests(t) {
+    var page = await t.page('/example/elements.html',
+        `window.tinymce && jQuery('#myGrid').data('grideditor')`);
+
+    await page.eval(`
+        jQuery('#myGrid').gridEditor('remove');
+        jQuery.fn.gridEditor.utilities.testing = function() {
+            return { families: [{
+                name: 'order', prefix: 'order', values: ['1', '2', '3'], appliesTo: ['element'],
+                preview: function(value) { return { order: value === null ? '0' : value }; },
+            }] };
+        };
+        jQuery('#myGrid').html(
+            '<div class="row"><div class="col-lg-12">' +
+            '<div class="ge-content" data-ge-content-type="tinymce">' +
+            '<p>Text before the element.</p>' +
+            '<div data-ge-element="callout" class="order-md-2"><p>Inside the element.</p></div>' +
+            '</div></div></div>'
+        );
+        jQuery('#myGrid').gridEditor({ new_row_layouts: [[12]], content_types: ['tinymce'], default_view: 'md' });
+    `);
+    await page.click('.ge-content');
+    await sleep(2500);
+
+    var open = await page.eval(`
+        const element = jQuery('#myGrid .ge-element').first();
+        return {
+            editorOpen: tinymce.get().length === 1,
+            classKept: element.hasClass('order-md-2'),
+            previewed: element[0].style.getPropertyValue('order') === '2' &&
+                element[0].style.getPropertyPriority('order') === 'important',
+            recorded: element.attr('data-ge-preview') !== undefined,
+            field: element.find('> .ge-tools-drawer .ge-utility select').val(),
+        };
+    `);
+    t.check('an element inside an open editor keeps its utility class, its preview and its field',
+        open.editorOpen && open.classKept && open.previewed && open.recorded && open.field === '2', open);
+
+    var exported = await page.eval(`
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        return {
+            html: html,
+            classKept: /class="order-md-2"/.test(html),
+            preview: /data-ge-preview|important|style=/.test(html),
+            previewBack: jQuery('#myGrid .ge-element').first().attr('data-ge-preview') !== undefined,
+        };
+    `);
+    t.check('the utility class survives the round trip through the editor, the preview does not',
+        exported.classKept && !exported.preview && exported.previewBack,
+        Object.assign({}, exported, { html: exported.html.slice(0, 220) }));
+
+    await page.eval(`delete jQuery.fn.gridEditor.utilities.testing;`);
+
+    var errors = page.errors();
+    t.check('the utility round trip logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
+/**
  * A content area inside a container is the awkward case: the pane it sits in
  * may have just appeared, and the inline toolbar is laid out against whatever
  * geometry the element has when tinyMCE draws it. Checked on the containers
@@ -433,6 +496,7 @@ module.exports = {
     run: async function(t) {
         await tinymceTests(t);
         await elementTests(t);
+        await utilityTests(t);
         await containerTests(t);
         await otherEditorTests(t);
     },

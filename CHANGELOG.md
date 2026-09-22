@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- Utility plugins, a third kind beside containers and features:
+  `$.fn.gridEditor.utilities`. A plugin declares families of Bootstrap's
+  responsive utility classes and the editor reads them through the cascade,
+  writes them per breakpoint (the all view writes the class with no infix and
+  clears the rest), shows them in a folded *Responsive* section of the settings
+  panel, and previews them in each breakpoint view. See docs/plugins.md.
+- `getUtility` and `setUtility` methods, and the `utilities` setting for the
+  plugins' options.
+- `before-utility`, `after-utility` and `view-change` events. `view-change` is
+  new for every host, not only for utility plugins.
+- The plugin handle gains `kindOf`, `view`, `viewTiers`, `getUtility` and
+  `setUtility`, and a utility plugin may add tools beside any drawer's gear.
+
 ## [4.0.0] - 2026-09-22
 ### Added
 - Editing from a touchscreen. Sorting, resizing a column and carrying a toolbar

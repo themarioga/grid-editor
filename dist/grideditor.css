@@ -171,6 +171,7 @@
   padding: 5px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
   display: none;
+  /* The utility plugins' fields, folded under one toggle */
 }
 .ge-canvas.ge-editing .ge-tools-drawer .ge-details .btn-group a {
   color: #333;
@@ -193,6 +194,48 @@
 }
 .ge-canvas.ge-editing .ge-tools-drawer .ge-details input.ge-classes {
   width: 200px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities {
+  margin-top: 5px;
+  font-size: 11px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-toggle {
+  color: #333;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-toggle::before {
+  content: '\25B8';
+  display: inline-block;
+  width: 1em;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities.ge-open > .ge-utilities-toggle::before {
+  content: '\25BE';
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-body {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities.ge-open > .ge-utilities-body {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility {
+  display: inline-flex;
+  flex-direction: column;
+  margin: 0;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility select {
+  border: 1px solid #7F7F7F;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 1px 2px;
+}
+.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility-note {
+  color: #666;
+  font-size: 10px;
+  max-width: 160px;
 }
 .ge-canvas.ge-editing .row {
   background-color: #efefef;
