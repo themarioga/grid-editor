@@ -1,11 +1,11 @@
 /**
  * Downloads the vendored test dependencies.
  *
- * The test fixtures load jQuery, jQuery UI and Bootstrap from `test/vendor`
- * rather than from a CDN, so that a test run needs no network. The files are
- * committed; this script exists to refresh them. Run it with `node
- * test/vendor/update.js` after changing a version below, and commit what it
- * writes.
+ * The test fixtures load jQuery, jQuery UI, SortableJS and Bootstrap from
+ * `test/vendor` rather than from a CDN, so that a test run needs no network.
+ * The files are committed; this script exists to refresh them. Run it with
+ * `node test/vendor/update.js` after changing a version below, and commit what
+ * it writes.
  */
 
 var fs = require('fs');
@@ -21,6 +21,10 @@ var FILES = [
     {
         file: 'jquery-ui/jquery-ui.min.js',
         url: 'https://code.jquery.com/ui/1.14.2/jquery-ui.min.js',
+    },
+    {
+        file: 'sortablejs/Sortable.min.js',
+        url: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js',
     },
     {
         file: 'bootstrap/bootstrap.min.css',

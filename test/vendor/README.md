@@ -10,11 +10,14 @@ new fixture at a CDN.
 | --- | --- | --- |
 | `jquery/` | jquery | 4.0.0 |
 | `jquery-ui/` | jquery-ui (custom download, full bundle) | 1.14.2 |
+| `sortablejs/` | sortablejs | 1.15.6 |
 | `bootstrap/` | bootstrap (css and the bundled js) | 5.3.8 |
 | `bootstrap-icons/` | bootstrap-icons (css and the woff/woff2 fonts) | 1.13.1 |
 
 The versions match the ones the example pages load, so a fixture and an example
-page run against the same libraries.
+page run against the same libraries. SortableJS is here ahead of the pages that
+will use it: it is what replaces jQuery UI in 4.0, and it is vendored now so the
+port can be tested before anything ships.
 
 To refresh them, change the version in `update.js`, then:
 
