@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [3.2.0] - 2026-09-22
 ### Added
 - A card container plugin, `dist/plugins/grideditor.card.js`: a bootstrap card
   whose body is an editable region, with an editable header and an optional
