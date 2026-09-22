@@ -29,6 +29,10 @@ never loaded logs one warning and changes nothing else. A container in the
 markup whose plugin is not loaded is left alone: no drawer, no tools, and
 `getHtml` gives it back as it found it.
 
+[example/plugins.html](../example/plugins.html) is this page as a working
+editor: the shipped plugins, a container plugin written in the page itself,
+and a checkbox per plugin so you can watch the toolbar and the canvas change.
+
 
 The shape of a plugin
 ---------------------

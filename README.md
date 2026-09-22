@@ -19,6 +19,7 @@ from any web server, or from GitHub Pages, with no build step.
 | --- | --- |
 | [example/index.html](example/index.html) | The editor with tinyMCE in the content areas |
 | [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view |
+| [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself |
 | [example/containers.html](example/containers.html) | Tabs, accordions and popups, two levels deep |
 | [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output |
 | [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher |
