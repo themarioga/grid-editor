@@ -19,7 +19,7 @@
  *       description: 'what this suite covers',
  *       requiresNetwork: false,   // true skips the suite when offline
  *       run: async function(t) {
- *           var page = await t.page('/example/index.html');
+ *           var page = await t.page('/example/basic.html');
  *           t.check('the page boots', await page.eval('return !!window.jQuery;'));
  *       },
  *   };

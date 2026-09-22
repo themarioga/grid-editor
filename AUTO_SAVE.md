@@ -1,6 +1,6 @@
 ## Auto save and layout import/export
 
-The `example/index-autosave.html` demo shows how to add **auto save** and
+The `example/autosave.html` demo shows how to add **auto save** and
 **import/export** on top of Grid Editor, using only the plugin's existing
 public API (`gridEditor('getHtml')` and `gridEditor('remove')`).
 
@@ -26,5 +26,5 @@ Build the `dist/` files first, then open the example:
 ```bash
 npm install
 npm run build
-open example/index-autosave.html
+open example/autosave.html
 ```

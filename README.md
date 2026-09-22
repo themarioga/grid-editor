@@ -18,7 +18,7 @@ from any web server, or from GitHub Pages, with no build step.
 
 | Demo | What it shows |
 | --- | --- |
-| [example/index.html](example/index.html) | The editor with tinyMCE in the content areas |
+| [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas |
 | [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view |
 | [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself |
 | [example/containers.html](example/containers.html) | Tabs, accordions and popups, two levels deep |
@@ -27,7 +27,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE |
 | [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid |
-| [example/index-autosave.html](example/index-autosave.html) | Saving the html as the user edits |
+| [example/autosave.html](example/autosave.html) | Saving the html as the user edits |
 
 Installation
 ------------
@@ -431,7 +431,7 @@ $('form.myForm').on('submit', function() {
 ### Rich text editor options
 
 Grid editor comes bundles with support for the following rich text editors (RTEs): 
-* [TinyMCE](http://www.tinymce.com/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/index.html)
+* [TinyMCE](http://www.tinymce.com/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/basic.html)
 * [summernote](http://summernote.org/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/summernote.html)
 * [CKEditor](http://ckeditor.com/) - [(example)](https://transfer.frontwise.com/frontwise/grid-editor/example/ckeditor.html)
 
@@ -469,7 +469,7 @@ $('#myGrid').gridEditor({
 
 __`tinymce.config`:__ Specify tinyMCE config, when using the `tinymce` `content_types`.
 See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/6/).
-Also check out the [tinymce example](https://transfer.frontwise.com/frontwise/grid-editor/example/index.html).
+Also check out the [tinymce example](https://transfer.frontwise.com/frontwise/grid-editor/example/basic.html).
 
 ```javascript
 $('#myGrid').gridEditor({

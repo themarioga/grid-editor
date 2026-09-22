@@ -34,7 +34,7 @@ var CONTENT_AREA_STATE = `
 `;
 
 async function tinymceTests(t) {
-    var page = await t.page('/example/index.html');
+    var page = await t.page('/example/basic.html');
     await page.waitFor(
         `window.jQuery && window.tinymce && jQuery('#myGrid').data('grideditor')`,
         { label: 'dependencies and grid editor' }
@@ -226,10 +226,10 @@ async function tinymceTests(t) {
         Object.assign({ before: before.contentAreas, after: added.contentAreas }, newArea));
 
     var errors = page.errors();
-    t.check('example/index.html logged no errors', errors.length === 0, errors.slice(0, 5));
+    t.check('example/basic.html logged no errors', errors.length === 0, errors.slice(0, 5));
 
     // The other two pages wiring up tinyMCE
-    for (var name of ['index-autosave.html', 'wrap_content.html']) {
+    for (var name of ['autosave.html', 'wrap_content.html']) {
         var other = await t.page('/example/' + name);
         await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
 
