@@ -53,7 +53,7 @@ async function fieldTests(t, page) {
         ge().changeView('md');
         return {
             options: select.find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
-            rowFields: jQuery('#myGrid .row').first().find('> .ge-tools-drawer .ge-utility').length,
+            rowFields: jQuery('#myGrid .row').first().find('> .ge-tools-drawer .ge-utility[data-ge-family="order"]').length,
             arrows: col('a').find('> .ge-tools-drawer > .ge-order-earlier, > .ge-tools-drawer > .ge-order-later').length,
             value: select.val(),
             shown: shown(),

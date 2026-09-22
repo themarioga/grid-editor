@@ -830,3 +830,23 @@
         }
     }
 }
+
+/* A row whose row-cols sizes its columns in this view says how many */
+.ge-canvas.ge-editing .row[data-ge-row-cols] {
+    position: relative;
+
+    &::before {
+        content: attr(data-ge-row-cols);
+        position: absolute;
+        left: 2px;
+        bottom: 2px;
+        z-index: 1;
+        padding: 0 4px;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, .55);
+        color: #fff;
+        font-size: 10px;
+        line-height: 16px;
+        pointer-events: none;
+    }
+}

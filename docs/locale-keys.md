@@ -59,6 +59,7 @@ row.*
 | Key | English | Where |
 | --- | --- | --- |
 | `row.add` | Add row {layout} | Tooltip of each toolbar add-row button. `{layout}` is the column layout, as in `6-6` |
+| `row.add_row_cols` | Add a row of {columns} columns, {counts} per row | Tooltip of a toolbar button for a `{ row_cols, columns }` layout. `{counts}` reads like `1, md: 3` |
 
 
 container.*
@@ -136,6 +137,8 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.col_width` | Width | The column width field, in a column's Responsive section |
 | `utility.col_equal` | Equal | Its choice for `col` / `col-{bp}` |
 | `utility.col_auto` | Auto | Its choice for `col-auto` / `col-{bp}-auto` |
+| `utility.col_from_row` | From the row: {count} | The width field's empty choice when the row's row-cols sizes the column. `{count}` is `badge.row_cols` |
+| `utility.row_cols` | Columns per row | The row-cols field, in a row's Responsive section |
 | `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
 | `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
 | `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |
@@ -184,6 +187,8 @@ markup `getHtml` returns.
 | Key | English | Where |
 | --- | --- | --- |
 | `badge.hidden_in` | Hidden at {breakpoints} | Corner of a node hidden at some breakpoints, in the all view. `{breakpoints}` is a list of keys |
+| `badge.row_cols` | {count} per row | Corner of a row whose row-cols sizes its columns in the view being edited |
+| `badge.row_cols_auto` | As wide as their content | The same, for `row-cols-auto` |
 | `badge.order` | Order: {value} | Corner of a column ordered by class in the view being edited |
 
 

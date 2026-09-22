@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the width the column has. A column with only `col` used to be no column at
   all, and a `col-auto` one was given a `col-12` that overrode it.
 - A *Width* field in each column's Responsive section, with every size.
+- Columns per row: a *Columns per row* field in each row's panel writes
+  `row-cols-{bp}-{1–6,auto}`. Columns with no size of their own share the
+  line out and are left without a `col-12`; the preview, the budget and the
+  tools settle row-cols against each column's own size as Bootstrap's css
+  does, and the row says in a corner how many it puts per line. Layouts,
+  `createRow` and `createColumn` take rows with row-cols, and `row_cols: false`
+  takes the field away.
 - The `textalign` utility plugin: `text-{bp}-start`, `-center` and `-end` on
   rows, columns, elements and containers. With no class applying in a view, the
   preview shows what the node inherits from its parent or the host's css.

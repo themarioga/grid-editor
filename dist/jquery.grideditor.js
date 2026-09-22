@@ -84,6 +84,13 @@ var MAX_COL_OFFSET = 11;
  */
 var FLEX_SIZES = ['equal', 'auto'];
 
+/** How many columns a row-cols class puts on a line. */
+var ROW_COLS_VALUES = ['1', '2', '3', '4', '5', '6', 'auto'];
+
+function rowColsClass(tier, value) {
+    return 'row-cols' + (tier.infix ? '-' + tier.infix : '') + '-' + value;
+}
+
 function isUnits(size) {
     return typeof size === 'number';
 }
@@ -285,6 +292,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'tab_tools'         : [], // Host tools on tab drawers
             'accordion_tools'   : [], // Host tools on accordion item drawers
             'plugins'           : null, // Plugins to use, of any kind; null means every one loaded
+            'row_cols'          : true, // A row's "columns per row" field, row-cols-*
             'utilities'         : {}, // Options for the utility plugins, by plugin name
             'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
@@ -836,17 +844,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             addRowGroup = $('<div class="ge-addRowGroup btn-group" />').appendTo(wrapper);
             addContainerGroup = $('<div class="ge-addContainerGroup btn-group" />');
             $.each(settings.new_row_layouts, function(j, layout) {
+                var grouped = !Array.isArray(layout);
                 var btn = $('<a class="btn btn-sm btn-primary" />')
-                    .attr('title', t('row.add', { layout: layout.join('-') }))
+                    .attr('title', grouped
+                        ? t('row.add_row_cols', { columns: layout.columns, counts: rowColsText(layout.row_cols) })
+                        : t('row.add', { layout: layout.join('-') }))
                     // What this button makes, in the markup rather than in
                     // jQuery data: a drag works on a clone of it
                     .attr('data-ge-toolbar', 'row')
-                    .attr('data-ge-layout', layout.join(','))
+                    .attr('data-ge-layout', grouped ? JSON.stringify(layout) : layout.join(','))
                     .on('click', function() {
-                        var row = createRow();
-                        layout.forEach(function(i) {
-                            createColumn(i).appendTo(row);
-                        });
+                        var row = rowFromLayoutValue(layout);
 
                         var added = addNode('row', row, function() {
                             row.appendTo(canvas);
@@ -861,9 +869,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 btn.append('<i class="bi bi-plus"></i>');
 
-                var layoutName = layout.join(' - ');
+                // A row of columns shares out the icon as they share the row;
+                // a row with row-cols draws one line of its widest count
+                var sizes = grouped ? rowColsIcon(layout) : layout;
                 var icon = '<div class="row ge-row-icon">';
-                layout.forEach(function(size) {
+                sizes.forEach(function(size) {
                     // Closed explicitly: jQuery 4 no longer expands <div/>, and
                     // each column would be parsed inside the one before
                     icon += '<div class="column ' + sizeClass(BREAKPOINTS[0], size) + '"></div>';
@@ -1166,6 +1176,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 write: function(col, value, view, source) {
                     return resizeColumn(col, value === null ? null : parseSize(value), source, view);
                 },
+                // With no size of its own, a column in a row with row-cols
+                // takes its share from the row, which the field says
+                blank: function(col, view) {
+                    var winner = view === ALL_VIEW ? null : rowColsWinner(col, breakpoint(view));
+                    return winner ? t('utility.col_from_row', { count: rowColsLabel(winner.value) }) : null;
+                },
             };
         }
 
@@ -1174,14 +1190,52 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return /^\d+$/.test(String(size)) ? parseInt(size, 10) : size;
         }
 
+        /** A row from a toolbar button's data-ge-layout: sizes, or a row-cols layout as JSON. */
         function rowFromLayout(layout) {
+            if (/^\s*\{/.test(layout || '')) { return rowFromLayoutValue(JSON.parse(layout)); }
+
+            return rowFromLayoutValue((layout || '').split(',').filter(function(size) {
+                return size !== '';
+            }).map(parseSize));
+        }
+
+        /**
+         * A row from a layout: an array of sizes, or { row_cols, columns } -
+         * row-cols per breakpoint, and that many columns sized by the row.
+         */
+        function rowFromLayoutValue(layout) {
             var row = createRow();
 
-            (layout || '').split(',').forEach(function(size) {
-                if (size !== '') { createColumn(parseSize(size)).appendTo(row); }
+            if (Array.isArray(layout)) {
+                layout.forEach(function(size) { createColumn(size).appendTo(row); });
+                return row;
+            }
+
+            $.each(layout.row_cols || {}, function(key, value) {
+                var tier = breakpoint(key);
+                if (tier && ROW_COLS_VALUES.indexOf(String(value)) !== -1) { row.addClass(rowColsClass(tier, value)); }
             });
 
+            for (var i = 0; i < (layout.columns || 0); i++) { createColumn(null).appendTo(row); }
+
             return row;
+        }
+
+        /** "1, md: 3": a row-cols layout's counts, for its button's title. */
+        function rowColsText(counts) {
+            return BREAKPOINTS.filter(function(tier) { return counts && counts[tier.key] !== undefined; })
+                .map(function(tier) { return (tier.infix ? tier.key + ': ' : '') + counts[tier.key]; })
+                .join(', ');
+        }
+
+        /** The icon of a row-cols layout: one line of equal columns, as many as its widest count. */
+        function rowColsIcon(layout) {
+            var widest = 1;
+            $.each(layout.row_cols || {}, function(key, value) {
+                if (value !== 'auto') { widest = Math.max(widest, parseInt(value, 10) || 1); }
+            });
+
+            return Array.apply(null, Array(Math.min(widest, layout.columns || widest))).map(function() { return 'equal'; });
         }
 
         function onScroll(e) {
@@ -1270,6 +1324,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // one that rebuilt its area's DOM brought the preview styles back
             // with it, and the attribute recording them came back too
             clearPreviews(canvas);
+            canvas.find('[data-ge-row-cols]').removeAttr('data-ge-row-cols');
             unmarkContainers();
             removeSortable();
             removeResizable();
@@ -1340,6 +1395,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var api = pluginApi();
 
             registerFamily('grid', {}, widthFamily());
+            if (settings.row_cols !== false) { registerFamily('grid', {}, rowColsFamily()); }
             var wanted = function(name) {
                 return !settings.plugins || settings.plugins.indexOf(name) !== -1;
             };
@@ -1732,6 +1788,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (curView !== ALL_VIEW) { previewTier(scope, breakpoint(curView)); }
 
+            markRowCols(scope);
+
             // Whatever a plugin marks the canvas with to show its utilities
             // goes stale at the same moments the preview does
             plugins('onRefresh', scope);
@@ -1748,6 +1806,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                     $.extend(styles, family.preview(effectiveUtility(node, family, tier), node, kind));
                 });
+
+                if (kind === 'column') { $.extend(styles, rowColsPreview(node, tier)); }
 
                 // A plugin whose families settle one property between them
                 // previews the node as a whole
@@ -1912,6 +1972,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 blank = inherited
                     ? t('utility.inherit', { value: labelOf(family, inherited.value), breakpoint: inherited.tier.key })
                     : t('utility.default');
+
+                // What the empty choice means is sometimes not the family's
+                // own business: a column's width can come from its row
+                var custom = family.blank ? family.blank(node, curView) : null;
+                if (custom && own === null) { blank = custom; }
             }
 
             // A value the markup carries is shown even when the family
@@ -2325,7 +2390,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 createTool(drawer, t('tool.add_column'), 'ge-add-column', 'bi bi-plus-circle', function() {
                     if (closeSizePicker()) { return; } // The picker was open: that was the answer
 
-                    addColumnTo(row, settings.add_column.size);
+                    // In a row with row-cols the new column takes its share
+                    addColumnTo(row, rowColsSource(row, leadingTier()) ? null : settings.add_column.size);
                 });
 
                 attachSizePicker(drawer.find('> .ge-add-column'), row);
@@ -2413,7 +2479,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** The size that applies in the view: units, `equal` or `auto`. */
         function currentSize(col) {
-            var size = getEffectiveSize(col, leadingTier());
+            var tier = leadingTier();
+
+            // Sized by its row: it has no size of its own to report
+            if (rowColsWinner(col, tier)) { return null; }
+
+            var size = getEffectiveSize(col, tier);
             return size === null ? MAX_COL_SIZE : size;
         }
 
@@ -2622,10 +2693,132 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             canvas.find('.column, div[class*="col-"], div.col').each(function() {
                 var col = $(this).addClass('column');
 
-                if (sizedTiers(col).length) { return; }
+                // A column in a row with row-cols is sized by its row
+                if (sizedTiers(col).length || hasRowCols(col.parent())) { return; }
 
                 setSize(col, BREAKPOINTS[0], MAX_COL_SIZE);
             });
+        }
+
+        /* --------------------------------------------------------------
+         * Columns per row: row-cols-*.
+         *
+         * A row's row-cols class gives every child an equal share of a
+         * line, and a column's own size class takes that share's place.
+         * Which of the two wins at a breakpoint is settled the way
+         * Bootstrap's css settles it: the class from the wider breakpoint,
+         * and at one breakpoint col loses to row-cols, which loses to
+         * col-auto and col-N - the order Bootstrap writes their rules in.
+         * -------------------------------------------------------------- */
+
+        function hasRowCols(row) {
+            return row.hasClass('row') && BREAKPOINTS.some(function(tier) {
+                return ROW_COLS_VALUES.some(function(value) { return row.hasClass(rowColsClass(tier, value)); });
+            });
+        }
+
+        /** The row-cols class that applies to a row at a tier, as { tier, value }, or null. */
+        function rowColsSource(row, tier) {
+            if (!row.hasClass('row')) { return null; }
+
+            for (var i = BREAKPOINTS.indexOf(tier); i >= 0; i--) {
+                for (var v = 0; v < ROW_COLS_VALUES.length; v++) {
+                    if (row.hasClass(rowColsClass(BREAKPOINTS[i], ROW_COLS_VALUES[v]))) {
+                        return { tier: i, value: ROW_COLS_VALUES[v] };
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /** The column's own size that applies at a tier, as { tier, size }, or null. */
+        function columnSource(col, tier) {
+            for (var i = BREAKPOINTS.indexOf(tier); i >= 0; i--) {
+                var size = getSize(col, BREAKPOINTS[i]);
+                if (size !== null) { return { tier: i, size: size }; }
+            }
+
+            return null;
+        }
+
+        /**
+         * The row-cols class that sizes this column at a tier, or null when
+         * the column's own size does.
+         */
+        function rowColsWinner(col, tier) {
+            var row = rowColsSource(col.parent(), tier);
+            if (!row) { return null; }
+
+            var own = columnSource(col, tier);
+            if (!own || row.tier > own.tier) { return row; }
+
+            return row.tier === own.tier && own.size === 'equal' ? row : null;
+        }
+
+        /** A column's share of a line when its row sizes it, in units: auto has no number. */
+        function rowColsUnits(winner) {
+            return winner.value === 'auto' ? 0 : MAX_COL_SIZE / parseInt(winner.value, 10);
+        }
+
+        /**
+         * What a breakpoint view shows of the row-cols a column is under. The
+         * view narrows the canvas, not the window, and Bootstrap's
+         * .row-cols-md-3 > * answers to the window - and to nothing the
+         * preview can put on the row, since it styles the row's children.
+         */
+        function rowColsPreview(col, tier) {
+            var winner = rowColsWinner(col, tier);
+
+            if (winner) {
+                return {
+                    flex: '0 0 auto',
+                    width: winner.value === 'auto' ? 'auto' : (100 / parseInt(winner.value, 10)) + '%',
+                    'max-width': '100%',
+                };
+            }
+
+            // A wider breakpoint's row-cols is live in a wide window; a
+            // column with no size of its own here is a full width one
+            if (hasRowCols(col.parent()) && !columnSource(col, tier)) {
+                return { flex: '0 0 auto', width: '100%', 'max-width': '100%' };
+            }
+
+            return {};
+        }
+
+        /**
+         * The badge on a row whose columns are sized by row-cols in the view,
+         * and in the all view by its row-cols with no breakpoint.
+         */
+        function markRowCols(scope) {
+            scope.find('.row').addBack('.row').each(function() {
+                var row = $(this);
+                var source = settings.row_cols === false ? null : (curView === ALL_VIEW
+                    ? (rowColsSource(row, BREAKPOINTS[0]) || null)
+                    : rowColsSource(row, breakpoint(curView)));
+
+                if (!source) {
+                    row.removeAttr('data-ge-row-cols');
+                } else {
+                    row.attr('data-ge-row-cols', rowColsLabel(source.value));
+                }
+            });
+        }
+
+        function rowColsLabel(value) {
+            return value === 'auto' ? t('badge.row_cols_auto') : t('badge.row_cols', { count: value });
+        }
+
+        /** The core's family for the field in a row's panel. */
+        function rowColsFamily() {
+            return {
+                name: 'row-cols',
+                prefix: 'row-cols',
+                values: ROW_COLS_VALUES,
+                appliesTo: ['row'],
+                labelKey: 'utility.row_cols',
+            };
         }
 
         /* --------------------------------------------------------------
@@ -2729,8 +2922,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 var sibling = $(this);
                 if (ignore && sibling[0] === ignore[0]) { return; }
 
-                // An equal or auto column takes what is left, so it uses none
-                var size = getEffectiveSize(sibling, tier);
+                // An equal or auto column takes what is left, so it uses none;
+                // one its row sizes uses its share of the line
+                var winner = rowColsWinner(sibling, tier);
+                var size = winner ? rowColsUnits(winner) : getEffectiveSize(sibling, tier);
                 used += (isUnits(size) ? size : 0) + (getEffectiveOffset(sibling, tier) || 0);
             });
 
@@ -3259,13 +3454,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function apiCreateRow(layout, options) {
             var row = createRow();
 
-            if (layout !== undefined && !Array.isArray(layout)) {
-                warn('createRow: the layout is an array of column sizes, as in [8, 4]. ' +
-                    'Making an empty row instead.');
+            if (layout !== undefined && !Array.isArray(layout) && !(layout && layout.row_cols)) {
+                warn('createRow: the layout is an array of column sizes, as in [8, 4], or ' +
+                    '{ row_cols, columns }. Making an empty row instead.');
                 layout = [];
             }
 
-            (layout || []).forEach(function(size) {
+            if (layout && !Array.isArray(layout)) { row = rowFromLayoutValue(layout); }
+
+            (Array.isArray(layout) ? layout : []).forEach(function(size) {
                 createColumn(size).appendTo(row);
             });
 
@@ -3278,7 +3475,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function apiCreateColumn(size, options) {
             options = options || {};
 
-            if (!isUnits(size) && FLEX_SIZES.indexOf(size) === -1) {
+            // Going into a row with row-cols, no size is a size: the row's share
+            var into = $(options.appendTo || options.prependTo || []).first();
+
+            if (size === undefined && into.length && rowColsSource(into, leadingTier())) {
+                size = null;
+            } else if (!isUnits(size) && FLEX_SIZES.indexOf(size) === -1) {
                 warn('createColumn: no column size given, using ' + MAX_COL_SIZE);
                 size = MAX_COL_SIZE;
             }
@@ -3632,6 +3834,7 @@ $.fn.gridEditor.locales = {
         'tool.classes_title': 'Css classes, separated by spaces',
         'tool.toggle_class': 'Toggle "{label}" styling',
         'row.add': 'Add row {layout}',
+        'row.add_row_cols': 'Add a row of {columns} columns, {counts} per row',
         'confirm.title': 'Confirm',
         'confirm.ok': 'Delete',
         'confirm.cancel': 'Cancel',
@@ -3649,6 +3852,10 @@ $.fn.gridEditor.locales = {
         'utility.col_width': 'Width',
         'utility.col_equal': 'Equal',
         'utility.col_auto': 'Auto',
+        'utility.col_from_row': 'From the row: {count}',
+        'utility.row_cols': 'Columns per row',
+        'badge.row_cols': '{count} per row',
+        'badge.row_cols_auto': 'As wide as their content',
         'utility.default': 'Default',
         'utility.inherit': 'Inherit: {value} (from {breakpoint})',
         'utility.varies': 'Changes at {breakpoints}; choosing here replaces that',

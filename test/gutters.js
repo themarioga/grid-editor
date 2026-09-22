@@ -51,7 +51,7 @@ async function run(t) {
         };
     `);
     t.check('rows get g, gx and gy fields; columns get none',
-        plain.fields === 'g,gx,gy' && plain.columnFields === 0, plain);
+        plain.fields === 'row-cols,g,gx,gy' && plain.columnFields === 0, plain);
     t.check('a row with no gutter class keeps the editor\'s own frame',
         !plain.gutters.marked && plain.gutters.padding === '5px', plain.gutters);
 

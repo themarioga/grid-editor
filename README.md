@@ -95,8 +95,8 @@ $('#myGrid').gridEditor('method', argument);
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once |
 | `getView` | — | `String` | The view the editor is in |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
-| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])` |
-| `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`. `options`: `offset`, `content` |
+| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
+| `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` |
 | `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
@@ -188,9 +188,11 @@ __`new_row_layouts`:__ Set the column layouts that appear in the "new row" butto
 
 ```javascript
 $('#myGrid').gridEditor({
-    new_row_layouts: [[12], [6,6], [9,3], ['auto', 'equal']],
+    new_row_layouts: [[12], [6,6], [9,3], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
 });
 ```
+
+A layout can also be a row with columns per row: `{ row_cols: { xs: 1, md: 3 }, columns: 6 }` makes a `row-cols-1 row-cols-md-3` row of six columns with no size of their own.
 
 ### Column sizes
 
@@ -206,6 +208,14 @@ The width tools and dragging a column's edge work in units, so they turn an
 equal or auto column into a number, starting from the width it has on the
 canvas. Every size is in the *Width* field of a column's settings panel, in its
 Responsive section, and a change made there is a resize like any other.
+
+**Columns per row.** A row's *Columns per row* field writes Bootstrap's
+`row-cols-{bp}-{1–6,auto}`, which gives each column with no size of its own an
+equal share of a line. A column added to such a row takes its share, and the
+width tools take a column out of the share with a size of its own. Which one
+sizes a column at a breakpoint is settled as in Bootstrap's css: the class from
+the wider breakpoint wins, and at one breakpoint `col` loses to `row-cols`,
+which loses to `col-auto` and `col-N`. `row_cols: false` takes the field away.
 
 In a breakpoint view a size or an offset is written for that breakpoint. In the
 all view it is written once, as the class with no breakpoint (`col-4`,

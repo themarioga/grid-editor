@@ -60,7 +60,7 @@ async function toolTests(t, page) {
             container: has('#myGrid [data-ge-container]'),
             pane: jQuery('#myGrid .ge-pane-drawer .ge-visibility-tool').length,
             choices: col().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
-            rowChoices: row().find('> .ge-tools-drawer .ge-utility select option').map(function() { return this.value; }).get().join(','),
+            rowChoices: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value; }).get().join(','),
         };
     `);
     t.check('rows, columns, elements and containers get the eye; panes do not',

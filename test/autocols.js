@@ -26,6 +26,8 @@ var HELPERS = `
         const content = row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         return cols().map(function() { return Math.round(this.getBoundingClientRect().width / content * 12); }).get().join(',');
     };
+    /** Columns change width with a short transition; measure once it is over. */
+    window.settle = function() { return new Promise(function(resolve) { setTimeout(resolve, 250); }); };
     window.field = function(col) { return col.find('> .ge-tools-drawer .ge-utility[data-ge-family="col"] select'); };
     window.log = [];
     jQuery('#myGrid').on('grideditor:before-resize grideditor:after-resize', function(e, payload) {
@@ -127,8 +129,10 @@ async function fieldTests(t, page) {
 async function previewTests(t, page) {
     var previews = await page.eval(`
         start(['col-6 col-md-auto', 'col-6 col-md', 'col-12 col-lg']);
-        const read = function(view) { ge().changeView(view); return twelfths(); };
-        return { xs: read('xs'), md: read('md'), lg: read('lg') };
+        const read = async function(view) { ge().changeView(view); await settle(); return twelfths(); };
+        const xs = await read('xs');
+        const md = await read('md');
+        return { xs: xs, md: md, lg: await read('lg') };
     `);
     t.check('a breakpoint view shows equal and auto as that breakpoint has them',
         previews.xs === '6,6,12', previews);
