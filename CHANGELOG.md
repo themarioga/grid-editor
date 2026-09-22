@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.2.1] - 2026-09-22
+### Changed
+- `example/containers.html` shows a card too: its own row, with two columns
+  inside the card body, beside the tabs, the accordion and the popup.
+
+
 ## [3.2.0] - 2026-09-22
 ### Added
 - A card container plugin, `dist/plugins/grideditor.card.js`: a bootstrap card
