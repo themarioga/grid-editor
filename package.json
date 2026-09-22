@@ -34,7 +34,7 @@
     "comment": "A scoped package publishes restricted unless it is told otherwise.",
     "access": "public"
   },
-  "version": "4.0.0",
+  "version": "4.1.0",
   "main": "dist/jquery.grideditor.js",
   "files": [
     "dist",
