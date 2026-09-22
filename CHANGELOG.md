@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test/locales.js` holding it to the source in both directions.
 - `example/locale.html`: an example page with a language dropdown calling
   `setLocale`.
+- The settings panel on a row or a column has a css class field beside the id
+  one, so classes can be set at all rather than only toggled from a list the
+  host configured. It shows the host's own classes and leaves the grid's and
+  the editor's alone, and an emptied id field takes the id away rather than
+  leaving an empty one.
 - The stylesheet is minified too: `dist/grideditor.min.css`, with a source map,
   built and watched alongside the readable one. The task existed and was never
   run.
@@ -259,6 +264,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the column beside the content areas rather than inside one.
 - The instance handle is in place before the first `init` runs, so a host
   handler that fires during initialization can already reach the editor.
+
+- **BREAKING:** `row_classes` and `col_classes` default to `[]`. They used to
+  default to a single `Example class` toggle, which shipped a placeholder into
+  every host's interface.
 
 ### Deprecated
 - `remove`, in favour of `destroy`, which does the same thing. `remove` still

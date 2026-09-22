@@ -223,8 +223,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                                     [4, 8],
                                     [8, 4]
                                 ],
-            'row_classes'       : [{ label: 'Example class', cssClass: 'example-class'}],
-            'col_classes'       : [{ label: 'Example class', cssClass: 'example-class'}],
+            'row_classes'       : [], // Preset class toggles, on top of the classes field
+            'col_classes'       : [],
             'col_tools'         : [], /* Example:
                                         [ {
                                             title: 'Set background image',
@@ -2130,6 +2130,36 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             }
         }
 
+        /**
+         * The classes on a node that are the host's own, rather than the ones
+         * the grid and the editor put there. What the settings panel shows,
+         * and the only ones it is allowed to take away.
+         */
+        function hostClasses(node) {
+            return (node.attr('class') || '').split(/\s+/).filter(function(name) {
+                return name !== '' && !isEditorClass(name);
+            });
+        }
+
+        function isEditorClass(name) {
+            if (name === 'row' || name === 'column') { return true; }
+            if (/^(ge-|ui-)/.test(name)) { return true; }
+
+            return BREAKPOINTS.some(function(tier) {
+                return new RegExp('^(' + tier.colPrefix + '|' + tier.offsetPrefix + ')\\d+$').test(name);
+            });
+        }
+
+        function setHostClasses(node, value) {
+            hostClasses(node).forEach(function(name) { node.removeClass(name); });
+
+            value.split(/\s+/).forEach(function(name) {
+                if (name !== '') { node.addClass(name); }
+            });
+
+            if (!node.attr('class')) { node.removeAttr('class'); }
+        }
+
         function createDetails(container, cssClasses) {
             var detailsDiv = $('<div class="ge-details" />');
 
@@ -2138,8 +2168,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .val(container.attr('id'))
                 .attr('title', t('tool.id_title'))
                 .appendTo(detailsDiv)
-                .change(function() {
-                    container.attr('id', this.value);
+                .on('change', function() {
+                    // An empty field means no id, not an empty one
+                    if (this.value === '') {
+                        container.removeAttr('id');
+                    } else {
+                        container.attr('id', this.value);
+                    }
+                })
+            ;
+
+            $('<input class="ge-classes" />')
+                .attr('placeholder', t('tool.classes_placeholder'))
+                .attr('title', t('tool.classes_title'))
+                .val(hostClasses(container).join(' '))
+                .appendTo(detailsDiv)
+                .on('change', function() {
+                    setHostClasses(container, this.value);
                 })
             ;
 
@@ -3000,6 +3045,8 @@ $.fn.gridEditor.locales = {
         'tool.preview': 'Preview',
         'tool.id_placeholder': 'id',
         'tool.id_title': 'Set a unique identifier',
+        'tool.classes_placeholder': 'classes',
+        'tool.classes_title': 'Css classes, separated by spaces',
         'tool.toggle_class': 'Toggle "{label}" styling',
         'row.add': 'Add row {layout}',
         'container.add_tabs': 'Tabs',

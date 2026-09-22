@@ -149,11 +149,18 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`row_classes`:__ Set the css classes that the user can toggle on the rows, under the settings button.
+The settings button on a row or a column opens a panel with two fields: the
+node's `id`, and its css classes. The classes field shows what your markup put
+there and nothing else — the grid classes, and everything else the editor
+writes, are not yours to lose and are not shown.
+
+__`row_classes`:__ Preset classes the user can toggle from that panel, as
+buttons beside the two fields. Empty by default; the classes field covers the
+general case, and this is for the handful a host wants one click away.
 
 ```javascript
 $('#myGrid').gridEditor({
-    row_classes: [{label: 'Example class', cssClass: 'example-class'}],
+    row_classes: [{ label: 'Dark', cssClass: 'my-app-dark' }],
 });
 ```
 

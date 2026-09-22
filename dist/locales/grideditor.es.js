@@ -37,6 +37,8 @@
         'tool.preview': 'Vista previa',
         'tool.id_placeholder': 'id',
         'tool.id_title': 'Asignar un identificador único',
+        'tool.classes_placeholder': 'clases',
+        'tool.classes_title': 'Clases css, separadas por espacios',
         'tool.toggle_class': 'Aplicar o quitar el estilo "{label}"',
         'row.add': 'Añadir fila {layout}',
         'container.add_tabs': 'Pestañas',

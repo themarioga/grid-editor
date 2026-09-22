@@ -46,6 +46,8 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.preview` | Preview | Toolbar, hides the editing furniture while held |
 | `tool.id_placeholder` | id | Placeholder of the id input in the settings panel |
 | `tool.id_title` | Set a unique identifier | Tooltip of that input |
+| `tool.classes_placeholder` | classes | Placeholder of the css class input beside it |
+| `tool.classes_title` | Css classes, separated by spaces | Tooltip of that input |
 | `tool.toggle_class` | Toggle "{label}" styling | Tooltip of a `row_classes`/`col_classes` button. `{label}` is the host's label |
 
 
