@@ -1,25 +1,33 @@
-Writing a container plugin
-==========================
+Writing a plugin
+================
 
-Tabs, accordions and popups are not built into grid-editor: each is a file you
-load beside it, and loading the file is what makes the type available.
+Tabs, accordions, popups and the element level controls are not built into
+grid-editor: each is a file you load beside it, and loading the file is what
+turns the feature on.
 
 ```html
 <script src="dist/jquery.grideditor.min.js"></script>
 <script src="dist/plugins/grideditor.tabs.min.js"></script>
 <script src="dist/plugins/grideditor.popup.min.js"></script>
+<script src="dist/plugins/grideditor.elements.min.js"></script>
 ```
 
-The toolbar then offers a button per loaded plugin. The `plugins` setting
-narrows that list when a page loads more than it wants to offer:
+There are two kinds. A **container plugin** builds a type of container — it
+registers under `$.fn.gridEditor.containers`, and the toolbar offers a button
+for it. A **feature plugin** is anything else the editor can do —
+`$.fn.gridEditor.features`, hooks into the canvas, and may contribute methods.
+Both are factories called once per editor with the same handle.
+
+The `plugins` setting names which of the loaded ones to use:
 
 ```javascript
-$('#myGrid').gridEditor({ plugins: ['tabs'] });
+$('#myGrid').gridEditor({ plugins: ['tabs', 'elements'] });
 ```
 
-A type that is named but never loaded logs one warning and changes nothing
-else. A container in the markup whose plugin is not loaded is left alone: no
-drawer, no tools, and `getHtml` gives it back as it found it.
+Every loaded plugin is used when the setting is not given. A name that was
+never loaded logs one warning and changes nothing else. A container in the
+markup whose plugin is not loaded is left alone: no drawer, no tools, and
+`getHtml` gives it back as it found it.
 
 
 The shape of a plugin
@@ -88,6 +96,10 @@ not change without a major version.
 | `ge.containerId(type)` | A generated id, stable across a reset, for Bootstrap's toggles |
 | `ge.defaultRegion()` | A row with one full width column: what an empty pane starts as |
 | `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer |
+| `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one |
+| `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens |
+| `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
+| `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete |
 | `ge.makeLabelEditable(label)` | Rename in place, with the Bootstrap toggle suspended while typing |
 | `ge.labelIn(button)` | The label span inside a button, wrapped if it is not already |
@@ -100,6 +112,38 @@ not change without a major version.
 The add, delete and move events for a container and its panes are fired by the
 editor, not by the plugin: `createPaneControls` handles a pane's delete, and
 the toolbar and the drawer handle the adds.
+
+
+Feature plugins
+---------------
+
+A feature plugin returns hooks rather than a container definition:
+
+```javascript
+$.fn.gridEditor.features.elements = function(ge) {
+    return {
+        methods: { createElement: … },   // added to the editor's own methods
+        kindOf: function(node) { … },    // what an event calls this node
+        onInit: function() { … },        // every init: put the furniture in
+        onDeinit: function() { … },      // every deinit: take it out again
+        onContentReady: function(area) { … },  // a rich text editor just took over
+        onSortable: function(shared) { … },    // make your own sortables
+    };
+};
+```
+
+- **`onSortable(shared)`** is handed the options the editor's own sortables
+  use — the handle, the cancel selector, the start and stop handlers — so a
+  plugin's sortables answer to `drag_handle` and fire the move events like
+  everything else.
+- **`methods`** are added to the instance handle. A method the editor
+  documents but a plugin implements — `createElement` — warns and returns null
+  when the plugin is not loaded.
+- **`kindOf(node)`** returns the `kind` an event should carry for a node the
+  plugin owns, or null.
+
+The core's own sortables and the plugins' are taken down together: jQuery UI
+marks what it made, so a plugin does not have to unmake it.
 
 
 What the editor does for you

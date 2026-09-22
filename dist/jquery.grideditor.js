@@ -654,6 +654,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function kindOf(node) {
+            var fromPlugin = null;
+
+            $.each(FEATURES, function(name, feature) {
+                if (!fromPlugin && feature.kindOf) { fromPlugin = feature.kindOf(node); }
+            });
+            if (fromPlugin) { return fromPlugin; }
+
             if (node.attr('data-ge-container')) { return node.attr('data-ge-container'); }
             if (node.hasClass('ge-tab')) { return 'tab'; }
             if (node.hasClass('ge-accordion-item')) { return 'accordion-item'; }
@@ -708,7 +715,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // which costs the element drawers inside it. The integrations say
             // when their editor is ready, and the drawers go back in.
             canvas.on('ge-rte-ready', '.ge-content', function() {
-                markElements();
+                plugins('onContentReady', $(this));
             });
         }
 
@@ -1037,8 +1044,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             createRowControls();
             createColControls();
             markContainers();
-            containerPlugins('onInit');
-            markElements();
+            plugins('onInit');
             makeSortable();
             makeResizable();
             switchLayout(curView);
@@ -1061,9 +1067,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             closeSizePicker();
             hideDropMarker();
             canvas.find('.ge-tools-drawer').remove();
-            containerPlugins('onDeinit');
+            plugins('onDeinit');
             unmarkContainers();
-            unmarkElements();
             removeSortable();
             removeResizable();
             runFilter(false);
@@ -1098,27 +1103,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             destroy();
         }
 
-        /* --------------------------------------------------------------
-         * Element level controls.
-         *
-         * An element is a node inside a content area that the editor treats
-         * as one movable, deletable thing instead of as rich text. Which
-         * nodes those are is the host's decision: it marks them, or it turns
-         * elements.auto on and every child of a content area counts.
-         * -------------------------------------------------------------- */
-
-        function elementsEnabled() {
-            if (settings.elements.enabled !== 'auto') { return !!settings.elements.enabled; }
-
-            return settings.elements.auto || canvas.find(settings.elements.selector).length > 0;
-        }
 
         /** The elements of one content area: its marked children, or all of them. */
-        function elementsIn(contentArea) {
-            return settings.elements.auto
-                ? contentArea.children()
-                : contentArea.children(settings.elements.selector);
-        }
 
         /**
          * Give every element its class, its drawer and, while editing, the
@@ -1130,72 +1116,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * content area can drop it, and the marking that identifies an
          * element lives in a data attribute for exactly that reason.
          */
-        function markElements() {
-            if (!elementsEnabled()) { return; }
 
-            canvas.find('.ge-content').each(function() {
-                elementsIn($(this)).each(function() {
-                    var element = $(this).addClass('ge-element').attr('contenteditable', 'false');
 
-                    if (element.find('> .ge-tools-drawer').length) { return; }
-
-                    createElementControls(element);
-                });
-            });
-        }
-
-        function unmarkElements() {
-            canvas.find('.ge-element').each(function() {
-                var element = $(this).removeClass('ge-element').removeAttr('contenteditable');
-
-                // A host element that had no class of its own should not come
-                // back from getHtml carrying an empty one
-                if (!element.attr('class')) { element.removeAttr('class'); }
-            });
-        }
-
-        function createElementControls(element) {
-            // data-mce-bogus="all" is how tinyMCE is told that a node is the
-            // editor's furniture rather than content: it leaves the subtree
-            // alone and keeps it out of what it serializes. Without it the
-            // drawer's tools are inline elements with no text, which is
-            // exactly what its cleanup removes, so an element inside an open
-            // editor would lose its move and delete tools.
-            var drawer = $('<div class="ge-tools-drawer ge-element-drawer" />')
-                .attr('data-mce-bogus', 'all')
-                .prependTo(element)
-            ;
-
-            createMoveTool(drawer);
-            createTool(drawer, t('tool.element_info', { name: elementName(element) }),
-                'ge-element-info', 'bi bi-info-circle');
-            addSettingsTool(drawer, element, settings.element_classes);
-
-            settings.element_tools.forEach(function(hostTool) {
-                createTool(drawer, hostTool.title || '', hostTool.className || '',
-                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-            });
-
-            createTool(drawer, t('tool.delete_element'), 'ge-delete-element', 'bi bi-trash', function() {
-                deleteNode('element', element, t('confirm.delete_element'), function(removed) {
-                    element.animate({ opacity: 'hide', height: 'hide' }, 300, removed);
-                });
-            });
-        }
 
         /**
          * What the info tool calls this element: its label, its type, or both.
          * An element found by elements.auto has neither, so it is named after
          * its tag, which is the only thing it has said about itself.
          */
-        function elementName(element) {
-            var type = element.attr('data-ge-element');
-            var label = element.attr('data-ge-label');
-
-            if (label && type) { return label + ' (' + type + ')'; }
-
-            return label || type || element[0].tagName.toLowerCase();
-        }
 
         /**
          * The container plugins this editor is using: the ones registered by
@@ -1206,25 +1134,50 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * that handle, because the closure it runs outside of is not
          * something it can see.
          */
-        function loadContainerPlugins() {
-            var api = containerApi();
+        function loadPlugins() {
+            var api = pluginApi();
+            var wanted = function(name) {
+                return !settings.plugins || settings.plugins.indexOf(name) !== -1;
+            };
 
             $.each($.fn.gridEditor.containers, function(type, factory) {
-                if (settings.plugins && settings.plugins.indexOf(type) === -1) { return; }
-
-                CONTAINERS[type] = factory(api);
+                if (wanted(type)) { CONTAINERS[type] = factory(api); }
             });
 
-            (settings.plugins || []).forEach(function(type) {
-                if (CONTAINERS[type]) { return; }
+            $.each($.fn.gridEditor.features, function(name, factory) {
+                if (wanted(name)) { FEATURES[name] = factory(api); }
+            });
 
-                warnOnceHere('plugin:' + type, 'the "' + type + '" container plugin is not ' +
-                    'loaded: include dist/plugins/grideditor.' + type + '.js after the editor');
+            $.each(FEATURES, function(name, feature) {
+                $.each(feature.methods || {}, function(method, implementation) {
+                    featureMethods[method] = implementation;
+                });
+            });
+
+            (settings.plugins || []).forEach(function(name) {
+                if (CONTAINERS[name] || FEATURES[name]) { return; }
+
+                warnOnceHere('plugin:' + name, 'the "' + name + '" plugin is not loaded: ' +
+                    'include dist/plugins/grideditor.' + name + '.js after the editor');
             });
         }
 
-        /** What a container plugin is handed. See docs/plugins.md. */
-        function containerApi() {
+        /**
+         * A hook every loaded plugin may have. Containers first, since a
+         * feature that looks at the canvas - elements, say - wants the
+         * containers already marked.
+         */
+        function plugins(hook, argument) {
+            $.each(CONTAINERS, function(type, definition) {
+                if (definition[hook]) { definition[hook](argument); }
+            });
+            $.each(FEATURES, function(name, feature) {
+                if (feature[hook]) { feature[hook](argument); }
+            });
+        }
+
+        /** What a plugin is handed. See docs/plugins.md. */
+        function pluginApi() {
             return {
                 canvas: canvas,
                 settings: settings,
@@ -1233,6 +1186,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 containerId: containerId,
                 defaultRegion: defaultRegion,
                 createTool: createTool,
+                createMoveTool: createMoveTool,
+                addSettingsTool: addSettingsTool,
+                deleteNode: deleteNode,
+                place: place,
                 createPaneControls: createPaneControls,
                 makeLabelEditable: makeLabelEditable,
                 labelIn: labelIn,
@@ -1243,13 +1200,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 payloadFor: payloadFor,
                 operate: operate,
             };
-        }
-
-        /** Run a hook every loaded plugin may have, in registration order. */
-        function containerPlugins(hook) {
-            $.each(CONTAINERS, function(type, definition) {
-                if (definition[hook]) { definition[hook](); }
-            });
         }
 
         /* --------------------------------------------------------------
@@ -1265,7 +1215,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * restyling the markup cannot break detection and getHtml stays clean.
          * -------------------------------------------------------------- */
 
-        var CONTAINERS = {}; // The plugins in use, by the type each one builds
+        var CONTAINERS = {}; // The container plugins in use, by the type each builds
+        var FEATURES = {}; // The feature plugins in use, by name
+        var featureMethods = {}; // The methods those features contribute
         var containerCounter = 0;
 
         /**
@@ -2082,14 +2034,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 connectWith: '.ge-canvas .ge-container-accordion > .accordion',
             }, shared, settings.sortable_options));
 
-            // Elements move within a content area and between them, with
-            // their own drawer as the handle
-            if (elementsEnabled()) {
-                canvas.find('.ge-content').sortable($.extend({
-                    items: '> .ge-element',
-                    connectWith: '.ge-canvas .ge-content',
-                }, shared, settings.sortable_options));
-            }
+            // A plugin makes its own: only it knows which of its parts move
+            plugins('onSortable', shared);
 
             /**
              * jQuery UI cannot refuse a drag once it has started, so a
@@ -2330,9 +2276,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // Only where a sortable was actually made: deinit() is a public
             // method now, and jQuery UI throws when asked to destroy a widget
             // that is not there, so calling deinit() twice would fail.
-            canvas.add(canvas.find('.column')).add(canvas.find('.row'))
-                .add(canvas.find('.ge-content')).add(canvas.find('.nav-tabs'))
-                .add(canvas.find('.accordion')).each(function() {
+            // jQuery UI marks what it made, so a plugin's sortables come
+            // away with the editor's without the core knowing about them
+            canvas.find('.ui-sortable').addBack('.ui-sortable').each(function() {
                 var node = $(this);
                 if (node.data('ui-sortable')) {
                     node.sortable('destroy');
@@ -2463,19 +2409,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * Host markup wrapped as a grid-editor element (spec 4.5). What is
          * inside stays the host's; grid-editor owns the wrapper only.
          */
-        function apiCreateElement(content, options) {
-            options = options || {};
-
-            var element = $('<div class="ge-element" />')
-                .attr('data-ge-element', options.type || 'element')
-                .append(content)
-            ;
-            if (options.label !== undefined) {
-                element.attr('data-ge-label', options.label);
-            }
-
-            return place(element, 'element', options);
-        }
 
         /**
          * A shallow frozen copy of the settings for the instance handle, so a
@@ -2649,7 +2582,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             getView: getView,
             createRow: apiCreateRow,
             createColumn: apiCreateColumn,
-            createElement: apiCreateElement,
+            createElement: function(content, options) {
+                if (!featureMethods.createElement) {
+                    warnOnceHere('plugin:elements', 'createElement needs the elements plugin: ' +
+                        'include dist/plugins/grideditor.elements.js after the editor');
+                    return null;
+                }
+
+                return featureMethods.createElement(content, options);
+            },
             createContainer: apiCreateContainer,
             addTab: function(container, options) { return addPaneTo(container, 'tabs', options); },
             addAccordionItem: function(container, options) {
@@ -2673,7 +2614,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         baseElem.data('grideditor', handle);
 
-        loadContainerPlugins();
+        loadPlugins();
         setup();
         init();
 
@@ -2698,6 +2639,15 @@ $.fn.gridEditor.RTEs = {};
  */
 $.fn.gridEditor.containers = {};
 
+/**
+ * Feature plugins: a piece of the editor that is not a container type, in a
+ * file of its own. Element level controls are one. Same bargain as a
+ * container plugin - a factory under its name, called once per editor with
+ * the handle in docs/plugins.md - and the same `plugins` setting decides
+ * which of the loaded ones are used.
+ */
+$.fn.gridEditor.features = {};
+
 /** Translator for the editor integrations, which get settings and no instance. */
 $.fn.gridEditor.t = translate;
 
@@ -2721,11 +2671,9 @@ $.fn.gridEditor.locales = {
         'tool.column_size': '{size} of 12',
         'tool.delete_row': 'Remove row',
         'tool.delete_column': 'Remove col',
-        'tool.delete_element': 'Remove element',
         'tool.delete_container': 'Remove container',
         'tool.delete_pane': 'Remove pane',
         'tool.rename': 'Double click to rename',
-        'tool.element_info': 'Element: {name}',
         'tool.column_narrower': 'Make column narrower\n(hold shift for min)',
         'tool.column_wider': 'Make column wider\n(hold shift for max)',
         'tool.indent_decrease': 'Decrease indent\n(hold shift for none)',
@@ -2743,7 +2691,6 @@ $.fn.gridEditor.locales = {
         'confirm.cancel': 'Cancel',
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
-        'confirm.delete_element': 'Delete element?',
         'confirm.delete_container': 'Delete this container and everything in it?',
         'view.all': 'All sizes',
         'view.xs': 'Phone',

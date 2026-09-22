@@ -107,6 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example/elements.html`, including the pattern for an element with no visual
   output of its own: the host supplies a placeholder and its own tools, which
   is all spec 4.4 asks for.
+- The element level controls are a plugin too,
+  `dist/plugins/grideditor.elements.js`, registered under
+  `$.fn.gridEditor.features`: a feature plugin hooks into the canvas rather
+  than building a container type, and may contribute methods - `createElement`
+  says so and returns null when the plugin is not loaded.
 - Container plugins. Tabs, accordions and popups are not in the main bundle:
   each is a file under `dist/plugins/`, and loading it is what makes the type
   available, the way loading a locale file adds a language. A page takes the

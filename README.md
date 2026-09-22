@@ -310,7 +310,14 @@ __`resizable_options`:__ Merged into every jQuery UI resizable.
 ### Elements
 
 An element is a node inside a content area that the editor treats as one
-movable, deletable thing instead of as rich text. You mark them:
+movable, deletable thing instead of as rich text. It is a plugin, like the
+containers:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.elements.min.js"></script>
+```
+
+You mark the elements themselves:
 
 ```html
 <div class="ge-content">
@@ -354,10 +361,10 @@ it available:
 The toolbar offers a button per loaded plugin. See [docs/plugins.md](docs/plugins.md)
 for the contract, and for writing one of your own.
 
-__`plugins`:__ Which of the loaded container plugins to use. Every one by default; name them to offer fewer than the page loaded.
+__`plugins`:__ Which of the loaded plugins to use, containers and features alike. Every one by default; name them to use fewer than the page loaded.
 
 ```javascript
-$('#myGrid').gridEditor({ plugins: ['tabs'] });
+$('#myGrid').gridEditor({ plugins: ['tabs', 'elements'] });
 ```
 
 __`container_tools`, `tab_tools`, `accordion_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
