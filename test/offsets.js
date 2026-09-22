@@ -48,17 +48,26 @@ async function toolTests(t) {
 
     var present = await page.eval(canvasOf([[6], [6]]) + `
         window.fixture.init();
+        const drawer = jQuery('#myGrid .column').first().find('> .ge-tools-drawer');
+        const icon = function(tool) { return drawer.find('.' + tool + ' i').attr('class'); };
+
         return {
-            tools: jQuery('#myGrid .column').first().find('> .ge-tools-drawer > a')
-                .map(function() { return jQuery(this).attr('class'); }).get(),
-            titles: jQuery('#myGrid .column').first()
-                .find('> .ge-tools-drawer .ge-increase-col-offset').attr('title'),
+            tools: drawer.find('> a').map(function() { return jQuery(this).attr('class'); }).get(),
+            titles: drawer.find('.ge-increase-col-offset').attr('title'),
+            // Bootstrap names these after the side the text is indented from,
+            // so the icon that points right is the one called -left
+            increaseIcon: icon('ge-increase-col-offset'),
+            decreaseIcon: icon('ge-decrease-col-offset'),
         };
     `);
     t.check('a column drawer has an indent tool either side of the width tools',
         present.tools.indexOf('ge-decrease-col-offset') !== -1 &&
         present.tools.indexOf('ge-increase-col-offset') !== -1 &&
         present.titles === 'Increase indent\n(hold shift for max)',
+        present);
+    t.check('the indent tools point the way they act',
+        present.increaseIcon === 'bi bi-text-indent-left' &&
+        present.decreaseIcon === 'bi bi-text-indent-right',
         present);
 
     var stepped = await page.eval(UNITS + canvasOf([[4], [4]]) + `

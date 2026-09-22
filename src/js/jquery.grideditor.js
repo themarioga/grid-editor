@@ -1612,14 +1612,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     resizeColumn(col, e.shiftKey ? widestFor(col) : stepThrough(settings.valid_col_sizes, currentSize(col), 1), 'tool');
                 });
 
-                createTool(drawer, t('tool.indent_decrease'), 'ge-decrease-col-offset', 'bi bi-text-indent-left', function(e) {
+                createTool(drawer, t('tool.indent_decrease'), 'ge-decrease-col-offset', 'bi bi-text-indent-right', function(e) {
                     indentColumn(col, e.shiftKey
                         ? smallest(settings.valid_col_offsets)
                         : stepThrough(settings.valid_col_offsets, currentOffset(col), -1),
                         'tool');
                 });
 
-                createTool(drawer, t('tool.indent_increase'), 'ge-increase-col-offset', 'bi bi-text-indent-right', function(e) {
+                createTool(drawer, t('tool.indent_increase'), 'ge-increase-col-offset', 'bi bi-text-indent-left', function(e) {
                     indentColumn(col, e.shiftKey ? deepestFor(col) : stepThrough(settings.valid_col_offsets, currentOffset(col), 1), 'tool');
                 });
 
