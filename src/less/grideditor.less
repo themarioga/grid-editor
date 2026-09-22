@@ -449,11 +449,18 @@
     .ge-columns-on(@prefix, (@i + 1));
 }
 
+/*
+ * Switching a tier off means giving the column back to bootstrap's default
+ * for a row child - full width, stacked - which is what a browser really
+ * shows for a column that says nothing about the tier being previewed.
+ * Leaving it at width auto sizes it to its content instead, and a column of
+ * text then runs straight out of a narrow canvas.
+ */
 .ge-columns-off(@prefix, @i: 1) when (@i =< @ge-columns) {
     .@{prefix}-@{i} {
         flex: 0 0 auto;
-        width: auto;
-        max-width: none;
+        width: 100%;
+        max-width: 100%;
     }
     .ge-columns-off(@prefix, (@i + 1));
 }

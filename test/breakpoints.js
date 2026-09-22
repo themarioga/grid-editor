@@ -151,6 +151,44 @@ async function effectiveClassTests(t) {
         JSON.stringify(cascaded.xl) === '[4,6]' && JSON.stringify(cascaded.xxl) === '[4,6]',
         cascaded);
 
+    // What a browser really shows below the tier a column was sized for:
+    // stacked, full width, and inside the canvas
+    var unsizedTier = await page.eval(MEASURE + `
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html(
+            '<div class="row">' +
+            '<div class="column col-lg-4"><div class="ge-content"><p>One, with enough text in it to be wider than a phone canvas if it were left to size itself.</p></div></div>' +
+            '<div class="column col-lg-4"><div class="ge-content"><p>Two, likewise.</p></div></div>' +
+            '<div class="column col-lg-4"><div class="ge-content"><p>Three, likewise.</p></div></div>' +
+            '</div>'
+        );
+        window.fixture.init();
+
+        const set = jQuery('#myGrid');
+        const columns = jQuery('#myGrid .column');
+        const seen = {};
+
+        for (const view of ['lg', 'sm', 'xs']) {
+            set.gridEditor('changeView', view);
+            await settle();
+
+            const canvas = set[0].getBoundingClientRect();
+            seen[view] = {
+                units: units(columns[0], 'width'),
+                overflowing: columns.filter(function() {
+                    return this.getBoundingClientRect().right > canvas.right + 1;
+                }).length,
+            };
+        }
+
+        return seen;
+    `);
+    t.check('a column sized only for a wider tier stacks full width in a narrower view, inside the canvas',
+        unsizedTier.lg.units === 4 && unsizedTier.sm.units === 12 && unsizedTier.xs.units === 12 &&
+        unsizedTier.lg.overflowing === 0 && unsizedTier.sm.overflowing === 0 &&
+        unsizedTier.xs.overflowing === 0,
+        unsizedTier);
+
     var offsets = await page.eval(MEASURE + `
         jQuery('#myGrid').gridEditor('destroy');
         jQuery('#myGrid').html(
