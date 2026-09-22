@@ -4,3 +4,7 @@ npm-debug.log
 
 # Screenshots taken by the browser tests
 test/screenshots/
+
+# The 3.0 specification and implementation plan: working documents, kept
+# beside the code rather than in it
+claude_docs/

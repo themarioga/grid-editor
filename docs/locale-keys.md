@@ -8,9 +8,9 @@ key in the code that is missing here fails the build, and so does a key here
 that no longer exists in the code.
 
 English lives in `$.fn.gridEditor.locales.en`, inside the main bundle, and is
-where every lookup ends. Shipped locales (currently `es`) translate all of it;
-see `docs/spec-3.0.md` section 7 for the rules, and `src/js/locales/` for the
-files.
+where every lookup ends. Shipped locales (currently `es`) translate all of it,
+and `test/locales.js` fails the build when one falls behind. The files are in
+`src/js/locales/`.
 
 Lookup order for a key is `locale_strings` → `locales[locale]` → `locales.en` →
 the key itself. A key nothing defines is shown as the key, and logs once.
@@ -135,6 +135,6 @@ all the same: the developer reading them is the one who chose the locale.
 Namespaces not in use yet
 -------------------------
 
-`element.*` and `column.*` are reserved by `docs/spec-3.0.md` section 7.3 and
-have no keys yet: the element and offset strings that exist live under
-`tool.*` and `confirm.*`, next to the tools they belong to.
+`element.*` and `column.*` are reserved and have no keys yet: the element and
+offset strings that exist live under `tool.*` and `confirm.*`, next to the
+tools they belong to.

@@ -19,8 +19,8 @@ and every locale file in `src/js/locales/` as a file of its own under
 `dist/locales/`. Locale files are
 deliberately not part of the main bundle: a page loads only the languages it
 offers. English is the exception and lives in the bundle, because it is the
-fallback every string lookup ends at. See `docs/locale-keys.md` for the keys
-and `docs/spec-3.0.md` section 7 for the rules.
+fallback every string lookup ends at. See `docs/locale-keys.md` for the keys,
+and `src/js/locales/grideditor.es.js` for what a locale file looks like.
 
 Running the tests
 =================
