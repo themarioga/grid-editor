@@ -6,7 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [Unreleased]
+### Changed
+- **The all view writes one class.** A size or an offset set in the all view
+  is written as the class with no breakpoint (`col-4`, `offset-2`), and the
+  breakpoints' own sizes or offsets are taken off, as the utilities have done
+  since 4.1. Up to 4.x it wrote all six breakpoints. The resize and indent
+  payloads carry `cleared`, with what was taken off.
+- Resize payloads' `from` and `to` can be `'equal'` or `'auto'`, and `source`
+  can be `panel`.
+
 ### Added
+- Equal and auto column sizes: Bootstrap's `col` and `col-auto`, at every
+  breakpoint. The editor recognises them, previews them in each view, offers
+  them in the add column picker and in `new_row_layouts`, `createRow` and
+  `createColumn`, and the width tools turn them into a number starting from
+  the width the column has. A column with only `col` used to be no column at
+  all, and a `col-auto` one was given a `col-12` that overrode it.
+- A *Width* field in each column's Responsive section, with every size.
 - The `textalign` utility plugin: `text-{bp}-start`, `-center` and `-end` on
   rows, columns, elements and containers. With no class applying in a view, the
   preview shows what the node inherits from its parent or the host's css.

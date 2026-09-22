@@ -226,7 +226,7 @@ async function panelTests(t, page) {
         };
     `);
     t.check('each node\'s panel offers the families that apply to its kind',
-        panels.columnFamilies === 'order' && panels.rowFamilies === 'justify', panels);
+        panels.columnFamilies === 'col,order' && panels.rowFamilies === 'justify', panels);
     t.check('the Responsive section starts folded',
         panels.folded, panels);
     t.check('drawerTools runs for every drawer with a gear, right after it',
@@ -394,7 +394,7 @@ async function customPanelTests(t, page) {
         return read;
     `);
     t.check('a family with panel false gets no field of its own',
-        custom.columnFamilies === 'order', custom);
+        custom.columnFamilies === 'col,order', custom);
     t.check('a plugin\'s own panel is placed in the section, and its utilityField follows the classes',
         custom.customField === 1 && custom.rowFields === 2 && custom.customValue === 'end', custom);
     t.check('a plugin\'s own preview is applied per breakpoint view, and not in the all view',
@@ -422,7 +422,7 @@ async function pluginSettingTests(t, page) {
         window.fixture.teardown();
         window.fixture.init({ plugins: ['card'] });
         return {
-            fields: jQuery('#myGrid .ge-utility').length,
+            fields: jQuery('#myGrid ' + '.ge-utility:not([data-ge-family="col"])').length,
             tools: jQuery('#myGrid .ge-testing-tool').length,
             set: ge().setUtility(col(), 'order', 2),
             classes: classes(col()),

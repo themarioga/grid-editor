@@ -45,7 +45,8 @@ async function run(t) {
         start('');
         return {
             fields: row().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
-            columnFields: col().find('> .ge-tools-drawer .ge-utility').length,
+            // The width field is the core's, on every column
+            columnFields: col().find('> .ge-tools-drawer ' + '.ge-utility:not([data-ge-family="col"])').length,
             gutters: gutters(),
         };
     `);

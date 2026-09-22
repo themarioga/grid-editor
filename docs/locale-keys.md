@@ -30,6 +30,8 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.add_row` | Add row | Column drawer, adds a nested row |
 | `tool.add_column` | Add column\n(hold to choose the width) | Row drawer. A click adds a column, holding the tool offers the widths. Two lines |
 | `tool.column_size` | {size} of 12 | Tooltip of a width in that picker |
+| `tool.column_equal` | Equal: shares what the row has left | The `equal` choice in that picker, which adds a `col` |
+| `tool.column_auto` | Auto: as wide as its content | The `auto` choice in that picker, which adds a `col-auto` |
 | `tool.delete_row` | Remove row | Row drawer |
 | `tool.delete_column` | Remove col | Column drawer |
 | `tool.delete_element` | Remove element | Element drawer |
@@ -131,6 +133,9 @@ The labels of each utility and its values are the plugins' own keys.
 | Key | English | Where |
 | --- | --- | --- |
 | `utility.section` | Responsive: {view} | The section's fold toggle. `{view}` is the label of the view being edited |
+| `utility.col_width` | Width | The column width field, in a column's Responsive section |
+| `utility.col_equal` | Equal | Its choice for `col` / `col-{bp}` |
+| `utility.col_auto` | Auto | Its choice for `col-auto` / `col-{bp}-auto` |
 | `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
 | `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
 | `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |

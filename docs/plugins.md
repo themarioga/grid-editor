@@ -118,7 +118,7 @@ not change without a major version.
 | `ge.operate(body)` | Run `body` as one operation, so a handler calling back in is queued |
 | `ge.kindOf(node)` | What an event calls a node: `row`, `column`, `element`, a container's type… |
 | `ge.view()` | The view being edited: a breakpoint key, or `'all'` |
-| `ge.viewTiers()` | The breakpoint keys that view writes: one, or all six |
+| `ge.viewTiers()` | The breakpoint key that view writes: the one being edited, or `xs` - the class with no breakpoint - in the all view |
 | `ge.breakpoints` | Every breakpoint key, smallest first |
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
@@ -209,6 +209,8 @@ $.fn.gridEditor.utilities.order = function(ge) {
             label: function(value) { … },  // an option's text, optional: the value itself otherwise
             choices: function(node, kind) { … },   // what to offer this node, optional: every value otherwise
             panel: false,                          // optional: no field of its own, see "A panel of your own"
+            className: function(breakpoint, value) { … },   // optional, for classes not spelled {prefix}-{bp}-{value}
+            write: function(node, value, view, source) { … }, // optional, a write that is some other operation
             preview: function(value, node, kind) { // what the value looks like, see below
                 return { order: value === null ? 0 : value };
             },
@@ -278,6 +280,13 @@ their families settle one property between them — `p-3` and `pt-md-1` both
 set the top padding. A plugin-level `preview(node, kind, breakpoint)` is called
 for every node in a breakpoint view, after the families' own, and returns the
 styles for the node or an empty object.
+
+Two escape hatches, which the column width uses: `className(breakpoint,
+value)` spells the classes of a family that does not follow the pattern
+(`col`, `col-md`, `col-md-auto`), and `write(node, value, view, source)` does a
+write some other way than a utility change - the width field's writes are
+resizes, through the resize events. The editor still checks the value and the
+node before it calls `write`.
 
 Two plugins cannot declare the same family name: the second one is ignored,
 with a warning.

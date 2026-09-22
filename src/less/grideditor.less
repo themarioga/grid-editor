@@ -44,6 +44,8 @@
         
         .ge-row-icon {
             width: 48px;
+            /* A button shrinks to its content, and an equal column has none */
+            flex: 0 0 48px;
             margin: 0;
             
             .column {
@@ -51,6 +53,10 @@
                 background: #666;
                 padding: 0;
                 border-left: 2px solid #f4f4f4;
+            }
+            /* Nothing inside to be as wide as */
+            .col-auto {
+                min-width: 8px;
             }
         }
     }
@@ -316,6 +322,10 @@
         position: relative;
         
         > .ge-tools-drawer {
+            /* The drawer is not content: an auto column is as wide as what
+               it holds, and its tools would make it as wide as a drawer */
+            contain: inline-size;
+
             a {
                 color: @colTextColor;
             }
@@ -370,6 +380,13 @@
                 background: @colColor;
                 border-color: @colColor;
                 color: #fff;
+            }
+
+            /* col and col-auto: a word, not a number */
+            &.ge-size-flex {
+                width: auto;
+                padding-left: 5px;
+                padding-right: 5px;
             }
 
             /* Wider than what is left of the row: allowed, but said so */
@@ -646,14 +663,41 @@
     /* this tier applies at the active one, so it is written by the pass below */
 }
 .ge-tier-above-off(@j, @active) when (@j > @active) {
+    .ge-flex-columns-off(extract(@ge-col-prefixes, @j));
     .ge-columns-off(extract(@ge-col-prefixes, @j));
     .ge-offsets-off(extract(@ge-offset-prefixes, @j));
 }
 
 .ge-tiers-upto-on(@active, @j: 1) when (@j =< @active) {
+    .ge-flex-columns-on(extract(@ge-col-prefixes, @j));
     .ge-columns-on(extract(@ge-col-prefixes, @j));
     .ge-offsets-on(extract(@ge-offset-prefixes, @j));
     .ge-tiers-upto-on(@active, @j + 1);
+}
+
+/*
+ * col and col-auto, in the order Bootstrap writes them: before the numbered
+ * sizes, so that of two classes for one tier the number wins, as it does on
+ * the real page.
+ */
+.ge-flex-columns-on(@prefix) {
+    .@{prefix} {
+        flex: 1 0 0%;
+        max-width: 100%;
+    }
+    .@{prefix}-auto {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: 100%;
+    }
+}
+.ge-flex-columns-off(@prefix) {
+    .@{prefix},
+    .@{prefix}-auto {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 100%;
+    }
 }
 
 .ge-columns-on(@prefix, @i: 1) when (@i =< @ge-columns) {

@@ -49,7 +49,7 @@ async function run(t) {
         };
     `);
     t.check('rows get justify-content and align-items, columns align-self',
-        fields.row === 'justify-content,align-items' && fields.column === 'align-self' &&
+        fields.row === 'justify-content,align-items' && fields.column === 'col,align-self' &&
         fields.labels === 'Justify columns,Align columns' &&
         fields.justifyValues === ',start,center,end,between,around,evenly',
         fields);

@@ -79,14 +79,14 @@ async function pickerTests(t) {
         return {
             open: picker.length,
             insideTheTool: picker.closest('.ge-add-column').length === 1,
-            sizes: picker.find('.ge-size').map(function() { return +jQuery(this).attr('data-ge-size'); }).get(),
+            sizes: picker.find('.ge-size').map(function() { return jQuery(this).attr('data-ge-size'); }).get(),
             tight: picker.find('.ge-size-tight').map(function() { return +jQuery(this).attr('data-ge-size'); }).get(),
             titles: picker.find('.ge-size').first().attr('title'),
         };
     `);
     t.check('holding the tool offers every allowed size, under the tool itself',
         offered.open === 1 && offered.insideTheTool &&
-        offered.sizes.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12' &&
+        offered.sizes.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12,equal,auto' &&
         offered.titles === '1 of 12',
         offered);
     t.check('the sizes that do not fit what is left of the row are marked',

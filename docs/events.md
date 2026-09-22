@@ -77,15 +77,19 @@ The payload
     parent: jQuery,       // where it is going, or where it came from on a delete
     canvas: jQuery,
     breakpoint: 'lg',     // the view at the time: a breakpoint key, or 'all'
-    source: 'tool',       // tool | api | dragdrop | panel
+    source: 'tool',       // tool | api | dragdrop | panel (a width chosen in the panel)
 
     // move only
     from: { parent: jQuery, index: 2 },
     to:   { parent: jQuery, index: 0 },
 
-    // resize and indent only: units, not pixels
+    // resize and indent only: units, not pixels. A size can also be
+    // 'equal' or 'auto', and null when the width field chose "inherit"
     from: 6,
     to: 7,
+    cleared: [            // the all view only: the breakpoints' own sizes or
+        { breakpoint: 'md', value: 4 },     // offsets, which the write took off
+    ],
 
     // a pane inside a container
     container: jQuery,

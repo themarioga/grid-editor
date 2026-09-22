@@ -193,8 +193,9 @@ async function viewTests(t) {
                 .filter(name => /^offset-/.test(name)).sort(),
         };
     `);
-    t.check('an indent in the all view writes every tier',
-        allView.offsets.join(' ') === 'offset-1 offset-lg-1 offset-md-1 offset-sm-1 offset-xl-1 offset-xxl-1',
+    // 5.0: the all view writes the base class alone
+    t.check('an indent in the all view writes the base class',
+        allView.offsets.join(' ') === 'offset-1',
         allView);
 
     var created = await page.eval(`
@@ -210,7 +211,7 @@ async function viewTests(t) {
     `);
     t.check('createColumn takes an offset, for the view it is called in',
         /col-lg-4/.test(created.column) && /offset-lg-2/.test(created.column) &&
-        created.everywhere === 6,
+        created.everywhere === 1,
         created);
 
     var announced = await page.eval(UNITS + canvasOf([[6], [6]]) + `

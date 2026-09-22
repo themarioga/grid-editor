@@ -247,9 +247,23 @@ async function writingTests(t) {
             classes: column.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort(),
         };
     `);
-    t.check('a size change in the all view touches every tier',
-        allView.classes.join(' ') === 'col-5 col-lg-5 col-md-5 col-sm-5 col-xl-5 col-xxl-5',
+    // 5.0: the all view writes the base class alone, as the utilities do
+    t.check('a size change in the all view writes the base class',
+        allView.classes.join(' ') === 'col-5',
         allView);
+
+    var replaced = await page.eval(`
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html('<div class="row"><div class="column col-6 col-md-4 col-lg-8"><div class="ge-content"><p>x</p></div></div></div>');
+        window.fixture.init({ default_view: 'all' });
+
+        const column = jQuery('#myGrid .column').first();
+        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+
+        return column.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort().join(' ');
+    `);
+    t.check('the all view starts from the widest tier, and its write replaces every breakpoint\'s size',
+        replaced === 'col-7', replaced);
 
     var created = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');
@@ -264,7 +278,7 @@ async function writingTests(t) {
     `);
     t.check('createColumn writes the tiers the view covers',
         created.inTier === 'column col-lg-4' &&
-        created.inAll === 'col-4 col-lg-4 col-md-4 col-sm-4 col-xl-4 col-xxl-4',
+        created.inAll === 'col-4',
         created);
 
     var seeded = await page.eval(`

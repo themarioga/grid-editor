@@ -51,7 +51,7 @@ async function panelTests(t, page) {
         };
     `);
     t.check('the panel has a padding and a margin group, not a field per family',
-        panel.groups === 2 && panel.fields === 'p,mx' &&
+        panel.groups === 2 && panel.fields === 'col,p,mx' &&
         panel.sides === '=All sides,x=Left and right,y=Top and bottom,t=Top,e=End,b=Bottom,s=Start',
         panel);
     t.check('a group starts on a side the node has a class for',

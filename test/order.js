@@ -69,7 +69,7 @@ async function fieldTests(t, page) {
 
     var off = await page.eval(`
         start({}, { utilities: { order: { drawer: false } } });
-        return { arrows: jQuery('#myGrid .ge-order-earlier, #myGrid .ge-order-later').length, fields: jQuery('#myGrid .ge-utility').length };
+        return { arrows: jQuery('#myGrid .ge-order-earlier, #myGrid .ge-order-later').length, fields: jQuery('#myGrid .ge-utility[data-ge-family="order"]').length };
     `);
     t.check('utilities.order.drawer false leaves the arrows out and keeps the field',
         off.arrows === 0 && off.fields === 3, off);

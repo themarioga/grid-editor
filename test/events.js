@@ -513,16 +513,17 @@ async function resizeTests(t) {
         };
     `);
     t.check('the size class is on the column by the time after-resize fires',
-        /col-lg-5/.test(resized.whenAnnounced || ''), resized);
+        /(^|\s)col-5(\s|$)/.test(resized.whenAnnounced || ''), resized);
     t.check('a width tool announces the resize with the sizes it moved between',
-        /col-lg-6/.test(resized.before) && /col-lg-5/.test(resized.after) &&
+        /col-lg-6/.test(resized.before) && resized.after === 'column col-5' &&
         resized.log.join('|') === [
             'event:before-resize', 'callback:before-resize',
             'event:after-resize', 'callback:after-resize',
         ].join('|') &&
         resized.payload.kind === 'column' && resized.payload.source === 'tool' &&
         resized.payload.from === 6 && resized.payload.to === 5 &&
-        resized.payload.keys === 'breakpoint,canvas,from,kind,node,parent,source,to',
+        // the all view says what it took off the breakpoints
+        resized.payload.keys === 'breakpoint,canvas,cleared,from,kind,node,parent,source,to',
         resized);
 
     var canceled = await page.eval(`
@@ -547,7 +548,7 @@ async function resizeTests(t) {
         const widen = column.find('> .ge-tools-drawer .ge-increase-col-width');
 
         // The first one is a real change: the column was full width at lg and
-        // unsized below it, and the all view writes every tier
+        // unsized below it, and the all view writes the base class
         widen.trigger(jQuery.Event('click', { shiftKey: true }));
         const firstClick = window.log.slice();
         window.log = [];
@@ -562,7 +563,7 @@ async function resizeTests(t) {
         };
     `);
     t.check('a width tool that would not change the size fires nothing',
-        /col-12/.test(noop.classes) && /col-xxl-12/.test(noop.classes) &&
+        /(^|\s)col-12(\s|$)/.test(noop.classes) && !/col-(sm|md|lg|xl|xxl)-/.test(noop.classes) &&
         noop.firstClick.length === 4 && noop.secondClick.length === 0,
         noop);
 

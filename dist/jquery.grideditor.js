@@ -77,6 +77,24 @@ var LEGACY_VIEW_INDEXES = ['lg', 'sm', 'xs'];
 var MAX_COL_SIZE = 12;
 var MAX_COL_OFFSET = 11;
 
+/**
+ * The two sizes that are not a number of units: `equal` is Bootstrap's col,
+ * which shares what the row has left with the other equal columns, and
+ * `auto` is col-auto, as wide as its content.
+ */
+var FLEX_SIZES = ['equal', 'auto'];
+
+function isUnits(size) {
+    return typeof size === 'number';
+}
+
+/** The class that gives a column `size` at one tier: col-md-4, col-md, col-md-auto. */
+function sizeClass(tier, size) {
+    if (size === 'equal') { return tier.infix ? 'col-' + tier.infix : 'col'; }
+
+    return tier.colPrefix + size;
+}
+
 function breakpoint(key) {
     for (var i = 0; i < BREAKPOINTS.length; i++) {
         if (BREAKPOINTS[i].key === key) { return BREAKPOINTS[i]; }
@@ -84,9 +102,12 @@ function breakpoint(key) {
     return null;
 }
 
-/** The tiers a view writes to: one, or all six in the all view. */
+/**
+ * The tier a view writes to. The all view writes the base class, the one
+ * with no breakpoint, and takes the others off.
+ */
 function tiersFor(view) {
-    if (view === ALL_VIEW) { return BREAKPOINTS.slice(); }
+    if (view === ALL_VIEW) { return [BREAKPOINTS[0]]; }
 
     var tier = breakpoint(view);
     return tier ? [tier] : [];
@@ -268,7 +289,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
             'content_types'     : ['tinymce'],
-            'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 'equal', 'auto'],
             'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             'add_column'        : NESTED_SETTINGS.add_column, // The add column tool
             'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
@@ -580,54 +601,91 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Resize a column through the events, writing the tiers the current
-         * view covers: one in a per-breakpoint view, all six in the all view.
+         * What resizing this column to `size` in `view` would write, or null
+         * when the budget refuses it or there is nothing to change.
          *
-         * The budget is checked per tier and the whole change is refused if
-         * any tier has no room, so a resize never half lands.
-         */
-        /**
-         * What resizing this column to `size` would write, or null when the
-         * budget refuses it or there is nothing to change.
+         * A breakpoint view writes its own tier. The all view writes the base
+         * class and takes the size off every other tier, so one size is what
+         * applies everywhere; the plan says what it took off.
          *
          * Refused rather than quietly clamped: the offset is something the
-         * user set, and a tool that rewrites it is a tool that lies. The plan
-         * covers every tier the view writes, so a resize never half lands.
+         * user set, and a tool that rewrites it is a tool that lies. In the
+         * all view the base size has to fit every tier's offset, since it is
+         * the size at every tier once the others are gone.
          */
-        function planSize(col, size) {
-            var tiers = tiersFor(curView);
-            var wanted = tiers.map(function(tier) {
-                return clamp({ size: size, offset: getEffectiveOffset(col, tier) || 0 });
+        function planSize(col, size, view) {
+            view = view || curView;
+
+            if (view !== ALL_VIEW) {
+                var tier = breakpoint(view);
+                var wanted = clamp({ size: size, offset: getEffectiveOffset(col, tier) || 0 });
+
+                if (wanted.refused || getSize(col, tier) === wanted.size) { return null; }
+
+                return { writes: [{ tier: tier, size: wanted.size }], cleared: null, size: wanted.size };
+            }
+
+            var refused = BREAKPOINTS.some(function(each) {
+                return clamp({ size: size, offset: getEffectiveOffset(col, each) || 0 }).refused;
+            });
+            if (refused) { return null; }
+
+            var base = BREAKPOINTS[0];
+            var writes = [];
+            var cleared = [];
+
+            BREAKPOINTS.slice(1).forEach(function(each) {
+                var own = getSize(col, each);
+                if (own === null) { return; }
+
+                writes.push({ tier: each, size: null });
+                cleared.push({ breakpoint: each.key, value: own });
             });
 
-            if (wanted.some(function(request) { return request.refused; })) { return null; }
+            if (getSize(col, base) !== size) { writes.unshift({ tier: base, size: size }); }
 
-            var unchanged = tiers.every(function(tier, i) {
-                return getSize(col, tier) === wanted[i].size;
-            });
-            if (unchanged) { return null; }
-
-            return { tiers: tiers, sizes: wanted, size: wanted[0].size };
+            return writes.length ? { writes: writes, cleared: cleared, size: size } : null;
         }
 
         function writeSize(col, plan) {
-            plan.tiers.forEach(function(tier, i) { setSize(col, tier, plan.sizes[i].size); });
+            plan.writes.forEach(function(write) { setSize(col, write.tier, write.size); });
             stripPixelWidths(col);
         }
 
-        /** Resize a column from a tool, announcing it either side. */
-        function resizeColumn(col, size, source) {
+        /** The all view's payloads say what the write took off the breakpoints. */
+        function withCleared(extra, cleared) {
+            if (cleared) { extra.cleared = cleared; }
+            return extra;
+        }
+
+        /**
+         * Resize a column, announcing it either side. `size` is units,
+         * `equal` or `auto`; `view` is the current one unless the size field
+         * of a plugin's panel says otherwise.
+         */
+        function resizeColumn(col, size, source, view) {
+            view = view || curView;
+
             var from = currentSize(col);
-            var plan = planSize(col, size);
+            var plan = planSize(col, size, view);
 
             if (!plan) { return false; }
 
             return operate(function() {
-                var payload = payloadFor('column', col, { source: source, from: from, to: plan.size });
+                var payload = payloadFor('column', col, withCleared({
+                    source: source,
+                    breakpoint: view,
+                    from: from,
+                    to: plan.size,
+                }, plan.cleared));
 
-                if (!emit('before-resize', payload)) { return false; }
+                if (!emit('before-resize', payload)) {
+                    refreshUtilities(col);
+                    return false;
+                }
 
                 writeSize(col, plan);
+                refreshUtilities(col);
                 emit('after-resize', payload);
 
                 return true;
@@ -637,41 +695,49 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /**
          * Indent a column, shrinking it when the budget needs it: the offset
          * is what the user asked for, so it is the one that gets its way.
+         *
+         * Like a size, an offset is written to the tier being edited, or in
+         * the all view as the base class with every other tier's taken off.
          */
         function indentColumn(col, offset, source) {
-            var tiers = tiersFor(curView);
+            var everywhere = curView === ALL_VIEW;
+            var tier = everywhere ? BREAKPOINTS[0] : breakpoint(curView);
             var from = currentOffset(col);
 
             offset = Math.min(Math.max(offset, 0), MAX_COL_OFFSET);
 
-            var unchanged = tiers.every(function(tier) {
-                return (getOffset(col, tier) || 0) === offset;
-            });
-            if (unchanged) { return false; }
+            var others = everywhere ? BREAKPOINTS.slice(1).filter(function(each) {
+                return getOffset(col, each) !== null;
+            }) : [];
+
+            if ((getOffset(col, tier) || 0) === offset && !others.length) { return false; }
 
             return operate(function() {
-                var payload = payloadFor('column', col, {
+                var payload = payloadFor('column', col, withCleared({
                     source: source,
                     from: from,
                     to: offset,
-                });
+                }, everywhere ? others.map(function(each) {
+                    return { breakpoint: each.key, value: getOffset(col, each) };
+                }) : null));
 
                 if (!emit('before-indent', payload)) { return false; }
 
-                tiers.forEach(function(tier) {
-                    var was = getEffectiveSize(col, tier);
+                setOffset(col, tier, offset);
+                others.forEach(function(each) { setOffset(col, each, 0); });
+
+                // Wherever the column's size and the new offset no longer fit
+                // - one tier, or every tier in the all view - the size gives
+                // way, at that tier only. An equal or auto column fits anywhere.
+                (everywhere ? BREAKPOINTS : [tier]).forEach(function(each) {
+                    var was = getEffectiveSize(col, each);
+                    if (!isUnits(was)) { return; }
+
                     var wanted = clamp({ size: was, offset: offset, leading: 'offset' });
-
-                    setOffset(col, tier, wanted.offset);
-
-                    // Only where the budget actually forced the column to give
-                    // way; otherwise an indent would write size classes for
-                    // tiers nobody asked it to touch
-                    if (wanted.size !== null && wanted.size !== was) {
-                        setSize(col, tier, wanted.size);
-                    }
+                    if (wanted.size !== was) { setSize(col, each, wanted.size); }
                 });
 
+                refreshUtilities(col);
                 emit('after-indent', payload);
 
                 return true;
@@ -797,8 +863,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 var layoutName = layout.join(' - ');
                 var icon = '<div class="row ge-row-icon">';
-                layout.forEach(function(i) {
-                    icon += '<div class="column col-' + i + '"/>';
+                layout.forEach(function(size) {
+                    // Closed explicitly: jQuery 4 no longer expands <div/>, and
+                    // each column would be parsed inside the one before
+                    icon += '<div class="column ' + sizeClass(BREAKPOINTS[0], size) + '"></div>';
                 });
                 icon += '</div>';
                 btn.append(icon);
@@ -1072,11 +1140,45 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             }, { parent: where.region, source: 'dragdrop' });
         }
 
+        /**
+         * The column width as a utility family, so the Responsive section of
+         * a column's panel has a field for it: every size, units or not, in
+         * the view being edited. A write is a resize, through the resize
+         * events, not a utility change.
+         */
+        function widthFamily() {
+            var values = [];
+            for (var units = 1; units <= MAX_COL_SIZE; units++) { values.push(String(units)); }
+
+            return {
+                name: 'col',
+                values: values.concat(FLEX_SIZES),
+                appliesTo: ['column'],
+                labelKey: 'utility.col_width',
+                className: function(key, value) { return sizeClass(breakpoint(key), parseSize(value)); },
+                choices: function() { return settings.valid_col_sizes.map(String); },
+                label: function(value) {
+                    if (value === 'equal') { return t('utility.col_equal'); }
+                    if (value === 'auto') { return t('utility.col_auto'); }
+
+                    return value;
+                },
+                write: function(col, value, view, source) {
+                    return resizeColumn(col, value === null ? null : parseSize(value), source, view);
+                },
+            };
+        }
+
+        /** A size as markup or a select carries it: '4' is 4, 'equal' and 'auto' are themselves. */
+        function parseSize(size) {
+            return /^\d+$/.test(String(size)) ? parseInt(size, 10) : size;
+        }
+
         function rowFromLayout(layout) {
             var row = createRow();
 
             (layout || '').split(',').forEach(function(size) {
-                if (size !== '') { createColumn(parseInt(size, 10)).appendTo(row); }
+                if (size !== '') { createColumn(parseSize(size)).appendTo(row); }
             });
 
             return row;
@@ -1236,6 +1338,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function loadPlugins() {
             var api = pluginApi();
+
+            registerFamily('grid', {}, widthFamily());
             var wanted = function(name) {
                 return !settings.plugins || settings.plugins.indexOf(name) !== -1;
             };
@@ -1393,6 +1497,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function utilityClass(family, tier, value) {
+            if (family.className) { return family.className(tier.key, value); }
+
             return family.prefix + (tier.infix ? '-' + tier.infix : '') + '-' + value;
         }
 
@@ -1538,6 +1644,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 warn('setUtility: "' + name + '" does not apply to a ' + kind);
                 return false;
             }
+
+            // A family whose writes are some other operation - the column
+            // width, which is a resize - does them its own way
+            if (family.write) { return family.write(node, value, view, options.source || 'api'); }
 
             var plan = planUtility(node, family, view, value);
             if (!plan) { return false; }
@@ -2153,9 +2263,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             settings.valid_col_sizes.forEach(function(size) {
                 $('<a class="ge-size" />')
                     .attr('data-ge-size', size)
-                    .attr('title', t('tool.column_size', { size: size }))
-                    .toggleClass('ge-size-tight', size > room)
-                    .text(size)
+                    .attr('title', sizeTitle(size))
+                    .toggleClass('ge-size-tight', isUnits(size) && size > room)
+                    .toggleClass('ge-size-flex', !isUnits(size))
+                    .text(isUnits(size) ? size : sizeClass(BREAKPOINTS[0], size))
                     .on('click', function(e) {
                         e.preventDefault();
                         e.stopPropagation();
@@ -2176,6 +2287,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /** True when there was one to close, which is also a click's answer. */
+        function sizeTitle(size) {
+            if (size === 'equal') { return t('tool.column_equal'); }
+            if (size === 'auto') { return t('tool.column_auto'); }
+
+            return t('tool.column_size', { size: size });
+        }
+
         function closeSizePicker() {
             if (!sizePicker) { return false; }
 
@@ -2227,12 +2345,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 createTool(drawer, t('tool.column_narrower'), 'ge-decrease-col-width', 'bi bi-dash-lg', function(e) {
                     resizeColumn(col, e.shiftKey
                         ? smallest(settings.valid_col_sizes)
-                        : stepThrough(settings.valid_col_sizes, currentSize(col), -1),
+                        : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), -1),
                         'tool');
                 });
 
                 createTool(drawer, t('tool.column_wider'), 'ge-increase-col-width', 'bi bi-plus-lg', function(e) {
-                    resizeColumn(col, e.shiftKey ? widestFor(col) : stepThrough(settings.valid_col_sizes, currentSize(col), 1), 'tool');
+                    resizeColumn(col, e.shiftKey
+                        ? widestFor(col)
+                        : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), 1),
+                        'tool');
                 });
 
                 createTool(drawer, t('tool.indent_decrease'), 'ge-decrease-col-offset', 'bi bi-text-indent-right', function(e) {
@@ -2283,15 +2404,36 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * view it is the widest tier, because the canvas is not constrained
          * there and the widest tier is what the user is looking at: clicking
          * "narrower" on a column authored as col-lg-6 should take it to 5,
-         * not to 11 because no xs class was ever written.
+         * not to 11 because no base class was ever written. What the all view
+         * writes is the base class all the same.
          */
         function leadingTier() {
             return curView === ALL_VIEW ? BREAKPOINTS[BREAKPOINTS.length - 1] : breakpoint(curView);
         }
 
+        /** The size that applies in the view: units, `equal` or `auto`. */
         function currentSize(col) {
             var size = getEffectiveSize(col, leadingTier());
             return size === null ? MAX_COL_SIZE : size;
+        }
+
+        /**
+         * The size in units, which is what the tools step through. An equal
+         * or auto column has no number, so it is measured: the width it has
+         * on the canvas, in twelfths of its row.
+         */
+        function currentUnits(col) {
+            var size = currentSize(col);
+            if (isUnits(size)) { return size; }
+
+            var units = Math.round(col.outerWidth() / rowContentWidth(col.parent()) * MAX_COL_SIZE);
+            return Math.min(Math.max(units, 1), MAX_COL_SIZE);
+        }
+
+        function rowContentWidth(row) {
+            var style = window.getComputedStyle(row[0]);
+
+            return row[0].clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         }
 
         function currentOffset(col) {
@@ -2313,11 +2455,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function smallest(values) {
-            return values.reduce(function(a, b) { return Math.min(a, b); }, MAX_COL_SIZE);
+            return values.filter(isUnits).reduce(function(a, b) { return Math.min(a, b); }, MAX_COL_SIZE);
         }
 
         function largest(values) {
-            return values.reduce(function(a, b) { return Math.max(a, b); }, 0);
+            return values.filter(isUnits).reduce(function(a, b) { return Math.max(a, b); }, 0);
         }
 
         /**
@@ -2335,7 +2477,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * itself left inside the row.
          */
         function deepestFor(col) {
-            var room = spare(col.parent(), leadingTier(), col) - currentSize(col);
+            var room = spare(col.parent(), leadingTier(), col) - currentUnits(col);
 
             return Math.min(largest(settings.valid_col_offsets), Math.max(room, 0));
         }
@@ -2378,6 +2520,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function isEditorClass(name) {
             if (name === 'row' || name === 'column') { return true; }
             if (/^(ge-|ui-)/.test(name)) { return true; }
+            if (/^col(-(sm|md|lg|xl|xxl))?(-auto)?$/.test(name)) { return true; }
 
             return BREAKPOINTS.some(function(tier) {
                 return new RegExp('^(' + tier.colPrefix + '|' + tier.offsetPrefix + ')\\d+$').test(name);
@@ -2476,7 +2619,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * column that had none.
          */
         function addAllColClasses() {
-            canvas.find('.column, div[class*="col-"]').each(function() {
+            canvas.find('.column, div[class*="col-"], div.col').each(function() {
                 var col = $(this).addClass('column');
 
                 if (sizedTiers(col).length) { return; }
@@ -2494,9 +2637,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * names, the 12 unit budget and what an absent class means.
          * -------------------------------------------------------------- */
 
-        /** The units a column is given at one tier, or null if that tier says nothing. */
+        /**
+         * A column's size at one tier: a number of units, `equal`, `auto`, or
+         * null when that tier says nothing.
+         */
         function getSize(col, tier) {
-            return readUnits(col, tier.colPrefix);
+            var units = readUnits(col, tier.colPrefix);
+            if (units !== null) { return units; }
+
+            if (col.hasClass(sizeClass(tier, 'auto'))) { return 'auto'; }
+            if (col.hasClass(sizeClass(tier, 'equal'))) { return 'equal'; }
+
+            return null;
         }
 
         /** The units a column is indented by at one tier, or null. */
@@ -2546,8 +2698,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             col.attr('class', classes.join(' '));
         }
 
-        function setSize(col, tier, units) {
-            writeUnits(col, tier.colPrefix, units);
+        /** One size per tier: writing a size takes whatever size the tier had off. */
+        function setSize(col, tier, size) {
+            writeUnits(col, tier.colPrefix, null);
+            FLEX_SIZES.forEach(function(flex) { col.removeClass(sizeClass(tier, flex)); });
+
+            if (size !== null && size !== undefined) { col.addClass(sizeClass(tier, size)); }
         }
 
         /** An offset of 0 is written as no class at all, which is what it means. */
@@ -2573,7 +2729,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 var sibling = $(this);
                 if (ignore && sibling[0] === ignore[0]) { return; }
 
-                used += (getEffectiveSize(sibling, tier) || 0) + (getEffectiveOffset(sibling, tier) || 0);
+                // An equal or auto column takes what is left, so it uses none
+                var size = getEffectiveSize(sibling, tier);
+                used += (isUnits(size) ? size : 0) + (getEffectiveOffset(sibling, tier) || 0);
             });
 
             return MAX_COL_SIZE - used;
@@ -2594,7 +2752,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             offset = Math.min(Math.max(offset, 0), MAX_COL_OFFSET);
 
-            if (size === null) { return { size: null, offset: offset, refused: false }; }
+            if (size === null || !isUnits(size)) { return { size: size, offset: offset, refused: false }; }
 
             size = Math.min(Math.max(size, 1), MAX_COL_SIZE);
 
@@ -2913,20 +3071,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * divider between two columns looks like it should do.
          */
         function snapUnits(col, pixels) {
-            var row = col.parent();
-            var style = window.getComputedStyle(row[0]);
-            var content = row[0].clientWidth -
-                parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-
-            var units = Math.round(pixels / content * MAX_COL_SIZE);
+            var units = Math.round(pixels / rowContentWidth(col.parent()) * MAX_COL_SIZE);
             var next = balanceSibling(col);
+            var nextSize = next ? currentSize(next) : null;
+
+            // Measured when the drag started: the column is the width of the
+            // pointer now, which is not what it was
+            var own = col.data('ge-resize-units');
 
             // With a sibling to balance against, the drag may take that
             // column's units but not its last one. Without one, the row is
             // allowed to wrap - that is what balance false means - so the only
             // limit is the column's own budget against its indent.
-            var room = next
-                ? currentSize(col) + currentSize(next) - smallest(settings.valid_col_sizes)
+            // An equal or auto sibling gives way by itself, so it sets no limit
+            var room = next && isUnits(nextSize)
+                ? own + nextSize - smallest(settings.valid_col_sizes)
                 : MAX_COL_SIZE - currentOffset(col);
 
             return Math.min(
@@ -2972,7 +3131,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (!allowed) { return false; }
 
             col.data('ge-resize-from', from);
-            resizeReadout(col, sizeLabel(from));
+            col.data('ge-resize-units', currentUnits(col));
+            resizeReadout(col, sizeLabel(col.data('ge-resize-units')));
 
             return true;
         }
@@ -2983,30 +3143,33 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         function resizeStop(col, width) {
             var from = col.data('ge-resize-from');
+            var started = col.data('ge-resize-units');
             var units = snapUnits(col, width);
 
-            col.removeData('ge-resize-from');
+            col.removeData('ge-resize-from').removeData('ge-resize-units');
             resizeReadout(col, '');
             stripPixelWidths(col);
 
             if (from === undefined) { return; }
 
             // A drag of a couple of pixels lands on the size it started from,
-            // and is not a resize
-            if (units === from) { return; }
+            // and is not a resize - not even of an equal or auto column,
+            // which it would otherwise turn into a number
+            if (units === started) { return; }
 
             var plan = planSize(col, units);
             if (!plan) { return; }
 
             operate(function() {
                 writeSize(col, plan);
-                balanceAfterResize(col, plan.size - from);
+                balanceAfterResize(col, units - started);
+                refreshUtilities(col);
 
-                emit('after-resize', payloadFor('column', col, {
+                emit('after-resize', payloadFor('column', col, withCleared({
                     source: 'dragdrop',
                     from: from,
                     to: plan.size,
-                }));
+                }, plan.cleared)));
             });
         }
 
@@ -3014,12 +3177,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * Move the delta into the following column, so a full row stays full.
          * It is part of the same gesture, so it is not announced separately.
          */
+        /**
+         * The column after takes what the resized one gave or took, unless it
+         * is equal or auto: those take what is left by themselves.
+         */
         function balanceAfterResize(col, delta) {
             var next = balanceSibling(col);
             if (!next || !delta) { return; }
 
-            var plan = planSize(next, currentSize(next) - delta);
-            if (plan) { writeSize(next, plan); }
+            var size = currentSize(next);
+            if (!isUnits(size)) { return; }
+
+            var plan = planSize(next, size - delta);
+            if (plan) {
+                writeSize(next, plan);
+                refreshUtilities(next);
+            }
         }
 
         /**
@@ -3105,7 +3278,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function apiCreateColumn(size, options) {
             options = options || {};
 
-            if (typeof size != 'number') {
+            if (!isUnits(size) && FLEX_SIZES.indexOf(size) === -1) {
                 warn('createColumn: no column size given, using ' + MAX_COL_SIZE);
                 size = MAX_COL_SIZE;
             }
@@ -3185,12 +3358,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .append(createDefaultContentWrapper().html(rte ? rte.initialContent : ''))
             ;
 
-            tiersFor(curView).forEach(function(tier) {
-                var wanted = clamp({ size: size, offset: offset || 0, leading: 'offset' });
+            // The tier being edited, or the base class in the all view
+            var tier = tiersFor(curView)[0];
+            var wanted = clamp({ size: size, offset: offset || 0, leading: 'offset' });
 
-                setSize(column, tier, wanted.size === null ? size : wanted.size);
-                setOffset(column, tier, wanted.offset);
-            });
+            setSize(column, tier, wanted.size === null ? size : wanted.size);
+            setOffset(column, tier, wanted.offset);
 
             return column;
         }
@@ -3440,6 +3613,8 @@ $.fn.gridEditor.locales = {
         'tool.add_row': 'Add row',
         'tool.add_column': 'Add column\n(hold to choose the width)',
         'tool.column_size': '{size} of 12',
+        'tool.column_equal': 'Equal: shares what the row has left',
+        'tool.column_auto': 'Auto: as wide as its content',
         'tool.delete_row': 'Remove row',
         'tool.delete_column': 'Remove col',
         'tool.delete_container': 'Remove container',
@@ -3471,6 +3646,9 @@ $.fn.gridEditor.locales = {
         'view.xl': 'Large desktop',
         'view.xxl': 'Widescreen',
         'utility.section': 'Responsive: {view}',
+        'utility.col_width': 'Width',
+        'utility.col_equal': 'Equal',
+        'utility.col_auto': 'Auto',
         'utility.default': 'Default',
         'utility.inherit': 'Inherit: {value} (from {breakpoint})',
         'utility.varies': 'Changes at {breakpoints}; choosing here replaces that',

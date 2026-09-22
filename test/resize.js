@@ -249,8 +249,10 @@ async function gestureTests(t) {
                 .map(function() { return this.id; }).get().join(','),
             moves: window.moves,
             resizes: window.resizes,
+            // The fixture's columns are col-lg-6, and a resize in the all view
+            // writes the base class in their place
             sizes: jQuery('#myGrid > .row').eq(1).children('.column')
-                .map(function() { return /col-lg-(\\d+)/.exec(jQuery(this).attr('class'))[1]; }).get().join(','),
+                .map(function() { return /(?:^|\\s)col-(?:lg-)?(\\d+)(?:\\s|$)/.exec(jQuery(this).attr('class'))[1]; }).get().join(','),
         };
     `;
 

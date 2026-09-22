@@ -181,7 +181,7 @@ async function createTests(t) {
     t.check('createRow returns a detached row with its columns and no drawers',
         detached.detached && detached.rowsOnCanvas && detached.columns === 2 &&
         detached.drawers === 0 && detached.contentAreas === 2 &&
-        /col-lg-8/.test(detached.classes[0]) && /col-lg-4/.test(detached.classes[1]),
+        /(^|\s)col-8(\s|$)/.test(detached.classes[0]) && /(^|\s)col-4(\s|$)/.test(detached.classes[1]),
         detached);
 
     var placedByHost = await page.eval(`
@@ -239,8 +239,8 @@ async function createTests(t) {
         };
     `);
     t.check('createColumn writes the column classes and takes content',
-        column.detached && /col-lg-4/.test(column.classes) && /col-sm-4/.test(column.classes) &&
-        column.content === '<p>column content</p>' && /col-lg-3/.test(column.placedClasses) &&
+        column.detached && column.classes === 'column col-4' &&
+        column.content === '<p>column content</p>' && /(^|\s)col-3(\s|$)/.test(column.placedClasses) &&
         column.placedDrawer === 1,
         column);
 
@@ -253,7 +253,7 @@ async function createTests(t) {
         };
     `);
     t.check('createColumn without a size warns and falls back to a full width column',
-        /col-lg-12/.test(noSize.classes) && noSize.warnings.length === 1, noSize);
+        /(^|\s)col-12(\s|$)/.test(noSize.classes) && noSize.warnings.length === 1, noSize);
 
     var badLayout = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');

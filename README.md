@@ -95,8 +95,8 @@ $('#myGrid').gridEditor('method', argument);
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once |
 | `getView` | — | `String` | The view the editor is in |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
-| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])` |
-| `createColumn` | `size`, `options?` | `jQuery` | A column. `options`: `offset`, `content` |
+| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])` |
+| `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`. `options`: `offset`, `content` |
 | `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
@@ -184,13 +184,33 @@ Options
 
 ### General options
 
-__`new_row_layouts`:__ Set the column layouts that appear in the "new row" buttons at the top of the editor.
+__`new_row_layouts`:__ Set the column layouts that appear in the "new row" buttons at the top of the editor. A size is a number of units, `'equal'` (Bootstrap's `col`, sharing what the row has left) or `'auto'` (`col-auto`, as wide as its content).
 
 ```javascript
 $('#myGrid').gridEditor({
-    new_row_layouts: [[12], [6,6], [9,3]],
+    new_row_layouts: [[12], [6,6], [9,3], ['auto', 'equal']],
 });
 ```
+
+### Column sizes
+
+A column's size at each breakpoint is a number of units, equal or auto:
+
+| Size | Class | On the page |
+| --- | --- | --- |
+| `1`–`12` | `col-4`, `col-md-4` | That many twelfths of the row |
+| `'equal'` | `col`, `col-md` | An equal share of what the row has left |
+| `'auto'` | `col-auto`, `col-md-auto` | As wide as its content |
+
+The width tools and dragging a column's edge work in units, so they turn an
+equal or auto column into a number, starting from the width it has on the
+canvas. Every size is in the *Width* field of a column's settings panel, in its
+Responsive section, and a change made there is a resize like any other.
+
+In a breakpoint view a size or an offset is written for that breakpoint. In the
+all view it is written once, as the class with no breakpoint (`col-4`,
+`offset-2`), and the breakpoints' own sizes or offsets are taken off: one value
+for every size. Up to 4.x the all view wrote all six breakpoints instead.
 
 The settings button on a row, a column, a container, a tab, an accordion item
 or an element opens a panel with two fields: the node's `id`, and its css
@@ -272,7 +292,7 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`valid_col_sizes`:__ Specify the column widths that can be selected using the +/- buttons
+__`valid_col_sizes`:__ The column sizes the +/- buttons step through, and that the add column picker and the width field offer. Default `[1, 2, … 12, 'equal', 'auto']`; leave `'equal'` and `'auto'` out and they are not offered, though a column that has one still shows it.
 
 ```javascript
 $('#myGrid').gridEditor({
@@ -331,7 +351,7 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`default_view`:__ The view the editor starts in. Default `'all'`, which writes every breakpoint at once — what a layout that needs no per-device tuning wants.
+__`default_view`:__ The view the editor starts in. Default `'all'`, which writes one class for every breakpoint at once — what a layout that needs no per-device tuning wants.
 
 __`resize`:__ Resizing a column by dragging its edge. Defaults:
 
