@@ -9,7 +9,22 @@ It provides integration plugins for the following rich text editors to edit colu
 
 ![Preview](http://i.imgur.com/UF9CCzk.png) 
 
-# <a href="http://transfer.frontwise.com/frontwise/grid-editor/example/" target="_blank">Try the demo!</a>
+Demos
+-----
+
+Every page under `example/` is a working editor, and they are static: served
+from any web server, or from GitHub Pages, with no build step.
+
+| Demo | What it shows |
+| --- | --- |
+| [example/index.html](example/index.html) | The editor with tinyMCE in the content areas |
+| [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view |
+| [example/containers.html](example/containers.html) | Tabs, accordions and popups, two levels deep |
+| [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output |
+| [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher |
+| [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE |
+| [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid |
+| [example/index-autosave.html](example/index-autosave.html) | Saving the html as the user edits |
 
 Installation
 ------------
@@ -108,7 +123,7 @@ $('#myGrid').gridEditor({
 ```
 
 The full catalogue, the payload and what canceling each operation does is in
-[docs/events.md](/docs/events.md).
+[docs/events.md](docs/events.md).
 
 Languages
 ---------
@@ -129,7 +144,7 @@ every other language is a file you load after it.
 
 Override single strings without a locale file with `locale_strings`, and switch
 language at runtime with `setLocale('es')`. The keys are listed in
-[docs/locale-keys.md](/docs/locale-keys.md).
+[docs/locale-keys.md](docs/locale-keys.md).
 
 To contribute a language, copy `src/js/locales/grideditor.es.js`, change the
 code and the strings, run `npm run build`, and open a pull request. A locale
@@ -250,7 +265,7 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`callbacks`:__ A `before_*`/`after_*` function per operation, the same notifications as the events. Returning `false` from a `before_*` cancels it. See [docs/events.md](/docs/events.md).
+__`callbacks`:__ A `before_*`/`after_*` function per operation, the same notifications as the events. Returning `false` from a `before_*` cancels it. See [docs/events.md](docs/events.md).
 
 ```javascript
 $('#myGrid').gridEditor({
@@ -316,7 +331,7 @@ $('#myGrid').gridEditor({
 
 __`element_tools`:__ Extra tools on every element drawer, same shape as `row_tools`.
 
-See [example/elements.html](/example/elements.html), which also shows the
+See [example/elements.html](example/elements.html), which also shows the
 pattern for an element with no visual output of its own.
 
 ### Containers
@@ -353,7 +368,7 @@ the trigger. Any node in the canvas carrying
 `data-ge-popup-target="<popup id>"` is a trigger too — grid-editor leaves your
 markup alone and writes Bootstrap's attributes onto it in the output.
 
-See [example/containers.html](/example/containers.html).
+See [example/containers.html](example/containers.html).
 
 ### Localization
 
@@ -444,18 +459,18 @@ appear in the menubar of an inline editor sitting in someone's page. Pass
 Upgrading
 ---------
 
-See [UPGRADING.md](/UPGRADING.md) for what changes between major versions,
+See [UPGRADING.md](UPGRADING.md) for what changes between major versions,
 including 2.x to 3.0.
 
 Building
 --------
 
-If you want to make your own changes to the source, see [BUILDING.md](/BUILDING.md)
+If you want to make your own changes to the source, see [BUILDING.md](BUILDING.md)
 
 
 Contributing
 --------
-If you want to help out, please first read [CONTRIBUTING.md](/CONTRIBUTING.md)
+If you want to help out, please first read [CONTRIBUTING.md](CONTRIBUTING.md)
 
 
 Attribution
