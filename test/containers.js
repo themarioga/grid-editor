@@ -163,7 +163,8 @@ async function paneTests(t) {
         added.log);
 
     var deleted = await page.eval(`
-        window.confirm = function() { return true; };
+        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.init({ confirm_delete: false });
         window.deleteLog = [];
         jQuery('#myGrid').on('grideditor:after-delete', function(e, payload) {
             window.deleteLog.push(payload.kind);

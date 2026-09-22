@@ -158,7 +158,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column classes and the mode dropdown all read. Clicking the dropdown now
   goes through `changeView`.
 
-- Deleting a row or a column goes through `before-delete`, then the confirm,
+- Deleting asks in a Bootstrap modal rather than `window.confirm`: it is
+  styled like the rest of the page, it is translated with everything else, and
+  it does not block the page while it is up. The editor builds it outside the
+  canvas, so it is never part of `getHtml`, and a page that loaded Bootstrap's
+  css but not its javascript still gets asked by the browser.
+- Deleting a row or a column goes through `before-delete`, then the question,
   then `after-delete` once the animation has finished. The host's handler runs
   first on purpose: a host that cancels to show its own dialog never wants the
   built-in confirm to have appeared already. `confirm_delete: false` skips the

@@ -80,8 +80,15 @@ confirm.*
 Shown by `window.confirm` unless the host sets `confirm_delete: false` or
 cancels `grideditor:before-delete` and asks in its own way.
 
+The question is asked in a Bootstrap modal the editor builds outside the
+canvas; a page that loaded Bootstrap's css but not its javascript gets the
+browser's own confirm instead.
+
 | Key | English | Where |
 | --- | --- | --- |
+| `confirm.title` | Confirm | Title of the confirmation modal |
+| `confirm.ok` | Delete | The button that goes through with it |
+| `confirm.cancel` | Cancel | The button that does not, and the close button's label |
 | `confirm.delete_row` | Delete row? | Before a row is removed |
 | `confirm.delete_column` | Delete column? | Before a column is removed |
 | `confirm.delete_element` | Delete element? | Before an element is removed |

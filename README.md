@@ -225,7 +225,7 @@ $('#myGrid').gridEditor({
 });
 ```
 
-__`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. Set it to `false` if you cancel `before-delete` and ask in your own way.
+__`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. The question is asked in a Bootstrap modal the editor builds outside your canvas, in the interface language; a page that loaded Bootstrap's css but not its javascript gets the browser's own confirm instead. Set it to `false` if you cancel `before-delete` and ask in your own way.
 
 __`sortable_options`:__ Merged into every jQuery UI sortable, for hosts that need `cancel`, `tolerance` or a custom `connectWith`.
 

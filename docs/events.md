@@ -110,9 +110,10 @@ cancels a `before-*`. What that means depends on the operation:
 - **Add.** Nothing is inserted and no `after-*` fires. A `create*` method
   returns `null` instead of the node, so a host can tell.
 - **Delete.** The node is left alone. This is how a host replaces the built-in
-  confirm with a dialog of its own: cancel the event, ask in your own way, and
-  then remove the node and call `reset()`. The built-in confirm never appears
-  for a canceled delete — the host's handler runs first, on purpose.
+  question with a dialog of its own: cancel the event, ask in your own way, and
+  then remove the node and call `reset()`. The editor's own confirmation modal
+  never appears for a canceled delete — the host's handler runs first, on
+  purpose.
 - **Move.** jQuery UI cannot refuse a drag once it has started, so
   `before-move` fires from the sortable's `start` handler and canceling marks
   the drag: on drop the item returns to where it came from and no `after-move`

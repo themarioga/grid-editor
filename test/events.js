@@ -24,9 +24,11 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 var RECORDER = `
     window.log = [];
     window.payloads = {};
-    window.confirms = 0;
-    window.confirmAnswer = true;
-    window.confirm = function() { window.confirms++; return window.confirmAnswer; };
+    window.confirmDialog = function() { return jQuery('.ge-confirm'); };
+    window.dialogShown = function() { return jQuery('.ge-confirm').hasClass('show'); };
+    window.answerDialog = function(answer) {
+        jQuery('.ge-confirm').find(answer ? '.ge-confirm-ok' : '.ge-confirm-cancel').trigger('click');
+    };
 
     window.EVENTS = [
         'before-add-row', 'after-add-row',
@@ -86,8 +88,6 @@ var RECORDER = `
     window.start = function(overrides) {
         window.log = [];
         window.payloads = {};
-        window.confirms = 0;
-        window.confirmAnswer = true;
         window.fixture.init(jQuery.extend({ callbacks: window.recordingCallbacks() }, overrides || {}));
         window.bindEvents();
         return jQuery('#myGrid').data('grideditor');
@@ -336,74 +336,102 @@ async function cancelTests(t) {
 async function deleteTests(t) {
     var page = await recordingPage(t);
 
-    var deleted = await page.eval(`
+    var asked = await page.eval(`
         const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer a[title="Remove row"]').trigger('click');
-        return { before: before, confirms: window.confirms };
+        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        return { before: before };
     `);
-    await sleep(700);
+    await sleep(600);
+    var dialog = await page.eval(`
+        const modal = jQuery('.ge-confirm');
+        return {
+            shown: modal.hasClass('show'),
+            insideCanvas: jQuery('#myGrid .ge-confirm').length,
+            message: modal.find('.ge-confirm-message').text(),
+            title: modal.find('.modal-title').text(),
+            ok: modal.find('.ge-confirm-ok').text(),
+            cancel: modal.find('.ge-confirm-cancel').text(),
+            focused: document.activeElement === modal.find('.ge-confirm-ok')[0],
+            rowsStillThere: jQuery('#myGrid > .row').length,
+            log: window.log,
+        };
+    `);
+    t.check('deleting asks in a Bootstrap modal, outside the canvas, before anything happens',
+        dialog.shown && dialog.insideCanvas === 0 && dialog.message === 'Delete row?' &&
+        dialog.title === 'Confirm' && dialog.ok === 'Delete' && dialog.cancel === 'Cancel' &&
+        dialog.focused && dialog.rowsStillThere === asked.before &&
+        dialog.log.join('|') === 'event:before-delete|callback:before-delete',
+        dialog);
+
+    await page.eval(`window.answerDialog(true); return true;`);
+    await sleep(900);
     var afterDelete = await page.eval(`
         return {
             rows: jQuery('#myGrid > .row').length,
+            dialogGone: !jQuery('.ge-confirm').hasClass('show') && jQuery('.modal-backdrop').length === 0,
             log: window.log,
             payload: window.payloads['event:after-delete'],
             editing: jQuery('#myGrid').hasClass('ge-editing'),
         };
     `);
-    t.check('deleting a row asks once, removes it and announces it after the animation',
-        deleted.confirms === 1 && afterDelete.rows === deleted.before - 1 &&
+    t.check('saying yes removes the row and announces it once the animation has finished',
+        afterDelete.rows === asked.before - 1 && afterDelete.dialogGone &&
         afterDelete.log.join('|') === [
             'event:before-delete', 'callback:before-delete',
             'event:after-delete', 'callback:after-delete',
         ].join('|') &&
         afterDelete.payload.kind === 'row' && afterDelete.payload.source === 'tool' &&
         afterDelete.payload.parentIsCanvas && afterDelete.editing,
-        { deleted: deleted, after: afterDelete });
+        afterDelete);
 
-    var declined = await page.eval(`
+    var declining = await page.eval(`
         window.restart();
-        window.confirmAnswer = false;
         const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer a[title="Remove row"]').trigger('click');
+        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        return { before: before };
+    `);
+    await sleep(600);
+    await page.eval(`window.answerDialog(false); return true;`);
+    await sleep(900);
+    var declined = await page.eval(`
         return {
-            rows: jQuery('#myGrid > .row').length === before,
-            confirms: window.confirms,
+            kept: jQuery('#myGrid > .row').length === ${'${declining.before}'},
             log: window.log,
         };
-    `);
-    t.check('saying no to the confirm keeps the row and fires no after-delete',
-        declined.rows && declined.confirms === 1 &&
-        declined.log.join('|') === 'event:before-delete|callback:before-delete',
+    `.replace('${declining.before}', String(declining.before)));
+    t.check('saying no keeps the row and fires no after-delete',
+        declined.kept && declined.log.join('|') === 'event:before-delete|callback:before-delete',
         declined);
 
     var canceled = await page.eval(`
         window.restart();
-        window.confirms = 0;
-        window.confirmAnswer = true;
         jQuery('#myGrid').on('grideditor:before-delete', function(e) { e.preventDefault(); });
 
         const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer a[title="Remove row"]').trigger('click');
-
+        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        return { before: before };
+    `);
+    await sleep(600);
+    var afterCancel = await page.eval(`
         return {
-            rows: jQuery('#myGrid > .row').length === before,
-            confirms: window.confirms,
+            kept: jQuery('#myGrid > .row').length === ${'${canceled.before}'},
+            asked: jQuery('.ge-confirm').hasClass('show'),
             log: window.log,
         };
-    `);
-    t.check('a host that cancels before-delete never sees the built-in confirm',
-        canceled.rows && canceled.confirms === 0 &&
-        canceled.log.indexOf('event:after-delete') === -1,
-        canceled);
+    `.replace('${canceled.before}', String(canceled.before)));
+    t.check('a host that cancels before-delete is never asked the question',
+        afterCancel.kept && !afterCancel.asked &&
+        afterCancel.log.indexOf('event:after-delete') === -1,
+        afterCancel);
 
     var fresh = await recordingPage(t, { confirm_delete: false });
     var withoutConfirm = await fresh.eval(`
         const columns = jQuery('#myGrid > .row').eq(1).children('.column').length;
         jQuery('#myGrid > .row').eq(1).children('.column').first()
-            .find('> .ge-tools-drawer a[title="Remove col"]').trigger('click');
-        return { columns: columns, confirms: window.confirms };
+            .find('> .ge-tools-drawer .ge-delete-column').trigger('click');
+        return { columns: columns, asked: jQuery('.ge-confirm').length };
     `);
-    await sleep(800);
+    await sleep(900);
     var columnGone = await fresh.eval(`
         return {
             columns: jQuery('#myGrid > .row').eq(1).children('.column').length,
@@ -411,11 +439,30 @@ async function deleteTests(t) {
         };
     `);
     t.check('confirm_delete false deletes a column straight away, as kind column',
-        withoutConfirm.confirms === 0 && columnGone.columns === withoutConfirm.columns - 1 &&
+        withoutConfirm.asked === 0 && columnGone.columns === withoutConfirm.columns - 1 &&
         columnGone.payload.kind === 'column' && !columnGone.payload.parentIsCanvas,
         { before: withoutConfirm, after: columnGone });
 
-    var errors = page.errors().concat(fresh.errors());
+    // A page with Bootstrap's css but not its javascript still gets asked
+    var native = await t.page(FIXTURE, `window.fixture`);
+    var nativeConfirm = await native.eval(`
+        window.bootstrap = undefined;
+        window.asked = [];
+        window.confirm = function(message) { window.asked.push(message); return true; };
+        window.fixture.init();
+
+        const before = jQuery('#myGrid > .row').length;
+        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        return { before: before, asked: window.asked };
+    `);
+    await sleep(900);
+    var nativeGone = await native.eval(`return { rows: jQuery('#myGrid > .row').length, dialogs: jQuery('.ge-confirm').length };`);
+    t.check('without Bootstrap\u2019s javascript the question falls back to the browser',
+        nativeConfirm.asked.length === 1 && nativeConfirm.asked[0] === 'Delete row?' &&
+        nativeGone.rows === nativeConfirm.before - 1 && nativeGone.dialogs === 0,
+        { asked: nativeConfirm.asked, after: nativeGone });
+
+    var errors = page.errors().concat(fresh.errors()).concat(native.errors());
     t.check('the delete tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 

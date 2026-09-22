@@ -130,8 +130,7 @@ async function operationTests(t) {
 
     var deleted = await page.eval(canvasOf(MARKED) + `
         window.log = [];
-        window.confirm = function() { return true; };
-        window.fixture.init();
+        window.fixture.init({ confirm_delete: false });
         jQuery('#myGrid').on('grideditor:before-delete grideditor:after-delete', function(e, payload) {
             window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.parent.attr('class')]);
         });

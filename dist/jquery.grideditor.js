@@ -267,6 +267,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             htmlTextArea
         ;
         var curView = settings.default_view; // Breakpoint key, or 'all'
+        var confirmDialog = null; // The delete confirmation, built when first needed
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
 
         // Before anything else, because the instance handle hands the canvas
@@ -292,6 +293,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             settings.locale = code;
             handle.settings = settingsCopy();
 
+            removeConfirmModal();
             mainControls.remove();
             createMainControls();
             reset();
@@ -415,25 +417,115 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
+         * Ask the user, in Bootstrap's own modal.
+         *
+         * Bootstrap is already a dependency of an editor for Bootstrap's grid,
+         * and window.confirm cannot be styled, cannot be translated by us and
+         * blocks the page while it is up. The modal lives outside the canvas,
+         * so it is never part of what getHtml returns.
+         *
+         * A page that loaded Bootstrap's css but not its javascript still gets
+         * asked - by the browser, as before.
+         */
+        function askToDelete(message, whenConfirmed) {
+            if (!settings.confirm_delete) {
+                whenConfirmed();
+                return;
+            }
+
+            if (!window.bootstrap || !window.bootstrap.Modal) {
+                if (window.confirm(message)) { whenConfirmed(); }
+                return;
+            }
+
+            var modal = confirmModal();
+            var confirmed = false;
+
+            modal.find('.ge-confirm-message').text(message);
+            modal.find('.ge-confirm-ok').off('click').on('click', function() {
+                confirmed = true;
+                window.bootstrap.Modal.getInstance(modal[0]).hide();
+            });
+
+            modal.off('hidden.bs.modal').on('hidden.bs.modal', function() {
+                // After the modal is out of the way, so the backdrop is not
+                // sitting over the animation the delete runs
+                if (confirmed) { whenConfirmed(); }
+            });
+
+            modal.off('shown.bs.modal').on('shown.bs.modal', function() {
+                modal.find('.ge-confirm-ok').trigger('focus');
+            });
+
+            window.bootstrap.Modal.getOrCreateInstance(modal[0]).show();
+        }
+
+        /** Built once per instance, and taken away again by destroy(). */
+        function confirmModal() {
+            if (confirmDialog) { return confirmDialog; }
+
+            confirmDialog = $(
+                '<div class="modal fade ge-confirm" tabindex="-1" aria-hidden="true">' +
+                    '<div class="modal-dialog modal-dialog-centered">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header">' +
+                                '<h5 class="modal-title"></h5>' +
+                                '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+                            '</div>' +
+                            '<div class="modal-body"><p class="ge-confirm-message"></p></div>' +
+                            '<div class="modal-footer">' +
+                                '<button type="button" class="btn btn-secondary ge-confirm-cancel" data-bs-dismiss="modal"></button>' +
+                                '<button type="button" class="btn btn-danger ge-confirm-ok"></button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            ).appendTo('body');
+
+            confirmDialog.find('.modal-title').text(t('confirm.title'));
+            confirmDialog.find('.btn-close').attr('aria-label', t('confirm.cancel'));
+            confirmDialog.find('.ge-confirm-cancel').text(t('confirm.cancel'));
+            confirmDialog.find('.ge-confirm-ok').text(t('confirm.ok'));
+
+            return confirmDialog;
+        }
+
+        /** The confirm modal is rebuilt in the new language on setLocale. */
+        function removeConfirmModal() {
+            if (!confirmDialog) { return; }
+
+            if (window.bootstrap && window.bootstrap.Modal) {
+                var instance = window.bootstrap.Modal.getInstance(confirmDialog[0]);
+                if (instance) { instance.dispose(); }
+            }
+
+            confirmDialog.remove();
+            confirmDialog = null;
+        }
+
+        /**
          * Remove a node: ask the host, then the user, then remove it, update
          * the canvas and announce it once the animation has finished.
          *
          * The host's handler goes first on purpose. A host that cancels
-         * before-delete to show a dialog of its own does not want the built-in
-         * confirm to have popped up already.
+         * before-delete to ask in its own way does not want the built-in
+         * question to have been asked already.
          */
         function deleteNode(kind, node, message, animate) {
             operate(function() {
                 var payload = payloadFor(kind, node, { source: 'tool' });
 
                 if (!emit('before-delete', payload)) { return; }
-                if (settings.confirm_delete && !window.confirm(message)) { return; }
 
-                animate(function() {
-                    node.remove();
+                askToDelete(message, function() {
                     operate(function() {
-                        init();
-                        emit('after-delete', payload);
+                        animate(function() {
+                            node.remove();
+                            operate(function() {
+                                init();
+                                emit('after-delete', payload);
+                            });
+                        });
                     });
                 });
             });
@@ -838,6 +930,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         function destroy() {
             deinit();
+            removeConfirmModal();
             mainControls.remove();
             htmlTextArea.remove();
             $(window).off('scroll', onScroll);
@@ -2603,6 +2696,9 @@ $.fn.gridEditor.locales = {
         'container.add_popup': 'Popup',
         'container.popup_title': 'Title',
         'container.popup_trigger': 'Open',
+        'confirm.title': 'Confirm',
+        'confirm.ok': 'Delete',
+        'confirm.cancel': 'Cancel',
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
         'confirm.delete_element': 'Delete element?',
