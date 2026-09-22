@@ -133,23 +133,37 @@ $.fn.gridEditor.features.elements = function(ge) {
         onInit: function() { … },        // every init: put the furniture in
         onDeinit: function() { … },      // every deinit: take it out again
         onContentReady: function(area) { … },  // a rich text editor just took over
-        onSortable: function(shared) { … },    // make your own sortables
+        onSortable: function(sortable) { … },  // declare your own sortable lists
     };
 };
 ```
 
-- **`onSortable(shared)`** is handed the options the editor's own sortables
-  use — the handle, the cancel selector, the start and stop handlers — so a
-  plugin's sortables answer to `drag_handle` and fire the move events like
-  everything else.
+- **`onSortable(sortable)`** is handed the function the editor makes all of its
+  own lists with. A plugin describes a list; it never touches the drag toolkit
+  itself, which is what keeps `drag_handle`, the cancel selector and the move
+  events the same everywhere:
+
+  ```javascript
+  onSortable: function(sortable) {
+      sortable(ge.canvas.find('.ge-content'), {
+          draggable: '> .ge-element',   // which children move
+          group: 'element',             // lists sharing a group connect
+      });
+  }
+  ```
+
+  Leaving `group` out makes a list that sorts only within itself, which is what
+  a tab strip wants. Group names are scoped to the editor instance, so two
+  editors on one page never drag into each other.
 - **`methods`** are added to the instance handle. A method the editor
   documents but a plugin implements — `createElement` — warns and returns null
   when the plugin is not loaded.
 - **`kindOf(node)`** returns the `kind` an event should carry for a node the
   plugin owns, or null.
 
-The core's own sortables and the plugins' are taken down together: jQuery UI
-marks what it made, so a plugin does not have to unmake it.
+The core's own lists and the plugins' are taken down together: every list made
+through `sortable()` is registered, so `deinit` unmakes exactly those and a
+plugin does not have to unmake anything.
 
 
 What the editor does for you

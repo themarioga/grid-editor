@@ -509,6 +509,42 @@ async function multipleCanvasTests(t) {
         state.viewOfFirst === 'all',
         state);
 
+    var groups = await page.eval(`
+        const first = jQuery('#myGrid .row').first();
+        const second = jQuery('#second .row').first();
+        const classesOf = function(list) {
+            return (list.attr('class').match(/ge-sort-\\S+/g) || []).join(',');
+        };
+        return {
+            first: classesOf(first),
+            second: classesOf(second),
+            connectFirst: first.sortable('option', 'connectWith'),
+            connectSecond: second.sortable('option', 'connectWith'),
+        };
+    `);
+    t.check('each editor puts its lists in groups of its own',
+        groups.first !== '' && groups.second !== '' && groups.first !== groups.second &&
+        groups.connectFirst === '.' + groups.first && groups.connectSecond === '.' + groups.second,
+        groups);
+
+    // The drag that used to work by accident: a column out of one editor and
+    // into the other, which took the first editor's drawer with it and fired
+    // its events over someone else's canvas
+    await page.eval(`
+        jQuery('#myGrid .column').first().attr('id', 'first-column');
+        jQuery('#second .column').first().attr('id', 'second-column');
+        return true;
+    `);
+    await page.drag('#first-column > .ge-tools-drawer .ge-move', '#second-column', { yRatio: 0.2 });
+    var across = await page.eval(`
+        return {
+            stayed: jQuery('#myGrid').find('#first-column').length,
+            leaked: jQuery('#second').find('#first-column').length,
+        };
+    `);
+    t.check('a column cannot be dragged from one editor into another',
+        across.stayed === 1 && across.leaked === 0, across);
+
     var errors = page.errors();
     t.check('the multiple canvas tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }

@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Changed
+- Every sortable list the editor makes, core's and a plugin's, goes through one
+  internal seam that names the drag toolkit in one place. Groundwork for 4.0,
+  which replaces jQuery UI with SortableJS.
+- A plugin's `onSortable` hook receives that function instead of a jQuery UI
+  options object, and describes a list rather than making one. See
+  `UPGRADING.md`.
+- Sortable groups are scoped to the editor instance, so two editors on one page
+  no longer drag into each other.
+
+
 ## [3.2.1] - 2026-09-22
 ### Changed
 - `example/containers.html` shows a card too: its own row, with two columns

@@ -1,3 +1,40 @@
+Upgrading from grid-editor `3.*` to `4.*`
+=========================================
+
+In progress; 4.0 is not released. What has landed so far:
+
+* __A plugin's `onSortable` takes a function, not an options object.__ It used
+  to receive the editor's shared jQuery UI options and call `.sortable()`
+  itself; it now receives `sortable(lists, { draggable, group })` and describes
+  the list instead. See [docs/plugins.md](docs/plugins.md). Nothing else in the
+  plugin handle changed.
+
+  ```javascript
+  // 3.x
+  onSortable: function(shared) {
+      ge.canvas.find('.ge-content').sortable($.extend({
+          items: '> .ge-element',
+          connectWith: '.ge-canvas .ge-content',
+      }, shared, ge.settings.sortable_options));
+  }
+
+  // 4.x
+  onSortable: function(sortable) {
+      sortable(ge.canvas.find('.ge-content'), {
+          draggable: '> .ge-element',
+          group: 'element',
+      });
+  }
+  ```
+
+* __Two editors on one page no longer drag into each other.__ Lists were
+  connected by selector — `.ge-canvas .row` matches every canvas on the page —
+  so a column could be dragged from one editor into another, carrying the first
+  editor's furniture and firing its events in the wrong place. Lists are now
+  connected per instance. If you were relying on that, you were relying on a
+  bug.
+
+
 Upgrading from grid-editor `2.*` to `3.*`
 =========================================
 

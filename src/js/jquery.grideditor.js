@@ -118,6 +118,9 @@ var NESTED_SETTINGS = {
 
 var warned = {};
 
+/** Editors on the page, counted so each one's sortable groups are its own. */
+var editorCounter = 0;
+
 /**
  * Translate one key.
  *
@@ -282,6 +285,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var sizePicker = null; // The open column size picker, if there is one
         var dropMarker = null; // The line showing where a dragged toolbar button would land
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
+        var sortables = []; // Every list made sortable, so deinit destroys exactly those
+        var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
 
         // Before anything else, because the instance handle hands the canvas
         // to hosts and the rest of setup() runs at the end of this function
@@ -1997,10 +2002,41 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
         }
 
-        function makeSortable() {
-            var wholeDrawer = settings.drag_handle === 'drawer';
+        /**
+         * The class that marks a list as belonging to a group, which is what
+         * connects one list to another.
+         *
+         * Groups are named by the editor and scoped to this instance: two
+         * editors on one page must not drag into each other, since a node
+         * carries its drawer - and the events that go with it - from the
+         * editor that made it.
+         */
+        function groupClass(name) {
+            return 'ge-sort-' + name + '-' + instanceId;
+        }
 
-            var shared = {
+        /**
+         * Every sortable list the editor makes, core's and a plugin's alike,
+         * is made here.
+         *
+         * A caller says what moves (`draggable`) and what the list connects to
+         * (`group`, or none for a list that sorts only within itself); the
+         * handle, the cancel list, the callbacks and the host's options are
+         * this function's business. That is the whole point of it: the toolkit
+         * underneath is named in one place, so replacing it is one function
+         * and not thirty call sites.
+         */
+        function sortable(lists, options) {
+            var wholeDrawer = settings.drag_handle === 'drawer';
+            var group = options.group ? groupClass(options.group) : null;
+
+            if (!lists.length) { return; }
+            if (group) { lists.addClass(group); }
+
+            lists.sortable($.extend({
+                items: options.draggable,
+                connectWith: group ? '.' + group : false,
+
                 handle: wholeDrawer ? '> .ge-tools-drawer' : '> .ge-tools-drawer .ge-move',
 
                 // With the whole drawer as the handle, the tools inside it are
@@ -2013,96 +2049,89 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 start: sortStart,
                 stop: sortStop,
                 helper: 'clone',
-            };
+            }, options.options || {}, settings.sortable_options));
 
-            canvas.find('.row').sortable($.extend({
-                items: '> .column',
-                connectWith: '.ge-canvas .row',
-                tolerance: 'pointer',
-            }, shared, settings.sortable_options));
+            lists.each(function() { sortables.push($(this)); });
+        }
 
-            canvas.add(canvas.find('.column')).sortable($.extend({
-                items: '> .row, > .ge-content',
-                connectWith: '.ge-canvas, .ge-canvas .column',
-            }, shared, settings.sortable_options));
+        function makeSortable() {
+            sortable(canvas.find('.row'), {
+                draggable: '> .column',
+                group: 'column',
+                options: { tolerance: 'pointer' },
+            });
 
-            // A tab strip sorts its own tabs, and the panes follow them
-            canvas.find('.ge-container-tabs > .nav-tabs').sortable($.extend({
-                items: '> .ge-tab',
-            }, shared, settings.sortable_options));
-
-            // Accordion items sort within their accordion and into any other
-            canvas.find('.ge-container-accordion > .accordion').sortable($.extend({
-                items: '> .ge-accordion-item',
-                connectWith: '.ge-canvas .ge-container-accordion > .accordion',
-            }, shared, settings.sortable_options));
+            sortable(canvas.add(canvas.find('.column')), {
+                draggable: '> .row, > .ge-content',
+                group: 'block',
+            });
 
             // A plugin makes its own: only it knows which of its parts move
-            plugins('onSortable', shared);
+            plugins('onSortable', sortable);
+        }
 
-            /**
-             * jQuery UI cannot refuse a drag once it has started, so a
-             * canceled before-move is remembered here and undone on drop
-             * (spec 2.4). The node carries the mark, because with connected
-             * lists the drop is not always reported by the list that started
-             * the drag.
-             */
-            function sortStart(e, ui) {
-                ui.placeholder.css({ height: ui.item.outerHeight()});
+        /**
+         * jQuery UI cannot refuse a drag once it has started, so a
+         * canceled before-move is remembered here and undone on drop
+         * (spec 2.4). The node carries the mark, because with connected
+         * lists the drop is not always reported by the list that started
+         * the drag.
+         */
+        function sortStart(e, ui) {
+            ui.placeholder.css({ height: ui.item.outerHeight()});
 
-                var node = ui.item;
-                var from = positionOf(node);
+            var node = ui.item;
+            var from = positionOf(node);
 
-                node.data('ge-move-from', from);
+            node.data('ge-move-from', from);
+            node.removeData('ge-move-canceled');
+
+            operate(function() {
+                var moving = emit('before-move', payloadFor(kindOf(node), node, {
+                    parent: from.parent,
+                    source: 'dragdrop',
+                    from: from,
+                }));
+
+                if (!moving) { node.data('ge-move-canceled', true); }
+            });
+        }
+
+        function sortStop(e, ui) {
+            var node = ui.item;
+            var from = node.data('ge-move-from') || positionOf(node);
+
+            node.removeData('ge-move-from');
+
+            if (node.data('ge-move-canceled')) {
                 node.removeData('ge-move-canceled');
-
-                operate(function() {
-                    var moving = emit('before-move', payloadFor(kindOf(node), node, {
-                        parent: from.parent,
-                        source: 'dragdrop',
-                        from: from,
-                    }));
-
-                    if (!moving) { node.data('ge-move-canceled', true); }
-                });
+                $(this).sortable('cancel');
+                return;
             }
 
-            function sortStop(e, ui) {
-                var node = ui.item;
-                var from = node.data('ge-move-from') || positionOf(node);
-
-                node.removeData('ge-move-from');
-
-                if (node.data('ge-move-canceled')) {
-                    node.removeData('ge-move-canceled');
-                    $(this).sortable('cancel');
-                    return;
-                }
-
-                var to = positionOf(node);
-                if (to.parent[0] === from.parent[0] && to.index === from.index) {
-                    return; // A drag that went nowhere is not a move
-                }
-
-                var container = node.closest('[data-ge-container]');
-                var definition = CONTAINERS[containerTypeOf(container)];
-                if (definition && definition.afterPaneMove) {
-                    definition.afterPaneMove(container, node, from);
-                }
-
-                // No init() here, unlike an add: the node brought its drawer
-                // with it, and jQuery UI is still finishing the drag, so this
-                // is the wrong moment to rebuild the widgets it is using.
-                operate(function() {
-                    emit('after-move', payloadFor(kindOf(node), node, {
-                        parent: to.parent,
-                        source: 'dragdrop',
-                        from: from,
-                        to: to,
-                        container: container.length ? container : undefined,
-                    }));
-                });
+            var to = positionOf(node);
+            if (to.parent[0] === from.parent[0] && to.index === from.index) {
+                return; // A drag that went nowhere is not a move
             }
+
+            var container = node.closest('[data-ge-container]');
+            var definition = CONTAINERS[containerTypeOf(container)];
+            if (definition && definition.afterPaneMove) {
+                definition.afterPaneMove(container, node, from);
+            }
+
+            // No init() here, unlike an add: the node brought its drawer
+            // with it, and jQuery UI is still finishing the drag, so this
+            // is the wrong moment to rebuild the widgets it is using.
+            operate(function() {
+                emit('after-move', payloadFor(kindOf(node), node, {
+                    parent: to.parent,
+                    source: 'dragdrop',
+                    from: from,
+                    to: to,
+                    container: container.length ? container : undefined,
+                }));
+            });
         }
 
         /**
@@ -2275,18 +2304,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (plan) { writeSize(next, plan); }
         }
 
+        /**
+         * Undo every list `sortable()` made, and only those.
+         *
+         * The registry is what makes that exact: deinit() is a public method,
+         * so it can be called twice, and a list the host made sortable itself
+         * is none of the editor's business.
+         */
         function removeSortable() {
-            // Only where a sortable was actually made: deinit() is a public
-            // method now, and jQuery UI throws when asked to destroy a widget
-            // that is not there, so calling deinit() twice would fail.
-            // jQuery UI marks what it made, so a plugin's sortables come
-            // away with the editor's without the core knowing about them
-            canvas.find('.ui-sortable').addBack('.ui-sortable').each(function() {
-                var node = $(this);
-                if (node.data('ui-sortable')) {
-                    node.sortable('destroy');
-                }
+            $.each(sortables, function(_, list) {
+                if (list.data('ui-sortable')) { list.sortable('destroy'); }
+
+                list.removeClass(function(_i, classes) {
+                    return (classes.match(/\bge-sort-\S+/g) || []).join(' ');
+                });
             });
+
+            sortables = [];
         }
 
         function createRow() {

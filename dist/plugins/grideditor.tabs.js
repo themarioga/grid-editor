@@ -73,6 +73,14 @@ $.fn.gridEditor.containers.tabs = function(ge) {
 
     return {
         labelKey: 'container.add_tabs',
+
+        // A tab strip sorts its own tabs, and the panes follow them. No
+        // group: a tab belongs to the strip it was made in.
+        onSortable: function(sortable) {
+            sortable(ge.canvas.find('.ge-container-tabs > .nav-tabs'), {
+                draggable: '> .ge-tab',
+            });
+        },
         addPaneKey: 'container.add_tab',
         paneKind: 'tab',
 

@@ -99,6 +99,14 @@ $.fn.gridEditor.containers.accordion = function(ge) {
 
     return {
         labelKey: 'container.add_accordion',
+
+        // Items sort within their accordion and into any other one
+        onSortable: function(sortable) {
+            sortable(ge.canvas.find('.ge-container-accordion > .accordion'), {
+                draggable: '> .ge-accordion-item',
+                group: 'accordion',
+            });
+        },
         addPaneKey: 'container.add_accordion_item',
         paneKind: 'accordion-item',
 

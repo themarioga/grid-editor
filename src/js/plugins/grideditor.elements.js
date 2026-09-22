@@ -127,13 +127,13 @@ $.fn.gridEditor.features.elements = function(ge) {
         onContentReady: markElements,
 
         /** Elements move within a content area and between them. */
-        onSortable: function(shared) {
+        onSortable: function(sortable) {
             if (!elementsEnabled()) { return; }
 
-            ge.canvas.find('.ge-content').sortable($.extend({
-                items: '> .ge-element',
-                connectWith: '.ge-canvas .ge-content',
-            }, shared, ge.settings.sortable_options));
+            sortable(ge.canvas.find('.ge-content'), {
+                draggable: '> .ge-element',
+                group: 'element',
+            });
         },
     };
 };
