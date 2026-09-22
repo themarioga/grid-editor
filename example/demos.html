@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <title>Grid Editor demos</title>
+</head>
+<body class="bg-body-tertiary">
+
+    <div class="container py-5" style="max-width: 56rem;">
+
+        <h1 class="h3">Grid Editor demos</h1>
+        <p class="text-body-secondary">
+            Every page here is a working editor. They are static: served from
+            any web server, or from GitHub Pages, with no build step. Each one
+            runs the built files in <code>dist/</code>, so run
+            <code>npm run build</code> after changing anything under
+            <code>src/</code>.
+        </p>
+
+        <div class="list-group my-4">
+
+            <a class="list-group-item list-group-item-action" href="index.html">
+                <div class="d-flex justify-content-between">
+                    <strong>The editor</strong>
+                    <code class="text-body-secondary">index.html</code>
+                </div>
+                <span class="text-body-secondary">tinyMCE in the content areas, and the drawer as the drag handle</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="plugins.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Plugins</strong>
+                    <code class="text-body-secondary">plugins.html</code>
+                </div>
+                <span class="text-body-secondary">The plugin model, with a container plugin written in the page itself</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="containers.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Containers</strong>
+                    <code class="text-body-secondary">containers.html</code>
+                </div>
+                <span class="text-body-secondary">Tabs, accordions and popups, two levels deep, and the export opened as a real page</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="elements.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Elements</strong>
+                    <code class="text-body-secondary">elements.html</code>
+                </div>
+                <span class="text-body-secondary">Element level controls, including an element with no visual output</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="breakpoints.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Breakpoints</strong>
+                    <code class="text-body-secondary">breakpoints.html</code>
+                </div>
+                <span class="text-body-secondary">The six breakpoints, the &ldquo;all sizes&rdquo; view, and resizing by dragging</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="locale.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Languages</strong>
+                    <code class="text-body-secondary">locale.html</code>
+                </div>
+                <span class="text-body-secondary">The interface in Spanish, with a language switcher</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="ckeditor.html">
+                <div class="d-flex justify-content-between">
+                    <strong>CKEditor</strong>
+                    <code class="text-body-secondary">ckeditor.html</code>
+                </div>
+                <span class="text-body-secondary">CKEditor in the content areas instead of tinyMCE</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="summernote.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Summernote</strong>
+                    <code class="text-body-secondary">summernote.html</code>
+                </div>
+                <span class="text-body-secondary">The same, with summernote</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="wrap_content.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Wrapped content</strong>
+                    <code class="text-body-secondary">wrap_content.html</code>
+                </div>
+                <span class="text-body-secondary">Markup that was never a bootstrap grid, wrapped into one</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="index-autosave.html">
+                <div class="d-flex justify-content-between">
+                    <strong>Autosave</strong>
+                    <code class="text-body-secondary">index-autosave.html</code>
+                </div>
+                <span class="text-body-secondary">Saving the html as the user edits, through the editor&rsquo;s events</span>
+            </a>
+
+        </div>
+
+        <p class="text-body-secondary">
+            <a href="../README.md">README</a> &middot;
+            <a href="../docs/plugins.md">Writing a plugin</a> &middot;
+            <a href="../docs/events.md">Events</a> &middot;
+            <a href="https://github.com/themarioga/grid-editor">Source</a>
+        </p>
+
+    </div>
+
+</body>
+</html>
