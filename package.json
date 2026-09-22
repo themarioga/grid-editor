@@ -35,6 +35,16 @@
   },
   "version": "3.1.0",
   "main": "dist/jquery.grideditor.js",
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "example",
+    "AUTO_SAVE.md",
+    "BUILDING.md",
+    "CHANGELOG.md",
+    "UPGRADING.md"
+  ],
   "directories": {
     "example": "example"
   },
