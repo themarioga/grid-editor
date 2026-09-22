@@ -1,7 +1,7 @@
 Upgrading from grid-editor `2.*` to `3.*`
 =========================================
 
-Both are for bootstrap 5, and most of 3.0 is additive: the settings you pass
+Both are for bootstrap 5, and most of 3.x is additive: the settings you pass
 today keep working, `getHtml` still returns your markup, and the rich text
 editor integrations are unchanged. Four things do change.
 
@@ -21,7 +21,7 @@ editor integrations are unchanged. Four things do change.
   names, rename them.
 * __Columns are no longer seeded with a class per breakpoint.__ 2.x wrote
   `col-lg-*`, `col-sm-*` and `col-*` onto every column whether or not you
-  asked; 3.0 leaves a column that carries any size class exactly as authored,
+  asked; 3.x leaves a column that carries any size class exactly as authored,
   and gives a column with none a single `col-12`. Your existing markup is
   unaffected — it already has those classes — but new columns are leaner, and
   a column sized only for `lg` now renders as bootstrap renders it below `lg`.

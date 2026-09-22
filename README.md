@@ -488,7 +488,7 @@ Upgrading
 ---------
 
 See [UPGRADING.md](UPGRADING.md) for what changes between major versions,
-including 2.x to 3.0.
+including 2.x to 3.x.
 
 Building
 --------
