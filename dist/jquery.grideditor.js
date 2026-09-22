@@ -2166,8 +2166,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     fallbackClass: 'ge-drag-helper',
 
                     animation: settings.drag.animation,
-                    delay: settings.drag.delay,
+
+                    // One delay, which applies to both gestures or to touch
+                    // alone: a touch drag that starts instantly takes the
+                    // page's scrolling with it, a mouse drag has no such
+                    // problem, and asking for `delay` means asking for both
+                    delay: settings.drag.delay || settings.drag.touch_delay,
                     delayOnTouchOnly: !settings.drag.delay,
+
                     touchStartThreshold: settings.drag.threshold,
                     scroll: settings.drag.scroll,
 

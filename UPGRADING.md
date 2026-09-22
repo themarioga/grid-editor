@@ -1,7 +1,9 @@
 Upgrading from grid-editor `3.*` to `4.*`
 =========================================
 
-In progress; 4.0 is not released. What has landed so far:
+One change, and it is worth the major: jQuery UI is gone. The editor is 51 kB
+lighter on the page and works from a touchscreen, which it never did. Four
+things to do:
 
 * __A plugin's `onSortable` takes a function, not an options object.__ It used
   to receive the editor's shared jQuery UI options and call `.sortable()`

@@ -241,6 +241,99 @@ Session.prototype.drag = async function(fromSelector, toSelector, options) {
 };
 
 /**
+ * The same gestures with a finger.
+ *
+ * Touch is not mouse events by another name: a touch drag has its own delay
+ * before it starts, so that a page can still be scrolled, and it reaches the
+ * editor through pointer events and through SortableJS's own touch handling
+ * rather than through anything mouse shaped. `options.hold` is how long the
+ * finger rests before moving, and defaults to comfortably past the editor's
+ * touch delay.
+ */
+Session.prototype.touchDrag = async function(fromSelector, toSelector, options) {
+    options = options || {};
+
+    var points = await this.eval(
+        'const from = document.querySelector(' + JSON.stringify(fromSelector) + ');' +
+        'const to = document.querySelector(' + JSON.stringify(toSelector) + ');' +
+        'if (!from || !to) { return null; }' +
+        'from.scrollIntoView({ block: "center" });' +
+        'await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));' +
+        'const a = from.getBoundingClientRect();' +
+        'const b = to.getBoundingClientRect();' +
+        'return {' +
+        '    from: { x: a.left + a.width / 2, y: a.top + a.height / 2 },' +
+        '    to: { x: b.left + b.width * ' + (options.xRatio || 0.5) + ',' +
+        '           y: b.top + b.height * ' + (options.yRatio || 0.5) + ' },' +
+        '};'
+    );
+
+    if (!points) {
+        throw new Error('no elements to touch drag from ' + fromSelector + ' to ' + toSelector);
+    }
+
+    await this.touchGesture(points.from, {
+        x: points.to.x + (options.dx || 0),
+        y: points.to.y + (options.dy || 0),
+    }, options);
+};
+
+/** A finger dragging by a pixel delta, the touch twin of dragBy. */
+Session.prototype.touchDragBy = async function(selector, dx, dy, options) {
+    options = options || {};
+
+    var start = await this.eval(
+        'const node = document.querySelector(' + JSON.stringify(selector) + ');' +
+        'if (!node) { return null; }' +
+        'node.scrollIntoView({ block: "center" });' +
+        'await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));' +
+        'const box = node.getBoundingClientRect();' +
+        'return { x: box.left + box.width / 2, y: box.top + box.height / 2 };'
+    );
+
+    if (!start) { throw new Error('no element to touch drag: ' + selector); }
+
+    await this.touchGesture(start, { x: start.x + dx, y: start.y + dy }, options);
+};
+
+/** One finger, from one point to another. */
+Session.prototype.touchGesture = async function(from, to, options) {
+    options = options || {};
+
+    var steps = options.steps || 8;
+    var point = function(at) {
+        return [{ x: at.x, y: at.y, radiusX: 5, radiusY: 5, force: 1, id: 1 }];
+    };
+
+    await this.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: point(from),
+    });
+
+    // The finger rests where it landed: below the editor's touch delay
+    // nothing is a drag, which is what leaves the page scrollable
+    await sleep(options.hold === undefined ? 250 : options.hold);
+
+    for (var step = 1; step <= steps; step++) {
+        await this.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: point({
+                x: from.x + (to.x - from.x) * step / steps,
+                y: from.y + (to.y - from.y) * step / steps,
+            }),
+        });
+        await sleep(30);
+    }
+
+    await this.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+    });
+
+    await sleep(250);
+};
+
+/**
  * Drag an element by a pixel delta, for gestures aimed at nothing in
  * particular: a resize handle is dragged a distance, not onto a target.
  */

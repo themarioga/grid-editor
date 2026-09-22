@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Editing from a touchscreen. Sorting, resizing a column and carrying a toolbar
+  button onto the canvas all work with a finger; a touch rests for
+  `drag.touch_delay` before it moves anything, so the page can still be
+  scrolled. `test/touch.js` holds every gesture to it, and none of them worked
+  in 3.x.
 - `dist/jquery.grideditor.bundle.min.js`: the editor with SortableJS inside it,
   for pages that would rather load one file than two. A page loads it or the
   pair, never both.

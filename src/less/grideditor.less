@@ -118,6 +118,7 @@
 /* A toolbar button that can be carried onto the canvas */
 .ge-palette-button {
     cursor: move;
+    touch-action: none;
 }
 
 .ge-toolbar-helper {
@@ -471,6 +472,10 @@
         position: absolute;
         display: block;
         z-index: 10;
+
+        /* The gesture is the editor's, not the page's: without this a touch
+           drag on the handle scrolls instead of resizing */
+        touch-action: none;
     }
     .column > .ge-resize-e,
     .column > .ge-resize-w {
