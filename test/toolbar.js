@@ -44,8 +44,8 @@ async function paletteTests(t) {
 
     var ready = await page.eval(`
         return {
-            draggable: jQuery('.ge-addRowGroup a').first().hasClass('ui-draggable'),
-            containerButtons: jQuery('.ge-addContainerGroup a.ui-draggable').length,
+            draggable: jQuery('.ge-addRowGroup a').first().hasClass('ge-palette-button'),
+            containerButtons: jQuery('.ge-addContainerGroup a.ge-palette-button').length,
             marked: jQuery('[data-ge-toolbar]').length,
         };
     `);
@@ -197,7 +197,7 @@ async function settingTests(t) {
     await page.eval(canvasWith({ drag_handle: 'tool' }) + 'return true;');
     var byDefault = await page.eval(`
         return {
-            draggable: jQuery('.ge-addRowGroup a.ui-draggable').length,
+            draggable: jQuery('.ge-addRowGroup a.ge-palette-button').length,
             clickStillAdds: (jQuery('.ge-addRowGroup a[data-ge-layout="12"]').trigger('click'),
                 jQuery('#myGrid > .row').length),
         };
@@ -206,12 +206,12 @@ async function settingTests(t) {
         byDefault.draggable === 0 && byDefault.clickStillAdds === 3, byDefault);
 
     await page.eval(canvasWith({ drag_handle: 'tool', toolbar_drag: true }) + 'return true;');
-    var forcedOn = await page.eval(`return jQuery('.ge-addRowGroup a.ui-draggable').length;`);
+    var forcedOn = await page.eval(`return jQuery('.ge-addRowGroup a.ge-palette-button').length;`);
     t.check('toolbar_drag true turns the palette on whatever the drag handle is',
         forcedOn === 3, forcedOn);
 
     await page.eval(canvasWith({ toolbar_drag: false }) + 'return true;');
-    var forcedOff = await page.eval(`return jQuery('.ge-addRowGroup a.ui-draggable').length;`);
+    var forcedOff = await page.eval(`return jQuery('.ge-addRowGroup a.ge-palette-button').length;`);
     t.check('toolbar_drag false turns it off whatever the drag handle is',
         forcedOff === 0, forcedOff);
 

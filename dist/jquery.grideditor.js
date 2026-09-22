@@ -903,26 +903,82 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function makeToolbarDraggable() {
+            var buttons = mainControls.find('[data-ge-toolbar]')
+                .removeClass('ge-palette-button')
+                .off('pointerdown.ge-palette')
+            ;
+
             if (!toolbarDrags()) { return; }
 
-            mainControls.find('[data-ge-toolbar]').draggable({
-                helper: function() { return $(this).clone().addClass('ge-toolbar-helper'); },
-                appendTo: 'body',
-                zIndex: 1000,
-                cursorAt: { top: 14, left: 14 },
+            buttons.addClass('ge-palette-button').on('pointerdown.ge-palette', startToolbarDrag);
+        }
 
-                start: function() { canvas.addClass('ge-dropping'); },
-                drag: function(e) { showDropMarker(e.pageX, e.pageY); },
+        /**
+         * A toolbar button carried onto the canvas.
+         *
+         * Nothing happens until the pointer has moved far enough to mean it:
+         * below that the gesture is a click, and the button's own handler
+         * adds the block at the end of the canvas as it always has - which is
+         * also what keeps the add column tool's hold-to-pick working.
+         */
+        function startToolbarDrag(e) {
+            var button = $(e.currentTarget);
+            var startX = e.pageX;
+            var startY = e.pageY;
+            var helper = null;
 
-                stop: function(e) {
-                    var where = dropPlaceAt(e.pageX, e.pageY);
+            if (e.button) { return; }
 
-                    canvas.removeClass('ge-dropping');
-                    hideDropMarker();
+            function far(move) {
+                return Math.abs(move.pageX - startX) + Math.abs(move.pageY - startY) >
+                    settings.drag.threshold;
+            }
 
-                    if (where) { insertFromToolbar($(this), where); }
-                },
-            });
+            function onMove(move) {
+                if (!helper) {
+                    if (!far(move)) { return; }
+
+                    helper = button.clone()
+                        .addClass('ge-toolbar-helper')
+                        .appendTo('body')
+                    ;
+                    canvas.addClass('ge-dropping');
+                }
+
+                helper.css({ left: move.pageX - 14, top: move.pageY - 14 });
+                showDropMarker(move.pageX, move.pageY);
+            }
+
+            function onUp(up) {
+                $(document)
+                    .off('pointermove.ge-toolbar', onMove)
+                    .off('pointerup.ge-toolbar pointercancel.ge-toolbar', onUp)
+                ;
+
+                if (!helper) { return; }
+
+                helper.remove();
+                canvas.removeClass('ge-dropping');
+                hideDropMarker();
+
+                // The click that follows a drag would add the block a second
+                // time, at the end of the canvas
+                button.one('click', function(click) {
+                    click.preventDefault();
+                    click.stopImmediatePropagation();
+                });
+
+                var where = dropPlaceAt(up.pageX, up.pageY);
+                if (where) { insertFromToolbar(button, where); }
+            }
+
+            // On the document, not on the button: until the gesture is far
+            // enough along to be a drag there is nothing to capture the
+            // pointer with, and the pointer has left the button by then
+            $(document)
+                .on('pointermove.ge-toolbar', onMove)
+                .on('pointerup.ge-toolbar pointercancel.ge-toolbar', onUp)
+            ;
         }
 
         /**
@@ -2226,24 +2282,74 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             canvas.find('.column').each(function() {
                 var col = $(this);
-                if (col.data('ui-resizable')) { return; }
+                if (col.find('> .ge-resize-handle').length) { return; }
 
                 $('<span class="ge-resize-size" />').appendTo(col.find('> .ge-tools-drawer'));
 
-                col.resizable({
-                    handles: settings.resize.handles,
-                    start: resizeStart,
-                    resize: resizeMove,
-                    stop: resizeStop,
+                $.each(resizeEdges(), function(_, edge) {
+                    $('<span class="ge-resize-handle" />')
+                        .addClass('ge-resize-' + edge)
+                        .attr('data-ge-edge', edge)
+                        .on('pointerdown', startResizeDrag)
+                        .appendTo(col)
+                    ;
                 });
             });
         }
 
+        /** Which edges carry a handle: 'e', 'w', or both. */
+        function resizeEdges() {
+            return String(settings.resize.handles).split(',')
+                .map(function(edge) { return edge.trim(); })
+                .filter(function(edge) { return edge === 'e' || edge === 'w'; });
+        }
+
+        /**
+         * One resize gesture, from the pointer going down on a handle to it
+         * coming up again.
+         *
+         * The pointer is captured, so a fast drag that leaves the column
+         * behind keeps resizing it, and a refused before-resize simply never
+         * starts: nothing is written and the column does not move.
+         */
+        function startResizeDrag(e) {
+            var handle = $(e.currentTarget);
+            var col = handle.parent();
+            var west = handle.attr('data-ge-edge') === 'w';
+            var startX = e.pageX;
+            var startWidth = col.outerWidth();
+
+            e.preventDefault();
+
+            if (!resizeStart(col)) { return; }
+
+            col.addClass('ge-resizing');
+            if (e.pointerId !== undefined && handle[0].setPointerCapture) {
+                handle[0].setPointerCapture(e.pointerId);
+            }
+
+            function widthAt(move) {
+                var delta = move.pageX - startX;
+
+                return Math.max(1, startWidth + (west ? -delta : delta));
+            }
+
+            function onMove(move) {
+                col.css('width', widthAt(move) + 'px');
+                resizeMove(col, widthAt(move));
+            }
+
+            function onUp(up) {
+                handle.off('pointermove', onMove).off('pointerup pointercancel', onUp);
+                col.removeClass('ge-resizing');
+                resizeStop(col, widthAt(up));
+            }
+
+            handle.on('pointermove', onMove).on('pointerup pointercancel', onUp);
+        }
+
         function removeResizable() {
-            canvas.find('.column').each(function() {
-                var col = $(this);
-                if (col.data('ui-resizable')) { col.resizable('destroy'); }
-            });
+            canvas.find('.ge-resize-handle').remove();
 
             canvas.find('.ge-resize-size').remove();
             stripPixelWidths(canvas);
@@ -2296,16 +2402,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * A canceled before-resize refuses the drag.
-         *
-         * jQuery UI's resizable ignores false from its start handler - unlike
-         * draggable, and unlike what the spec assumed - so the refusal is
-         * carried on the column and every step of the drag returns false,
-         * which the widget does honour. Nothing is written and the column ends
-         * where it began.
+         * A canceled before-resize refuses the gesture before it begins, so
+         * nothing is written and the column does not move. Under jQuery UI
+         * this took a flag on the column and a refusal from every step of the
+         * drag, because resizable ignores false from its start handler.
          */
-        function resizeStart(e, ui) {
-            var col = $(this);
+        function resizeStart(col) {
             var from = currentSize(col);
 
             var allowed = operate(function() {
@@ -2316,40 +2418,27 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 }));
             });
 
-            if (!allowed) {
-                col.data('ge-resize-refused', true);
-                return false;
-            }
+            if (!allowed) { return false; }
 
             col.data('ge-resize-from', from);
             resizeReadout(col, sizeLabel(from));
 
-            return undefined;
+            return true;
         }
 
-        function resizeMove(e, ui) {
-            var col = $(this);
-
-            if (col.data('ge-resize-refused')) { return false; }
-
-            resizeReadout(col, sizeLabel(snapUnits(col, ui.size.width)));
-
-            return undefined;
+        function resizeMove(col, width) {
+            resizeReadout(col, sizeLabel(snapUnits(col, width)));
         }
 
-        function resizeStop(e, ui) {
-            var col = $(this);
+        function resizeStop(col, width) {
             var from = col.data('ge-resize-from');
-            var units = snapUnits(col, ui.size.width);
+            var units = snapUnits(col, width);
 
             col.removeData('ge-resize-from');
             resizeReadout(col, '');
             stripPixelWidths(col);
 
-            if (col.data('ge-resize-refused') || from === undefined) {
-                col.removeData('ge-resize-refused');
-                return;
-            }
+            if (from === undefined) { return; }
 
             // A drag of a couple of pixels lands on the size it started from,
             // and is not a resize
@@ -2585,7 +2674,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     // boundary either. jQuery UI's resize handle used to be
                     // treated as content and wrapped into a content area of
                     // its own on the next init.
-                    if (child.is('.ge-tools-drawer, .ui-resizable-handle')) { return; }
+                    if (child.is('.ge-tools-drawer, .ge-resize-handle')) { return; }
 
                     // A container sits in the column beside the content
                     // areas, not inside one, so it ends a run of loose

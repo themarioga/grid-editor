@@ -17,7 +17,7 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 // The first column's east handle: querySelector takes the first in document
 // order, and the drawer being the row's first child rules out :first-child
-var HANDLE = '#myGrid .column > .ui-resizable-e';
+var HANDLE = '#myGrid .column > .ge-resize-e';
 
 /** A row of columns, given as [size, offset] pairs, edited at the xs tier. */
 function canvasOf(columns, settings) {
@@ -148,7 +148,7 @@ async function eventTests(t) {
             before: window.beforeDrag,
             after: jQuery('#myGrid .column').first().attr('class'),
             inlineWidth: jQuery('#myGrid .column').first()[0].style.width,
-            resizing: jQuery('.ui-resizable-resizing').length,
+            resizing: jQuery('.ge-resizing').length,
         };
     `);
     t.check('a canceled before-resize stops the drag before it starts',
@@ -164,9 +164,9 @@ async function artifactTests(t) {
 
     var editing = await page.eval(`
         return {
-            handles: jQuery('#myGrid .ui-resizable-handle').length,
+            handles: jQuery('#myGrid .ge-resize-handle').length,
             columns: jQuery('#myGrid .column').length,
-            east: jQuery('#myGrid .ui-resizable-e').length,
+            east: jQuery('#myGrid .ge-resize-e').length,
             readouts: jQuery('#myGrid .ge-resize-size').length,
         };
     `);
@@ -175,10 +175,12 @@ async function artifactTests(t) {
         editing.readouts === editing.columns,
         editing);
 
-    // The readout says which class the column would land on, mid drag
+    // The readout says which class the column would land on, mid drag.
+    // Sampled on pointermove, because the gesture captures the pointer and a
+    // captured pointer fires no compatibility mouse events.
     await page.eval(`
         window.readouts = [];
-        jQuery('#myGrid').on('mousemove', function() {
+        jQuery('#myGrid').on('pointermove', function() {
             const text = jQuery('#myGrid .ge-resize-size').first().text();
             if (text && window.readouts.indexOf(text) === -1) { window.readouts.push(text); }
         });
@@ -195,12 +197,12 @@ async function artifactTests(t) {
         return {
             html: html,
             pixels: /style=/i.test(html),
-            jqueryUi: /ui-resizable|ui-sortable/.test(html),
+            jqueryUi: /ui-resizable|ui-sortable|ge-resize-handle|ge-drag-/.test(html),
             readout: /ge-resize-size/.test(html),
             drawer: /ge-tools-drawer/.test(html),
             keptSize: /col-8/.test(html),
             stillEditing: jQuery('#myGrid').hasClass('ge-editing'),
-            handlesAfterwards: jQuery('#myGrid .ui-resizable-handle').length,
+            handlesAfterwards: jQuery('#myGrid .ge-resize-handle').length,
         };
     `);
     t.check('a drag-resized column exports as its class and nothing else',
@@ -253,7 +255,7 @@ async function gestureTests(t) {
     `;
 
     // The edge resizes and does not sort
-    await page.dragBy('#left > .ui-resizable-e', Math.round(unit), 0);
+    await page.dragBy('#left > .ge-resize-e', Math.round(unit), 0);
     var afterEdge = await page.eval(order);
     t.check('dragging the column edge resizes it and never sorts it',
         afterEdge.order === 'left,right' && afterEdge.moves === 0 &&

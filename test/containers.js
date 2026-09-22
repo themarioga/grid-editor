@@ -422,7 +422,7 @@ async function nestingTests(t) {
             containerClass: /class="[^"]*ge-container/.test(html),
             paneLabels: /ge-pane-label/.test(html),
             editable: /contenteditable/i.test(html),
-            jqueryUi: /ui-sortable|ui-resizable/.test(html),
+            jqueryUi: /ui-sortable|ui-resizable|ge-drag-|ge-resize-handle/.test(html),
             dataAttributes: (html.match(/data-ge-[a-z-]+/g) || [])
                 .filter((v, i, a) => a.indexOf(v) === i).sort(),
         };

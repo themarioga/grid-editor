@@ -115,7 +115,14 @@
     }
 }
 
+/* A toolbar button that can be carried onto the canvas */
+.ge-palette-button {
+    cursor: move;
+}
+
 .ge-toolbar-helper {
+    position: absolute;
+    z-index: 1000;
     pointer-events: none;
     opacity: 0.85;
 }
@@ -452,23 +459,22 @@
     .column {
         transition: width 120ms ease, margin-left 120ms ease;
     }
-    .column.ui-resizable-resizing {
+    .column.ge-resizing {
         transition: none;
         /* Follow the pointer in pixels: the layout mode's max-width is what
            the column will snap back into once the drag lands */
         max-width: none;
     }
 
-    /* Resizing. jQuery UI's own stylesheet is not a dependency, so the handle
-       is styled here: a grip on the column's edge, clear of the drawer, which
-       is what keeps the resize gesture and the sort gesture apart */
-    .column > .ui-resizable-handle {
+    /* Resizing: a grip on the column's edge, clear of the drawer, which is
+       what keeps the resize gesture and the sort gesture apart */
+    .column > .ge-resize-handle {
         position: absolute;
         display: block;
         z-index: 10;
     }
-    .column > .ui-resizable-e,
-    .column > .ui-resizable-w {
+    .column > .ge-resize-e,
+    .column > .ge-resize-w {
         top: 0;
         bottom: 0;
         width: 8px;
@@ -479,10 +485,10 @@
             background: @colColor;
         }
     }
-    .column > .ui-resizable-e {
+    .column > .ge-resize-e {
         right: -1px;
     }
-    .column > .ui-resizable-w {
+    .column > .ge-resize-w {
         left: -1px;
     }
 
@@ -494,13 +500,13 @@
         font-size: 11px;
         color: @colTextColor;
     }
-    .column.ui-resizable-resizing > .ge-tools-drawer > .ge-resize-size {
+    .column.ge-resizing > .ge-tools-drawer > .ge-resize-size {
         display: block;
     }
 }
 
 /* The handle belongs to editing, and never to the output */
-.ge-canvas:not(.ge-editing) .ui-resizable-handle {
+.ge-canvas:not(.ge-editing) .ge-resize-handle {
     display: none;
 }
 

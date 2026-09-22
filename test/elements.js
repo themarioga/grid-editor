@@ -83,7 +83,7 @@ async function detectionTests(t) {
         window.fixture.init();
         return {
             elements: jQuery('#myGrid .ge-element').length,
-            sortable: !!jQuery('#myGrid .ge-content').first().data('ui-sortable'),
+            sortable: !!Sortable.get(jQuery('#myGrid .ge-content').first()[0]),
         };
     `);
     t.check('a page with nothing marked gets no element handling at all',

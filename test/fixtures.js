@@ -82,7 +82,7 @@ async function run(t) {
             keptContent: html.indexOf('Fixture heading') !== -1,
             drawers: /ge-tools-drawer/.test(html),
             editable: /contenteditable/i.test(html),
-            sortable: /ui-sortable/.test(html),
+            sortable: /ui-sortable|ge-drag-/.test(html),
             stillEditing: jQuery('#myGrid').hasClass('ge-editing'),
         };
     `);

@@ -35,14 +35,18 @@ In progress; 4.0 is not released. What has landed so far:
   `scroll` — and the `resize` block you already have. Passing either warns once
   and names the replacement.
 
-* __Sorting is SortableJS, not jQuery UI.__ Load `Sortable.min.js` beside the
-  editor. jQuery UI is still needed for resizing and the toolbar palette; that
-  goes too before 4.0 is released. Classes you may have styled:
+* __jQuery UI is not used any more.__ Sorting is SortableJS, which you load
+  beside the editor; resizing a column and carrying a toolbar button onto the
+  canvas are the editor's own pointer code. Classes you may have styled:
 
   | 3.x | 4.0 |
   | --- | --- |
   | `.ui-sortable-helper` | `.ge-drag-helper` |
   | `.ui-sortable-placeholder` | `.ge-drag-placeholder` |
+  | `.ui-resizable-handle` | `.ge-resize-handle` |
+  | `.ui-resizable-e`, `.ui-resizable-w` | `.ge-resize-e`, `.ge-resize-w` |
+  | `.ui-resizable-resizing` | `.ge-resizing` |
+  | `.ui-draggable` on a toolbar button | `.ge-palette-button` |
 
 * __A whole container can be dragged now.__ Its move tool was a handle for a
   list that did not accept containers, so in 3.x dragging one did nothing. It

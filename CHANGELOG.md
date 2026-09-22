@@ -18,12 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warns once naming the replacement.
 
 ### Changed
+- Resizing a column and dragging a toolbar button onto the canvas are the
+  editor's own pointer code, so jQuery UI is no longer used at all. A refused
+  `before-resize` now stops the gesture before it starts instead of refusing
+  every step of it, and the pointer is captured, so a fast drag that leaves the
+  column behind keeps resizing it. `.ui-resizable-*` become `.ge-resize-*` and
+  `.ge-resizing`; a palette button carries `.ge-palette-button`.
 - Sorting is SortableJS instead of jQuery UI: rows, columns, blocks, tabs,
   accordion items and elements all move through it, with touch support that
   jQuery UI sortable never had. `.ui-sortable-helper` and
   `.ui-sortable-placeholder` become `.ge-drag-helper` and
-  `.ge-drag-placeholder`. jQuery UI is still needed for resizing and the
-  toolbar palette.
+  `.ge-drag-placeholder`.
 - Every sortable list the editor makes, core's and a plugin's, goes through one
   internal seam that names the drag toolkit in one place. Groundwork for 4.0,
   which replaces jQuery UI with SortableJS.

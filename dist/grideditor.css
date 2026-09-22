@@ -83,7 +83,13 @@
 .ge-drag-helper .ge-tools-drawer {
   pointer-events: none;
 }
+/* A toolbar button that can be carried onto the canvas */
+.ge-palette-button {
+  cursor: move;
+}
 .ge-toolbar-helper {
+  position: absolute;
+  z-index: 1000;
   pointer-events: none;
   opacity: 0.85;
 }
@@ -127,9 +133,8 @@
   /* A size change should read as a movement rather than a jump, but not
        while the pointer is dragging the edge: there the column follows the
        pointer and a transition only lags behind it */
-  /* Resizing. jQuery UI's own stylesheet is not a dependency, so the handle
-       is styled here: a grip on the column's edge, clear of the drawer, which
-       is what keeps the resize gesture and the sort gesture apart */
+  /* Resizing: a grip on the column's edge, clear of the drawer, which is
+       what keeps the resize gesture and the sort gesture apart */
   /* The units the column would land on, shown in its drawer while dragging */
 }
 .ge-canvas.ge-editing .ge-tools-drawer {
@@ -385,33 +390,33 @@
 .ge-canvas.ge-editing .column {
   transition: width 120ms ease, margin-left 120ms ease;
 }
-.ge-canvas.ge-editing .column.ui-resizable-resizing {
+.ge-canvas.ge-editing .column.ge-resizing {
   transition: none;
   /* Follow the pointer in pixels: the layout mode's max-width is what
            the column will snap back into once the drag lands */
   max-width: none;
 }
-.ge-canvas.ge-editing .column > .ui-resizable-handle {
+.ge-canvas.ge-editing .column > .ge-resize-handle {
   position: absolute;
   display: block;
   z-index: 10;
 }
-.ge-canvas.ge-editing .column > .ui-resizable-e,
-.ge-canvas.ge-editing .column > .ui-resizable-w {
+.ge-canvas.ge-editing .column > .ge-resize-e,
+.ge-canvas.ge-editing .column > .ge-resize-w {
   top: 0;
   bottom: 0;
   width: 8px;
   cursor: ew-resize;
   background: rgba(47, 164, 231, 0.3);
 }
-.ge-canvas.ge-editing .column > .ui-resizable-e:hover,
-.ge-canvas.ge-editing .column > .ui-resizable-w:hover {
+.ge-canvas.ge-editing .column > .ge-resize-e:hover,
+.ge-canvas.ge-editing .column > .ge-resize-w:hover {
   background: #2FA4E7;
 }
-.ge-canvas.ge-editing .column > .ui-resizable-e {
+.ge-canvas.ge-editing .column > .ge-resize-e {
   right: -1px;
 }
-.ge-canvas.ge-editing .column > .ui-resizable-w {
+.ge-canvas.ge-editing .column > .ge-resize-w {
   left: -1px;
 }
 .ge-canvas.ge-editing .ge-tools-drawer > .ge-resize-size {
@@ -421,11 +426,11 @@
   font-size: 11px;
   color: #178acc;
 }
-.ge-canvas.ge-editing .column.ui-resizable-resizing > .ge-tools-drawer > .ge-resize-size {
+.ge-canvas.ge-editing .column.ge-resizing > .ge-tools-drawer > .ge-resize-size {
   display: block;
 }
 /* The handle belongs to editing, and never to the output */
-.ge-canvas:not(.ge-editing) .ui-resizable-handle {
+.ge-canvas:not(.ge-editing) .ge-resize-handle {
   display: none;
 }
 /* Layout modes */

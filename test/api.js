@@ -413,7 +413,7 @@ async function lifecycleTests(t) {
         return {
             html: html,
             drawers: /ge-tools-drawer/.test(html),
-            sortable: /ui-sortable|ui-sortable-handle/.test(html),
+            sortable: /ui-sortable|ge-drag-|ge-resize-handle/.test(html),
             editing: /ge-editing/.test(html),
         };
     `);

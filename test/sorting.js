@@ -51,7 +51,7 @@ async function drawerTests(t) {
     var ontoEdge = await page.eval(CHILDREN);
 
     t.check('a block dropped on a region’s drawer lands after it, not above it',
-        before === 'ge-tools-drawer,one,two,ui-resizable-handle' &&
+        before === 'ge-tools-drawer,one,two,ge-resize-handle' &&
         ontoDrawer.indexOf('ge-tools-drawer,two') === 0 &&
         ontoEdge.indexOf('ge-tools-drawer,two') === 0,
         { before: before, ontoDrawer: ontoDrawer, ontoEdge: ontoEdge });
