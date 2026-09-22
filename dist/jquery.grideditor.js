@@ -1489,6 +1489,40 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * landed in, and takes on that accordion's idea of whether several
          * items may be open at once.
          */
+        /**
+         * Open or close an item while editing.
+         *
+         * The editor does this itself rather than letting Bootstrap's collapse
+         * run over the canvas, and it writes what it does to data-ge-open, so
+         * what is left open here is what the authored page opens with. An
+         * accordion that closes its siblings - one without stay_open - closes
+         * them here too, because the canvas is meant to look like the page.
+         */
+        function toggleAccordionItem(container, item) {
+            var collapse = item.find('> .accordion-collapse');
+            var opening = collapse.attr('data-ge-open') !== 'true';
+
+            if (opening && !staysOpen(container)) {
+                container.find('> .accordion > .accordion-item').not(item).each(function() {
+                    setAccordionItemOpen($(this), false);
+                });
+            }
+
+            setAccordionItemOpen(item, opening);
+        }
+
+        /** One item's state, in the attribute and in Bootstrap's own classes. */
+        function setAccordionItemOpen(item, open) {
+            item.find('> .accordion-collapse')
+                .attr('data-ge-open', open ? 'true' : 'false')
+                .toggleClass('show', open)
+            ;
+            item.find('> .accordion-header .accordion-button')
+                .toggleClass('collapsed', !open)
+                .attr('aria-expanded', open ? 'true' : 'false')
+            ;
+        }
+
         function reparentAccordionItem(container, item) {
             var accordion = item.closest('.accordion');
             var collapse = item.find('> .accordion-collapse');
@@ -1690,8 +1724,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                             collapse.attr('data-ge-open', collapse.hasClass('show') ? 'true' : 'false');
                         }
 
-                        suspendToggles(item.find('> .accordion-header .accordion-button'));
-                        makeLabelEditable(labelIn(item.find('> .accordion-header .accordion-button')));
+                        var button = item.find('> .accordion-header .accordion-button');
+
+                        // Bootstrap's collapse stays out of it, and the editor
+                        // answers the click itself
+                        suspendToggles(button);
+                        makeLabelEditable(labelIn(button));
+
+                        if (!button.data('ge-toggles')) {
+                            button.data('ge-toggles', true).on('click', function(e) {
+                                if (labelIn(button).attr('contenteditable') === 'true') { return; }
+
+                                e.preventDefault();
+                                toggleAccordionItem(container, item);
+                            });
+                        }
 
                         if (item.find('> .ge-tools-drawer').length) { return; }
 
@@ -1705,15 +1752,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 unmark: function(container) {
                     resumeToggles(container);
 
+                    // What the canvas was showing is what the page ships
                     container.find('> .accordion > .accordion-item').each(function() {
-                        var collapse = $(this).find('> .accordion-collapse');
-                        var open = collapse.attr('data-ge-open') === 'true';
-
-                        collapse.toggleClass('show', open);
-                        $(this).find('> .accordion-header .accordion-button')
-                            .toggleClass('collapsed', !open)
-                            .attr('aria-expanded', open ? 'true' : 'false')
-                        ;
+                        setAccordionItemOpen($(this),
+                            $(this).find('> .accordion-collapse').attr('data-ge-open') === 'true');
                     });
 
                     container.find('.ge-accordion-item').removeClass('ge-accordion-item');

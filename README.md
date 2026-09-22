@@ -334,6 +334,11 @@ $('#myGrid').gridEditor('createContainer', 'accordion', { items: 3, stay_open: t
 $('#myGrid').gridEditor('createContainer', 'popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg' });
 ```
 
+An accordion opens and closes from its headers while editing, and what you
+leave open is what the authored page opens with. The editor answers the click
+itself rather than letting Bootstrap's collapse run over the canvas, so
+`stay_open` behaves the same in the editor as on the page.
+
 A popup is a Bootstrap modal plus its trigger. While editing it is rendered
 unfolded in place, so its body is an ordinary region and Bootstrap's modal JS
 is never involved; `getHtml` gives you a closed modal that Bootstrap opens from

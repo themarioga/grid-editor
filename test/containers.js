@@ -230,6 +230,104 @@ async function paneTests(t) {
     t.check('the pane tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Opening and closing an item while editing, which is also how the state the
+ * authored page starts in is chosen.
+ */
+async function accordionStateTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var initial = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init();
+        const ge = jQuery('#myGrid').data('grideditor');
+        window.accordion = ge.createContainer('accordion', {
+            items: 3,
+            labels: ['One', 'Two', 'Three'],
+            appendTo: jQuery('#myGrid .column').first(),
+        });
+
+        window.state = function() {
+            return window.accordion.find('.accordion-collapse').map(function() {
+                return jQuery(this).attr('data-ge-open') + ':' + (jQuery(this).is(':visible') ? 'shown' : 'hidden');
+            }).get().join(',');
+        };
+
+        return window.state();
+    `);
+    t.check('an accordion starts with the item the markup opened, and the others closed',
+        initial === 'true:shown,false:hidden,false:hidden', initial);
+
+    var opened = await page.eval(`
+        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
+        return { state: window.state(), collapsing: jQuery('.collapsing').length };
+    `);
+    t.check('clicking a header opens that item and closes the one that was open',
+        opened.state === 'false:hidden,true:shown,false:hidden' && opened.collapsing === 0,
+        opened);
+
+    var closed = await page.eval(`
+        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
+        return window.state();
+    `);
+    t.check('clicking it again closes it, leaving the accordion with nothing open',
+        closed === 'false:hidden,false:hidden,false:hidden', closed);
+
+    var stayOpen = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init();
+        const ge = jQuery('#myGrid').data('grideditor');
+        window.accordion = ge.createContainer('accordion', {
+            items: 3,
+            stay_open: true,
+            appendTo: jQuery('#myGrid .column').first(),
+        });
+
+        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
+        window.accordion.find('.ge-accordion-item').eq(2).find('.accordion-button').trigger('click');
+
+        return window.state();
+    `);
+    t.check('an accordion that stays open keeps the items that were already open',
+        stayOpen === 'true:shown,true:shown,true:shown', stayOpen);
+
+    var exported = await page.eval(`
+        window.accordion.find('.ge-accordion-item').eq(0).find('.accordion-button').trigger('click');
+
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const parsed = jQuery('<div>').html(html);
+
+        return {
+            canvas: window.state(),
+            shown: parsed.find('.accordion-collapse.show').length,
+            hidden: parsed.find('.accordion-collapse:not(.show)').length,
+            expanded: parsed.find('.accordion-button:not(.collapsed)').length,
+            bootstrapToggles: parsed.find('[data-bs-toggle="collapse"]').length,
+        };
+    `);
+    t.check('what is open on the canvas is what the authored page opens with',
+        exported.canvas === 'false:hidden,true:shown,true:shown' &&
+        exported.shown === 2 && exported.hidden === 1 && exported.expanded === 2 &&
+        exported.bootstrapToggles === 3,
+        exported);
+
+    var duringEditing = await page.eval(`
+        return {
+            suspended: jQuery('#myGrid [data-ge-bs-toggle="collapse"]').length,
+            live: jQuery('#myGrid [data-bs-toggle="collapse"]').length,
+            instances: window.bootstrap
+                ? jQuery('#myGrid .accordion-collapse').filter(function() {
+                    return !!bootstrap.Collapse.getInstance(this);
+                }).length
+                : null,
+        };
+    `);
+    t.check('Bootstrap\u2019s own collapse is never the thing doing it',
+        duringEditing.suspended === 3 && duringEditing.live === 0 && duringEditing.instances === 0,
+        duringEditing);
+
+    var errors = page.errors();
+    t.check('the accordion state tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 async function nestingTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
@@ -555,6 +653,7 @@ module.exports = {
     run: async function(t) {
         await creationTests(t);
         await paneTests(t);
+        await accordionStateTests(t);
         await nestingTests(t);
         await moveTests(t);
         await popupTests(t);

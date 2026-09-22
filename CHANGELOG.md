@@ -110,10 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `accordion-item`.
 - Tabs: a sortable strip whose panes follow their tabs, so the output reads in
   tab order.
-- Accordions: `stay_open`, every item shown while editing with the authored
-  state kept in `data-ge-open` and restored on the way out, and items that drag
-  into any other accordion on the canvas, taking that accordion's
-  `data-bs-parent` and its idea of whether several items may be open.
+- Accordions: `stay_open`, items that open and close from their headers while
+  editing - with the state kept in `data-ge-open`, so what is left open on the
+  canvas is what the authored page opens with - and items that drag into any
+  other accordion on the canvas, taking that accordion's `data-bs-parent` and
+  its idea of whether several items may be open. The editor answers the click
+  itself; Bootstrap's collapse is never asked to run over the canvas.
 - Popups: a Bootstrap modal plus its trigger, rendered unfolded and static
   while editing so its body is an ordinary region - no backdrop, no focus trap,
   no `bootstrap.Modal` instantiated. The drawer folds it away. Any node the

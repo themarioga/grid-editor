@@ -342,11 +342,15 @@
         padding: @editGutter 0;
     }
 
-    /* Every accordion item is open while editing, whatever the authored
-       state is: a pane nobody can reach is a pane nobody can edit. The
-       authored state lives in data-ge-open and goes back on the way out */
-    .accordion-collapse {
+    /* Open and closed while editing is what the page will ship, which is what
+       data-ge-open says. Bootstrap's own collapse is not involved: its
+       javascript is never asked to run over the canvas, so the state is
+       driven from the attribute rather than from the .show class it animates */
+    .accordion-collapse[data-ge-open="true"] {
         display: block;
+    }
+    .accordion-collapse[data-ge-open="false"] {
+        display: none;
     }
     .ge-accordion-item > .ge-pane-drawer {
         padding: 2px 0;

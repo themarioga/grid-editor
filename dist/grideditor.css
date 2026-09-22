@@ -104,9 +104,10 @@
   /* A pane's own drawer is small and sits with its label rather than
        above it: a tab strip is a row of tabs, not a stack of them */
   /* The label is edited in place, so it needs to look like it can be */
-  /* Every accordion item is open while editing, whatever the authored
-       state is: a pane nobody can reach is a pane nobody can edit. The
-       authored state lives in data-ge-open and goes back on the way out */
+  /* Open and closed while editing is what the page will ship, which is what
+       data-ge-open says. Bootstrap's own collapse is not involved: its
+       javascript is never asked to run over the canvas, so the state is
+       driven from the attribute rather than from the .show class it animates */
   /* A popup is rendered unfolded and in place: a plain block with its
        body as an ordinary region. Bootstrap's modal JS is never asked to
        open it, so there is no backdrop, no focus trap and no scroll lock */
@@ -299,8 +300,11 @@
 .ge-canvas.ge-editing .tab-content > .tab-pane {
   padding: 5px 0;
 }
-.ge-canvas.ge-editing .accordion-collapse {
+.ge-canvas.ge-editing .accordion-collapse[data-ge-open="true"] {
   display: block;
+}
+.ge-canvas.ge-editing .accordion-collapse[data-ge-open="false"] {
+  display: none;
 }
 .ge-canvas.ge-editing .ge-accordion-item > .ge-pane-drawer {
   padding: 2px 0;
