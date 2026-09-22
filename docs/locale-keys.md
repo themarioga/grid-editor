@@ -75,6 +75,9 @@ The containers: tabs, accordions and popups, and the panes inside them.
 | `container.add_popup` | Popup | Toolbar button that adds a popup |
 | `container.popup_title` | Title | Title of a new popup, in its modal header |
 | `container.popup_trigger` | Open | Label of the button a popup makes to open itself |
+| `container.add_card` | Card | Toolbar button that adds a card |
+| `container.card_title` | Card title | Title of a new card, in its header |
+| `container.card_footer` | Card footer | Text of a new card's footer, when it has one |
 
 
 confirm.*

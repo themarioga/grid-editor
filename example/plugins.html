@@ -21,47 +21,46 @@
     <script src="../dist/plugins/grideditor.tabs.min.js"></script>
     <script src="../dist/plugins/grideditor.accordion.min.js"></script>
     <script src="../dist/plugins/grideditor.popup.min.js"></script>
+    <script src="../dist/plugins/grideditor.card.min.js"></script>
     <script src="../dist/plugins/grideditor.elements.min.js"></script>
 
     <!-- And one written here, to show what a plugin of your own takes. It is
-         a container type: a bootstrap card whose body is an editable region. -->
-    <script id="card-plugin">
+         a container type: a bootstrap alert whose body is an editable region. -->
+    <script id="callout-plugin">
         (function($) {
 
             // A plugin brings its own strings
             $.extend($.fn.gridEditor.locales.en, {
-                'container.add_card': 'Card',
-                'container.card_title': 'Card title',
+                'container.add_callout': 'Callout',
+                'container.callout_title': 'Heads up',
             });
 
             // Registered under the type it builds, and called once per editor
             // with the handle it works through
-            $.fn.gridEditor.containers.card = function(ge) {
+            $.fn.gridEditor.containers.callout = function(ge) {
 
                 return {
                     // The toolbar button's label
-                    labelKey: 'container.add_card',
+                    labelKey: 'container.add_callout',
 
                     // A detached container. data-ge-container is what the
                     // editor recognises: never a class, so restyling is free.
                     create: function(options) {
-                        var container = $('<div />').attr('data-ge-container', 'card');
-
-                        $('<div class="card" />')
-                            .append($('<div class="card-header" />')
-                                .text(options.title || ge.t('container.card_title')))
-                            .append($('<div class="card-body" />').append(ge.defaultRegion()))
-                            .appendTo(container)
+                        var callout = $('<div class="alert alert-primary" role="alert" />')
+                            .append($('<h4 class="alert-heading" />')
+                                .append($('<span class="ge-pane-label" />')
+                                    .text(options.title || ge.t('container.callout_title'))))
+                            .append(ge.defaultRegion())
                         ;
 
-                        return container;
+                        return $('<div />').attr('data-ge-container', 'callout').append(callout);
                     },
 
                     // Editing furniture on, and off again. Anything mark()
                     // adds, unmark() has to take away: what is left is what
                     // getHtml hands back.
                     mark: function(container) {
-                        ge.makeLabelEditable(ge.labelIn(container.find('.card-header')));
+                        ge.makeLabelEditable(ge.labelIn(container.find('.alert-heading')));
                     },
 
                     unmark: function(container) {
@@ -76,7 +75,7 @@
     <script>
         $(function() {
             // Show the plugin written above as the page's own source
-            $('#card-source').text($('#card-plugin').text().trim().replace(/^ {8}/gm, ''));
+            $('#callout-source').text($('#callout-plugin').text().trim().replace(/^ {8}/gm, ''));
 
             function activePlugins() {
                 return $('.plugin-choice:checked').map(function() { return this.value; }).get();
@@ -119,11 +118,11 @@
             <div class="col-lg-8">
                 <h1 class="h4">Plugins</h1>
                 <p class="form-text">
-                    Tabs, accordions, popups and the element level controls are
-                    not in the main bundle: each is a file loaded beside the
-                    editor, and loading it is what turns the feature on. This
-                    page loads all four, plus a fifth written in its own
-                    <code>&lt;script&gt;</code> below.
+                    Tabs, accordions, popups, cards and the element level
+                    controls are not in the main bundle: each is a file loaded
+                    beside the editor, and loading it is what turns the feature
+                    on. This page loads all five, plus a sixth written in its
+                    own <code>&lt;script&gt;</code> below.
                 </p>
                 <p class="form-text">
                     Tick and untick to change the <code>plugins</code> setting
@@ -152,7 +151,11 @@
                     </div>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input plugin-choice" type="checkbox" value="card" id="p-card" checked>
-                        <label class="form-check-label" for="p-card">card (written on this page)</label>
+                        <label class="form-check-label" for="p-card">card</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input plugin-choice" type="checkbox" value="callout" id="p-callout" checked>
+                        <label class="form-check-label" for="p-callout">callout (written on this page)</label>
                     </div>
                 </div>
 
@@ -185,7 +188,7 @@
                 <div class="col-lg-12">
                     <div data-ge-container="card">
                         <div class="card">
-                            <div class="card-header">A card, from the plugin written on this page</div>
+                            <div class="card-header">A card, from the card plugin</div>
                             <div class="card-body">
                                 <div class="row"><div class="col-lg-12">
                                     <div class="ge-content"><p>Its body is an ordinary region: rows, columns and elements nest in it.</p></div>
@@ -200,14 +203,15 @@
 
         <div class="row my-4">
             <div class="col-lg-10">
-                <h2 class="h5">The card plugin, in full</h2>
+                <h2 class="h5">The callout plugin, in full</h2>
                 <p class="form-text">
                     Thirty lines, and it moves, deletes, nests, takes an id and
                     classes, and round-trips through <code>getHtml</code> like
-                    anything else. See <a href="../docs/plugins.md">docs/plugins.md</a>
+                    anything else &mdash; the shipped <code>card</code> plugin is
+                    barely longer. See <a href="../docs/plugins.md">docs/plugins.md</a>
                     for the whole contract.
                 </p>
-                <pre class="border rounded p-3 bg-light"><code id="card-source"></code></pre>
+                <pre class="border rounded p-3 bg-light"><code id="callout-source"></code></pre>
             </div>
         </div>
 

@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns, indent them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once. It also edits tabs, accordions and popups, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns, indent them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
@@ -360,9 +360,10 @@ pattern for an element with no visual output of its own.
 
 ### Containers
 
-Tabs, accordions and popups. Each holds panes, and a pane is an ordinary
-region: rows, columns, content areas and elements nest inside one exactly as
-they do at the top level.
+Tabs, accordions, popups and cards. A tabs, accordion or popup container holds
+panes; a card holds one region. Either way a region is an ordinary one: rows,
+columns, content areas and elements nest inside it exactly as they do at the
+top level.
 
 Each type is a plugin, in a file of its own, and loading the file is what makes
 it available:
@@ -372,6 +373,7 @@ it available:
 <script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.accordion.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.popup.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.card.min.js"></script>
 ```
 
 The toolbar offers a button per loaded plugin. See [docs/plugins.md](docs/plugins.md)

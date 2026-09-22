@@ -50,7 +50,7 @@ async function paletteTests(t) {
         };
     `);
     t.check('the toolbar buttons are draggable when the palette is on',
-        ready.draggable && ready.containerButtons === 3 && ready.marked === 6, ready);
+        ready.draggable && ready.containerButtons === 4 && ready.marked === 7, ready);
 
     // Between the two rows: the drawer of the second one is canvas level
     await page.drag('.ge-addRowGroup a[data-ge-layout="6,6"]', '#second > .ge-tools-drawer');

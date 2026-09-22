@@ -1,5 +1,5 @@
 /**
- * Browser tests for containers: tabs, accordions and popups.
+ * Browser tests for containers: tabs, accordions, popups and cards.
  *
  * Two things are under test throughout. A pane is an ordinary canvas region,
  * so rows, columns and elements have to nest inside one exactly as they do at
@@ -120,8 +120,8 @@ async function creationTests(t) {
         };
     `);
     t.check('every container plugin the page loaded is offered by the toolbar',
-        loaded.registered.join(',') === 'accordion,popup,tabs' &&
-        loaded.offered.join(',') === 'accordion,popup,tabs',
+        loaded.registered.join(',') === 'accordion,card,popup,tabs' &&
+        loaded.offered.join(',') === 'accordion,card,popup,tabs',
         loaded);
 
     var limited = await page.eval(EMPTY_CANVAS + `
@@ -681,9 +681,118 @@ async function popupTests(t) {
     t.check('the popup tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Cards: the plainest container there is - a header, one region, an optional
+ * footer - which makes it the one that shows what a container costs at
+ * minimum.
+ */
+async function cardTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var made = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init();
+        const ge = jQuery('#myGrid').data('grideditor');
+        const column = jQuery('#myGrid .column').first();
+
+        const card = ge.createContainer('card', { title: 'Pricing', footer: 'Per month', appendTo: column });
+        const bare = ge.createContainer('card', { header: false, appendTo: column });
+
+        return {
+            shape: (function() { ${SHAPE} })(),
+            header: card.find('.card-header').text(),
+            footer: card.find('.card-footer').text(),
+            regions: card.find('.card-body > .row .ge-content').length,
+            drawer: card.find('> .ge-tools-drawer > a').map(function() {
+                return jQuery(this).attr('class').split(' ')[0];
+            }).get().join(','),
+            bareHeaders: bare.find('.card-header').length,
+            bareFooters: bare.find('.card-footer').length,
+            bareTitle: bare.find('.card-body .ge-content').length,
+        };
+    `);
+    t.check('a card is a header, one region and an optional footer',
+        made.shape.containers.join(',') === 'card,card' && made.regions === 1 &&
+        made.header === 'Pricing' && made.footer === 'Per month',
+        made);
+    t.check('header false leaves the title out and the region in',
+        made.bareHeaders === 0 && made.bareFooters === 0 && made.bareTitle === 1, made);
+    t.check('a card carries the same drawer as any other container',
+        made.drawer === 'ge-move,ge-settings,ge-delete-container', made);
+
+    var fromToolbar = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init();
+        jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').trigger('click');
+        return {
+            button: jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').text().trim(),
+            cards: jQuery('#myGrid [data-ge-container="card"]').length,
+            label: jQuery('#myGrid .card-header .ge-pane-label').text(),
+        };
+    `);
+    t.check('the toolbar offers a card, and the button makes one',
+        /Card/.test(fromToolbar.button) && fromToolbar.cards === 1 &&
+        fromToolbar.label === 'Card title',
+        fromToolbar);
+
+    var exported = await page.eval(`
+        jQuery('#myGrid .card-header .ge-pane-label').text('What it costs');
+        jQuery('#myGrid .card-body .ge-content').first().html('<p>Inside the card</p>');
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        return {
+            html: html,
+            furniture: /ge-tools-drawer|ge-pane-label|contenteditable/.test(html),
+            marking: /data-ge-container="card"/.test(html),
+            bootstrap: /class="card"/.test(html) && /class="card-header"/.test(html) &&
+                /class="card-body"/.test(html),
+            renamed: /What it costs/.test(html),
+            content: /Inside the card/.test(html),
+        };
+    `);
+    t.check('getHtml gives back a bootstrap card, renamed, with none of the editor on it',
+        !exported.furniture && exported.marking && exported.bootstrap &&
+        exported.renamed && exported.content,
+        Object.assign({}, exported, { html: exported.html.slice(0, 200) }));
+
+    var roundTrip = await page.eval(`
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        jQuery('#myGrid').gridEditor('destroy');
+        jQuery('#myGrid').html(html);
+        window.fixture.init();
+        return {
+            cards: jQuery('#myGrid [data-ge-container="card"]').length,
+            label: jQuery('#myGrid .card-header .ge-pane-label').text(),
+            regions: jQuery('#myGrid .card-body .ge-content').length,
+            content: jQuery('#myGrid .card-body').text().indexOf('Inside the card') !== -1,
+        };
+    `);
+    t.check('feeding that output back in finds the card, its title and its region',
+        roundTrip.cards === 1 && roundTrip.label === 'What it costs' &&
+        roundTrip.regions === 1 && roundTrip.content,
+        roundTrip);
+
+    var unloaded = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init({ plugins: ['tabs'] });
+        const before = jQuery('#myGrid').html();
+        jQuery('#myGrid .ge-content').first().after(
+            '<div data-ge-container="card"><div class="card"><div class="card-header">Kept</div>' +
+            '<div class="card-body"><p>Kept too</p></div></div></div>');
+        jQuery('#myGrid').gridEditor('reset');
+        const html = jQuery('#myGrid').gridEditor('getHtml');
+        return {
+            button: jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').length,
+            drawers: jQuery('#myGrid [data-ge-container="card"] > .ge-tools-drawer').length,
+            kept: /Kept too/.test(html) && /data-ge-container="card"/.test(html),
+        };
+    `);
+    t.check('with the card plugin left out of plugins, its markup is left exactly alone',
+        unloaded.button === 0 && unloaded.drawers === 0 && unloaded.kept, unloaded);
+
+    var errors = page.errors();
+    t.check('the card tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'containers',
-    description: 'tabs, accordions and popups',
+    description: 'tabs, accordions, popups and cards',
     run: async function(t) {
         await creationTests(t);
         await paneTests(t);
@@ -691,6 +800,7 @@ module.exports = {
         await nestingTests(t);
         await moveTests(t);
         await popupTests(t);
+        await cardTests(t);
     },
 };
 

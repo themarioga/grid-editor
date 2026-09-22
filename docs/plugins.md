@@ -1,14 +1,16 @@
 Writing a plugin
 ================
 
-Tabs, accordions, popups and the element level controls are not built into
-grid-editor: each is a file you load beside it, and loading the file is what
-turns the feature on.
+Tabs, accordions, popups, cards and the element level controls are not built
+into grid-editor: each is a file you load beside it, and loading the file is
+what turns the feature on. `grideditor.card.js` is the shortest of them, and
+the one to read first if you are about to write your own.
 
 ```html
 <script src="dist/jquery.grideditor.min.js"></script>
 <script src="dist/plugins/grideditor.tabs.min.js"></script>
 <script src="dist/plugins/grideditor.popup.min.js"></script>
+<script src="dist/plugins/grideditor.card.min.js"></script>
 <script src="dist/plugins/grideditor.elements.min.js"></script>
 ```
 
