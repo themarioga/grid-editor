@@ -188,6 +188,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class per tier; a column with no sizing at all gets a single `col-12`, which
   applies at every tier. With six tiers the old behaviour would have put six
   classes on every column.
+- Holding the add column tool offers the column widths instead of taking the
+  default one: the sizes in `valid_col_sizes`, with the ones that no longer fit
+  the row marked. It answers to a held finger as well as a hovering pointer,
+  and the tooltip says so, because a gesture nobody can see is a gesture nobody
+  finds. `add_column: { size, picker, delay }` configures it, and a click now
+  adds a full width column rather than a three unit one.
 - The add row tool in a column's drawer adds an empty row. It used to add one
   with two half width columns in it, which is a layout decision the tool has no
   business making: the new row's own drawer is where columns are added.

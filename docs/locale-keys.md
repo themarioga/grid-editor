@@ -28,7 +28,8 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.move` | Move | Drag handle in the row and column drawers |
 | `tool.settings` | Settings | Opens the settings panel in a drawer |
 | `tool.add_row` | Add row | Column drawer, adds a nested row |
-| `tool.add_column` | Add column | Row drawer, adds a column |
+| `tool.add_column` | Add column\n(hold to choose the width) | Row drawer. A click adds a column, holding the tool offers the widths. Two lines |
+| `tool.column_size` | {size} of 12 | Tooltip of a width in that picker |
 | `tool.delete_row` | Remove row | Row drawer |
 | `tool.delete_column` | Remove col | Column drawer |
 | `tool.delete_element` | Remove element | Element drawer |

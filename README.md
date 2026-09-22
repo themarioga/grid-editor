@@ -214,6 +214,18 @@ $('#myGrid').gridEditor({
 
 __`valid_col_offsets`:__ The same, for the indent buttons. Default `[0, 1, … 11]`.
 
+__`add_column`:__ What the add column tool in a row's drawer does. A click adds a column of `size`; holding the tool for `delay` milliseconds — with the pointer or with a finger — offers the widths in `valid_col_sizes` instead, marking the ones that no longer fit the row. Defaults:
+
+```javascript
+$('#myGrid').gridEditor({
+    add_column: {
+        size: 12,      // what a click adds
+        picker: true,  // false turns the hold gesture off
+        delay: 600,
+    },
+});
+```
+
 __`callbacks`:__ A `before_*`/`after_*` function per operation, the same notifications as the events. Returning `false` from a `before_*` cancels it. See [docs/events.md](/docs/events.md).
 
 ```javascript

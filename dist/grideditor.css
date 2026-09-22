@@ -60,6 +60,8 @@
 /* While editing */
 .ge-canvas.ge-editing {
   /* Content area */
+  /* The column size picker, offered by holding the add column tool. It
+       hangs off the tool itself, so it comes away with the drawers */
   /* Containers: tabs, accordions and popups. A container sits in a column
        beside the content areas, and each of its panes is an ordinary region */
   /* A pane's own drawer is small and sits with its label rather than
@@ -84,7 +86,15 @@
   /* The units the column would land on, shown in its drawer while dragging */
 }
 .ge-canvas.ge-editing .ge-tools-drawer {
+  /* Positioned, so a tool can hang a picker off itself. Deliberately
+           not stacked above anything the rest of the time: jQuery UI's resize
+           handle carries an inline z-index of 90 and runs down the column's
+           edge, and a drawer sitting over it would take the clicks meant for
+           the handle. */
+  position: relative;
   -webkit-touch-callout: none;
+  /* While one of its tools is offering a choice, this drawer is the one
+           that matters - above the handles, and above the drawers below it */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -93,6 +103,9 @@
   margin: 0 -5px 5px;
   display: block;
   width: calc(100% + 2 * 5px);
+}
+.ge-canvas.ge-editing .ge-tools-drawer.ge-picker-open {
+  z-index: 200;
 }
 .ge-canvas.ge-editing .ge-tools-drawer > a {
   display: inline-block;
@@ -161,6 +174,50 @@
 }
 .ge-canvas.ge-editing .ge-content-type-tinymce.active {
   outline: 1px dotted #333;
+}
+.ge-canvas.ge-editing .ge-tools-drawer > a {
+  position: relative;
+}
+.ge-canvas.ge-editing .ge-size-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  width: 160px;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.ge-canvas.ge-editing .ge-size-picker > .ge-size {
+  flex: 0 0 auto;
+  width: 26px;
+  margin: 1px;
+  padding: 4px 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  color: #178acc;
+  background: rgba(47, 164, 231, 0.08);
+  border: 1px solid rgba(47, 164, 231, 0.4);
+  border-radius: 3px;
+  /* Wider than what is left of the row: allowed, but said so */
+}
+.ge-canvas.ge-editing .ge-size-picker > .ge-size:hover {
+  background: #2FA4E7;
+  border-color: #2FA4E7;
+  color: #fff;
+}
+.ge-canvas.ge-editing .ge-size-picker > .ge-size.ge-size-tight {
+  color: #999;
+  background: transparent;
+  border-style: dashed;
+  border-color: #ccc;
 }
 .ge-canvas.ge-editing .ge-container {
   position: relative;

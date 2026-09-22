@@ -290,6 +290,28 @@ Session.prototype.dragBy = async function(selector, dx, dy, options) {
     await sleep(300);
 };
 
+/**
+ * Move the pointer over an element and leave it there, for the gestures that
+ * are about hovering rather than clicking.
+ */
+Session.prototype.hover = async function(selector) {
+    var point = await this.eval(
+        'const node = document.querySelector(' + JSON.stringify(selector) + ');' +
+        'if (!node) { return null; }' +
+        'node.scrollIntoView({ block: "center" });' +
+        'await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));' +
+        'const box = node.getBoundingClientRect();' +
+        'return { x: box.left + box.width / 2, y: box.top + box.height / 2 };'
+    );
+
+    if (!point) { throw new Error('no element to hover: ' + selector); }
+
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y });
+    await sleep(60);
+
+    return point;
+};
+
 Session.prototype.type = async function(text) {
     await this.send('Input.insertText', { text: text });
     await sleep(100);

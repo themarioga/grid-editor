@@ -99,6 +99,11 @@ function labelKeyFor(view) {
  * defaults instead of being replaced wholesale.
  */
 var NESTED_SETTINGS = {
+    add_column: {
+        size: 12, // What a click on the add column tool adds
+        picker: true, // Holding it offers the sizes instead
+        delay: 600, // How long to hold, in milliseconds
+    },
     elements: {
         enabled: 'auto', // 'auto' turns them on when the page has any
         selector: '[data-ge-element]', // What the host marks an element with
@@ -238,6 +243,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            'add_column'        : NESTED_SETTINGS.add_column, // The add column tool
             'layout_modes'      : VIEW_KEYS.slice(), // Which views the dropdown offers
             'default_view'      : ALL_VIEW,
             'resize'            : NESTED_SETTINGS.resize, // Resizing a column by dragging its edge
@@ -268,6 +274,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         ;
         var curView = settings.default_view; // Breakpoint key, or 'all'
         var confirmDialog = null; // The delete confirmation, built when first needed
+        var sizePicker = null; // The open column size picker, if there is one
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
 
         // Before anything else, because the instance handle hands the canvas
@@ -907,6 +914,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 // click on this content area.
                 content.removeClass('ge-rte-active');
             });
+            closeSizePicker();
             canvas.find('.ge-tools-drawer').remove();
             writePopupTriggerAttributes();
             unmarkContainers();
@@ -1654,6 +1662,101 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
         }
 
+        /**
+         * Add a column of `size` to a row, through the add events.
+         */
+        function addColumnTo(row, size) {
+            var column = createColumn(size);
+
+            return addNode('column', column, function() {
+                row.append(column);
+            }, { parent: row, source: 'tool' });
+        }
+
+        /**
+         * Holding the add column tool offers the sizes instead of taking the
+         * default one.
+         *
+         * Held rather than hovered alone, because a hover is a gesture a touch
+         * screen does not have, and the tooltip says so: a gesture nobody can
+         * see is a gesture nobody finds.
+         */
+        function attachSizePicker(tool, row) {
+            if (!settings.add_column.picker) { return; }
+
+            var timer = null;
+
+            var cancel = function() {
+                window.clearTimeout(timer);
+                timer = null;
+            };
+
+            tool.on('mouseenter mousedown', function() {
+                if (timer || sizePicker) { return; }
+
+                timer = window.setTimeout(function() {
+                    timer = null;
+                    openSizePicker(tool, row);
+                }, settings.add_column.delay);
+            });
+
+            tool.on('mouseleave', cancel);
+            tool.on('mouseup', cancel);
+        }
+
+        /**
+         * The sizes a column may be given, as a strip under the tool. Sizes
+         * that do not fit what is left of the row are marked, not withheld:
+         * a row is allowed to wrap, and that is the host's page to lay out.
+         */
+        function openSizePicker(tool, row) {
+            closeSizePicker();
+
+            var room = spare(row, leadingTier());
+
+            // The drawer it hangs off is raised while it is open: every
+            // drawer sits above jQuery UI's handles, so without this the
+            // drawer of the column below takes the clicks meant for the picker
+            tool.closest('.ge-tools-drawer').addClass('ge-picker-open');
+
+            sizePicker = $('<div class="ge-size-picker" />').appendTo(tool);
+
+            settings.valid_col_sizes.forEach(function(size) {
+                $('<a class="ge-size" />')
+                    .attr('data-ge-size', size)
+                    .attr('title', t('tool.column_size', { size: size }))
+                    .toggleClass('ge-size-tight', size > room)
+                    .text(size)
+                    .on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        closeSizePicker();
+                        addColumnTo(row, size);
+                    })
+                    .appendTo(sizePicker)
+                ;
+            });
+
+            // Anywhere else, and the question is withdrawn
+            tool.one('mouseleave', function() {
+                window.setTimeout(function() {
+                    if (sizePicker && !sizePicker.is(':hover')) { closeSizePicker(); }
+                }, 400);
+            });
+        }
+
+        /** True when there was one to close, which is also a click's answer. */
+        function closeSizePicker() {
+            if (!sizePicker) { return false; }
+
+            sizePicker.closest('.ge-tools-drawer').removeClass('ge-picker-open');
+            sizePicker.remove();
+            sizePicker = null;
+
+            return true;
+        }
+
         function createRowControls() {
             canvas.find('.row').each(function() {
                 var row = $(this);
@@ -1674,12 +1777,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     });
                 });
                 createTool(drawer, t('tool.add_column'), 'ge-add-column', 'bi bi-plus-circle', function() {
-                    var column = createColumn(3);
+                    if (closeSizePicker()) { return; } // The picker was open: that was the answer
 
-                    addNode('column', column, function() {
-                        row.append(column);
-                    }, { parent: row, source: 'tool' });
+                    addColumnTo(row, settings.add_column.size);
                 });
+
+                attachSizePicker(drawer.find('> .ge-add-column'), row);
 
                 var details = createDetails(row, settings.row_classes).appendTo(drawer);
             });
@@ -2669,7 +2772,8 @@ $.fn.gridEditor.locales = {
         'tool.move': 'Move',
         'tool.settings': 'Settings',
         'tool.add_row': 'Add row',
-        'tool.add_column': 'Add column',
+        'tool.add_column': 'Add column\n(hold to choose the width)',
+        'tool.column_size': '{size} of 12',
         'tool.delete_row': 'Remove row',
         'tool.delete_column': 'Remove col',
         'tool.delete_element': 'Remove element',
