@@ -233,6 +233,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                                         } ]
                                     */
             'row_tools'         : [],
+            'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'container_tools'   : [], // Host tools on container drawers
             'tab_tools'         : [], // Host tools on tab drawers
@@ -888,6 +889,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function init() {
             runFilter(true);
             canvas.addClass('ge-editing');
+            canvas.toggleClass('ge-drag-drawer', settings.drag_handle === 'drawer');
             addAllColClasses();
             wrapContent();
             createRowControls();
@@ -901,7 +903,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function deinit() {
-            canvas.removeClass('ge-editing');
+            canvas.removeClass('ge-editing ge-drag-drawer');
             var contents = canvas.find('.ge-content').each(function() {
                 var content = $(this);
                 var rte = getRTE(content.data('ge-content-type'));
@@ -1021,7 +1023,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .prependTo(element)
             ;
 
-            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            createMoveTool(drawer);
             createTool(drawer, t('tool.element_info', { name: elementName(element) }),
                 'ge-element-info', 'bi bi-info-circle');
 
@@ -1124,7 +1126,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function createContainerControls(container, type, definition) {
             var drawer = $('<div class="ge-tools-drawer ge-container-drawer" />').prependTo(container);
 
-            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            createMoveTool(drawer);
             if (definition.addPane) {
                 createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
                     var pane = definition.addPane(container, {});
@@ -1158,7 +1160,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function createPaneControls(pane, kind, hostTools, confirmText, remove) {
             var drawer = $('<div class="ge-tools-drawer ge-pane-drawer" />').prependTo(pane);
 
-            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            createMoveTool(drawer);
 
             hostTools.forEach(function(hostTool) {
                 createTool(drawer, hostTool.title || '', hostTool.className || '',
@@ -1763,7 +1765,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (row.find('> .ge-tools-drawer').length) { return; }
 
                 var drawer = $('<div class="ge-tools-drawer" />').prependTo(row);
-                createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+                createMoveTool(drawer);
                 createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
                     details.toggle();
                 });
@@ -1795,7 +1797,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 var drawer = $('<div class="ge-tools-drawer" />').prependTo(col);
 
-                createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+                createMoveTool(drawer);
 
                 createTool(drawer, t('tool.column_narrower'), 'ge-decrease-col-width', 'bi bi-dash-lg', function(e) {
                     resizeColumn(col, e.shiftKey
@@ -1914,6 +1916,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var room = spare(col.parent(), leadingTier(), col) - currentSize(col);
 
             return Math.min(largest(settings.valid_col_offsets), Math.max(room, 0));
+        }
+
+        /**
+         * The move tool, unless the whole drawer is the handle - in which case
+         * a tool that only says "drag from here" is one tool too many.
+         */
+        function createMoveTool(drawer) {
+            if (settings.drag_handle === 'drawer') { return; }
+
+            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
         }
 
         function createTool(drawer, title, className, iconClass, eventHandlers) {
@@ -2122,8 +2134,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function makeSortable() {
+            var wholeDrawer = settings.drag_handle === 'drawer';
+
             var shared = {
-                handle: '> .ge-tools-drawer .ge-move',
+                handle: wholeDrawer ? '> .ge-tools-drawer' : '> .ge-tools-drawer .ge-move',
+
+                // With the whole drawer as the handle, the tools inside it are
+                // still tools: a drag starting on one would swallow its click,
+                // and the settings panel has fields to type in
+                cancel: wholeDrawer
+                    ? '.ge-tools-drawer > a, .ge-details, input, textarea, button, select, option'
+                    : 'input, textarea, button, select, option',
+
                 start: sortStart,
                 stop: sortStop,
                 helper: 'clone',

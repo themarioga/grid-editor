@@ -85,6 +85,21 @@
     }
 }
 
+/* Dragging by the whole drawer rather than by the move tool */
+.ge-canvas.ge-editing.ge-drag-drawer {
+    .ge-tools-drawer {
+        cursor: move;
+    }
+    /* The tools in it are still tools, and do not start a drag */
+    .ge-tools-drawer > a,
+    .ge-tools-drawer .ge-details {
+        cursor: pointer;
+    }
+    .ge-tools-drawer .ge-details {
+        cursor: auto;
+    }
+}
+
 /* While editing */
 .ge-canvas.ge-editing {
     

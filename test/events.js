@@ -640,6 +640,84 @@ async function moveTests(t) {
     t.check('the move tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Which part of a drawer a drag starts from, and what happens to the move tool
+ * when the whole drawer is the handle.
+ */
+async function dragHandleTests(t) {
+    var page = await recordingPage(t);
+
+    var byTool = await page.eval(`
+        return {
+            moveTools: jQuery('#myGrid .ge-move').length,
+            drawers: jQuery('#myGrid .ge-tools-drawer').length,
+            canvasClass: /ge-drag-drawer/.test(jQuery('#myGrid').attr('class')),
+        };
+    `);
+    t.check('by default every drawer has a move tool to drag from',
+        byTool.moveTools === byTool.drawers && byTool.moveTools > 0 && !byTool.canvasClass,
+        byTool);
+
+    await page.eval(`
+        window.restart({ drag_handle: 'drawer' });
+
+        const columns = jQuery('#myGrid > .row').eq(1).children('.column');
+        columns.eq(0).attr('id', 'left');
+        columns.eq(1).attr('id', 'right');
+        return true;
+    `);
+
+    var byDrawer = await page.eval(`
+        return {
+            moveTools: jQuery('#myGrid .ge-move').length,
+            drawers: jQuery('#myGrid .ge-tools-drawer').length,
+            canvasClass: /ge-drag-drawer/.test(jQuery('#myGrid').attr('class')),
+            cursor: getComputedStyle(jQuery('#myGrid .ge-tools-drawer')[0]).cursor,
+        };
+    `);
+    t.check('drag_handle drawer takes the move tool away and says so on the canvas',
+        byDrawer.moveTools === 0 && byDrawer.drawers > 0 && byDrawer.canvasClass &&
+        byDrawer.cursor === 'move',
+        byDrawer);
+
+    // The drawer itself drags, aimed at its empty space rather than a tool
+    await page.drag('#right > .ge-tools-drawer', '#left', { xRatio: 0.9, yRatio: 0.15 });
+    var moved = await page.eval(`
+        return {
+            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get().join(','),
+            moves: window.log.filter(name => /move/.test(name)),
+        };
+    `);
+    t.check('a drag from the drawer moves the column',
+        moved.order === 'right,left' &&
+        moved.moves.join('|') === 'event:before-move|callback:before-move|event:after-move|callback:after-move',
+        moved);
+
+    // A tool inside that drawer is still a tool: it clicks, and it does not drag
+    var toolStillWorks = await page.eval(`
+        window.log = [];
+        const before = jQuery('#left').find('> .row').length;
+        jQuery('#left').find('> .ge-tools-drawer .ge-add-row').trigger('click');
+        return { before: before, after: jQuery('#left').find('> .row').length };
+    `);
+    t.check('a tool in a draggable drawer still answers to a click',
+        toolStillWorks.after === toolStillWorks.before + 1, toolStillWorks);
+
+    await page.eval(`window.log = []; return true;`);
+    await page.drag('#left > .ge-tools-drawer .ge-settings', '#right', { yRatio: 0.15 });
+    var fromTool = await page.eval(`
+        return {
+            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get().join(','),
+            moves: window.log.filter(name => /move/.test(name)),
+        };
+    `);
+    t.check('dragging from a tool inside the drawer starts no move',
+        fromTool.order === 'right,left' && fromTool.moves.length === 0, fromTool);
+
+    var errors = page.errors();
+    t.check('the drag handle tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'events',
     description: 'host callbacks and the event bus',
@@ -650,6 +728,7 @@ module.exports = {
         await deleteTests(t);
         await resizeTests(t);
         await moveTests(t);
+        await dragHandleTests(t);
     },
 };
 

@@ -188,6 +188,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class per tier; a column with no sizing at all gets a single `col-12`, which
   applies at every tier. With six tiers the old behaviour would have put six
   classes on every column.
+- `drag_handle`, which says what a drag starts from: the move tool as before,
+  or the whole tools drawer, in which case the move tool is not rendered at
+  all. The other tools in a draggable drawer keep answering to a click, and a
+  drag starting on one is not a move.
 - Holding the add column tool offers the column widths instead of taking the
   default one: the sizes in `valid_col_sizes`, with the ones that no longer fit
   the row marked. It answers to a held finger as well as a hovering pointer,

@@ -177,6 +177,14 @@ $('#myGrid').gridEditor({
     
 __`col_tools`:__ The same as row_tools, but for columns.
 
+__`drag_handle`:__ What a drag starts from. `'tool'`, the default, gives every drawer a move tool and only that tool drags. `'drawer'` makes the whole drawer the handle and drops the move tool, since it would then only say "drag from here". The tools inside a draggable drawer still answer to a click, and dragging from one starts no move.
+
+```javascript
+$('#myGrid').gridEditor({
+    drag_handle: 'drawer',
+});
+```
+
 __`custom_filter`:__ Allows the execution of a custom function before initialization and after de-initialization. Accepts a functions or a function name as string.
 Gives the `canvas` element and `isInit` (true/false) as parameter.
 
