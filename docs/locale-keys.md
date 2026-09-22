@@ -139,6 +139,11 @@ The labels of each utility and its values are the plugins' own keys.
 | `utility.visibility_shown` | Shown | Its choice for `d-*-block`, or `d-*-flex` on a row |
 | `tool.hide_in_view` | Hide in this view | The visibility plugin's eye, on a node shown in the view being edited |
 | `tool.show_in_view` | Show in this view | The same eye, on a node hidden there |
+| `utility.order` | Order | Label of the order plugin's field |
+| `utility.order_first` | First | Its choice for `order-*-first` |
+| `utility.order_last` | Last | Its choice for `order-*-last` |
+| `tool.order_earlier` | Earlier in this view | The order plugin's left arrow in a column drawer |
+| `tool.order_later` | Later in this view | Its right arrow |
 
 
 badge.*
@@ -150,6 +155,7 @@ markup `getHtml` returns.
 | Key | English | Where |
 | --- | --- | --- |
 | `badge.hidden_in` | Hidden at {breakpoints} | Corner of a node hidden at some breakpoints, in the all view. `{breakpoints}` is a list of keys |
+| `badge.order` | Order: {value} | Corner of a column ordered by class in the view being edited |
 
 
 error.*

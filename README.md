@@ -388,11 +388,13 @@ a plugin in a file of its own:
 
 ```html
 <script src="grid-editor/dist/plugins/grideditor.visibility.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.order.min.js"></script>
 ```
 
 | Plugin | Classes | On |
 | --- | --- | --- |
 | `visibility` | `d-{bp}-none`, `d-{bp}-block`, `d-{bp}-flex` | rows, columns, elements, containers |
+| `order` | `order-{bp}-{first,0–5,last}` | columns |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
 panel, and some add a tool to the drawer. In a breakpoint view a change is
@@ -412,6 +414,7 @@ __`utilities`:__ Options for each plugin, under its name.
 $('#myGrid').gridEditor({
     utilities: {
         visibility: { drawer: false },   // no eye in the drawers, the field only
+        order: { drawer: false },        // no arrows in the column drawers
     },
 });
 ```

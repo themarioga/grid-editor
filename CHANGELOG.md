@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drawer toggles the view being edited with as few classes as that takes. A
   hidden node stays on the canvas, faded, and in the all view a badge says at
   which breakpoints it is hidden.
+- The `order` utility plugin: a column's place in its row per breakpoint,
+  with `order-{bp}-*`. Two arrows in each column drawer move it one place
+  earlier or later in the view being edited without moving the markup, and
+  take the classes off again once the row is back in the markup's order. A
+  column ordered by class says so in a corner of the canvas.
 - `example/utilities.html`.
 
 ## [4.0.0] - 2026-09-22

@@ -708,3 +708,19 @@
         }
     }
 }
+
+/* The order plugin: a column ordered by class in this view says where */
+.ge-canvas.ge-editing .column[data-ge-order]::before {
+    content: attr(data-ge-order);
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    z-index: 1;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: fade(@colTextColor, 85%);
+    color: #fff;
+    font-size: 10px;
+    line-height: 16px;
+    pointer-events: none;
+}

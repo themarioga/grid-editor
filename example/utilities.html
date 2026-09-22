@@ -19,6 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/jquery.grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.visibility.min.js"></script>
+    <script src="../dist/plugins/grideditor.order.min.js"></script>
 
     <script>
         $(function() {
@@ -74,6 +75,12 @@
                     at which breakpoints it is hidden. The sidebar below is
                     hidden on phones and tablets.
                 </p>
+                <p class="form-text">
+                    <strong>Order:</strong> the arrows in a column's drawer
+                    move it earlier or later in the view being edited,
+                    without moving the markup. In the second row, "Second"
+                    comes first on phones only.
+                </p>
                 <p class="form-text">Last change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <pre id="html" class="form-text"></pre>
@@ -98,9 +105,9 @@
                     <h2 class="h5">First</h2>
                     <p>Change the views and the utilities of these two.</p>
                 </div>
-                <div class="col-6">
+                <div class="col-6 order-first order-sm-0">
                     <h2 class="h5">Second</h2>
-                    <p>Hide it on phones with the eye, in the Phone view.</p>
+                    <p>First on phones, with <code>order-first order-sm-0</code>.</p>
                 </div>
             </div>
 
