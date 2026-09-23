@@ -107,7 +107,8 @@ not change without a major version.
 | `ge.defaultRegion()` | A row with one full width column: what an empty pane starts as |
 | `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer |
 | `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one |
-| `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens |
+| `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens. Returns the panel, to add fields to |
+| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover or modal `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
 | `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete |

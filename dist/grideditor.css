@@ -109,6 +109,9 @@
 /* Dragging by the whole drawer rather than by the move tool */
 .ge-canvas.ge-editing.ge-drag-drawer {
   /* The tools in it are still tools, and do not start a drag */
+  /* An info tool does nothing when clicked, so it is somewhere to hold */
+  /* A text's drawer sits over the text, small, and is mostly tools: a grip
+       at its start says where to take hold of it */
 }
 .ge-canvas.ge-editing.ge-drag-drawer .ge-tools-drawer {
   cursor: move;
@@ -119,6 +122,154 @@
 }
 .ge-canvas.ge-editing.ge-drag-drawer .ge-tools-drawer .ge-details {
   cursor: auto;
+}
+.ge-canvas.ge-editing.ge-drag-drawer .ge-tools-drawer > a.ge-text-info,
+.ge-canvas.ge-editing.ge-drag-drawer .ge-tools-drawer > a.ge-element-info {
+  cursor: move;
+}
+.ge-canvas.ge-editing.ge-drag-drawer .ge-text-block > .ge-text-drawer {
+  padding-left: 14px;
+}
+.ge-canvas.ge-editing.ge-drag-drawer .ge-text-block > .ge-text-drawer::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 6px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-image: radial-gradient(circle, #50637b 1px, transparent 1.3px);
+  background-size: 3px 3px;
+  opacity: 0.7;
+}
+/* A node's settings, wherever settings_panel shows them: in its drawer, or
+   in one of Bootstrap's offcanvas, popover or modal, outside the canvas. The
+   fields are Bootstrap's own - form-control-sm, form-select-sm,
+   btn-outline-secondary - and this only lays them out. */
+.ge-details {
+  font-size: 0.8125rem;
+  /* The utility plugins' fields, folded under one toggle */
+}
+.ge-details .ge-details-general {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ge-details .ge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.ge-details .ge-field-label,
+.ge-details .ge-utility-label {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.75rem;
+}
+.ge-details .ge-presets:empty {
+  display: none;
+}
+.ge-details .ge-utilities {
+  margin-top: 10px;
+  /* The spacing plugin: a side and a value per group */
+}
+.ge-details .ge-utilities > .ge-utilities-toggle {
+  display: block;
+  color: var(--bs-body-color, #333);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ge-details .ge-utilities > .ge-utilities-toggle::before {
+  content: '\25B8';
+  display: inline-block;
+  width: 1em;
+}
+.ge-details .ge-utilities.ge-open > .ge-utilities-toggle::before {
+  content: '\25BE';
+}
+.ge-details .ge-utilities > .ge-utilities-body {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 10px;
+  margin-top: 6px;
+}
+.ge-details .ge-utilities.ge-open > .ge-utilities-body {
+  display: grid;
+}
+.ge-details .ge-utilities .ge-utility {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.ge-details .ge-utilities .ge-utility-note {
+  color: var(--bs-secondary-color, #666);
+  font-size: 0.6875rem;
+}
+.ge-details .ge-utilities .ge-spacing {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 10px;
+  grid-column: 1 / -1;
+}
+.ge-details .ge-utilities .ge-spacing-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* The group names the field once */
+}
+.ge-details .ge-utilities .ge-spacing-group .ge-utility > .ge-utility-label {
+  display: none;
+}
+.ge-details .ge-utilities .ge-spacing-gutter {
+  grid-column: 1 / -1;
+  color: var(--bs-secondary-color, #666);
+  font-size: 0.6875rem;
+}
+/* In a drawer it is part of the drawer, compact */
+.ge-tools-drawer > .ge-details {
+  font-size: 11px;
+}
+.ge-tools-drawer > .ge-details .ge-utilities > .ge-utilities-body {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 160px));
+}
+/* In one of Bootstrap's, outside the canvas */
+.ge-settings-panel .ge-details {
+  display: block;
+}
+.ge-settings-panel .ge-settings-title {
+  font-size: 1rem;
+  font-weight: 500;
+}
+.ge-settings-offcanvas {
+  /* Beside the canvas rather than over most of it */
+  --bs-offcanvas-width: 340px;
+  --bs-offcanvas-height: 60vh;
+}
+.ge-settings-popover {
+  /* Popper would position it; without Popper that is the editor's job */
+  position: absolute;
+  --bs-popover-max-width: 360px;
+  width: 360px;
+  max-width: calc(100vw - 16px);
+}
+.ge-settings-popover > .popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ge-settings-popover > .popover-header > .btn-close {
+  font-size: 0.65rem;
+}
+.ge-settings-popover > .popover-body {
+  overflow-y: auto;
+}
+/* The node whose settings are open */
+.ge-canvas.ge-editing .ge-settings-target {
+  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline-offset: 1px;
 }
 /* While editing */
 .ge-canvas.ge-editing {
@@ -175,6 +326,7 @@
   width: calc(100% + 2 * 5px);
   /* Its node may align text, and the drawer's tools would follow */
   text-align: left;
+  /* A node's settings, unfolded in its drawer: settings_panel 'inline' */
 }
 .ge-canvas.ge-editing .ge-tools-drawer.ge-picker-open {
   z-index: 200;
@@ -187,101 +339,22 @@
   background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
 }
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details {
+.ge-canvas.ge-editing .ge-tools-drawer > .ge-details {
+  display: none;
   padding: 5px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  display: none;
-  /* The utility plugins' fields, folded under one toggle */
+  text-align: left;
+  cursor: auto;
 }
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .btn-group a {
-  color: #333;
+.ge-canvas.ge-editing .ge-tools-drawer > .ge-details .ge-details-general {
+  flex-direction: row;
+  align-items: flex-end;
 }
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .btn-group a.active {
-  color: white;
+.ge-canvas.ge-editing .ge-tools-drawer > .ge-details input.ge-id {
+  width: 90px;
 }
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .btn-group a:hover {
-  text-decoration: none;
-  cursor: pointer;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details input.ge-id,
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details input.ge-classes {
-  border: 1px solid #7F7F7F;
-  border-radius: 4px;
-  font-size: 11px;
-  padding: 2px 5px;
-  margin-right: 5px;
-  width: 80px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details input.ge-classes {
+.ge-canvas.ge-editing .ge-tools-drawer > .ge-details input.ge-classes {
   width: 200px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities {
-  margin-top: 5px;
-  font-size: 11px;
-  /* The spacing plugin: a side and a value per group */
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-toggle {
-  color: #333;
-  cursor: pointer;
-  text-decoration: none;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-toggle::before {
-  content: '\25B8';
-  display: inline-block;
-  width: 1em;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities.ge-open > .ge-utilities-toggle::before {
-  content: '\25BE';
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities > .ge-utilities-body {
-  display: none;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 4px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities.ge-open > .ge-utilities-body {
-  display: flex;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility {
-  display: inline-flex;
-  flex-direction: column;
-  margin: 0;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility select {
-  border: 1px solid #7F7F7F;
-  border-radius: 4px;
-  font-size: 11px;
-  padding: 1px 2px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-utility-note {
-  color: #666;
-  font-size: 10px;
-  max-width: 160px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group {
-  display: inline-flex;
-  flex-direction: column;
-  /* The group names the field once */
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group > .ge-spacing-side {
-  border: 1px solid #7F7F7F;
-  border-radius: 4px;
-  font-size: 11px;
-  padding: 1px 2px;
-  margin-bottom: 2px;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-group .ge-utility > .ge-utility-label {
-  display: none;
-}
-.ge-canvas.ge-editing .ge-tools-drawer .ge-details .ge-utilities .ge-spacing-gutter {
-  flex-basis: 100%;
-  color: #666;
-  font-size: 10px;
 }
 .ge-canvas.ge-editing .row {
   background-color: #efefef;
@@ -4465,18 +4538,11 @@
   color: #785f33;
 }
 /* The width field, in the section's settings panel beside id and classes */
-.ge-canvas.ge-editing .ge-details .ge-section-width {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.ge-details .ge-section-width {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
-  font-size: 11px;
-}
-.ge-canvas.ge-editing .ge-details .ge-section-width select {
-  border: 1px solid #7F7F7F;
-  border-radius: 4px;
-  font-size: 11px;
-  padding: 1px 2px;
 }
 .ge-canvas.ge-layout-xs > .container {
   max-width: 100%;

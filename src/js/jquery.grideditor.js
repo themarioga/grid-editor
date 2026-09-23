@@ -363,6 +363,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
             'confirm_delete'    : true, // Ask before deleting a row or a column
+            'settings_panel'    : 'offcanvas', // Where a node's settings open: 'offcanvas', 'popover', 'modal' or 'inline'
             'drag'              : NESTED_SETTINGS.drag // How a drag behaves, whatever drives it
         }, optionsOrMethod);
 
@@ -426,6 +427,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             handle.settings = settingsCopy();
 
             removeConfirmModal();
+            removeSettingsPanels();
             mainControls.remove();
             createMainControls();
             reset();
@@ -1491,6 +1493,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function init() {
+            // The node whose settings were open is gone - deleted, say - and
+            // its panel with it
+            if (openSettingsState && !$.contains(document.documentElement, openSettingsState.node[0])) {
+                closeSettings();
+            }
+
             runFilter(true);
             canvas.addClass('ge-editing');
             canvas.toggleClass('ge-drag-drawer', settings.drag_handle === 'drawer');
@@ -1510,6 +1518,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function deinit() {
+            // Its panel goes home to its drawer first, and both go together
+            closeSettings();
             canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
             canvas.find('.ge-content').each(function() {
                 closeText($(this));
@@ -1562,6 +1572,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function destroy() {
             deinit();
             removeConfirmModal();
+            removeSettingsPanels();
             mainControls.remove();
             htmlTextArea.remove();
             $(window).off('scroll', onScroll);
@@ -1720,6 +1731,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 // A text editor has rewritten a content area, so whatever the
                 // editor and its plugins had put in there goes back in
                 textReady: function(block) { block.trigger('ge-rte-ready'); },
+                // A node's settings panel, in its drawer or open outside it
+                detailsOf: detailsOf,
                 // A node's drawer: its first child, or for a content area the
                 // one beside it in its text block
                 drawerOf: function(node) {
@@ -2010,9 +2023,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** Bring a node's panel and preview up to date with its classes. */
         function refreshUtilities(node) {
-            var details = node.children('.ge-tools-drawer').children('.ge-details');
+            var details = detailsOf(node);
 
-            details.children('.ge-classes').val(hostClasses(node).join(' '));
+            details.find('.ge-classes').val(hostClasses(node).join(' '));
             details.children('.ge-utilities').each(function() { renderUtilities($(this)); });
             refreshPreviews(node);
         }
@@ -2140,7 +2153,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .appendTo(section)
                 .on('click', function() {
                     utilitiesOpen = !section.hasClass('ge-open');
-                    canvas.find('.ge-utilities').toggleClass('ge-open', utilitiesOpen);
+                    settingsScope().find('.ge-utilities').toggleClass('ge-open', utilitiesOpen);
                 })
             ;
 
@@ -2164,7 +2177,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .text(family.labelKey ? t(family.labelKey) : family.name)
                 .appendTo(field)
             ;
-            $('<select />')
+            $('<select class="form-select form-select-sm" />')
                 .appendTo(field)
                 .on('change', function() {
                     setUtility(node, family.name, this.value, { source: 'panel' });
@@ -2897,9 +2910,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function addSettingsTool(drawer, node, presets) {
             var details = createDetails(node, presets || []);
+            node.data('ge-details', details);
 
             createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
-                details.toggle();
+                toggleSettings(node, details, $(this));
             });
 
             // Beside the gear, because every node that has one is a node a
@@ -2919,12 +2933,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         function createDetails(container, cssClasses) {
             var detailsDiv = $('<div class="ge-details" />');
+            var general = $('<div class="ge-details-general" />').appendTo(detailsDiv);
+            var field = function(label) {
+                return $('<label class="ge-field" />')
+                    .append($('<span class="ge-field-label" />').text(label))
+                    .appendTo(general);
+            };
 
-            $('<input class="ge-id" />')
+            $('<input class="ge-id form-control form-control-sm" />')
                 .attr('placeholder', t('tool.id_placeholder'))
                 .val(container.attr('id'))
                 .attr('title', t('tool.id_title'))
-                .appendTo(detailsDiv)
+                .appendTo(field(t('panel.id')))
                 .on('change', function() {
                     // An empty field means no id, not an empty one
                     if (this.value === '') {
@@ -2935,25 +2955,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 })
             ;
 
-            $('<input class="ge-classes" />')
+            $('<input class="ge-classes form-control form-control-sm" />')
                 .attr('placeholder', t('tool.classes_placeholder'))
                 .attr('title', t('tool.classes_title'))
                 .val(hostClasses(container).join(' '))
-                .appendTo(detailsDiv)
+                .appendTo(field(t('panel.classes')))
                 .on('change', function() {
                     setHostClasses(container, this.value);
                     refreshUtilities(container);
                 })
             ;
 
-            var classGroup = $('<div class="btn-group" />').appendTo(detailsDiv);
+            // Bootstrap 5's outline buttons, filled while their class is on;
+            // up to 5.x they carried Bootstrap 3's btn-default, which 5 lacks
+            var classGroup = $('<div class="btn-group btn-group-sm ge-presets" role="group" />').appendTo(general);
             cssClasses.forEach(function(rowClass) {
-                var btn = $('<a class="btn btn-sm btn-default" />')
+                var btn = $('<a role="button" class="btn btn-sm btn-outline-secondary" />')
                     .html(rowClass.label)
                     .attr('title', rowClass.title ? rowClass.title : t('tool.toggle_class', { label: rowClass.label }))
-                    .toggleClass('active btn-primary', container.hasClass(rowClass.cssClass))
+                    .toggleClass('active', container.hasClass(rowClass.cssClass))
+                    .attr('aria-pressed', container.hasClass(rowClass.cssClass) ? 'true' : 'false')
                     .on('click', function() {
-                        btn.toggleClass('active btn-primary');
+                        btn.toggleClass('active').attr('aria-pressed', btn.hasClass('active') ? 'true' : 'false');
                         container.toggleClass(rowClass.cssClass, btn.hasClass('active'));
                         refreshUtilities(container);
                     })
@@ -2965,6 +2988,330 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (utilities) { utilities.appendTo(detailsDiv); }
 
             return detailsDiv;
+        }
+
+        /* --------------------------------------------------------------
+         * Where a node's settings open.
+         *
+         * Each node's panel - createDetails' fields, and what plugins add to
+         * them - is built into its drawer, as ever. settings_panel says where
+         * it shows: 'inline' unfolds it in the drawer; 'offcanvas', 'popover'
+         * and 'modal' move it into one of Bootstrap's, outside the canvas,
+         * while it is open, and back into its drawer when it closes, so
+         * everything that finds a panel through its node keeps working.
+         *
+         * Bootstrap's markup and styles, but the editor's own opening and
+         * placing: a page may load Bootstrap's javascript without Popper, or
+         * not at all. The modal is Bootstrap's own when Bootstrap is there.
+         * -------------------------------------------------------------- */
+
+        var PANEL_MODES = ['offcanvas', 'popover', 'modal', 'inline'];
+        var settingsPanels = {}; // One of each, built on first use, outside the canvas
+        var openSettingsState = null; // What is open: { mode, node, details, home, next, gear }
+
+        function panelMode() {
+            if (PANEL_MODES.indexOf(settings.settings_panel) !== -1) { return settings.settings_panel; }
+
+            warnOnceHere('settings_panel', 'settings_panel "' + settings.settings_panel + '" is not one of ' +
+                PANEL_MODES.join(', ') + ': using offcanvas');
+            return 'offcanvas';
+        }
+
+        /** A node's panel, wherever it is at the moment. */
+        function detailsOf(node) {
+            var details = node.data('ge-details');
+            return details && details.length ? details : $();
+        }
+
+        /** Where settings fields are found: the canvas, and the panel open outside it. */
+        function settingsScope() {
+            return openSettingsState && openSettingsState.mode !== 'inline'
+                ? canvas.add(openSettingsState.details)
+                : canvas;
+        }
+
+        /** The gear: its node's panel, opened or closed; another node's closes first. */
+        function toggleSettings(node, details, gear) {
+            var mode = panelMode();
+
+            if (mode === 'inline') {
+                details.toggle();
+                return;
+            }
+
+            var same = openSettingsState && openSettingsState.details[0] === details[0];
+            closeSettings();
+            if (!same) { openSettings(mode, node, details, gear); }
+        }
+
+        function openSettings(mode, node, details, gear) {
+            var panel = settingsPanel(mode);
+
+            openSettingsState = {
+                mode: mode,
+                node: node,
+                details: details,
+                home: details.parent(),
+                next: details.next(),
+                gear: gear,
+            };
+
+            panel.find('.ge-settings-title').text(t('panel.title', { kind: kindLabel(node) }));
+            details.appendTo(panel.find('.ge-settings-body')).show();
+            node.addClass('ge-settings-target');
+
+            var ns = '.ge-settings-' + instanceId;
+            $(document).on('keydown' + ns, function(e) {
+                if (e.key === 'Escape') { closeSettings(); }
+            });
+
+            if (mode === 'offcanvas') {
+                // From the bottom on a phone, from the side anywhere wider
+                var narrow = window.innerWidth < 576;
+                panel.toggleClass('offcanvas-end', !narrow).toggleClass('offcanvas-bottom', narrow);
+                panel.removeClass('hiding');
+                panel[0].getBoundingClientRect(); // So the slide in is a transition, not a jump
+                panel.addClass('show');
+            } else if (mode === 'popover') {
+                placePopover(panel, gear);
+                $(window).on('scroll' + ns + ' resize' + ns, function() { placePopover(panel, gear); });
+
+                // And again whenever what is in it changes size: the
+                // Responsive section unfolding, a plugin swapping a field
+                if (window.ResizeObserver) {
+                    openSettingsState.observer = new window.ResizeObserver(function() { placePopover(panel, gear); });
+                    openSettingsState.observer.observe(details[0]);
+                }
+                // A press anywhere else puts it away, as a popover does
+                $(document).on('mousedown' + ns + ' touchstart' + ns, function(e) {
+                    if (!$(e.target).closest(panel).length && !$(e.target).closest(gear).length) { closeSettings(); }
+                });
+            } else {
+                showModal(panel);
+            }
+        }
+
+        /** Put what is open away, and its panel back in its drawer. */
+        function closeSettings() {
+            var open = openSettingsState;
+            if (!open) { return; }
+            openSettingsState = null;
+
+            var panel = settingsPanels[open.mode];
+            $(document).off('.ge-settings-' + instanceId);
+            $(window).off('.ge-settings-' + instanceId);
+            if (open.observer) { open.observer.disconnect(); }
+
+            if (open.mode === 'offcanvas') {
+                panel.removeClass('show').addClass('hiding');
+                window.setTimeout(function() { panel.removeClass('hiding'); }, 300);
+            } else if (open.mode === 'popover') {
+                panel.hide();
+            } else {
+                hideModal(panel);
+            }
+
+            open.node.removeClass('ge-settings-target');
+            open.details.css('display', '');
+
+            // Where it was in its drawer, if the drawer is still there: a
+            // node deleted while its settings were open took it with it
+            if (open.home.length && $.contains(document.documentElement, open.home[0])) {
+                if (open.next.length && open.next.parent()[0] === open.home[0]) {
+                    open.details.insertBefore(open.next);
+                } else {
+                    open.details.appendTo(open.home);
+                }
+            } else {
+                open.details.remove();
+            }
+        }
+
+        /** Built once per mode, on first use, and taken away by destroy() or setLocale(). */
+        function settingsPanel(mode) {
+            if (settingsPanels[mode]) { return settingsPanels[mode]; }
+
+            var closeButton = function(extra) {
+                return $('<button type="button" class="btn-close ge-settings-close" />')
+                    .addClass(extra || '')
+                    .attr('aria-label', t('panel.close'));
+            };
+            var panel;
+
+            if (mode === 'offcanvas') {
+                panel = $('<div class="offcanvas offcanvas-end ge-settings-panel ge-settings-offcanvas" tabindex="-1" role="dialog" />')
+                    .append($('<div class="offcanvas-header" />')
+                        .append('<h5 class="offcanvas-title ge-settings-title"></h5>')
+                        .append(closeButton()))
+                    .append('<div class="offcanvas-body ge-settings-body"></div>');
+            } else if (mode === 'popover') {
+                panel = $('<div class="popover bs-popover-bottom ge-settings-panel ge-settings-popover" role="dialog" />')
+                    .append('<div class="popover-arrow"></div>')
+                    .append($('<div class="popover-header" />')
+                        .append('<span class="ge-settings-title"></span>')
+                        .append(closeButton()))
+                    .append('<div class="popover-body ge-settings-body"></div>')
+                    .hide();
+            } else {
+                panel = $('<div class="modal fade ge-settings-panel ge-settings-modal" tabindex="-1" role="dialog" aria-hidden="true" />')
+                    .append($('<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" />')
+                        .append($('<div class="modal-content" />')
+                            .append($('<div class="modal-header" />')
+                                .append('<h5 class="modal-title ge-settings-title"></h5>')
+                                .append(closeButton()))
+                            .append('<div class="modal-body ge-settings-body"></div>')
+                            .append($('<div class="modal-footer" />')
+                                .append($('<button type="button" class="btn btn-primary ge-settings-close" />')
+                                    .text(t('panel.done'))))));
+            }
+
+            panel.on('click', '.ge-settings-close', function(e) {
+                e.preventDefault();
+                closeSettings();
+            });
+
+            settingsPanels[mode] = panel.appendTo('body');
+            return panel;
+        }
+
+        function removeSettingsPanels() {
+            closeSettings();
+
+            $.each(settingsPanels, function(mode, panel) {
+                if (mode === 'modal' && window.bootstrap && window.bootstrap.Modal) {
+                    var instance = window.bootstrap.Modal.getInstance(panel[0]);
+                    if (instance) { instance.dispose(); }
+                }
+                panel.remove();
+            });
+            if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
+            settingsPanels = {};
+        }
+
+        /**
+         * Under the gear, or over it when there is more room there, inside
+         * the window, and no taller than the room it has: past that its body
+         * scrolls.
+         */
+        function placePopover(panel, gear) {
+            if (!$.contains(document.documentElement, gear[0])) { return; }
+
+            panel.show();
+
+            var tool = gear[0].getBoundingClientRect();
+            var gap = 8;
+            var body = panel.children('.popover-body').css('max-height', '');
+            var width = panel.outerWidth();
+            var height = panel.outerHeight();
+            var roomBelow = window.innerHeight - tool.bottom - 2 * gap;
+            var roomAbove = tool.top - 2 * gap;
+            var below = height <= roomBelow || roomBelow >= roomAbove;
+            var room = below ? roomBelow : roomAbove;
+
+            if (height > room) {
+                body.css('max-height', Math.max(120, room - (height - body.outerHeight())));
+                height = panel.outerHeight();
+            }
+
+            var top = below ? tool.bottom + gap : tool.top - gap - height;
+            var left = Math.max(gap, Math.min(tool.left + tool.width / 2 - 24, window.innerWidth - width - gap));
+
+            panel
+                .toggleClass('bs-popover-bottom', below)
+                .toggleClass('bs-popover-top', !below)
+                .css({ top: top + window.pageYOffset, left: left + window.pageXOffset })
+            ;
+
+            // The arrow points at the gear, wherever the popover had to go
+            panel.children('.popover-arrow').css('left',
+                Math.max(gap, Math.min(tool.left + tool.width / 2 - left - 8, width - 24)));
+        }
+
+        var settingsBackdrop = null; // The modal's backdrop, when Bootstrap's javascript is not there to make one
+
+        /**
+         * Bootstrap's modal ignores a hide while it is still fading in, and a
+         * show while it is fading out, so the editor asks for what it wants
+         * and has it done once the running transition ends: a panel closed as
+         * it opens - getHtml, a second click - would otherwise stay open, and
+         * empty. A hide Bootstrap starts itself, from Escape or the backdrop,
+         * closes the settings as the close button does.
+         */
+        function showModal(panel) {
+            if (!window.bootstrap || !window.bootstrap.Modal) {
+                settingsBackdrop = $('<div class="modal-backdrop fade show ge-settings-backdrop" />')
+                    .appendTo('body')
+                    .on('click', function() { closeSettings(); });
+                panel.addClass('show').css('display', 'block').removeAttr('aria-hidden');
+                return;
+            }
+
+            var modal = window.bootstrap.Modal.getOrCreateInstance(panel[0]);
+
+            if (!panel.data('ge-watched')) {
+                panel.data('ge-watched', true);
+                panel.on('hide.bs.modal', function() {
+                    // Not asked for: Escape or the backdrop
+                    if (panel.data('ge-wanted') === 'open') {
+                        panel.data('ge-wanted', 'closed');
+                        panel.data('ge-busy', true);
+                    }
+                });
+                panel.on('shown.bs.modal', function() {
+                    panel.data('ge-busy', false);
+                    if (panel.data('ge-wanted') === 'closed') { hideModal(panel); }
+                });
+                panel.on('hidden.bs.modal', function() {
+                    panel.data('ge-busy', false);
+                    if (panel.data('ge-wanted') === 'open') {
+                        showModal(panel);
+                    } else if (openSettingsState && openSettingsState.mode === 'modal') {
+                        closeSettings();
+                    }
+                });
+            }
+
+            panel.data('ge-wanted', 'open');
+            if (!panel.data('ge-busy')) {
+                panel.data('ge-busy', true);
+                modal.show();
+            }
+        }
+
+        function hideModal(panel) {
+            if (!window.bootstrap || !window.bootstrap.Modal) {
+                if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
+                panel.removeClass('show').css('display', '').attr('aria-hidden', 'true');
+                return;
+            }
+
+            panel.data('ge-wanted', 'closed');
+
+            // Already out of sight - Bootstrap hid it itself, and this is its
+            // hidden event closing the settings - and nothing is under way:
+            // a hide now would be ignored, and no event would come to say so
+            if (!panel.data('ge-busy') && panel.hasClass('show')) {
+                panel.data('ge-busy', true);
+                window.bootstrap.Modal.getOrCreateInstance(panel[0]).hide();
+            }
+        }
+
+        /** What a panel's title calls a node. */
+        function kindLabel(node) {
+            var kind = kindOf(node);
+
+            if (CONTAINERS[kind] && CONTAINERS[kind].labelKey) { return t(CONTAINERS[kind].labelKey); }
+
+            switch (kind) {
+                case 'row': return t('panel.kind_row');
+                case 'column': return t('panel.kind_column');
+                case 'text': return t('panel.kind_text');
+                case 'element': return t('panel.kind_element');
+                case 'section': return t('panel.kind_section');
+                case 'tab': return t('panel.kind_tab');
+                case 'accordion-item': return t('panel.kind_accordion_item');
+                default: return kind;
+            }
         }
 
         /**
@@ -3316,7 +3663,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 // With the whole drawer as the handle, the tools inside it are
                 // still tools: a drag starting on one would swallow its click,
                 // and the settings panel has fields to type in
-                ? '.ge-tools-drawer > a, .ge-details, input, textarea, button, select, option'
+                // - the info tools excepted, which do nothing when clicked:
+                // a text's drawer is small and made of little but tools, and
+                // with those turned away as well there was nothing to hold
+                ? '.ge-tools-drawer > a:not(.ge-text-info):not(.ge-element-info), .ge-details, ' +
+                    'input, textarea, button, select, option'
                 : 'input, textarea, button, select, option';
         }
 
@@ -3384,7 +3735,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     // synthetic events, so the tests could not exist without
                     // this; it also gives one helper across browsers
                     forceFallback: true,
-                    fallbackOnBody: true,
+
+                    // The copy that follows the pointer is appended to the
+                    // list the drag started in rather than to the body: it is
+                    // positioned fixed either way, and inside the canvas it
+                    // looks like what it is a copy of. On the body none of the
+                    // editing styles reached it - its drawers came out
+                    // unstyled, their settings panels open.
+                    fallbackOnBody: false,
 
                     ghostClass: 'ge-drag-placeholder',
                     chosenClass: 'ge-drag-chosen',
@@ -4370,7 +4728,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (key === from) { return; }
 
-            canvas.find('.ge-utilities').each(function() { renderUtilities($(this)); });
+            settingsScope().find('.ge-utilities').each(function() { renderUtilities($(this)); });
             refreshPreviews(canvas);
             plugins('onViewChange', key);
             emit('view-change', { canvas: canvas, breakpoint: key, from: from, to: key });
@@ -4556,6 +4914,18 @@ $.fn.gridEditor.locales = {
         'tool.indent_increase': 'Increase indent\n(hold shift for max)',
         'tool.edit_source': 'Edit Source Code',
         'tool.preview': 'Preview',
+        'panel.title': '{kind} settings',
+        'panel.close': 'Close',
+        'panel.done': 'Done',
+        'panel.id': 'Id',
+        'panel.classes': 'Classes',
+        'panel.kind_row': 'Row',
+        'panel.kind_column': 'Column',
+        'panel.kind_text': 'Text',
+        'panel.kind_element': 'Element',
+        'panel.kind_section': 'Section',
+        'panel.kind_tab': 'Tab',
+        'panel.kind_accordion_item': 'Accordion item',
         'tool.id_placeholder': 'id',
         'tool.id_title': 'Set a unique identifier',
         'tool.classes_placeholder': 'classes',

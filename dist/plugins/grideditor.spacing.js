@@ -183,7 +183,7 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
     /** A padding or margin group: its name, the side, and the field of that side's family. */
     function group(node, key, labelText) {
         var box = $('<div class="ge-spacing-group" />').attr('data-ge-spacing', key);
-        var side = $('<select class="ge-spacing-side" />');
+        var side = $('<select class="ge-spacing-side form-select form-select-sm" />');
 
         $('<span class="ge-utility-label" />').text(labelText).appendTo(box);
 

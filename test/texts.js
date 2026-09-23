@@ -520,8 +520,9 @@ async function overlayTests(t) {
         };
     `;
 
+    // The settings unfold in the drawer here, which is what makes it span
     await page.eval(`
-        restart();
+        restart({ settings_panel: 'inline' });
         jQuery('#myGrid .ge-text-block').first().attr('id', 'over');
         return true;
     `);
@@ -576,6 +577,111 @@ async function overlayTests(t) {
     t.check('the overlay tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * A drag by hand, point to point, with a look at the page half way: what
+ * page.drag does, but it only knows elements' centres, and the grip on a
+ * text's drawer is a few pixels at its start.
+ */
+async function dragBetween(page, from, to, midway) {
+    var press = { type: 'mousePressed', x: from.x, y: from.y, button: 'left', clickCount: 1 };
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y });
+    await page.send('Input.dispatchMouseEvent', press);
+
+    var seen = null;
+    for (var step = 1; step <= 16; step++) {
+        await page.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved', button: 'left', buttons: 1,
+            x: from.x + (to.x - from.x) * step / 16,
+            y: from.y + (to.y - from.y) * step / 16,
+        });
+        await new Promise(function(resolve) { setTimeout(resolve, 30); });
+        if (step === 8 && midway) { seen = await page.eval(midway); }
+    }
+
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', clickCount: 1 });
+    await new Promise(function(resolve) { setTimeout(resolve, 300); });
+
+    return seen;
+}
+
+/** Where to press on a node, and where to let go over another. */
+var POINTS = `
+    window.pointsFor = async function(from, fromX, to) {
+        const source = document.querySelector(from);
+        source.scrollIntoView({ block: 'center' });
+        await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+        const a = source.getBoundingClientRect();
+        const b = document.querySelector(to).getBoundingClientRect();
+        return {
+            from: { x: a.left + (fromX === undefined ? a.width / 2 : fromX), y: a.top + a.height / 2 },
+            to: { x: b.left + b.width / 2, y: b.top + b.height * 0.9 },
+        };
+    };
+    return true;
+`;
+
+async function drawerDragTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SETUP);
+    await page.eval(POINTS);
+
+    var MARK = `
+        jQuery('#myGrid .column').eq(0).attr('id', 'left');
+        jQuery('#myGrid .column').eq(1).attr('id', 'right');
+        jQuery('#left > .ge-text-block').attr('id', 'moving');
+        return true;
+    `;
+
+    // The copy following the pointer, half way through a drag
+    var HELPER = `
+        const helper = document.querySelector('.ge-drag-helper');
+        if (!helper) { return null; }
+        return {
+            inCanvas: !!helper.closest('#myGrid'),
+            position: getComputedStyle(helper).position,
+            panelsOpen: Array.from(helper.querySelectorAll('.ge-details')).filter(function(panel) {
+                return getComputedStyle(panel).display !== 'none';
+            }).length,
+        };
+    `;
+
+    await page.eval(`restart(); ` + MARK);
+    await page.hover('#moving');
+    await t.sleep(200);
+    var points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer .ge-move', undefined, '#right');`);
+    var helper = await dragBetween(page, points.from, points.to, HELPER);
+    t.check('the copy that follows the pointer is in the canvas, and looks like what it copies: no settings panel open',
+        !!helper && helper.inCanvas && helper.position === 'fixed' && helper.panelsOpen === 0, helper);
+
+    await page.eval(`restart({ drag_handle: 'drawer' }); ` + MARK);
+    await page.hover('#moving');
+    await t.sleep(200);
+    points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer', 5, '#right');`);
+    await dragBetween(page, points.from, points.to);
+    var byGrip = await page.eval(`return { inRight: jQuery('#right').children('#moving').length, move: jQuery('#moving > .ge-tools-drawer .ge-move').length };`);
+    t.check('with drag_handle drawer, a text drags by the grip at the start of its drawer',
+        byGrip.inRight === 1 && byGrip.move === 0, byGrip);
+
+    await page.eval(`restart({ drag_handle: 'drawer' }); ` + MARK);
+    await page.hover('#moving');
+    await t.sleep(200);
+    points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer > .ge-text-info', undefined, '#right');`);
+    await dragBetween(page, points.from, points.to);
+    var byInfo = await page.eval(`return { inRight: jQuery('#right').children('#moving').length };`);
+    t.check('and by its info tool, which does nothing when clicked', byInfo.inRight === 1, byInfo);
+
+    await page.eval(`restart({ drag_handle: 'drawer' }); ` + MARK);
+    await page.hover('#moving');
+    await t.sleep(200);
+    points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer > .ge-settings', undefined, '#right');`);
+    await dragBetween(page, points.from, points.to);
+    var bySettings = await page.eval(`return { inRight: jQuery('#right').children('#moving').length };`);
+    t.check('but not by a tool that does something', bySettings.inRight === 0, bySettings);
+
+    var errors = page.errors();
+    t.check('the drawer drag tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'texts',
     description: 'text blocks, the text editor plugins\' contract and the RTEs adapter',
@@ -585,6 +691,7 @@ module.exports = {
         await blockTests(t);
         await choiceTests(t);
         await dragTests(t);
+        await drawerDragTests(t);
         await overlayTests(t);
         await utilityTests(t);
     },

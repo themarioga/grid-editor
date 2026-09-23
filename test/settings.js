@@ -27,8 +27,10 @@ var PANEL = '#myGrid .column > .ge-tools-drawer .ge-details';
 async function panelTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
+    // Unfolded in the drawer, where these look for it: where else it can
+    // open is test/panels.js
     var fields = await page.eval(CANVAS + `
-        window.fixture.init({ default_view: 'xs' });
+        window.fixture.init({ default_view: 'xs', settings_panel: 'inline' });
 
         const drawer = jQuery('#myGrid .column > .ge-tools-drawer');
         const panel = drawer.find('.ge-details');

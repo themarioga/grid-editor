@@ -90,7 +90,7 @@ $.fn.gridEditor.features.sections = function(ge) {
             });
 
             if (!ge.emit('before-utility', payload)) {
-                section.find('> .ge-tools-drawer .ge-section-width select').val(from);
+                ge.detailsOf(section).find('.ge-section-width select').val(from);
                 return false;
             }
 
@@ -102,7 +102,7 @@ $.fn.gridEditor.features.sections = function(ge) {
     }
 
     function widthField(section) {
-        var select = $('<select />');
+        var select = $('<select class="form-select form-select-sm" />');
         var current = widthOf(section);
         var offered = options.widths.indexOf(current) === -1 ? options.widths.concat([current]) : options.widths;
 

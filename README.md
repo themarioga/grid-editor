@@ -362,6 +362,21 @@ $('#myGrid').gridEditor({
 });
 ```
 
+__`settings_panel`:__ Where the settings a gear opens are shown - a node's id, its classes, the presets and the *Responsive* fields. Default `'offcanvas'`.
+
+| Value | Where |
+| --- | --- |
+| `'offcanvas'` | A Bootstrap offcanvas at the side of the window, from the bottom on a phone. It does not move the canvas, and has room for every field |
+| `'popover'` | A Bootstrap popover under the gear, or over it when there is more room there; a press anywhere else puts it away |
+| `'modal'` | A Bootstrap modal |
+| `'inline'` | Unfolded in the drawer itself, as up to 5.x |
+
+Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
+
+```javascript
+$('#myGrid').gridEditor({ settings_panel: 'popover' });
+```
+
 __`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. The question is asked in a Bootstrap modal the editor builds outside your canvas, in the interface language; a page that loaded Bootstrap's css but not its javascript gets the browser's own confirm instead. Set it to `false` if you cancel `before-delete` and ask in your own way.
 
 __`drag`:__ How a drag behaves, wherever the editor drags something. Named for the gesture rather than for the library underneath, so it survives a change of library. Every gesture works from a touchscreen, which is what `touch_delay` is for: a touch drag that started instantly would take the page's scrolling with it, so a finger has to rest for a moment before it moves anything. Setting `delay` makes both gestures wait that long.

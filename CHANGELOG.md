@@ -5,6 +5,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- `settings_panel`: where a gear's settings open - a Bootstrap offcanvas at
+  the side, the default; a popover under the gear; a modal; or `'inline'` in
+  the drawer, as before. Each is titled after its node, the node is outlined
+  while they are open, and Escape closes them. The editor opens and places
+  them with Bootstrap's markup and css, and needs neither Popper nor
+  Bootstrap's javascript for it. [example/utilities.html](example/utilities.html)
+  switches between them.
+- `ge.detailsOf(node)` in the plugin handle: a node's settings panel,
+  wherever it is open.
+
+### Changed
+- The settings' fields are Bootstrap 5's own - labelled `form-control-sm`
+  inputs and `form-select-sm` selects - and the preset class buttons
+  `btn-outline-secondary`, where they carried Bootstrap 3's `btn-default`,
+  which Bootstrap 5 has not got.
+
+### Fixed
+- While dragging, the copy that follows the pointer came out unstyled - its
+  drawers laid out as plain links, their settings panels open - because it was
+  appended to the page's body, outside the canvas the editor's styles apply
+  to. It is appended to the list the drag started in, and looks like what it
+  copies.
+- With `drag_handle: 'drawer'` a text could not be dragged: its drawer is
+  small and made of tools, and a drag never starts on a tool. It has a grip at
+  its start now, and an info tool - the text's and an element's - which does
+  nothing when clicked, starts a drag too.
+
 ## [6.0.0-beta.1] - 2026-09-23
 ### Changed
 - **Elements are blocks of the column.** An element sits in a column beside

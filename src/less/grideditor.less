@@ -157,6 +157,177 @@
     .ge-tools-drawer .ge-details {
         cursor: auto;
     }
+    /* An info tool does nothing when clicked, so it is somewhere to hold */
+    .ge-tools-drawer > a.ge-text-info,
+    .ge-tools-drawer > a.ge-element-info {
+        cursor: move;
+    }
+    /* A text's drawer sits over the text, small, and is mostly tools: a grip
+       at its start says where to take hold of it */
+    .ge-text-block > .ge-text-drawer {
+        padding-left: 14px;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 4px;
+            width: 6px;
+            height: 14px;
+            transform: translateY(-50%);
+            background-image: radial-gradient(circle, @textTextColor 1px, transparent 1.3px);
+            background-size: 3px 3px;
+            opacity: 0.7;
+        }
+    }
+}
+
+/* A node's settings, wherever settings_panel shows them: in its drawer, or
+   in one of Bootstrap's offcanvas, popover or modal, outside the canvas. The
+   fields are Bootstrap's own - form-control-sm, form-select-sm,
+   btn-outline-secondary - and this only lays them out. */
+.ge-details {
+    font-size: 0.8125rem;
+
+    .ge-details-general {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .ge-field {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 0;
+    }
+    .ge-field-label,
+    .ge-utility-label {
+        color: var(--bs-secondary-color, #6c757d);
+        font-size: 0.75rem;
+    }
+    .ge-presets:empty {
+        display: none;
+    }
+
+    /* The utility plugins' fields, folded under one toggle */
+    .ge-utilities {
+        margin-top: 10px;
+
+        > .ge-utilities-toggle {
+            display: block;
+            color: var(--bs-body-color, #333);
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+
+            &::before {
+                content: '\25B8';
+                display: inline-block;
+                width: 1em;
+            }
+        }
+        &.ge-open > .ge-utilities-toggle::before {
+            content: '\25BE';
+        }
+
+        > .ge-utilities-body {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px 10px;
+            margin-top: 6px;
+        }
+        &.ge-open > .ge-utilities-body {
+            display: grid;
+        }
+
+        .ge-utility {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin: 0;
+        }
+        .ge-utility-note {
+            color: var(--bs-secondary-color, #666);
+            font-size: 0.6875rem;
+        }
+
+        /* The spacing plugin: a side and a value per group */
+        .ge-spacing {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px 10px;
+            grid-column: 1 / -1;
+        }
+        .ge-spacing-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            /* The group names the field once */
+            .ge-utility > .ge-utility-label {
+                display: none;
+            }
+        }
+        .ge-spacing-gutter {
+            grid-column: 1 / -1;
+            color: var(--bs-secondary-color, #666);
+            font-size: 0.6875rem;
+        }
+    }
+}
+
+/* In a drawer it is part of the drawer, compact */
+.ge-tools-drawer > .ge-details {
+    font-size: 11px;
+
+    .ge-utilities > .ge-utilities-body {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 160px));
+    }
+}
+
+/* In one of Bootstrap's, outside the canvas */
+.ge-settings-panel {
+    .ge-details {
+        display: block;
+    }
+    .ge-settings-title {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+}
+
+.ge-settings-offcanvas {
+    /* Beside the canvas rather than over most of it */
+    --bs-offcanvas-width: 340px;
+    --bs-offcanvas-height: 60vh;
+}
+
+.ge-settings-popover {
+    /* Popper would position it; without Popper that is the editor's job */
+    position: absolute;
+    --bs-popover-max-width: 360px;
+    width: 360px;
+    max-width: calc(100vw - 16px);
+
+    > .popover-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+
+        > .btn-close {
+            font-size: 0.65rem;
+        }
+    }
+    > .popover-body {
+        overflow-y: auto;
+    }
+}
+
+/* The node whose settings are open */
+.ge-canvas.ge-editing .ge-settings-target {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 1px;
 }
 
 /* While editing */
@@ -195,112 +366,23 @@
             background: rgba(255, 255, 255, 0.5);
             cursor: pointer;
         }
-        .ge-details {
+        /* A node's settings, unfolded in its drawer: settings_panel 'inline' */
+        > .ge-details {
+            display: none;
             padding: 5px;
             border-top: 1px solid rgba(0,0,0,0.05);
-            display: none;
-            
-            .btn-group {
-                a {
-                    color: #333;
-                    
-                    &.active {
-                        color: white;
-                    }
-                }
-                a:hover {
-                    text-decoration: none;
-                    cursor: pointer;
-                }
+            text-align: left;
+            cursor: auto;
+
+            .ge-details-general {
+                flex-direction: row;
+                align-items: flex-end;
             }
-            input.ge-id,
-            input.ge-classes {
-                border: 1px solid #7F7F7F;
-                border-radius: 4px;
-                font-size: 11px;
-                padding: 2px 5px;
-                margin-right: 5px;
-                width: 80px;
+            input.ge-id {
+                width: 90px;
             }
             input.ge-classes {
                 width: 200px;
-            }
-
-            /* The utility plugins' fields, folded under one toggle */
-            .ge-utilities {
-                margin-top: 5px;
-                font-size: 11px;
-
-                > .ge-utilities-toggle {
-                    color: #333;
-                    cursor: pointer;
-                    text-decoration: none;
-
-                    &::before {
-                        content: '\25B8';
-                        display: inline-block;
-                        width: 1em;
-                    }
-                }
-                &.ge-open > .ge-utilities-toggle::before {
-                    content: '\25BE';
-                }
-
-                > .ge-utilities-body {
-                    display: none;
-                    flex-wrap: wrap;
-                    gap: 4px 10px;
-                    margin-top: 4px;
-                }
-                &.ge-open > .ge-utilities-body {
-                    display: flex;
-                }
-
-                .ge-utility {
-                    display: inline-flex;
-                    flex-direction: column;
-                    margin: 0;
-
-                    select {
-                        border: 1px solid #7F7F7F;
-                        border-radius: 4px;
-                        font-size: 11px;
-                        padding: 1px 2px;
-                    }
-                }
-                .ge-utility-note {
-                    color: #666;
-                    font-size: 10px;
-                    max-width: 160px;
-                }
-
-                /* The spacing plugin: a side and a value per group */
-                .ge-spacing {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 4px 10px;
-                }
-                .ge-spacing-group {
-                    display: inline-flex;
-                    flex-direction: column;
-
-                    > .ge-spacing-side {
-                        border: 1px solid #7F7F7F;
-                        border-radius: 4px;
-                        font-size: 11px;
-                        padding: 1px 2px;
-                        margin-bottom: 2px;
-                    }
-                    /* The group names the field once */
-                    .ge-utility > .ge-utility-label {
-                        display: none;
-                    }
-                }
-                .ge-spacing-gutter {
-                    flex-basis: 100%;
-                    color: #666;
-                    font-size: 10px;
-                }
             }
         }
     }
@@ -978,19 +1060,11 @@
 }
 
 /* The width field, in the section's settings panel beside id and classes */
-.ge-canvas.ge-editing .ge-details .ge-section-width {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+.ge-details .ge-section-width {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     margin: 0;
-    font-size: 11px;
-
-    select {
-        border: 1px solid #7F7F7F;
-        border-radius: 4px;
-        font-size: 11px;
-        padding: 1px 2px;
-    }
 }
 
 @ge-section-classes: container, container-sm, container-md, container-lg, container-xl, container-xxl;

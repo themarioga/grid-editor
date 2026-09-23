@@ -30,13 +30,27 @@
 
     <script>
         $(function() {
-            $('#myGrid').gridEditor({
-                new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
-                content_types: [],
+            function start(panel) {
+                $('#myGrid').gridEditor({
+                    new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
+                    content_types: [],
 
-                // Utilities are edited per breakpoint, so this page starts in
-                // one. Switch to "All sizes" to see the page as it will render.
-                default_view: 'xs',
+                    // Utilities are edited per breakpoint, so this page starts in
+                    // one. Switch to "All sizes" to see the page as it will render.
+                    default_view: 'xs',
+
+                    // Where a node's settings open: 'offcanvas', the default,
+                    // 'popover', 'modal', or 'inline' in its drawer
+                    settings_panel: panel,
+                });
+            }
+            start($('#panel').val());
+
+            // The same canvas, started again with its settings elsewhere
+            $('#panel').on('change', function() {
+                var html = $('#myGrid').gridEditor('getHtml');
+                $('#myGrid').gridEditor('destroy').html(html);
+                start(this.value);
             });
 
             // Every change to a utility is announced, like any other operation
@@ -75,6 +89,15 @@
                     section with a field per utility, which says what the
                     breakpoint inherits and from where.
                 </p>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <label class="form-label mb-0" for="panel">A gear opens its settings in</label>
+                    <select class="form-select form-select-sm w-auto" id="panel">
+                        <option value="offcanvas">a side panel (offcanvas)</option>
+                        <option value="popover">a popover</option>
+                        <option value="modal">a modal</option>
+                        <option value="inline">the drawer itself (inline)</option>
+                    </select>
+                </div>
                 <p class="form-text">
                     <strong>Visibility:</strong> the eye in a drawer hides the
                     node in the view being edited. It stays on the canvas,

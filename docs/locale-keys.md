@@ -62,6 +62,29 @@ row.*
 | `row.add_row_cols` | Add a row of {columns} columns, {counts} per row | Tooltip of a toolbar button for a `{ row_cols, columns }` layout. `{counts}` reads like `1, md: 3` |
 
 
+panel.*
+-------
+
+Where a node's settings open, and what they are called there: `settings_panel`
+`'offcanvas'`, `'popover'` or `'modal'` - an unfolded `'inline'` panel has no
+title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `panel.title` | {kind} settings | Title of the offcanvas, popover or modal |
+| `panel.close` | Close | Label of its close button |
+| `panel.done` | Done | The modal's button that closes it |
+| `panel.id` | Id | Label of the id field |
+| `panel.classes` | Classes | Label of the classes field |
+| `panel.kind_row` | Row | `{kind}` for a row |
+| `panel.kind_column` | Column | For a column |
+| `panel.kind_text` | Text | For a text |
+| `panel.kind_element` | Element | For an element |
+| `panel.kind_section` | Section | For a section |
+| `panel.kind_tab` | Tab | For a tab |
+| `panel.kind_accordion_item` | Accordion item | For an accordion item |
+
+
 container.*
 -----------
 
