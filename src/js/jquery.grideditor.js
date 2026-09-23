@@ -4496,16 +4496,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             createMoveTool(drawer);
 
-            // Which editor edits it, or that none can: a type whose plugin is
-            // not loaded is still a block to move and delete, but not to edit
-            if (type && TEXTS[type]) {
-                createTool(drawer, t('tool.text_info', { editor: textLabel(type) }), 'ge-text-info', 'bi bi-fonts');
-            } else if (type) {
+            // That no editor can edit it: a type whose plugin is not loaded is
+            // still a block to move and delete, but not to edit
+            if (type && !TEXTS[type]) {
                 createTool(drawer, t('text.no_editor', { type: type }), 'ge-text-info ge-text-missing',
                     'bi bi-exclamation-triangle');
             }
 
-            addSettingsTool(drawer, block, settings.text_classes);
+            var details = addSettingsTool(drawer, block, settings.text_classes);
+
+            // Which editor edits it, first in its settings: something to
+            // know about it, not something to do with it
+            if (type && TEXTS[type]) {
+                $('<div class="ge-field ge-text-editor" />')
+                    .append($('<span class="ge-field-label" />').text(t('panel.editor')))
+                    .append($('<span class="ge-field-value" />').text(textLabel(type)))
+                    .prependTo(details.children('.ge-details-general'));
+            }
 
             settings.text_tools.forEach(function(hostTool) {
                 createTool(drawer, hostTool.title || '', hostTool.className || '',
@@ -4894,7 +4901,6 @@ $.fn.gridEditor.locales = {
         'tool.add_row': 'Add row',
         'tool.add_text': 'Add text',
         'tool.add_text_type': 'Add {editor} text',
-        'tool.text_info': 'Text: {editor}',
         'tool.delete_text': 'Remove text',
         'text.add': 'Text',
         'text.add_type': 'Text ({editor})',
@@ -4919,6 +4925,7 @@ $.fn.gridEditor.locales = {
         'panel.done': 'Done',
         'panel.id': 'Id',
         'panel.classes': 'Classes',
+        'panel.editor': 'Editor',
         'panel.kind_row': 'Row',
         'panel.kind_column': 'Column',
         'panel.kind_text': 'Text',

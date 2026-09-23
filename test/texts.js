@@ -251,14 +251,15 @@ async function blockTests(t) {
             areas: jQuery('#myGrid .ge-content').length,
             everyWrapped: jQuery('#myGrid .ge-content').get().every(function(area) { return jQuery(area).parent().is('.ge-text-block'); }),
             tools: toolsOf(first),
-            info: first.find('> .ge-tools-drawer > .ge-text-info').attr('title'),
+            info: first.find('> .ge-tools-drawer > .ge-text-info').length,
+            editor: first.find('> .ge-tools-drawer .ge-details .ge-text-editor').text(),
             drawerOutside: first.children('.ge-content').find('.ge-tools-drawer').length === 0,
         };
     `);
     t.check('each content area in a column is a text block while editing, its drawer beside it and not inside',
         drawer.blocks === 2 && drawer.areas === 2 && drawer.everyWrapped && drawer.drawerOutside, drawer);
-    t.check('a text block\'s drawer: move, which editor, settings, delete',
-        drawer.tools === 'ge-move,ge-text-info,ge-settings,ge-delete-text' && drawer.info === 'Text: tinyMCE', drawer);
+    t.check('a text block\'s drawer: move, settings, delete; which editor edits it is in its settings',
+        drawer.tools === 'ge-move,ge-settings,ge-delete-text' && drawer.info === 0 && drawer.editor === 'EditortinyMCE', drawer);
 
     var exported = await page.eval(`
         const block = jQuery('#myGrid .ge-text-block').first();
@@ -661,14 +662,6 @@ async function drawerDragTests(t) {
     var byGrip = await page.eval(`return { inRight: jQuery('#right').children('#moving').length, move: jQuery('#moving > .ge-tools-drawer .ge-move').length };`);
     t.check('with drag_handle drawer, a text drags by the grip at the start of its drawer',
         byGrip.inRight === 1 && byGrip.move === 0, byGrip);
-
-    await page.eval(`restart({ drag_handle: 'drawer' }); ` + MARK);
-    await page.hover('#moving');
-    await t.sleep(200);
-    points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer > .ge-text-info', undefined, '#right');`);
-    await dragBetween(page, points.from, points.to);
-    var byInfo = await page.eval(`return { inRight: jQuery('#right').children('#moving').length };`);
-    t.check('and by its info tool, which does nothing when clicked', byInfo.inRight === 1, byInfo);
 
     await page.eval(`restart({ drag_handle: 'drawer' }); ` + MARK);
     await page.hover('#moving');

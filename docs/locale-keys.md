@@ -76,6 +76,7 @@ title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
 | `panel.done` | Done | The modal's button that closes it |
 | `panel.id` | Id | Label of the id field |
 | `panel.classes` | Classes | Label of the classes field |
+| `panel.editor` | Editor | Label of a text's settings field that says which editor edits it |
 | `panel.kind_row` | Row | `{kind}` for a row |
 | `panel.kind_column` | Column | For a column |
 | `panel.kind_text` | Text | For a text |
@@ -140,7 +141,6 @@ plugin with no label, its type.
 | `text.summernote` | Summernote | The summernote plugin's label |
 | `tool.add_text` | Add text | Column drawer, adds a text block of the first editor offered |
 | `tool.add_text_type` | Add {editor} text | Title of each choice the add text tool offers, held, when several editors are |
-| `tool.text_info` | Text: {editor} | Text drawer, says which editor edits it |
 | `tool.delete_text` | Remove text | Text drawer |
 
 
