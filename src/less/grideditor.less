@@ -603,6 +603,23 @@
             }
         }
 
+        /* While the text is being edited it would sit over the end of its
+           first line, so it stands back - faint, still there to click - until
+           the pointer is on the drawer itself */
+        &:has(> .ge-rte-active) > .ge-text-drawer:not(:hover) {
+            opacity: 0.35;
+        }
+
+        /* Except when something in it is in use: its settings, a choice it
+           offers, a drag */
+        &.ge-drag-chosen,
+        &:has(> .ge-text-drawer.ge-picker-open),
+        &:has(> .ge-text-drawer > .ge-details[style*="block"]) {
+            > .ge-text-drawer:not(:hover) {
+                opacity: 1;
+            }
+        }
+
         /* With its settings open it spans the text, so the panel has room */
         &:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
             left: 0;

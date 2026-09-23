@@ -140,17 +140,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
         var clip = read();
         if (!fits(clip, categories)) { return; }
 
-        var node = fresh(clip.html);
-        var into = target;
-
-        // An element goes into the column's last content area. With none,
-        // the column's next init wraps it in one of its own
-        if (clip.category === 'element') {
-            var area = target.find('> .ge-text-block > .ge-content, > .ge-content').last();
-            if (area.length) { into = area; }
-        }
-
-        ge.place(node, clip.kind, { appendTo: into, source: 'paste' });
+        ge.place(fresh(clip.html), clip.kind, { appendTo: target, source: 'paste' });
     }
 
     /**

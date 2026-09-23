@@ -69,38 +69,17 @@
                 }
 
                 /**
-                 * An element lives inside a content area, and while a rich
-                 * text editor is open there, a change it does not know about
-                 * is one its undo would take back: undoing the next thing the
-                 * user types restores a snapshot from before the attribute.
-                 * Made through tinyMCE's undo manager, it is a step of its
-                 * own, which undo and redo treat like any other.
+                 * A plain attr() on any node: an element is never inside a
+                 * text editor since 6.0, and a text's own attributes, given
+                 * while its editor is open, are kept by grid-editor when the
+                 * editor closes.
                  */
                 function write(node, value) {
-                    var apply = function() {
-                        if (value) {
-                            node.attr(ATTRIBUTE, JSON.stringify(value));
-                        } else {
-                            node.removeAttr(ATTRIBUTE);
-                        }
-                    };
-                    var editor = editorAround(node);
-
-                    if (editor) {
-                        editor.undoManager.transact(apply);
+                    if (value) {
+                        node.attr(ATTRIBUTE, JSON.stringify(value));
                     } else {
-                        apply();
+                        node.removeAttr(ATTRIBUTE);
                     }
-                }
-
-                /** The tinyMCE editor open on the content area around node, if there is one. */
-                function editorAround(node) {
-                    var area = node.closest('.ge-content');
-                    if (!area.length || !window.tinymce) { return null; }
-
-                    return window.tinymce.get().filter(function(editor) {
-                        return editor.getBody && editor.getBody() === area[0];
-                    })[0] || null;
                 }
 
                 /** Built once, outside the canvas, so it is never part of getHtml. */
@@ -297,12 +276,13 @@
                     an animation has its tool highlighted.
                 </p>
                 <p class="form-text">
-                    The quote is an element, inside text tinyMCE edits. Open the
-                    editor there, set an animation on the quote, keep typing
-                    and press <kbd>Ctrl</kbd>+<kbd>Z</kbd>: the text goes, the
-                    animation stays, because the plugin wrote it through
-                    tinyMCE&rsquo;s undo manager. Written behind its back,
-                    undoing the typing would undo the attribute with it.
+                    Open tinyMCE on a text and set an animation on that same
+                    text, from its drawer, while you are typing: the attribute
+                    is kept when the editor closes, although tinyMCE puts back
+                    the attributes it found when it opened. The plugin does
+                    nothing special for that - a plain <code>attr()</code> -
+                    and nothing special for the quote either, which is an
+                    element: a block beside the texts, never inside one.
                 </p>
                 <p class="form-text">
                     <em>Open as a published page</em> puts the plain html in a
@@ -325,11 +305,15 @@
             </div>
             <div class="row">
                 <div class="col-lg-6">
-                    <p>Ordinary text, edited by tinyMCE.</p>
+                    <div class="ge-content" data-ge-content-type="tinymce">
+                        <p>Ordinary text, edited by tinyMCE.</p>
+                    </div>
                     <blockquote class="blockquote" data-ge-element="quote" data-ge-label="Quote">
-                        <p>An element: give it an animation while you edit the text around it.</p>
+                        <p>An element, beside the texts: give it an animation.</p>
                     </blockquote>
-                    <p>More text, after the element.</p>
+                    <div class="ge-content" data-ge-content-type="tinymce">
+                        <p>More text, after the element.</p>
+                    </div>
                 </div>
                 <div class="col-lg-6">
                     <div data-ge-container="card">

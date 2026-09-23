@@ -488,6 +488,11 @@
            while it is wanted - the pointer over the text, the text being
            edited or holding the focus, its settings open, a drag under way -
            and takes no room either way. */
+  /* While the text is being edited it would sit over the end of its
+           first line, so it stands back - faint, still there to click - until
+           the pointer is on the drawer itself */
+  /* Except when something in it is in use: its settings, a choice it
+           offers, a drag */
   /* With its settings open it spans the text, so the panel has room */
 }
 .ge-canvas.ge-editing .ge-text-block > .ge-text-drawer {
@@ -524,6 +529,14 @@
   opacity: 1;
   visibility: visible;
   transition-delay: 0s;
+}
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-rte-active) > .ge-text-drawer:not(:hover) {
+  opacity: 0.35;
+}
+.ge-canvas.ge-editing .ge-text-block.ge-drag-chosen > .ge-text-drawer:not(:hover),
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer.ge-picker-open) > .ge-text-drawer:not(:hover),
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer:not(:hover) {
+  opacity: 1;
 }
 .ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
   left: 0;

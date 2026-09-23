@@ -1,7 +1,6 @@
 /**
- * Browser tests for the text editor plugins' contract: $.fn.gridEditor.texts,
- * the copies the main bundle carries until 6.0, and the adapter for 5.x's
- * $.fn.gridEditor.RTEs.
+ * Browser tests for text blocks and the text editor plugins' contract:
+ * $.fn.gridEditor.texts, and the adapter for 5.x's $.fn.gridEditor.RTEs.
  *
  * These run offline, on the fixture, with a stand-in for tinyMCE that has
  * only what the integration touches: the real editors are rte.js's business.
@@ -46,49 +45,27 @@ var SETUP = `
     return true;
 `;
 
+/** Up to 5.x, editing with the main bundle's copy of an editor warned about it. */
 var BUNDLED = `return window.warnings.filter(function(w) { return /copy in the main bundle/.test(w); }).length;`;
 
 async function bundleTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(SETUP);
 
-    var copy = await page.eval(`
+    var bundle = await page.eval(`
+        const source = await (await fetch('/dist/jquery.grideditor.js')).text();
         restart();
         jQuery('#myGrid .ge-content').eq(0).trigger('click');
-        jQuery('#myGrid .ge-content').eq(1).trigger('click');
         return {
+            carries: /texts\\.(tinymce|ckeditor|summernote)\\s*=/.test(source),
             marked: !!$.fn.gridEditor.texts.tinymce.bundled,
             started: window.fakeTinymce.started,
             attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce'),
             warned: (function() { ${BUNDLED} })(),
         };
     `);
-    t.check('the main bundle carries tinyMCE, marked as its copy, and it still edits',
-        copy.marked && copy.started === 2 && copy.attached, copy);
-    t.check('editing with the bundle\'s copy warns once that 6.0 leaves it out',
-        copy.warned === 1, copy);
-
-    await page.eval(`
-        const script = document.createElement('script');
-        script.src = '/dist/plugins/grideditor.tinymce.js';
-        script.onload = function() { window.pluginLoaded = true; };
-        document.head.appendChild(script);
-        return true;
-    `);
-    await page.waitFor(`window.pluginLoaded`, { label: 'the tinyMCE plugin file' });
-
-    var plugin = await page.eval(`
-        window.warnings = [];
-        restart();
-        jQuery('#myGrid .ge-content').eq(0).trigger('click');
-        return {
-            marked: !!$.fn.gridEditor.texts.tinymce.bundled,
-            attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce'),
-            warned: (function() { ${BUNDLED} })(),
-        };
-    `);
-    t.check('the plugin\'s own file replaces the copy, and edits without a warning',
-        !plugin.marked && plugin.attached && plugin.warned === 0, plugin);
+    t.check('the main bundle carries no text editor: each is its plugin\'s file, as the fixture loads them',
+        !bundle.carries && !bundle.marked && bundle.started === 1 && bundle.attached && bundle.warned === 0, bundle);
 
     var filtered = await page.eval(`
         restart({ plugins: ['tabs'] });
@@ -146,13 +123,19 @@ async function contractTests(t) {
                 },
             };
         };
-        restart({ content_types: ['plain'] });
+        // A plugin that puts something of its own inside the text, and needs
+        // telling when an editor has rewritten it
+        window.readyFor = [];
+        $.fn.gridEditor.features.probe = function() {
+            return { onContentReady: function(area) { window.readyFor.push(area.attr('data-ge-content-type')); } };
+        };
+        restart({ content_types: ['plain'], plugins: window.fixture.plugins(['probe']) });
+        delete $.fn.gridEditor.features.probe;
 
         const area = jQuery('#myGrid .ge-content').eq(0);
         const ge = jQuery('#myGrid').data('grideditor');
-        ge.createElement('<p>An element</p>', { appendTo: area });
         area.trigger('click');
-        const drawerBack = area.find('.ge-element > .ge-tools-drawer').length;
+        const drawerBack = window.readyFor.join(',') === 'plain' ? 1 : 0;
 
         const column = ge.createColumn(6, { appendTo: jQuery('#myGrid .row').first() });
         const fresh = column.children('.ge-text-block').children('.ge-content').html();
@@ -162,7 +145,7 @@ async function contractTests(t) {
     `);
     t.check('a text editor registered under texts is started on a click and stopped on deinit',
         own.calls.join(',') === 'start,stop', own);
-    t.check('ge.textReady puts the elements\' drawers back after the editor rewrote the content area',
+    t.check('ge.textReady tells the plugins the editor rewrote the content area, through onContentReady',
         own.drawerBack === 1, own);
     t.check('a new column starts with the text editor\'s initial content',
         own.fresh === '<p>Write here</p>', own);
@@ -480,8 +463,8 @@ async function dragTests(t) {
     `);
     t.check('a text block drags from one column to another',
         moved.inRight === 1 && moved.left === 0, moved);
-    t.check('and the move is announced for the content area, as kind content, as in 5.x',
-        moved.events.join(' ') === 'before-move:content:true after-move:content:true', moved.events);
+    t.check('and the move is announced for the content area, as a text',
+        moved.events.join(' ') === 'before-move:text:true after-move:text:true', moved.events);
 
     await page.drag('.ge-mainControls [data-ge-toolbar="text"]', '#left', { yRatio: 0.9 });
     var dropped = await page.eval(`
@@ -529,6 +512,7 @@ async function overlayTests(t) {
         const style = getComputedStyle(drawer);
         return {
             visibility: style.visibility,
+            opacity: parseFloat(style.opacity),
             position: style.position,
             blockHeight: Math.round(block[0].getBoundingClientRect().height),
             areaHeight: Math.round(block.children('.ge-content')[0].getBoundingClientRect().height),
@@ -558,6 +542,17 @@ async function overlayTests(t) {
     await t.sleep(300);
     var editing = await page.eval(STATE);
     t.check('it stays while the text is being edited, wherever the pointer is', editing.visibility === 'visible', editing);
+    t.check('but faint, so it does not hide the end of the line being typed', editing.opacity === 0.35, editing);
+
+    await page.hover('#over > .ge-content');
+    await t.sleep(300);
+    var typing = await page.eval(STATE);
+    t.check('the pointer on the text being edited leaves it faint', typing.opacity === 0.35, typing);
+
+    await page.hover('#over > .ge-tools-drawer');
+    await t.sleep(300);
+    var reaching = await page.eval(STATE);
+    t.check('the pointer on the drawer itself brings it back whole', reaching.opacity === 1, reaching);
 
     await page.eval(`
         jQuery('#myGrid').gridEditor('deinit');
@@ -571,13 +566,19 @@ async function overlayTests(t) {
     t.check('and while its settings are open, across the text so the panel has room',
         settings.visibility === 'visible' && settings.spans, settings);
 
+    await page.eval(`jQuery('#over > .ge-content').trigger('click'); return true;`);
+    await page.hover('.ge-mainControls');
+    await t.sleep(300);
+    var settingsWhileEditing = await page.eval(STATE);
+    t.check('with its settings open while the text is edited, it stays whole', settingsWhileEditing.opacity === 1, settingsWhileEditing);
+
     var errors = page.errors();
     t.check('the overlay tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 module.exports = {
     name: 'texts',
-    description: 'text blocks, and the text editor plugins\' contract, the bundle\'s copies and the RTEs adapter',
+    description: 'text blocks, the text editor plugins\' contract and the RTEs adapter',
     run: async function(t) {
         await bundleTests(t);
         await contractTests(t);

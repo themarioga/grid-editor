@@ -269,15 +269,15 @@ async function createTests(t) {
 
     var element = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');
-        const contentArea = jQuery('#myGrid .ge-content').first();
+        const column = jQuery('#myGrid .column').first();
         const element = ge.createElement('<span class="my-app-tag">Analytics tag</span>', {
             type: 'analytics-tag',
             label: 'Analytics',
-            appendTo: contentArea,
+            appendTo: column,
         });
         const plain = ge.createElement('<span>no type</span>');
         return {
-            placed: element.parent()[0] === contentArea[0],
+            placed: element.parent()[0] === column[0],
             type: element.attr('data-ge-element'),
             label: element.attr('data-ge-label'),
             cssClass: element.attr('class'),

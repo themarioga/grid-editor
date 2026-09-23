@@ -5,6 +5,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Changed
+- **Elements are blocks of the column.** An element sits in a column beside
+  its texts, rows and containers, never inside a content area's text, and
+  drags within a column and between columns; the canvas and sections turn one
+  away. Markup 5.x saved, with elements in the text, is converted as the editor
+  starts: a content area is cut at each element among its own children, the
+  text after going into a new content area of the same type. Rows and
+  containers inside a content area come out the same way. `getPlainHtml`
+  publishes what 5.x published, except that a content area's own id and classes
+  stay on its first part. See [UPGRADING.md](UPGRADING.md).
+- **The text editors are not in the main bundle**, nor in the bundle with
+  SortableJS: load `dist/plugins/grideditor.<editor>.min.js`.
+- `elements.auto: true` makes every loose node of a column an element.
+- `createElement` into a content area puts the element beside it, and warns.
+- A text dragged between columns is `kind: 'text'`, as when it is added or
+  deleted; it was `kind: 'content'`.
+- Elements carry no `contenteditable` and their drawers no `data-mce-bogus`.
+- While a text is being edited its drawer stays faint, so as not to hide the
+  end of the line being typed, until the pointer is on the drawer itself; with
+  its settings open it stays whole.
+
+### Added
+- A feature plugin's `cuts`: the nodes that are never part of a text, which
+  cut the content area they sit in.
+
+### Removed
+- The copies of the text editors in the main bundle, and the warning about
+  using them.
+
 ## [5.3.1] - 2026-09-23
 ### Changed
 - A text's drawer sits over the text's top right corner instead of in a bar

@@ -280,20 +280,21 @@ async function otherKindTests(t) {
         text);
 
     var element = await page.eval(`
-        const area = jQuery('#hero').children('.column').first().children('.ge-text-block').children('.ge-content');
-        const quote = ge.createElement('<blockquote>Quoted</blockquote>', { type: 'quote', appendTo: area });
+        const source = jQuery('#hero').children('.column').first();
+        const quote = ge.createElement('<blockquote>Quoted</blockquote>', { type: 'quote', appendTo: source });
         quote.children('.ge-tools-drawer').children('.ge-copy').trigger('click');
 
         const target = jQuery('#myGrid .row').eq(1).children('.column').first();
         target.children('.ge-tools-drawer').children('.ge-paste').trigger('click');
         return {
-            inArea: target.children('.ge-text-block').children('.ge-content').last().children('.ge-element').length,
+            last: target.children().last().is('.ge-element'),
+            inText: target.find('.ge-content .ge-element').length,
             text: target.find('.ge-element blockquote').text(),
             kind: target.find('.ge-element').attr('data-ge-element'),
         };
     `);
-    t.check('an element pastes into the column\'s content area, as an element',
-        element.inArea === 1 && element.text === 'Quoted' && element.kind === 'quote', element);
+    t.check('an element pastes into a column, at its end, as a block of the column and not into its text',
+        element.last && element.inText === 0 && element.text === 'Quoted' && element.kind === 'quote', element);
 
     var section = await page.eval(`
         const made = ge.createSection({ appendTo: jQuery('#myGrid') });

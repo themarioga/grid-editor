@@ -272,22 +272,19 @@ async function tinymceTests(t) {
 }
 
 /**
- * An element in the same content area as text: the editor has to treat it as
- * one atomic thing and hand it back unchanged. Checked on the elements
- * example, which is the page that loads the elements plugin.
+ * An element in 5.x's markup, among the text of a content area. Since 6.0 it
+ * comes out of the text as the editor starts, into the column between two
+ * texts, so no text editor ever has it inside: it needs no contenteditable,
+ * and nothing the editor does to its text can reach it. Checked on the
+ * elements example, which is the page that loads the elements plugin.
  */
 async function elementTests(t) {
     var page = await t.page('/example/elements.html',
         `window.tinymce && jQuery('#myGrid').data('grideditor')`);
 
-    // An element sitting in the same content area as text: the editor has to
-    // treat it as one atomic thing, and hand it back unchanged
     await page.eval(`
         jQuery('#myGrid').gridEditor('remove');
         jQuery('#myGrid').html(
-            // The content type attribute is what an editor is started from,
-            // and a hand written content area has to carry it like the ones
-            // the editor wraps for itself do
             '<div class="row"><div class="col-lg-12">' +
             '<div class="ge-content" data-ge-content-type="tinymce">' +
             '<p>Text before the element.</p>' +
@@ -296,67 +293,80 @@ async function elementTests(t) {
             '</div></div></div>'
         );
         jQuery('#myGrid').gridEditor({ new_row_layouts: [[12]], content_types: ['tinymce'] });
-        return jQuery('#myGrid .ge-element').length;
+        return true;
     `);
     await page.click('.ge-content');
     await sleep(2500);
 
-    var withElement = await page.eval(`
+    var beside = await page.eval(`
+        const column = jQuery('#myGrid .column').first();
         const element = jQuery('#myGrid .ge-element').first();
         const editor = tinymce.get()[0];
         return {
             editorOpen: !!editor,
-            elementKept: element.length === 1,
+            order: column.children().not('.ge-tools-drawer, .ge-resize-handle').map(function() {
+                return jQuery(this).is('.ge-text-block') ? 'text' : jQuery(this).is('.ge-element') ? 'element' : this.className;
+            }).get().join(','),
+            inEditor: editor ? jQuery(editor.getBody()).find('[data-ge-element]').length : null,
             contenteditable: element.attr('contenteditable'),
-            drawer: element.find('> .ge-tools-drawer').length,
             tools: element.find('> .ge-tools-drawer > a').map(function() {
                 return jQuery(this).attr('class').split(' ')[0];
             }).get().join(','),
-            typeKept: element.attr('data-ge-element'),
-            marked: element.hasClass('ge-element'),
-            editorSeesItAsAtomic: editor ? editor.dom.getAttrib(element[0], 'contenteditable') : null,
         };
     `);
-    t.check('an element inside an active editor is atomic, not text it may rewrite',
-        withElement.editorOpen && withElement.elementKept &&
-        withElement.contenteditable === 'false' && withElement.drawer === 1 &&
-        withElement.typeKept === 'callout' && withElement.marked &&
-        withElement.editorSeesItAsAtomic === 'false',
-        withElement);
-    t.check('the element keeps its tools after the editor has rewritten the content area',
-        withElement.tools === 'ge-move,ge-element-info,ge-settings,ge-delete-element', withElement);
+    t.check('an element in 5.x\'s markup comes out of the text, between two texts, and no editor has it',
+        beside.editorOpen && beside.order === 'text,element,text' && beside.inEditor === 0 &&
+        beside.contenteditable === undefined,
+        beside);
+    t.check('the element keeps its tools while the text beside it is being edited',
+        beside.tools === 'ge-move,ge-element-info,ge-settings,ge-delete-element', beside);
+
+    var undone = await page.eval(`
+        const editor = tinymce.get()[0];
+        editor.insertContent(' TYPED ');
+        editor.undoManager.undo();
+        const element = jQuery('#myGrid .ge-element').first();
+        return { drawer: element.children('.ge-tools-drawer').length, text: element.text().indexOf('Inside the element.') !== -1 };
+    `);
+    t.check('an undo in the text editor does not touch the element beside it',
+        undone.drawer === 1 && undone.text, undone);
 
     var exportedElement = await page.eval(`
         const html = jQuery('#myGrid').gridEditor('getHtml');
+        const root = document.createElement('div');
+        root.innerHTML = html;
+        const column = root.querySelector('.column');
         return {
             html: html,
-            keptElement: /data-ge-element="callout"/.test(html),
+            order: Array.from(column.children).map(function(child) {
+                return child.matches('.ge-content') ? 'text' : child.getAttribute('data-ge-element');
+            }).join(','),
             keptLabel: /data-ge-label="Callout"/.test(html),
             keptInnerText: html.indexOf('Inside the element.') !== -1,
             keptTextAround: html.indexOf('Text before the element.') !== -1 &&
                 html.indexOf('Text after the element.') !== -1,
-            drawer: /ge-tools-drawer/.test(html),
+            drawer: /ge-tools-drawer|ge-text-block/.test(html),
             editable: /contenteditable/i.test(html),
             marking: /class="[^"]*ge-element/.test(html),
             mce: /data-mce|mce-content-body/i.test(html),
         };
     `);
-    t.check('an element survives a round trip through the editor unchanged',
-        exportedElement.keptElement && exportedElement.keptLabel &&
+    t.check('getHtml hands back the text, the element beside it and the text after, in the 6.0 markup',
+        exportedElement.order === 'text,callout,text' && exportedElement.keptLabel &&
         exportedElement.keptInnerText && exportedElement.keptTextAround &&
         !exportedElement.drawer && !exportedElement.editable &&
         !exportedElement.marking && !exportedElement.mce,
-        Object.assign({}, exportedElement, { html: exportedElement.html.slice(0, 220) }));
+        Object.assign({}, exportedElement, { html: exportedElement.html.slice(0, 260) }));
 
     var errors = page.errors();
     t.check('example/elements.html logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 /**
- * A utility on an element inside an open editor. The preview is inline style
- * on a node the editor rebuilds as it takes the content area over and again
- * as it lets go, so what is checked is that the record of it survives both,
- * and that getHtml hands back the class and nothing of the preview.
+ * A utility on an element beside an open editor: in 5.x's markup it sat in
+ * the text, and comes out of it. What is checked is that its class, its
+ * preview and its field are there while the text is edited, and that getHtml
+ * hands back the class and nothing of the preview.
  */
 async function utilityTests(t) {
     var page = await t.page('/example/elements.html',
@@ -393,7 +403,7 @@ async function utilityTests(t) {
             field: element.find('> .ge-tools-drawer .ge-utility select').val(),
         };
     `);
-    t.check('an element inside an open editor keeps its utility class, its preview and its field',
+    t.check('an element beside an open editor keeps its utility class, its preview and its field',
         open.editorOpen && open.classKept && open.previewed && open.recorded && open.field === '2', open);
 
     var exported = await page.eval(`
@@ -550,10 +560,10 @@ async function otherEditorTests(t) {
 
 /**
  * example/attributes.html: a plugin of the page's own that saves a modal's
- * settings as an attribute, on an element inside text tinyMCE is editing.
- * The attribute has to survive the user undoing their typing, which it only
- * does because the plugin writes it through tinyMCE's undo manager, and it
- * has to come out of getPlainHtml.
+ * settings as an attribute, with a plain attr(). On an element, which is a
+ * block beside the texts; and on the very text tinyMCE is editing, whose
+ * attributes tinyMCE puts back as it found them when it closes, and which
+ * grid-editor keeps all the same. Both have to come out of getPlainHtml.
  */
 async function attributePluginTests(t) {
     var page = await t.page('/example/attributes.html',
@@ -576,26 +586,38 @@ async function attributePluginTests(t) {
         tools.presetHighlighted && !tools.othersPlain,
         tools);
 
-    // Open tinyMCE on the text around the quote, and type
-    await page.eval(`jQuery('#myGrid .ge-element').closest('.ge-content').trigger('click'); return 1;`);
+    // The text just before the quote, with tinyMCE open on it and some typing
+    await page.eval(`
+        jQuery('#myGrid .ge-element').prevAll('.ge-text-block').first().attr('id', 'edited');
+        jQuery('#edited > .ge-content').trigger('click');
+        return 1;
+    `);
     await page.waitFor(`tinymce.get().length === 1 && tinymce.get()[0].initialized`, { label: 'tinyMCE' });
     await sleep(300);
     await page.eval(`tinymce.get()[0].insertContent(' BEFORE-MODAL '); return 1;`);
 
-    // Set an animation on the quote through the modal, with the editor open
-    await page.eval(`jQuery('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool').trigger('click'); return 1;`);
-    await page.waitFor(`jQuery('.my-animation-modal').hasClass('show')`, { label: 'the modal' });
-    await sleep(400);
-    await page.eval(`
-        const form = jQuery('.my-animation-modal form');
-        form.find('[name=effect]').val('slide');
-        form.find('[name=duration]').val('500');
-        form.find('[name=delay]').val('100');
-        form.find('[name=once]').prop('checked', false);
-        return 1;
-    `);
-    await page.click('.my-animation-modal .modal-footer .btn-primary');
-    await page.waitFor(`!jQuery('.my-animation-modal').hasClass('show')`, { label: 'the modal closing' });
+    async function animate(tool, values) {
+        await page.eval(`jQuery(${JSON.stringify(tool)}).trigger('click'); return 1;`);
+        await page.waitFor(`jQuery('.my-animation-modal').hasClass('show')`, { label: 'the modal' });
+        await sleep(400);
+        await page.eval(`
+            const form = jQuery('.my-animation-modal form');
+            const values = ${JSON.stringify(values)};
+            form.find('[name=effect]').val(values.effect);
+            form.find('[name=duration]').val(values.duration);
+            form.find('[name=delay]').val(values.delay);
+            form.find('[name=once]').prop('checked', values.once);
+            return 1;
+        `);
+        await page.click('.my-animation-modal .modal-footer .btn-primary');
+        // Closed, not closing: Bootstrap ignores a show while it is still
+        // fading out, and the next call would wait for a modal that never came
+        await page.waitFor(`!jQuery('.my-animation-modal').hasClass('show') && !jQuery('.my-animation-modal').is(':visible')`,
+            { label: 'the modal closed' });
+    }
+
+    await animate('#edited > .ge-tools-drawer > .my-animation-tool', { effect: 'zoom', duration: '300', delay: '0', once: true });
+    await animate('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool', { effect: 'slide', duration: '500', delay: '100', once: false });
 
     // Keep typing, then undo that
     var undone = await page.eval(`
@@ -604,10 +626,8 @@ async function attributePluginTests(t) {
         editor.undoManager.undo();
         return {
             editorStillOpen: tinymce.get().length === 1,
-            // tinyMCE's snapshots leave the drawer out, so an undo that did
-            // not put it back would leave the element with no tools at all
-            drawers: jQuery('#myGrid .ge-element').children('.ge-tools-drawer').length,
-            highlighted: jQuery('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool').hasClass('my-animation-set'),
+            highlighted: jQuery('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool').hasClass('my-animation-set') &&
+                jQuery('#edited > .ge-tools-drawer > .my-animation-tool').hasClass('my-animation-set'),
         };
     `);
 
@@ -616,25 +636,30 @@ async function attributePluginTests(t) {
         const root = document.createElement('div');
         root.innerHTML = plain;
         const quote = root.querySelector('blockquote');
+        const text = Array.from(root.querySelectorAll('[data-animation]')).filter(function(node) {
+            return node !== quote && !node.matches('.row') && node.textContent.indexOf('Ordinary text') !== -1;
+        })[0];
         return {
             quote: quote && quote.getAttribute('data-animation'),
+            text: text ? text.getAttribute('data-animation') : null,
             row: root.querySelector('.row').getAttribute('data-animation'),
-            text: root.textContent,
-            editorMarks: /data-ge-|ge-tools-drawer|my-animation-tool/.test(plain),
+            content: root.textContent,
+            editorMarks: /data-ge-|ge-tools-drawer|my-animation-tool|contenteditable|mce-/.test(plain),
             modalOutside: jQuery('#myGrid .my-animation-modal').length === 0 && jQuery('body > .my-animation-modal').length === 1,
         };
     `);
-    var quote = null;
-    try { quote = JSON.parse(exported.quote); } catch (error) { quote = null; }
+    var parse = function(value) { try { return JSON.parse(value); } catch (error) { return null; } };
+    var quote = parse(exported.quote);
+    var text = parse(exported.text);
 
     t.check('the modal saves its settings on the element as data-animation',
         !!quote && quote.effect === 'slide' && quote.duration === 500 && quote.delay === 100 && quote.once === false &&
         undone.highlighted && undone.editorStillOpen,
         { undone: undone, exported: exported });
-    t.check('an element keeps its drawer through an undo in tinyMCE',
-        undone.drawers === 1, undone);
-    t.check('undoing the typing after it, in tinyMCE, keeps the attribute and undoes the typing',
-        !!quote && exported.text.indexOf('AFTER-MODAL') === -1 && exported.text.indexOf('BEFORE-MODAL') !== -1,
+    t.check('and on the text being edited, which keeps it when tinyMCE closes, with a plain attr()',
+        !!text && text.effect === 'zoom' && text.duration === 300, exported);
+    t.check('undoing the typing, in tinyMCE, undoes the typing and nothing else',
+        !!quote && !!text && exported.content.indexOf('AFTER-MODAL') === -1 && exported.content.indexOf('BEFORE-MODAL') !== -1,
         exported);
     t.check('getPlainHtml keeps data-animation, preset and new, and nothing of the editor\'s',
         exported.row === '{"effect":"fade","duration":800,"delay":0,"once":true}' && !!quote &&

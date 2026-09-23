@@ -9,17 +9,12 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-copy');
 
   // The glob does not descend, so src/js/locales/*.js stays out of the main
-  // bundle and is built to dist/locales/ one file at a time instead.
-  //
-  // Up to 6.0 the text editor plugins go in as well, marked as the bundle's
-  // copies, so a page that loaded only the editor keeps its text editor.
+  // bundle and is built to dist/locales/ one file at a time instead. The text
+  // editors are plugins like the rest since 6.0: up to 5.x the bundle carried
+  // a copy of each.
   var jsFiles = [
     'src/js/jquery.grideditor.js',
     'src/js/*.js',
-    'src/js/plugins/grideditor.tinymce.js',
-    'src/js/plugins/grideditor.ckeditor.js',
-    'src/js/plugins/grideditor.summernote.js',
-    'src/js/compat/bundled-texts.js',
   ];
 
   var localeFiles = [{

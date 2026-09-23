@@ -130,9 +130,10 @@ the clipboard plugin put in, from a paste tool or the toolbar. A paste is an add
 like any other, so canceling its `before-add-*` turns it away.
 
 A text block is `kind: 'text'`, with its content area as the node, when it is
-added or deleted, and in `drawerTools`. Dragged between columns it is still
-`kind: 'content'`, as it was in 5.x; 6.0 makes that `text` too. The kinds for containers are the container's own type, so a listener
-can tell a tabs container from an accordion without reading the markup.
+added, deleted or moved, and in `drawerTools`. Up to 5.x a content area
+dragged between columns was `kind: 'content'`. The kinds for containers are
+the container's own type, so a listener can tell a tabs container from an
+accordion without reading the markup.
 
 
 Canceling, and what it can honestly do

@@ -1480,12 +1480,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return;
             }
 
-            if (text.bundled) {
-                warnOnceHere('text-bundled:' + type, 'the ' + type + ' text editor is the copy in the ' +
-                    'main bundle, which 6.0 will not include: load dist/plugins/grideditor.' + type +
-                    '.js after the editor');
-            }
-
             $(this).data('ge-text-before', attributesOf(this)).removeData('ge-text-ready');
             $(this).addClass('ge-rte-active');
             text.start($(this));
@@ -1501,7 +1495,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             canvas.addClass('ge-editing');
             canvas.toggleClass('ge-drag-drawer', settings.drag_handle === 'drawer');
             addAllColClasses();
-            wrapContent();
+            var cutter = textCutter();
+            splitTexts(cutter);
+            wrapContent(cutter);
             wrapTexts();
             createRowControls();
             createColControls();
@@ -1632,7 +1628,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // plugins setting: a page that names its containers there has
             // named no editor, and still wants the one it uses
             $.each($.fn.gridEditor.texts, function(type, factory) {
-                TEXTS[type] = $.extend({ bundled: !!factory.bundled }, factory(api));
+                TEXTS[type] = factory(api);
             });
 
             // 5.x's registry, for an integration a host wrote itself. One the
@@ -3475,15 +3471,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /**
          * What a drag reports as moving. A text block is the editor's own
-         * wrapper, so what moved is the content area inside it, and until 6.0
-         * a content area moves as kind 'content', as it did in 5.x - adding
-         * and deleting one, which 5.x never announced, already say 'text'.
+         * wrapper, so what moved is the content area inside it.
          */
         function moveSubject(item) {
             var node = item.hasClass('ge-text-block') ? item.children('.ge-content') : item;
-            var kind = kindOf(node);
 
-            return { kind: kind === 'text' ? 'content' : kind, node: node };
+            return { kind: kindOf(node), node: node };
         }
 
         /** Put a node back where a refused drag found it. */
@@ -3950,9 +3943,101 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
+         * What a text is never made of: rows, containers, and whatever a
+         * feature plugin says - the elements plugin's elements. Each is a
+         * block of the column's, beside the texts.
+         */
+        function textCutter() {
+            var cuts = ['.row', '[data-ge-container]'];
+
+            $.each(FEATURES, function(name, feature) {
+                var cut = typeof feature.cuts === 'function' ? feature.cuts() : feature.cuts;
+                if (cut) { cuts.push(cut); }
+            });
+
+            return cuts.join(', ');
+        }
+
+        /**
+         * Take the blocks out of the text.
+         *
+         * Up to 5.x an element lived inside a content area, among the text
+         * a rich text editor edited. From 6.0 it is a block of its own, so a
+         * content area with one inside - markup 5.x saved - is cut there: the
+         * text before stays in the content area, the element goes into the
+         * column after it, and the text after goes into a new content area of
+         * the same type. Only a content area's own children cut it, which is
+         * where 5.x recognized elements; one inside a paragraph is text, as
+         * it was. A part with nothing but whitespace is dropped, and the first
+         * part that has something keeps the content area, id and classes and
+         * all.
+         *
+         * On every init, and a no-op on markup 6.0 made: nothing to cut. A
+         * content area its editor is open on is left for the next init.
+         */
+        function splitTexts(cutter) {
+            canvas.find('.column > .ge-content, .column > .ge-text-block > .ge-content').each(function() {
+                var area = $(this);
+                if (area.hasClass('ge-rte-active') || !area.children().filter(cutter).length) { return; }
+
+                var type = area.attr('data-ge-content-type');
+                var anchor = area.parent('.ge-text-block').length ? area.parent() : area;
+                var pieces = [];
+                var run = [];
+
+                $.each($.makeArray(area[0].childNodes), function(i, node) {
+                    if (node.nodeType === 1 && $(node).is(cutter)) {
+                        pieces.push({ text: run }, { block: node });
+                        run = [];
+                    } else {
+                        run.push(node);
+                    }
+                });
+                pieces.push({ text: run });
+
+                $(area[0].childNodes).detach();
+
+                var kept = false;
+                var last = anchor;
+
+                pieces.forEach(function(piece) {
+                    var placed;
+
+                    if (piece.block) {
+                        placed = $(piece.block);
+                    } else if (!hasContent(piece.text)) {
+                        return;
+                    } else if (kept) {
+                        // Of the same type, or of none if it had none
+                        placed = (type ? createDefaultContentWrapper(type) : $('<div class="ge-content" />'))
+                            .append(piece.text);
+                    } else {
+                        // The content area itself, moved along if an
+                        // element came before the first text
+                        area.append(piece.text);
+                        placed = anchor;
+                        kept = true;
+                    }
+
+                    if (placed[0] !== last[0]) { placed.insertAfter(last); }
+                    last = placed;
+                });
+
+                if (!kept) { anchor.remove(); }
+            });
+        }
+
+        /** Whether a run of nodes has anything in it but whitespace. */
+        function hasContent(nodes) {
+            return nodes.some(function(node) {
+                return node.nodeType === 1 || (node.nodeType === 3 && /\S/.test(node.nodeValue));
+            });
+        }
+
+        /**
          * Wrap column content in <div class="ge-content"> where neccesary
          */
-        function wrapContent() {
+        function wrapContent(cutter) {
             canvas.find('.column').each(function() {
                 var col = $(this);
                 var contents = $();
@@ -3966,10 +4051,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     // the next init.
                     if (child.is('.ge-tools-drawer, .ge-resize-handle')) { return; }
 
-                    // A container sits in the column beside the content
-                    // areas, not inside one, so it ends a run of loose
-                    // content rather than joining it
-                    if (child.is('.row, .ge-content, .ge-text-block, [data-ge-container]')) {
+                    // A container, or an element, sits in the column beside
+                    // the content areas, not inside one, so it ends a run of
+                    // loose content rather than joining it
+                    if (child.is('.ge-content, .ge-text-block') || child.is(cutter)) {
                         contents = doWrap(contents);
                     } else {
                         contents = contents.add(child);

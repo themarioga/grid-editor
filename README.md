@@ -47,7 +47,7 @@ Installation
     * If you want to use the tinyMCE integration, include tinyMCE 6 as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
     * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`.
     * If you want to use the CKEditor integration... you get the point: CKEditor and `dist/plugins/grideditor.ckeditor.min.js`.
-    * Up to 5.x the main bundle still carries a copy of the three, so a page that does not load the plugin keeps working, and the console says, once, to load it. 6.0 leaves the copies out.
+    * Up to 5.x the main bundle carried a copy of the three; since 6.0 the plugin of the editor you use has to be loaded, as above. See [UPGRADING.md](UPGRADING.md).
 * From npm:
 
 ```
@@ -413,7 +413,9 @@ The markup does not change: the drawer sits beside the content area in a
 wrapper that only exists while editing, because inside it the text editor would
 take it for text. It sits over the text's top right corner and takes no room,
 showing while the pointer is over the text, while the text is being edited or
-holds the focus, and while its settings are open.
+holds the focus, and while its settings are open. While the text is being
+edited it stays faint, not to hide the end of the line being typed, until the
+pointer is on the drawer itself.
 
 A column's drawer has an *Add text* tool, and the toolbar a *Text* button, one
 per editor when `content_types` offers several (*Text (tinyMCE)*, *Text
@@ -433,9 +435,9 @@ __`text_classes`:__ Preset class toggles on a text's settings panel, as `row_cla
 
 ### Elements
 
-An element is a node inside a content area that the editor treats as one
-movable, deletable thing instead of as rich text. It is a plugin, like the
-containers:
+An element is a node the editor treats as one movable, deletable block instead
+of as rich text: a block of the column, beside its texts, rows and containers,
+never part of a text. It is a plugin, like the containers:
 
 ```html
 <script src="grid-editor/dist/plugins/grideditor.elements.min.js"></script>
@@ -444,10 +446,19 @@ containers:
 You mark the elements themselves:
 
 ```html
-<div class="ge-content">
+<div class="col-md-6">
+  <div class="ge-content"><p>Some text</p></div>
   <blockquote data-ge-element="quote" data-ge-label="Pull quote">…your markup…</blockquote>
 </div>
 ```
+
+Up to 5.x an element lived inside a content area, among its text. Markup saved
+that way still loads: each element comes out of the text it sits in, into the
+column, and the text is cut there - before it, and after it in a new content
+area of the same type. Only a content area's own children count, as in 5.x;
+a marked node inside a paragraph is text. What `getPlainHtml` publishes is the
+same as before. `createElement` with `appendTo` a content area puts the element
+beside it instead, with a warning.
 
 __`elements`:__ Defaults:
 
@@ -456,7 +467,7 @@ $('#myGrid').gridEditor({
     elements: {
         enabled: 'auto',                 // on when the page has any; true or false to decide yourself
         selector: '[data-ge-element]',   // what counts as an element
-        auto: false,                     // true treats every child of a content area as one
+        auto: false,                     // true treats every loose node of a column as one
     },
 });
 ```
@@ -562,7 +573,7 @@ nowhere else:
 | a section | the canvas, from the toolbar's paste button |
 | a container (tabs, accordion, popup, card) | a column |
 | a text | a column |
-| an element | a column's content area |
+| an element | a column |
 
 The toolbar's paste button is the clipboard icon on the right, beside the
 source and preview buttons, and shows only while a row or a section is copied.

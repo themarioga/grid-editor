@@ -149,7 +149,8 @@ $.fn.gridEditor.features.elements = function(ge) {
         kindOf: function(node) { … },    // what an event calls this node
         onInit: function() { … },        // every init: put the furniture in
         onDeinit: function() { … },      // every deinit: take it out again
-        onContentReady: function(area) { … },  // a rich text editor just took over
+        onContentReady: function(area) { … },  // a rich text editor just took over, or rewrote a text
+        cuts: '[data-my-block]',          // what cuts a text: a block of the column, never part of a text
         onSortable: function(sortable) { … },  // declare your own sortable lists
         blocks: '.ge-section',            // more blocks the canvas and the columns move
         regions: '.ge-section',           // more lists those blocks move in
@@ -167,6 +168,12 @@ needs to put a new kind of block on the canvas:
   rows, content areas and containers, the editor's own blocks.
 - **`regions`** is a selector for more lists those blocks move in, in the same
   group, so a row dragged from the canvas can land in one.
+- **`cuts`** is a selector, or a function returning one, for nodes that are
+  never part of a text: blocks of the column. The editor cuts a content area
+  at each of its own children that matches - the text before it stays, the
+  node goes into the column, the text after goes into a new content area -
+  which is how the elements plugin takes 5.x's elements out of their text. Rows
+  and containers always cut.
 - **`accepts(region, node)`** can turn a block away from a list: `false` and the
   drag will not drop it there, whoever's block and whoever's list. With none of
   these hooks, every block goes everywhere, as before.
@@ -194,21 +201,12 @@ animation for rows, columns, containers and elements, kept in a
   takes off. `getHtml` keeps every attribute that is not the editor's.
 - **The dialog lives outside the canvas**, appended to `body`, so it is never
   part of the markup.
-- **An element sits inside text a rich text editor may be editing.** Written
-  behind its back, the attribute is lost the next time the user undoes
-  something: undo restores a snapshot from before it. With tinyMCE, write it
-  through the editor's undo manager, and it becomes a step of its own:
-
-  ```javascript
-  var area = node.closest('.ge-content')[0];
-  var editor = window.tinymce && tinymce.get().filter(function(e) { return e.getBody() === area; })[0];
-  var apply = function() { node.attr('data-animation', JSON.stringify(value)); };
-
-  if (editor) { editor.undoManager.transact(apply); } else { apply(); }
-  ```
-
-  Rows, columns, sections and containers are outside any content area, and a
-  plain `attr()` is all they need.
+- **Nothing else.** A plain `attr()` on any node. An element is never inside a
+  text editor since 6.0, and a text's own attributes, given while its editor
+  is open, are kept by grid-editor when the editor closes - tinyMCE would put
+  back the ones it found when it opened. Up to 5.x an element sat inside the
+  text, and an attribute written behind the editor's back was lost to its
+  undo.
 
 A node's drawer is built again on every `init`, so a tool reads the node
 rather than remembering anything about it.
@@ -298,9 +296,8 @@ $.fn.gridEditor.texts.mytext = function(ge) {
 A text editor is chosen by `content_types`, never by the `plugins` setting: a
 page that names its containers there has named no editor.
 
-Up to 6.0 the main bundle carries a copy of the three shipped ones, marked
-`bundled`; editing with a copy warns once that 6.0 leaves them out. A plugin's
-own file, loaded after, registers itself again and is the one used.
+Up to 5.x the main bundle carried a copy of the three shipped ones; since 6.0
+a page loads the plugin of the editor it uses, as it loads any other.
 
 5.x's `$.fn.gridEditor.RTEs.mytext = { init, deinit, initialContent }` still
 works: `init(settings, contentAreas)` and `deinit(settings, contentAreas)` are

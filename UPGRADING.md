@@ -1,25 +1,70 @@
-Getting ready for grid-editor `6.*`, from `5.2`
-===============================================
+Upgrading from grid-editor `5.*` to `6.*`
+=========================================
 
-Nothing here breaks in 5.x. It is what 6.0 will need, and 5.2 already
-accepts, so a page can make the change at its own pace.
+Two changes make it a major: **elements are blocks of the column**, no longer
+part of a text, and **the text editors are not in the main bundle**. Markup
+5.x saved loads as it is, and `getPlainHtml` publishes the same from it.
 
-* __Load your text editor as a plugin.__ tinyMCE, CKEditor and summernote
-  are plugins in `dist/plugins/`, loaded after the editor:
+* __Load your text editor as a plugin.__ tinyMCE, CKEditor and summernote are
+  plugins in `dist/plugins/`, loaded after the editor:
 
   ```html
   <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
   <script src="grid-editor/dist/plugins/grideditor.tinymce.min.js"></script>
   ```
 
-  Up to 5.x the main bundle, and the bundle with SortableJS, still carry a
-  copy of each, so a page that does not load the plugin keeps working. When a
-  content area is edited with one of those copies the console says so, once.
-  6.0 leaves the copies out.
+  Up to 5.x the main bundle, and the bundle with SortableJS, carried a copy of
+  each, and since 5.2 editing with one said so in the console. Without the
+  plugin a text is still a block, to move and delete, and its drawer says it
+  cannot be edited.
+
+* __Elements are blocks of the column.__ Up to 5.x an element lived inside a
+  content area, among the text a rich text editor edited. Now it sits in the
+  column beside the texts, and markup saved the 5.x way is converted as the
+  editor starts: each content area is cut at each element among its own
+  children - the text before it stays, the element goes into the column, the
+  text after goes into a new content area of the same type - and the next
+  `getHtml` saves the 6.0 shape.
+
+  ```html
+  <!-- 5.x -->
+  <div class="ge-content"><p>Before</p><blockquote data-ge-element="quote">…</blockquote><p>After</p></div>
+
+  <!-- 6.0 -->
+  <div class="ge-content"><p>Before</p></div>
+  <blockquote data-ge-element="quote">…</blockquote>
+  <div class="ge-content"><p>After</p></div>
+  ```
+
+  What `getPlainHtml` publishes is the same, `div.ge-content` being taken off,
+  with one exception: a content area with an id or classes of the host's
+  keeps them on its first part only. What to do: nothing, unless you style a
+  `div.ge-content` of your own as a whole, or read the saved markup expecting
+  elements inside a content area. A marked node inside a paragraph or a list
+  was text in 5.x and is text still.
+
+  Rows and containers found inside a content area come out of it the same way.
+
+* __`createElement` into a content area__ - `appendTo` or `prependTo` one - puts
+  the element beside it instead, after or before, and warns once. Place it in a
+  column.
+
+* __`elements.auto: true`__ means every loose node of a column is an element,
+  where it meant every child of a content area. A 5.x content area's children
+  still come out as elements, so a page that relied on it looks the same.
+
+* __A text dragged between columns is `kind: 'text'`__ in `before-move` and
+  `after-move`, as it is in its add and delete events since 5.3. It was
+  `kind: 'content'`.
+
+* __No more `contenteditable="false"` or `data-mce-bogus` on elements__, which
+  only existed to live inside a text editor. And a plugin that wrote an
+  element's attributes through tinyMCE's `undoManager.transact` can write them
+  with a plain `attr()`.
 
 * __An integration of your own under `$.fn.gridEditor.RTEs`__ still works,
-  wrapped by the editor, with a warning that it is deprecated. Register it
-  under `$.fn.gridEditor.texts` instead; [docs/plugins.md](docs/plugins.md#text-editor-plugins)
+  wrapped, with a warning that it is deprecated. Register it under
+  `$.fn.gridEditor.texts` instead; [docs/plugins.md](docs/plugins.md#text-editor-plugins)
   has the contract. `RTEs` goes in 7.0.
 
 

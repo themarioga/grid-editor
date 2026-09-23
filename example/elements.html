@@ -49,8 +49,8 @@
                     selector: '[data-ge-element]',
 
                     // Turn this on for a page that configures no rich text
-                    // editor and injects its own markup: every child of a
-                    // content area is then an element.
+                    // editor and injects its own markup: every loose node of
+                    // a column is then an element.
                     auto: false,
                 },
 
@@ -74,11 +74,11 @@
             // own save step. Grid editor needs no feature for this - the
             // element level controls already apply (spec 4.4).
             $('#addTag').on('click', function() {
-                var contentArea = $('#myGrid .ge-content').first();
+                var column = $('#myGrid .column').first();
 
                 $('#myGrid').gridEditor('createElement',
                     '<span class="my-app-tag-placeholder">Analytics tag</span>',
-                    { type: 'analytics-tag', label: 'Analytics', appendTo: contentArea }
+                    { type: 'analytics-tag', label: 'Analytics', appendTo: column }
                 );
             });
 
@@ -103,17 +103,20 @@
             <div class="col-lg-8">
                 <h1 class="h4">Element level controls</h1>
                 <p class="form-text">
-                    An element is a node inside a content area that the editor
-                    treats as one movable, deletable thing instead of as rich
-                    text. The host marks them with
-                    <code>data-ge-element</code>, optionally naming them with
-                    <code>data-ge-label</code>. Each one gets a drawer of its
-                    own: move, an info tool, the host's own tools, and delete.
-                    They drag between content areas as well as within one.
+                    An element is a node the editor treats as one movable,
+                    deletable block instead of as rich text: a block of the
+                    column, beside its texts, its rows and its containers. The
+                    host marks them with <code>data-ge-element</code>,
+                    optionally naming them with <code>data-ge-label</code>.
+                    Each one gets a drawer of its own: move, an info tool, the
+                    host's own tools, and delete. They drag within a column and
+                    between columns.
                 </p>
                 <p class="form-text">
-                    Click the text around an element to edit it as text; the
-                    element itself stays atomic while the editor is open.
+                    Click a text to edit it; an element is never part of the
+                    text an editor edits. Markup that 5.x saved, with elements
+                    inside a content area's text, still loads: they come out of
+                    it, into the column.
                 </p>
                 <button class="btn btn-sm btn-secondary" id="addTag" type="button">Add an analytics tag</button>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
@@ -127,22 +130,24 @@
                 <div class="col-lg-6">
                     <div class="ge-content" data-ge-content-type="tinymce">
                         <p>Ordinary text, edited in place by tinyMCE.</p>
+                    </div>
 
-                        <blockquote class="my-app-quote" data-ge-element="quote" data-ge-label="Pull quote">
-                            <p>An element the host owns and styles.</p>
-                        </blockquote>
+                    <blockquote class="my-app-quote" data-ge-element="quote" data-ge-label="Pull quote">
+                        <p>An element the host owns and styles.</p>
+                    </blockquote>
 
+                    <div class="ge-content" data-ge-content-type="tinymce">
                         <p>More ordinary text, after the element.</p>
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="ge-content" data-ge-content-type="tinymce">
-                        <p>A second content area. Drag an element's drawer from
+                        <p>A second column. Drag an element's drawer from
                         the left column into this one.</p>
+                    </div>
 
-                        <div data-ge-element="figure" data-ge-label="Figure">
-                            <p><strong>Figure 1.</strong> Another element, of a different type.</p>
-                        </div>
+                    <div data-ge-element="figure" data-ge-label="Figure">
+                        <p><strong>Figure 1.</strong> Another element, of a different type.</p>
                     </div>
                 </div>
             </div>

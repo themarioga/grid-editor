@@ -2,12 +2,16 @@
  * Element level controls for grid-editor.
  *
  * A feature plugin: load this file after the editor and the nodes a host
- * marked inside a content area become elements - one movable, deletable thing
- * each, instead of rich text. What it can ask the editor for is the handle its
- * factory is called with, described in docs/plugins.md.
+ * marked become elements - one movable, deletable block each, in the column
+ * beside the texts, instead of rich text. What it can ask the editor for is
+ * the handle its factory is called with, described in docs/plugins.md.
  *
  *   <script src="dist/jquery.grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.elements.min.js"></script>
+ *
+ * Up to 5.x an element lived inside a content area, among the text. Markup
+ * saved that way still loads: the editor takes each element out of the text
+ * it sits in, which is what `cuts` is for.
  */
 (function($) {
 
@@ -17,7 +21,12 @@ $.extend($.fn.gridEditor.locales.en, {
     'confirm.delete_element': 'Delete element?',
 });
 
+/** A column's children that are something else than an element, whatever elements.auto says. */
+var NOT_ELEMENTS = '.row, .ge-content, .ge-text-block, [data-ge-container], .ge-tools-drawer, .ge-resize-handle';
+
 $.fn.gridEditor.features.elements = function(ge) {
+
+    var warnedIntoText = false;
 
     function elementsEnabled() {
         if (ge.settings.elements.enabled !== 'auto') { return !!ge.settings.elements.enabled; }
@@ -25,29 +34,28 @@ $.fn.gridEditor.features.elements = function(ge) {
         return ge.settings.elements.auto || ge.canvas.find(ge.settings.elements.selector).length > 0;
     }
 
-    function elementsIn(contentArea) {
+    /** Whether a child of a column is an element. */
+    function isElement(node) {
         return ge.settings.elements.auto
-            ? contentArea.children()
-            : contentArea.children(ge.settings.elements.selector);
+            ? !node.is(NOT_ELEMENTS)
+            : node.is(ge.settings.elements.selector);
     }
 
     function markElements() {
         if (!elementsEnabled()) { return; }
 
-        ge.canvas.find('.ge-content').each(function() {
-            elementsIn($(this)).each(function() {
-                var element = $(this).addClass('ge-element').attr('contenteditable', 'false');
+        ge.canvas.find('.column').children().each(function() {
+            var element = $(this);
+            if (!element.hasClass('ge-element') && !isElement(element)) { return; }
 
-                if (element.find('> .ge-tools-drawer').length) { return; }
-
-                createElementControls(element);
-            });
+            element.addClass('ge-element');
+            if (!element.find('> .ge-tools-drawer').length) { createElementControls(element); }
         });
     }
 
     function unmarkElements() {
         ge.canvas.find('.ge-element').each(function() {
-            var element = $(this).removeClass('ge-element').removeAttr('contenteditable');
+            var element = $(this).removeClass('ge-element');
 
             // A host element that had no class of its own should not come
             // back from getHtml carrying an empty one
@@ -56,16 +64,7 @@ $.fn.gridEditor.features.elements = function(ge) {
     }
 
     function createElementControls(element) {
-        // data-mce-bogus="all" is how tinyMCE is told that a node is the
-        // editor's furniture rather than content: it leaves the subtree
-        // alone and keeps it out of what it serializes. Without it the
-        // drawer's tools are inline elements with no text, which is
-        // exactly what its cleanup removes, so an element inside an open
-        // editor would lose its move and delete tools.
-        var drawer = $('<div class="ge-tools-drawer ge-element-drawer" />')
-            .attr('data-mce-bogus', 'all')
-            .prependTo(element)
-        ;
+        var drawer = $('<div class="ge-tools-drawer ge-element-drawer" />').prependTo(element);
 
         ge.createMoveTool(drawer);
         ge.createTool(drawer, ge.t('tool.element_info', { name: elementName(element) }),
@@ -93,6 +92,32 @@ $.fn.gridEditor.features.elements = function(ge) {
         return label || type || element[0].tagName.toLowerCase();
     }
 
+    /**
+     * Placed into a content area, as 5.x did, an element would be text
+     * again, and the next init would cut it out. So it goes beside that
+     * content area instead - after it for appendTo, before it for
+     * prependTo - with a word to the host.
+     */
+    function placementBesideText(options) {
+        var placed = $.extend({}, options);
+
+        [['appendTo', 'insertAfter'], ['prependTo', 'insertBefore']].forEach(function(pair) {
+            var target = options[pair[0]] !== undefined ? $(options[pair[0]]) : null;
+            if (!target || !target.is('.ge-content')) { return; }
+
+            if (!warnedIntoText) {
+                warnedIntoText = true;
+                ge.warn('createElement: an element is a block of the column since 6.0, not part of a ' +
+                    'content area\'s text; it goes beside the content area. Place it in a column instead.');
+            }
+
+            delete placed[pair[0]];
+            placed[pair[1]] = target.parent('.ge-text-block').length ? target.parent() : target;
+        });
+
+        return placed;
+    }
+
     function apiCreateElement(content, options) {
         options = options || {};
 
@@ -104,7 +129,7 @@ $.fn.gridEditor.features.elements = function(ge) {
             element.attr('data-ge-label', options.label);
         }
 
-        return ge.place(element, 'element', options);
+        return ge.place(element, 'element', placementBesideText(options));
     }
 
     return {
@@ -117,24 +142,27 @@ $.fn.gridEditor.features.elements = function(ge) {
             return node.hasClass('ge-element') ? 'element' : null;
         },
 
+        /**
+         * An element cuts the text it sits in: 5.x's markup, or markup a host
+         * wrote the same way, has it inside a content area, and it comes out.
+         */
+        cuts: function() {
+            if (!elementsEnabled()) { return null; }
+
+            return ge.settings.elements.auto ? '*' : ge.settings.elements.selector;
+        },
+
+        // A block the columns move, beside the texts, the rows and the
+        // containers - and only the columns
+        blocks: '.ge-element',
+        accepts: function(region, node) {
+            if (node.hasClass('ge-element')) { return region.is('.column'); }
+
+            return true;
+        },
+
         onInit: markElements,
         onDeinit: unmarkElements,
-
-        /**
-         * An editor rewrites the content area as it takes it over, drawers
-         * included, so they go back in when it says it is ready.
-         */
-        onContentReady: markElements,
-
-        /** Elements move within a content area and between them. */
-        onSortable: function(sortable) {
-            if (!elementsEnabled()) { return; }
-
-            sortable(ge.canvas.find('.ge-content'), {
-                draggable: '.ge-element',
-                group: 'element',
-            });
-        },
     };
 };
 

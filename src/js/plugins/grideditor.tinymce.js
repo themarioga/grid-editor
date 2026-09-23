@@ -10,7 +10,8 @@
  *   <script src="dist/jquery.grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.tinymce.min.js"></script>
  *
- * Up to 6.0 the main bundle carries a copy of this file too.
+ * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
+ * loaded on its own, like every plugin.
  */
 (function($) {
 
