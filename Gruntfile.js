@@ -10,9 +10,16 @@ module.exports = function(grunt) {
 
   // The glob does not descend, so src/js/locales/*.js stays out of the main
   // bundle and is built to dist/locales/ one file at a time instead.
+  //
+  // Up to 6.0 the text editor plugins go in as well, marked as the bundle's
+  // copies, so a page that loaded only the editor keeps its text editor.
   var jsFiles = [
     'src/js/jquery.grideditor.js',
     'src/js/*.js',
+    'src/js/plugins/grideditor.tinymce.js',
+    'src/js/plugins/grideditor.ckeditor.js',
+    'src/js/plugins/grideditor.summernote.js',
+    'src/js/compat/bundled-texts.js',
   ];
 
   var localeFiles = [{

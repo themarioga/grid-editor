@@ -1,3 +1,28 @@
+Getting ready for grid-editor `6.*`, from `5.2`
+===============================================
+
+Nothing here breaks in 5.x. It is what 6.0 will need, and 5.2 already
+accepts, so a page can make the change at its own pace.
+
+* __Load your text editor as a plugin.__ tinyMCE, CKEditor and summernote
+  are plugins in `dist/plugins/`, loaded after the editor:
+
+  ```html
+  <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+  <script src="grid-editor/dist/plugins/grideditor.tinymce.min.js"></script>
+  ```
+
+  Up to 5.x the main bundle, and the bundle with SortableJS, still carry a
+  copy of each, so a page that does not load the plugin keeps working. When a
+  content area is edited with one of those copies the console says so, once.
+  6.0 leaves the copies out.
+
+* __An integration of your own under `$.fn.gridEditor.RTEs`__ still works,
+  wrapped by the editor, with a warning that it is deprecated. Register it
+  under `$.fn.gridEditor.texts` instead; [docs/plugins.md](docs/plugins.md#text-editor-plugins)
+  has the contract. `RTEs` goes in 7.0.
+
+
 Upgrading from grid-editor `4.*` to `5.*`
 =========================================
 

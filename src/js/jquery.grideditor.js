@@ -1404,11 +1404,25 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // its toolbar out against, and nothing anyone can type into
             if (!$(this).is(':visible')) { return; }
             
-            var rte = getRTE($(this).data('ge-content-type'));
-            if (rte) {
-                $(this).addClass('ge-rte-active', true);
-                rte.init(settings, $(this));
+            var type = $(this).data('ge-content-type');
+            var text = textFor(type);
+            if (!text) { return; }
+
+            // Not marked active, so the next click tries again: the library
+            // may be loaded by then
+            if (text.available && !text.available()) {
+                if (text.missingKey) { console.error(t(text.missingKey)); }
+                return;
             }
+
+            if (text.bundled) {
+                warnOnceHere('text-bundled:' + type, 'the ' + type + ' text editor is the copy in the ' +
+                    'main bundle, which 6.0 will not include: load dist/plugins/grideditor.' + type +
+                    '.js after the editor');
+            }
+
+            $(this).addClass('ge-rte-active');
+            text.start($(this));
         }
 
         function reset() {
@@ -1436,9 +1450,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
             var contents = canvas.find('.ge-content').each(function() {
                 var content = $(this);
-                var rte = getRTE(content.data('ge-content-type'));
-                if (rte) {
-                    rte.deinit(settings, content);
+                var text = textFor(content.data('ge-content-type'));
+                if (text) {
+                    text.stop(content);
                 }
                 // Cleared after rte.deinit, not before: an editor can restore the
                 // class attribute it snapshotted when it was created, which would
@@ -1555,6 +1569,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (wanted(name)) { FEATURES[name] = factory(api); }
             });
 
+            // Text editors are chosen by content_types rather than by the
+            // plugins setting: a page that names its containers there has
+            // named no editor, and still wants the one it uses
+            $.each($.fn.gridEditor.texts, function(type, factory) {
+                TEXTS[type] = $.extend({ bundled: !!factory.bundled }, factory(api));
+            });
+
+            // 5.x's registry, for an integration a host wrote itself. One the
+            // plugins above already provide is theirs.
+            $.each($.fn.gridEditor.RTEs, function(type, rte) {
+                if (TEXTS[type]) { return; }
+
+                warnOnceHere('rtes:' + type, '$.fn.gridEditor.RTEs is deprecated and will be removed ' +
+                    'in 7.0: register "' + type + '" under $.fn.gridEditor.texts, see docs/plugins.md');
+                TEXTS[type] = legacyText(rte);
+            });
+
             $.each($.fn.gridEditor.utilities, function(name, factory) {
                 if (!wanted(name)) { return; }
 
@@ -1631,6 +1662,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 bareStyle: bareStyle,
                 rowFromLayout: rowFromLayoutValue,
                 nodeHtml: nodeHtml,
+                // A text editor has rewritten a content area, so whatever the
+                // editor and its plugins had put in there goes back in
+                textReady: function(block) { block.trigger('ge-rte-ready'); },
                 toolbarItems: function(name) {
                     return mainControls
                         ? mainControls.find('[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
@@ -2164,6 +2198,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * -------------------------------------------------------------- */
 
         var CONTAINERS = {}; // The container plugins in use, by the type each builds
+        var TEXTS = {}; // The text editor plugins, by the content type each edits
         var FEATURES = {}; // The feature plugins in use, by name
         var UTILITIES = {}; // The utility plugins in use, by name
         var featureMethods = {}; // The methods those features contribute
@@ -3770,9 +3805,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the all view. `offset` indents it, within the same 12 unit budget.
          */
         function createColumn(size, offset) {
-            var rte = getRTE(settings.content_types[0]);
+            var text = textFor(settings.content_types[0]);
             var column = $('<div class="column"/>')
-                .append(createDefaultContentWrapper().html(rte ? rte.initialContent : ''))
+                .append(createDefaultContentWrapper().html(text ? text.initialContent : ''))
             ;
 
             // The tier being edited, or the base class in the all view
@@ -3915,8 +3950,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return curView;
         }
         
-        function getRTE(type) {
-            return $.fn.gridEditor.RTEs[type];
+        /** The text editor plugin for a content type, or null. */
+        function textFor(type) {
+            return TEXTS[type] || null;
+        }
+
+        /**
+         * An integration written to 5.x's contract - init and deinit over a
+         * set of content areas - as a text editor plugin.
+         */
+        function legacyText(rte) {
+            return {
+                initialContent: rte.initialContent,
+                start: function(block) { rte.init(settings, block); },
+                stop: function(block) { rte.deinit(settings, block); },
+            };
         }
 
         /**
@@ -3991,6 +4039,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
 };
 
+/**
+ * Text editor plugins: tinyMCE, CKEditor, summernote, and whatever a host
+ * writes. A factory registered under the content type it edits, called once
+ * per editor with the handle described in docs/plugins.md, returning
+ * { labelKey, initialContent, available, missingKey, start, stop }.
+ */
+$.fn.gridEditor.texts = {};
+
+/** 5.x's registry of text editors, adapted with a warning. Removed in 7.0. */
 $.fn.gridEditor.RTEs = {};
 
 /**

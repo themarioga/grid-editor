@@ -44,9 +44,10 @@ Installation
 ------------
 
 * __Dependencies:__ Grid Editor depends on jQuery, [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
-    * If you want to use the tinyMCE integration, include tinyMCE 6 as well. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
-    * If you want to use the summernote integration, include summernote as well.
-    * If you want to use the CKEditor integration... you get the point.
+    * If you want to use the tinyMCE integration, include tinyMCE 6 as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
+    * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`.
+    * If you want to use the CKEditor integration... you get the point: CKEditor and `dist/plugins/grideditor.ckeditor.min.js`.
+    * Up to 5.x the main bundle still carries a copy of the three, so a page that does not load the plugin keeps working, and the console says, once, to load it. 6.0 leaves the copies out.
 * From npm:
 
 ```
@@ -60,6 +61,8 @@ npm install @themarioga/grid-editor
 <link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<!-- The text editor you use, as a plugin -->
+<script src="grid-editor/dist/plugins/grideditor.tinymce.min.js"></script>
 ```
 
 Or, for a page that would rather load one file, the editor with SortableJS
@@ -641,12 +644,18 @@ $('form.myForm').on('submit', function() {
 
 ### Rich text editor options
 
-Grid editor comes bundles with support for the following rich text editors (RTEs): 
-* [TinyMCE](http://www.tinymce.com/) - [(example)](example/basic.html)
-* [summernote](http://summernote.org/) - [(example)](example/summernote.html)
-* [CKEditor](http://ckeditor.com/) - [(example)](example/ckeditor.html)
+Grid editor comes with support for the following rich text editors (RTEs), each a plugin of its own to load after the editor:
+* [TinyMCE](http://www.tinymce.com/) 6 - `dist/plugins/grideditor.tinymce.min.js` - [(example)](example/basic.html)
+* [summernote](http://summernote.org/) 0.9 - `dist/plugins/grideditor.summernote.min.js` - [(example)](example/summernote.html)
+* [CKEditor](http://ckeditor.com/) 4 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/ckeditor.html)
 
-__`content_types`:__ Specify the RTE to use. Valid values: `['tinymce']`, `['summernote']`, `['ckeditor']`. Default value: `['tinymce']`.
+A text editor is chosen by `content_types`, not by the `plugins` setting: a page
+that names its containers in `plugins` still has its editor. Summernote 0.9.1
+calls `$.now()`, which jQuery 4 removed; its plugin gives it back, and only if
+it is missing. [docs/plugins.md](docs/plugins.md#text-editor-plugins) says how
+to write a plugin for another editor.
+
+__`content_types`:__ Specify the RTE to use. Valid values: `['tinymce']`, `['summernote']`, `['ckeditor']`, or the name of a text editor plugin of your own. Default value: `['tinymce']`.
 
 ```javascript
 $('#myGrid').gridEditor({

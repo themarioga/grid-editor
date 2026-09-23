@@ -252,6 +252,23 @@ async function tinymceTests(t) {
             otherErrors.length === 0 && state.editorsOpen === 1 && state.activeContentAreas === 1,
             Object.assign(state, { errors: otherErrors.slice(0, 5) }));
     }
+
+    // Every example loads its text editor as a plugin, the way 6.0 needs it,
+    // rather than leaning on the main bundle's copy
+    var usingCopy = [];
+    for (var example of ['basic', 'autosave', 'wrap_content', 'clipboard', 'attributes', 'elements',
+        'containers', 'ckeditor', 'summernote']) {
+        var loaded = await t.page('/example/' + example + '.html');
+        await loaded.waitFor(`jQuery('#myGrid').data('grideditor')`, { label: example });
+        var copies = await loaded.eval(`
+            return Object.keys($.fn.gridEditor.texts).filter(function(type) {
+                return $.fn.gridEditor.texts[type].bundled &&
+                    jQuery('#myGrid').data('grideditor').settings.content_types.indexOf(type) !== -1;
+            });
+        `);
+        if (copies.length) { usingCopy.push(example + ': ' + copies.join(',')); }
+    }
+    t.check('every example loads the plugin of the text editor it uses', usingCopy.length === 0, usingCopy);
 }
 
 /**
@@ -461,8 +478,20 @@ async function otherEditorTests(t) {
     var page = await t.page('/example/ckeditor.html');
     await page.waitFor(`window.CKEDITOR && jQuery('#myGrid').data('grideditor')`, { label: 'ckeditor page' });
 
+    // A CKEditor of the page's own, outside the grid: closing a content area
+    // used to destroy every instance on the page, this one included
+    await page.eval(`
+        const own = jQuery('<div id="host-ckeditor" contenteditable="true"><p>A CKEditor of the page itself</p></div>')
+            .appendTo('body');
+        CKEDITOR.inline(own[0]);
+        return true;
+    `);
+    await page.waitFor(`CKEDITOR.instances['host-ckeditor'] && CKEDITOR.instances['host-ckeditor'].status === 'ready'`,
+        { label: 'the page\'s own CKEditor' });
+
     var state = `return {
-        instances: Object.keys(CKEDITOR.instances).length,
+        instances: Object.keys(CKEDITOR.instances).filter(function(name) { return name !== 'host-ckeditor'; }).length,
+        hostKept: !!CKEDITOR.instances['host-ckeditor'],
         rteActive: jQuery('#myGrid .ge-content').first().hasClass('ge-rte-active'),
     };`;
 
@@ -483,10 +512,40 @@ async function otherEditorTests(t) {
         ckediting.instances === 1 && afterExport.instances === 0 && !afterExport.rteActive &&
         ckReEdited.instances === 1 && !/contenteditable|cke_|ge-rte-active/.test(html) && ckErrors.length === 0,
         { editing: ckediting, afterExport: afterExport, reEdited: ckReEdited, errors: ckErrors.slice(0, 3) });
+    t.check('closing a content area destroys its own CKEditor and leaves the page\'s alone',
+        afterExport.hostKept && ckReEdited.hostKept, { afterExport: afterExport, reEdited: ckReEdited });
 
-    t.skip('summernote edits, exports clean html and edits again',
-        'summernote 0.9.1 calls $.now(), which jQuery 4 removed, so ' +
-        'example/summernote.html cannot initialize an editor at all.');
+    // Summernote 0.9.1 calls $.now(), which jQuery 4 removed: the plugin gives
+    // it back, so summernote opens at all
+    var sn = await t.page('/example/summernote.html');
+    await sn.waitFor(`jQuery.fn.summernote && jQuery('#myGrid').data('grideditor')`, { label: 'summernote page' });
+
+    var snState = `return {
+        editors: jQuery('.note-editor').length,
+        rteActive: jQuery('#myGrid .ge-content').first().hasClass('ge-rte-active'),
+    };`;
+    var nowBefore = await sn.eval(`return typeof jQuery.now;`);
+
+    await sn.click('.ge-content');
+    await sleep(1500);
+    var snEditing = await sn.eval(snState);
+    await sn.eval(`jQuery('#myGrid .ge-content').first().summernote('insertText', ' SUMMERNOTE-TYPED '); return 1;`);
+    var snHtml = await sn.eval(`return jQuery('#myGrid').gridEditor('getHtml');`);
+    await sleep(300);
+    var snAfterExport = await sn.eval(snState);
+    await sn.click('.ge-content');
+    await sleep(1500);
+    var snReEdited = await sn.eval(snState);
+    var nowAfter = await sn.eval(`return jQuery.now === Date.now;`);
+
+    var snErrors = sn.errors();
+    t.check('summernote edits, exports clean html and edits again',
+        nowBefore === 'undefined' && nowAfter &&
+        snEditing.editors === 1 && snEditing.rteActive && snAfterExport.editors === 0 && !snAfterExport.rteActive &&
+        snReEdited.editors === 1 && snHtml.indexOf('SUMMERNOTE-TYPED') !== -1 &&
+        !/note-editor|note-editable|ge-rte-active/.test(snHtml) && snErrors.length === 0,
+        { editing: snEditing, afterExport: snAfterExport, reEdited: snReEdited, nowBefore: nowBefore,
+            nowAfter: nowAfter, errors: snErrors.slice(0, 3) });
 }
 
 /**

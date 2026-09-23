@@ -5,6 +5,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- **Text editors are plugins.** tinyMCE, CKEditor and summernote are
+  `dist/plugins/grideditor.{tinymce,ckeditor,summernote}.js`, registered under
+  `$.fn.gridEditor.texts`, with a contract a host can write its own editor to:
+  `start`, `stop`, `initialContent`, `available`, and `ge.textReady` in the
+  handle. They are chosen by `content_types`, not by the `plugins` setting.
+  See [docs/plugins.md](docs/plugins.md#text-editor-plugins).
+
+### Deprecated
+- The copies of the three text editors in the main bundle. A page that edits
+  with one is told once to load the plugin; 6.0 leaves them out. See
+  [UPGRADING.md](UPGRADING.md).
+- `$.fn.gridEditor.RTEs`: an integration registered there still works,
+  wrapped, with a warning. It goes in 7.0.
+
+### Fixed
+- Closing a content area edited with CKEditor destroyed every CKEditor
+  instance on the page, other content areas' and the host's own included. It
+  destroys its own now.
+- CKEditor and summernote went on to start with their library missing, after
+  saying it was; neither starts now, and a later click tries again.
+- Summernote 0.9.1 could not open with jQuery 4, which removed the `$.now()`
+  it calls. Its plugin gives it back, only where it is missing.
+
 ## [5.1.2] - 2026-09-23
 ### Added
 - [example/attributes.html](example/attributes.html): a plugin of the page's

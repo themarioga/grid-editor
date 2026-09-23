@@ -1404,11 +1404,25 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // its toolbar out against, and nothing anyone can type into
             if (!$(this).is(':visible')) { return; }
             
-            var rte = getRTE($(this).data('ge-content-type'));
-            if (rte) {
-                $(this).addClass('ge-rte-active', true);
-                rte.init(settings, $(this));
+            var type = $(this).data('ge-content-type');
+            var text = textFor(type);
+            if (!text) { return; }
+
+            // Not marked active, so the next click tries again: the library
+            // may be loaded by then
+            if (text.available && !text.available()) {
+                if (text.missingKey) { console.error(t(text.missingKey)); }
+                return;
             }
+
+            if (text.bundled) {
+                warnOnceHere('text-bundled:' + type, 'the ' + type + ' text editor is the copy in the ' +
+                    'main bundle, which 6.0 will not include: load dist/plugins/grideditor.' + type +
+                    '.js after the editor');
+            }
+
+            $(this).addClass('ge-rte-active');
+            text.start($(this));
         }
 
         function reset() {
@@ -1436,9 +1450,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
             var contents = canvas.find('.ge-content').each(function() {
                 var content = $(this);
-                var rte = getRTE(content.data('ge-content-type'));
-                if (rte) {
-                    rte.deinit(settings, content);
+                var text = textFor(content.data('ge-content-type'));
+                if (text) {
+                    text.stop(content);
                 }
                 // Cleared after rte.deinit, not before: an editor can restore the
                 // class attribute it snapshotted when it was created, which would
@@ -1555,6 +1569,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (wanted(name)) { FEATURES[name] = factory(api); }
             });
 
+            // Text editors are chosen by content_types rather than by the
+            // plugins setting: a page that names its containers there has
+            // named no editor, and still wants the one it uses
+            $.each($.fn.gridEditor.texts, function(type, factory) {
+                TEXTS[type] = $.extend({ bundled: !!factory.bundled }, factory(api));
+            });
+
+            // 5.x's registry, for an integration a host wrote itself. One the
+            // plugins above already provide is theirs.
+            $.each($.fn.gridEditor.RTEs, function(type, rte) {
+                if (TEXTS[type]) { return; }
+
+                warnOnceHere('rtes:' + type, '$.fn.gridEditor.RTEs is deprecated and will be removed ' +
+                    'in 7.0: register "' + type + '" under $.fn.gridEditor.texts, see docs/plugins.md');
+                TEXTS[type] = legacyText(rte);
+            });
+
             $.each($.fn.gridEditor.utilities, function(name, factory) {
                 if (!wanted(name)) { return; }
 
@@ -1631,6 +1662,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 bareStyle: bareStyle,
                 rowFromLayout: rowFromLayoutValue,
                 nodeHtml: nodeHtml,
+                // A text editor has rewritten a content area, so whatever the
+                // editor and its plugins had put in there goes back in
+                textReady: function(block) { block.trigger('ge-rte-ready'); },
                 toolbarItems: function(name) {
                     return mainControls
                         ? mainControls.find('[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
@@ -2164,6 +2198,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * -------------------------------------------------------------- */
 
         var CONTAINERS = {}; // The container plugins in use, by the type each builds
+        var TEXTS = {}; // The text editor plugins, by the content type each edits
         var FEATURES = {}; // The feature plugins in use, by name
         var UTILITIES = {}; // The utility plugins in use, by name
         var featureMethods = {}; // The methods those features contribute
@@ -3770,9 +3805,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the all view. `offset` indents it, within the same 12 unit budget.
          */
         function createColumn(size, offset) {
-            var rte = getRTE(settings.content_types[0]);
+            var text = textFor(settings.content_types[0]);
             var column = $('<div class="column"/>')
-                .append(createDefaultContentWrapper().html(rte ? rte.initialContent : ''))
+                .append(createDefaultContentWrapper().html(text ? text.initialContent : ''))
             ;
 
             // The tier being edited, or the base class in the all view
@@ -3915,8 +3950,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return curView;
         }
         
-        function getRTE(type) {
-            return $.fn.gridEditor.RTEs[type];
+        /** The text editor plugin for a content type, or null. */
+        function textFor(type) {
+            return TEXTS[type] || null;
+        }
+
+        /**
+         * An integration written to 5.x's contract - init and deinit over a
+         * set of content areas - as a text editor plugin.
+         */
+        function legacyText(rte) {
+            return {
+                initialContent: rte.initialContent,
+                start: function(block) { rte.init(settings, block); },
+                stop: function(block) { rte.deinit(settings, block); },
+            };
         }
 
         /**
@@ -3991,6 +4039,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
 };
 
+/**
+ * Text editor plugins: tinyMCE, CKEditor, summernote, and whatever a host
+ * writes. A factory registered under the content type it edits, called once
+ * per editor with the handle described in docs/plugins.md, returning
+ * { labelKey, initialContent, available, missingKey, start, stop }.
+ */
+$.fn.gridEditor.texts = {};
+
+/** 5.x's registry of text editors, adapted with a warning. Removed in 7.0. */
 $.fn.gridEditor.RTEs = {};
 
 /**
@@ -4101,30 +4158,225 @@ $.fn.gridEditor.locales = {
 };
 
 })( jQuery );
+/**
+ * tinyMCE for grid-editor's content areas.
+ *
+ * A text editor plugin: load this file after the editor, and tinyMCE 6
+ * after or before it, and content_types: ['tinymce'] edits each content area
+ * with an inline tinyMCE. What it can ask the editor for is the handle its
+ * factory is called with, described in docs/plugins.md.
+ *
+ *   <script src="tinymce/tinymce.min.js"></script>
+ *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/plugins/grideditor.tinymce.min.js"></script>
+ *
+ * Up to 6.0 the main bundle carries a copy of this file too.
+ */
 (function($) {
-    $.fn.gridEditor.RTEs.ckeditor = {
 
-        init: function(settings, contentAreas) {
+    // tinyMCE snapshots the target element's attributes when an inline editor is
+    // created and restores them on remove(), so this has to run *after* remove()
+    // to keep the grid editor's own class and tinyMCE's leftovers off the element.
+    function cleanUp(contentArea) {
+        contentArea
+            .removeClass('active')
+            .removeClass('ge-rte-active')
+            .removeAttr('id')
+            .removeAttr('style')
+            .removeAttr('spellcheck')
+            .removeAttr('contenteditable')
+            .removeAttr('data-mce-style')
+        ;
+    }
 
-            if (!window.CKEDITOR) {
-                console.error($.fn.gridEditor.t(settings, 'error.ckeditor_missing'));
-            }
+    var INITIAL_CONTENT = '<p>Lorem ipsum dolores</p>';
 
-            var self = this;
-            contentAreas.each(function() {
-                var contentArea = $(this);
-                if (!contentArea.hasClass('active')) {
-                    if (contentArea.html() == self.initialContent) {
-                        // CKEditor kills this '&nbsp' creating a non usable box :/ 
-                        contentArea.html('&nbsp;'); 
+    $.fn.gridEditor.texts.tinymce = function(ge) {
+        return {
+            initialContent: INITIAL_CONTENT,
+            missingKey: 'error.tinymce_missing',
+
+            available: function() { return !!window.tinymce; },
+
+            start: function(contentAreas) {
+                var settings = ge.settings;
+                var userConfig = (settings.tinymce && settings.tinymce.config) ? settings.tinymce.config : {};
+
+                contentAreas.each(function() {
+                    var contentArea = $(this);
+                    if (contentArea.hasClass('active')) { return; }
+
+                    if (contentArea.html() == INITIAL_CONTENT) {
+                        contentArea.html('');
                     }
-                    
+                    contentArea.addClass('active');
+
+                    var configuration = $.extend({
+                        // tinyMCE's own "Upgrade" badge in the menubar. Off by
+                        // default because an inline editor here is a column of
+                        // someone's page, not tinyMCE's own interface; a host that
+                        // wants it back passes promotion: true.
+                        promotion: false,
+                    }, userConfig, {
+                        target: this,
+                        inline: true,
+                        init_instance_callback: function(editor) {
+                            // deinit ran before this init finished, so tear it down again
+                            if (contentArea.data('ge-tinymce-pending-remove')) {
+                                contentArea.removeData('ge-tinymce-pending-remove');
+                                editor.remove();
+                                // deinit already ran and cannot clean up after this
+                                // late remove(), so do it here instead
+                                cleanUp(contentArea);
+                                return;
+                            }
+
+                            contentArea.data('ge-tinymce', editor);
+
+                            // The editor rewrote what is inside this content area
+                            // while it took it over, so whatever the grid editor
+                            // had in there is gone. Saying so lets it put its own
+                            // furniture back.
+                            ge.textReady(contentArea);
+
+                            // Undo and redo rewrite it too, from snapshots that
+                            // leave out whatever is marked data-mce-bogus - an
+                            // element's drawer among them - so it goes back in
+                            // after each of those as well
+                            editor.on('Undo Redo', function() {
+                                ge.textReady(contentArea);
+                            });
+
+                            // The inline toolbar is laid out against the element's
+                            // geometry at the moment tinyMCE draws it, and an
+                            // element that has just appeared - a tab pane, an
+                            // accordion body, a column whose width is still
+                            // settling - may not have its own width yet. Asking
+                            // for the ui again once the browser has laid the frame
+                            // out measures it as it now is, instead of leaving a
+                            // toolbar wrapped into a narrow column.
+                            window.requestAnimationFrame(function() {
+                                if (editor.removed || !editor.ui || !editor.ui.show) { return; }
+
+                                editor.ui.show();
+                            });
+
+                            // And again whenever the user comes back to this
+                            // editor: by then the element may have been resized,
+                            // hidden and shown again - a tab switched away from
+                            // and back, a column made narrower - and the toolbar
+                            // is only ever as right as its last measurement.
+                            editor.on('focus', function() {
+                                window.requestAnimationFrame(function() {
+                                    if (editor.removed || !editor.ui || !editor.ui.show) { return; }
+
+                                    editor.ui.show();
+                                });
+                            });
+
+                            // Bring focus to text field
+                            editor.focus();
+
+                            // Call the original callbacks, if any were passed in the config
+                            if (userConfig.init_instance_callback) {
+                                userConfig.init_instance_callback.call(this, editor);
+                            }
+                            // 'oninit' is the pre-6 name, honoured so existing configs keep working
+                            if (userConfig.oninit) {
+                                userConfig.oninit.call(this, editor);
+                            }
+                        }
+                    });
+                    // We always edit the element we were handed, so a selector in the
+                    // user config would only fight with target
+                    delete configuration.selector;
+
+                    window.tinymce.init(configuration);
+                });
+            },
+
+            stop: function(contentAreas) {
+                contentAreas.filter('.active').each(function() {
+                    var contentArea = $(this);
+                    var editor = contentArea.data('ge-tinymce');
+
+                    if (editor) {
+                        contentArea.removeData('ge-tinymce');
+                        editor.remove();
+                    } else {
+                        // tinymce.init() is asynchronous, so the editor may not exist
+                        // yet. Leave a note for init_instance_callback to remove it.
+                        contentArea.data('ge-tinymce-pending-remove', true);
+                    }
+
+                    cleanUp(contentArea);
+                });
+            },
+        };
+    };
+})(jQuery);
+
+/**
+ * CKEditor for grid-editor's content areas.
+ *
+ * A text editor plugin: load this file after the editor, and CKEditor 4
+ * after or before it, and content_types: ['ckeditor'] edits each content area
+ * with an inline CKEditor. What it can ask the editor for is the handle its
+ * factory is called with, described in docs/plugins.md.
+ *
+ *   <script src="ckeditor/ckeditor.js"></script>
+ *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/plugins/grideditor.ckeditor.min.js"></script>
+ *
+ * Up to 6.0 the main bundle carries a copy of this file too.
+ */
+(function($) {
+
+    var INITIAL_CONTENT = '<p>Lorem initius... </p>';
+
+    $.fn.gridEditor.texts.ckeditor = function(ge) {
+
+        /**
+         * The instance editing this content area. Kept in jQuery data when it
+         * is made, and looked for among CKEditor's own as a fallback, since
+         * an instance made by another version of this file has no data.
+         */
+        function instanceOf(contentArea) {
+            var kept = contentArea.data('ge-ckeditor');
+            if (kept) { return kept; }
+
+            var found = null;
+            $.each(window.CKEDITOR.instances, function(name, instance) {
+                if (instance.element && instance.element.$ === contentArea[0]) { found = instance; }
+            });
+
+            return found;
+        }
+
+        return {
+            initialContent: INITIAL_CONTENT,
+            missingKey: 'error.ckeditor_missing',
+
+            available: function() { return !!window.CKEDITOR; },
+
+            start: function(contentAreas) {
+                var settings = ge.settings;
+
+                contentAreas.each(function() {
+                    var contentArea = $(this);
+                    if (contentArea.hasClass('active')) { return; }
+
+                    if (contentArea.html() == INITIAL_CONTENT) {
+                        // CKEditor kills this '&nbsp' creating a non usable box :/
+                        contentArea.html('&nbsp;');
+                    }
+
                     // Add the .attr('contenteditable',''true') or CKEditor loads readonly
                     contentArea.addClass('active').attr('contenteditable', 'true');
-                    
+
                     var configuration = $.extend(
                         {},
-                        (settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {}), 
+                        (settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {}),
                         {
                             // Focus editor on creation
                             on: {
@@ -4143,56 +4395,81 @@ $.fn.gridEditor.locales = {
                                     // The editor owns what is inside the
                                     // content area now, so the grid editor is
                                     // told to put its own furniture back
-                                    contentArea.trigger('ge-rte-ready');
+                                    ge.textReady(contentArea);
 
                                     instance.focus();
                                 }
                             }
                         }
                     );
-                    var instance = CKEDITOR.inline(contentArea.get(0), configuration);
-                }
-            });
-        },
-
-        deinit: function(settings, contentAreas) {
-            contentAreas.filter('.active').each(function() {
-                var contentArea = $(this);
-                
-                // Destroy all CKEditor instances
-                $.each(CKEDITOR.instances, function(_, instance) {
-                    instance.destroy();
+                    var instance = window.CKEDITOR.inline(contentArea.get(0), configuration);
+                    contentArea.data('ge-ckeditor', instance);
                 });
+            },
 
-                // Cleanup
-                contentArea
-                    .removeClass('active cke_focus')
-                    .removeAttr('id')
-                    .removeAttr('style')
-                    .removeAttr('spellcheck')
-                    .removeAttr('contenteditable')
-                ;
-            });
-        },
+            stop: function(contentAreas) {
+                contentAreas.filter('.active').each(function() {
+                    var contentArea = $(this);
 
-        initialContent: '<p>Lorem initius... </p>',
+                    // This content area's instance, and no other: up to 5.x
+                    // closing one content area destroyed every CKEditor on
+                    // the page, other editors' and the host's own included
+                    var instance = window.CKEDITOR ? instanceOf(contentArea) : null;
+                    if (instance) { instance.destroy(); }
+                    contentArea.removeData('ge-ckeditor');
+
+                    // Cleanup
+                    contentArea
+                        .removeClass('active cke_focus')
+                        .removeAttr('id')
+                        .removeAttr('style')
+                        .removeAttr('spellcheck')
+                        .removeAttr('contenteditable')
+                    ;
+                });
+            },
+        };
     };
 })(jQuery);
+
+/**
+ * Summernote for grid-editor's content areas.
+ *
+ * A text editor plugin: load this file after the editor, and summernote
+ * after or before it, and content_types: ['summernote'] edits each content
+ * area with summernote in air mode. What it can ask the editor for is the
+ * handle its factory is called with, described in docs/plugins.md.
+ *
+ *   <script src="summernote/summernote-bs5.min.js"></script>
+ *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/plugins/grideditor.summernote.min.js"></script>
+ *
+ * Up to 6.0 the main bundle carries a copy of this file too.
+ */
 (function($) {
 
-    $.fn.gridEditor.RTEs.summernote = {
+    var INITIAL_CONTENT = '<p>Lorem ipsum dolores</p>';
 
-        init: function(settings, contentAreas) {
-            
-            if (!jQuery().summernote) {
-                console.error($.fn.gridEditor.t(settings, 'error.summernote_missing'));
-            }
+    $.fn.gridEditor.texts.summernote = function(ge) {
+        return {
+            initialContent: INITIAL_CONTENT,
+            missingKey: 'error.summernote_missing',
 
-            var self = this;
-            contentAreas.each(function() {
-                var contentArea = $(this);
-                if (!contentArea.hasClass('active')) {
-                    if (contentArea.html() == self.initialContent) {
+            available: function() { return !!$.fn.summernote; },
+
+            start: function(contentAreas) {
+                var settings = ge.settings;
+
+                // Summernote 0.9.1 calls $.now(), which jQuery 4 removed, and
+                // cannot open without it. Given back only where it is missing,
+                // and only once summernote is actually used.
+                if (!$.now) { $.now = Date.now; }
+
+                contentAreas.each(function() {
+                    var contentArea = $(this);
+                    if (contentArea.hasClass('active')) { return; }
+
+                    if (contentArea.html() == INITIAL_CONTENT) {
                         contentArea.html('');
                     }
                     contentArea.addClass('active');
@@ -4207,7 +4484,7 @@ $.fn.gridEditor.locales = {
                             // Focus editor on creation
                             callbacks: {
                                 onInit: function() {
-                                    
+
                                     // Call original oninit function, if one was passed in the config
                                     var callback;
                                     try {
@@ -4222,175 +4499,44 @@ $.fn.gridEditor.locales = {
                                     // The editor owns what is inside the
                                     // content area now, so the grid editor is
                                     // told to put its own furniture back
-                                    contentArea.trigger('ge-rte-ready');
-                                    
+                                    ge.textReady(contentArea);
+
                                     contentArea.summernote('focus');
                                 }
                             }
                         }
                     );
                     contentArea.summernote(configuration);
-                }
-            });
-        },
+                });
+            },
 
-        deinit: function(settings, contentAreas) {
-            contentAreas.filter('.active').each(function() {
-                var contentArea = $(this);
-                contentArea.summernote('destroy');
-                contentArea
-                    .removeClass('active')
-                    .removeAttr('id')
-                    .removeAttr('style')
-                    .removeAttr('spellcheck')
-                ;
-            });
-        },
-
-        initialContent: '<p>Lorem ipsum dolores</p>',
+            stop: function(contentAreas) {
+                contentAreas.filter('.active').each(function() {
+                    var contentArea = $(this);
+                    contentArea.summernote('destroy');
+                    contentArea
+                        .removeClass('active')
+                        .removeAttr('id')
+                        .removeAttr('style')
+                        .removeAttr('spellcheck')
+                    ;
+                });
+            },
+        };
     };
 })(jQuery);
 
+/**
+ * Up to 6.0 the main bundle carries a copy of each text editor plugin, so a
+ * page that loaded only the editor keeps the editor it had. This marks those
+ * copies, and the editor warns once when a content area is edited with one:
+ * 6.0 leaves them out. Loaded on its own, a plugin's file registers itself
+ * again, unmarked, and is the one used.
+ *
+ * Only ever concatenated after the plugins it marks, never built on its own.
+ */
 (function($) {
-
-    // tinyMCE snapshots the target element's attributes when an inline editor is
-    // created and restores them on remove(), so this has to run *after* remove()
-    // to keep the grid editor's own class and tinyMCE's leftovers off the element.
-    function cleanUp(contentArea) {
-        contentArea
-            .removeClass('active')
-            .removeClass('ge-rte-active')
-            .removeAttr('id')
-            .removeAttr('style')
-            .removeAttr('spellcheck')
-            .removeAttr('contenteditable')
-            .removeAttr('data-mce-style')
-        ;
-    }
-
-    $.fn.gridEditor.RTEs.tinymce = {
-
-        init: function(settings, contentAreas) {
-
-            if (!window.tinymce) {
-                console.error($.fn.gridEditor.t(settings, 'error.tinymce_missing'));
-                return;
-            }
-
-            var self = this;
-            var userConfig = (settings.tinymce && settings.tinymce.config) ? settings.tinymce.config : {};
-
-            contentAreas.each(function() {
-                var contentArea = $(this);
-                if (contentArea.hasClass('active')) { return; }
-
-                if (contentArea.html() == self.initialContent) {
-                    contentArea.html('');
-                }
-                contentArea.addClass('active');
-
-                var configuration = $.extend({
-                    // tinyMCE's own "Upgrade" badge in the menubar. Off by
-                    // default because an inline editor here is a column of
-                    // someone's page, not tinyMCE's own interface; a host that
-                    // wants it back passes promotion: true.
-                    promotion: false,
-                }, userConfig, {
-                    target: this,
-                    inline: true,
-                    init_instance_callback: function(editor) {
-                        // deinit ran before this init finished, so tear it down again
-                        if (contentArea.data('ge-tinymce-pending-remove')) {
-                            contentArea.removeData('ge-tinymce-pending-remove');
-                            editor.remove();
-                            // deinit already ran and cannot clean up after this
-                            // late remove(), so do it here instead
-                            cleanUp(contentArea);
-                            return;
-                        }
-
-                        contentArea.data('ge-tinymce', editor);
-
-                        // The editor rewrote what is inside this content area
-                        // while it took it over, so whatever the grid editor
-                        // had in there is gone. Saying so lets it put its own
-                        // furniture back (see RTE_READY in the core).
-                        contentArea.trigger('ge-rte-ready');
-
-                        // Undo and redo rewrite it too, from snapshots that
-                        // leave out whatever is marked data-mce-bogus - an
-                        // element's drawer among them - so it goes back in
-                        // after each of those as well
-                        editor.on('Undo Redo', function() {
-                            contentArea.trigger('ge-rte-ready');
-                        });
-
-                        // The inline toolbar is laid out against the element's
-                        // geometry at the moment tinyMCE draws it, and an
-                        // element that has just appeared - a tab pane, an
-                        // accordion body, a column whose width is still
-                        // settling - may not have its own width yet. Asking
-                        // for the ui again once the browser has laid the frame
-                        // out measures it as it now is, instead of leaving a
-                        // toolbar wrapped into a narrow column.
-                        window.requestAnimationFrame(function() {
-                            if (editor.removed || !editor.ui || !editor.ui.show) { return; }
-
-                            editor.ui.show();
-                        });
-
-                        // And again whenever the user comes back to this
-                        // editor: by then the element may have been resized,
-                        // hidden and shown again - a tab switched away from
-                        // and back, a column made narrower - and the toolbar
-                        // is only ever as right as its last measurement.
-                        editor.on('focus', function() {
-                            window.requestAnimationFrame(function() {
-                                if (editor.removed || !editor.ui || !editor.ui.show) { return; }
-
-                                editor.ui.show();
-                            });
-                        });
-
-                        // Bring focus to text field
-                        editor.focus();
-
-                        // Call the original callbacks, if any were passed in the config
-                        if (userConfig.init_instance_callback) {
-                            userConfig.init_instance_callback.call(this, editor);
-                        }
-                        // 'oninit' is the pre-6 name, honoured so existing configs keep working
-                        if (userConfig.oninit) {
-                            userConfig.oninit.call(this, editor);
-                        }
-                    }
-                });
-                // We always edit the element we were handed, so a selector in the
-                // user config would only fight with target
-                delete configuration.selector;
-
-                window.tinymce.init(configuration);
-            });
-        },
-
-        deinit: function(settings, contentAreas) {
-            contentAreas.filter('.active').each(function() {
-                var contentArea = $(this);
-                var editor = contentArea.data('ge-tinymce');
-
-                if (editor) {
-                    contentArea.removeData('ge-tinymce');
-                    editor.remove();
-                } else {
-                    // tinymce.init() is asynchronous, so the editor may not exist
-                    // yet. Leave a note for init_instance_callback to remove it.
-                    contentArea.data('ge-tinymce-pending-remove', true);
-                }
-
-                cleanUp(contentArea);
-            });
-        },
-
-        initialContent: '<p>Lorem ipsum dolores</p>',
-    };
+    ['tinymce', 'ckeditor', 'summernote'].forEach(function(type) {
+        if ($.fn.gridEditor.texts[type]) { $.fn.gridEditor.texts[type].bundled = true; }
+    });
 })(jQuery);

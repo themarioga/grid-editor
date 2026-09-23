@@ -14,13 +14,15 @@ the one to read first if you are about to write your own.
 <script src="dist/plugins/grideditor.elements.min.js"></script>
 ```
 
-There are three kinds. A **container plugin** builds a type of container — it
+There are four kinds. A **container plugin** builds a type of container — it
 registers under `$.fn.gridEditor.containers`, and the toolbar offers a button
 for it. A **utility plugin** declares families of Bootstrap's responsive
 utility classes — `$.fn.gridEditor.utilities` — and the editor edits them per
-breakpoint. A **feature plugin** is anything else the editor can do —
+breakpoint. A **text editor plugin** edits content areas with a rich text
+editor — `$.fn.gridEditor.texts`, one per editor: tinyMCE, CKEditor,
+summernote. A **feature plugin** is anything else the editor can do —
 `$.fn.gridEditor.features`, hooks into the canvas, and may contribute methods.
-All three are factories called once per editor with the same handle.
+All four are factories called once per editor with the same handle.
 
 The `plugins` setting names which of the loaded ones to use:
 
@@ -124,6 +126,7 @@ not change without a major version.
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 | `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
 | `ge.rowFromLayout(layout)` | A detached row from a layout: `[8, 4]`, `['auto', 'equal']` or `{ row_cols, columns }` |
+| `ge.textReady(block)` | A text editor has rewritten a content area: whatever the editor and its plugins put in there goes back in |
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
 | `ge.toolbarItems(name)` | The toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
@@ -249,6 +252,55 @@ the plugin.
 Sorting is the one thing a plugin sets up itself, in `mark`, because only the
 plugin knows which of its parts move: the tabs plugin makes its strip sortable
 and puts the panes back in strip order in `afterPaneMove`.
+
+
+Text editor plugins
+-------------------
+
+A text editor plugin edits content areas with a rich text editor. It is
+registered under the content type it edits - the name `content_types` uses -
+and the three that ship, `grideditor.tinymce.js`, `grideditor.ckeditor.js` and
+`grideditor.summernote.js`, are the ones to read:
+
+```javascript
+$.fn.gridEditor.texts.mytext = function(ge) {
+    return {
+        initialContent: '<p>Write here</p>',   // what a new column's content area holds
+        missingKey: 'error.mytext_missing',    // the error when the library is not loaded, optional
+        available: function() { return !!window.MyText; },   // optional, true otherwise
+
+        start: function(block) { … },   // open the editor on this content area
+        stop: function(block) { … },    // close it, and leave the content area as it was
+    };
+};
+```
+
+- **`start(block)`** is called when the user clicks a content area of this
+  type. The editor marks it `ge-rte-active` first, and does not call `start`
+  again until it has been stopped. Once the library has taken the content
+  area over, call **`ge.textReady(block)`**: it rewrote what was inside, and
+  the editor and its plugins put their own furniture back - an element's
+  drawer, for one. Call it again whenever the library rewrites the content
+  area again, as tinyMCE's undo does.
+- **`stop(block)`** is called for every content area of this type on each
+  `deinit`, which `getHtml` runs: a content area whose editor never started is
+  the plugin's to ignore. Whatever the library and `start` added - classes,
+  `contenteditable`, inline styles, ids - comes off here.
+- **`available()`** false and the editor logs `missingKey`'s message and
+  starts nothing, without marking the content area, so a later click tries
+  again once the library is there.
+
+A text editor is chosen by `content_types`, never by the `plugins` setting: a
+page that names its containers there has named no editor.
+
+Up to 6.0 the main bundle carries a copy of the three shipped ones, marked
+`bundled`; editing with a copy warns once that 6.0 leaves them out. A plugin's
+own file, loaded after, registers itself again and is the one used.
+
+5.x's `$.fn.gridEditor.RTEs.mytext = { init, deinit, initialContent }` still
+works: `init(settings, contentAreas)` and `deinit(settings, contentAreas)` are
+wrapped as `start` and `stop`, with a warning that `RTEs` is deprecated. It goes
+in 7.0.
 
 
 Utility plugins
