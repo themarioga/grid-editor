@@ -2,37 +2,50 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    
+
     <!-- CSS dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
-    
+
     <!-- Javascript dependencies -->
     <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
-    
+
     <!-- Grid editor CSS -->
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/jquery.grideditor.min.js"></script>
-    
+
     <script>
         $(function() {
-            // Initialize grid editor
-            $('#myGrid').gridEditor({
+            var grid = $('#myGrid');
+
+            // 1. The markup as the page wrote it, captured before the editor
+            //    touches it
+            $('#before').text(grid.html().trim());
+
+            // 2. The editor finds no .row in there, so it wraps everything
+            //    into one row with a single full-width column
+            grid.gridEditor({
                 new_row_layouts: [[12], [6, 6], [9, 3], [3, 9]],
                 content_types: ['tinymce'],
             });
-            
-            // Get resulting html
-            var html = $('#myGrid').gridEditor('getHtml');
-            console.log(html);
+
+            // 3. What getHtml hands back: the same content, now a grid, with
+            //    the marking the editor needs to read it back
+            // 4. What getPlainHtml hands back: the same, without that marking
+            function showResult() {
+                $('#after').text(grid.gridEditor('getHtml').trim());
+                $('#plain').text(grid.gridEditor('getPlainHtml').trim());
+            }
+            showResult();
+            $('#refresh').on('click', showResult);
         });
     </script>
-    
-    <title>Grid Editor example</title>
+
+    <title>Grid Editor example - wrapped content</title>
 </head>
 <body>
     <!-- Back to the demo index -->
@@ -40,9 +53,46 @@
         <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
     </div>
 
-    <div id="myGrid">
-        <h1>Hello!</h1>
-        <p>Test</p>
+    <div class="container py-3">
+        <h2>Wrapped content</h2>
+        <p class="text-body-secondary">
+            The editor below was started on plain markup &mdash; a heading, a
+            paragraph and a list, with no <code>.row</code> or
+            <code>.col-*</code> anywhere. Grid editor does not refuse it: it
+            wraps all of it into one row with a single
+            <code>col-lg-12</code> column, and from there it is an ordinary
+            grid. Add rows, split the column, edit the text, then press
+            <em>Refresh</em> to see the html that comes out: as
+            <code>getHtml</code> returns it, to save and edit again, and as
+            <code>getPlainHtml</code> returns it, to publish.
+        </p>
+
+        <h5 class="mt-4">1. The markup in the page</h5>
+        <pre class="bg-body-tertiary border rounded p-3 small"><code id="before"></code></pre>
+
+        <h5 class="mt-4">2. The editor, started on that markup</h5>
+        <div id="myGrid">
+            <h1>Hello!</h1>
+            <p>This page was written as plain html, with no Bootstrap grid.</p>
+            <ul>
+                <li>No row</li>
+                <li>No column</li>
+            </ul>
+        </div>
+
+        <h5 class="mt-4 d-flex align-items-center gap-2">
+            3. The result of <code>getHtml</code>
+            <button id="refresh" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </h5>
+        <pre class="bg-body-tertiary border rounded p-3 small"><code id="after"></code></pre>
+
+        <h5 class="mt-4">4. The result of <code>getPlainHtml</code></h5>
+        <p class="text-body-secondary small">
+            The same markup without the editor&rsquo;s <code>ge-*</code> classes,
+            <code>column</code> class and <code>data-ge-*</code> attributes.
+            For publishing: the editor cannot read it back as it was.
+        </p>
+        <pre class="bg-body-tertiary border rounded p-3 small"><code id="plain"></code></pre>
     </div>
 
 </body>

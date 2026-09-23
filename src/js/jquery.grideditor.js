@@ -18,6 +18,7 @@
  */
 var METHODS = {
     getHtml:          { value: true, noInstance: function(element) { return element.html(); } },
+    getPlainHtml:     { value: true, noInstance: function(element) { return plainHtml(element.html()); } },
     init:             {},
     deinit:           {},
     reset:            {},
@@ -245,6 +246,56 @@ function dispatch(set, name, args) {
     });
 
     return set;
+}
+
+/**
+ * Html with grid-editor's own marking taken off: the ge-* classes, the
+ * column class and the data-ge-* attributes. A div that was only there for
+ * the editor - a content area, a bare element or container wrapper - is left
+ * with nothing on it, and goes, its children taking its place.
+ *
+ * The marking is what lets the editor read its markup back, so this is for
+ * publishing, not for saving something to edit again.
+ */
+function plainHtml(html) {
+    // Parsed in a document of its own, which is inert: no script in the
+    // markup runs and no image starts loading while it is being cleaned
+    var root = $(document.implementation.createHTMLDocument('').body);
+    root[0].innerHTML = html;
+    var emptied = [];
+
+    root.find('*').each(function() {
+        var node = $(this);
+        var marked = false;
+
+        $.each($.makeArray(this.attributes), function(i, attribute) {
+            if (attribute.name.indexOf('data-ge-') === 0) {
+                node.removeAttr(attribute.name);
+                marked = true;
+            }
+        });
+
+        var classes = (node.attr('class') || '').split(/\s+/).filter(Boolean);
+        var kept = classes.filter(function(name) {
+            return name !== 'column' && name.indexOf('ge-') !== 0;
+        });
+        if (kept.length !== classes.length) { marked = true; }
+        if (kept.length) {
+            node.attr('class', kept.join(' '));
+        } else {
+            node.removeAttr('class');
+        }
+
+        if (marked && this.tagName === 'DIV' && !this.attributes.length) {
+            emptied.push(this);
+        }
+    });
+
+    emptied.forEach(function(div) {
+        $(div).replaceWith($(div).contents());
+    });
+
+    return root[0].innerHTML;
 }
 
 $.fn.gridEditor = function( optionsOrMethod ) {
@@ -918,14 +969,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                         .attr('data-ge-toolbar', 'feature')
                         .attr('data-ge-feature', name)
                         .attr('data-ge-item', index)
-                        .append('<i class="bi bi-plus"></i>')
+                        .append($('<i />').addClass(item.iconClass || 'bi bi-plus'))
                         .append($('<span />').text(t(item.labelKey)))
                         .on('click', function() {
                             var made = item.create();
 
                             addNode(item.kind, made, function() {
                                 made.appendTo(canvas);
-                            }, { parent: canvas, source: 'tool' });
+                            }, { parent: canvas, source: item.source || 'tool' });
                         })
                         .appendTo(addContainerGroup)
                     ;
@@ -1145,7 +1196,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 } else {
                     made.appendTo(where.region);
                 }
-            }, { parent: where.region, source: 'dragdrop' });
+            }, { parent: where.region, source: item.source || 'dragdrop' });
         }
 
         /** A line where the block would go, following the pointer. */
@@ -1395,6 +1446,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return html;
         }
 
+        /**
+         * One node's markup, as getHtml would give it: the canvas goes out of
+         * editing to read it and comes back, as it does for getHtml.
+         */
+        function nodeHtml(node) {
+            deinit();
+            stripPixelWidths(node);
+            var html = node[0].outerHTML;
+            init();
+            return html;
+        }
+
+        /** getHtml with grid-editor's own classes and attributes taken off. */
+        function getPlainHtml() {
+            return plainHtml(getHtml());
+        }
+
         function destroy() {
             deinit();
             removeConfirmModal();
@@ -1535,6 +1603,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 utilityField: utilityField,
                 bareStyle: bareStyle,
                 rowFromLayout: rowFromLayoutValue,
+                nodeHtml: nodeHtml,
+                toolbarItems: function(name) {
+                    return mainControls
+                        ? mainControls.find('[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
+                        : $();
+                },
             };
         }
 
@@ -2128,17 +2202,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             createMoveTool(drawer);
             addSettingsTool(drawer, container, settings.container_classes);
-            if (definition.addPane) {
-                createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
-                    var pane = definition.addPane(container, {});
-
-                    addNode(definition.paneKind, pane, function() {}, {
-                        parent: container,
-                        source: 'tool',
-                        container: container,
-                    });
-                });
-            }
 
             settings.container_tools.forEach(function(hostTool) {
                 createTool(drawer, hostTool.title || '', hostTool.className || '',
@@ -2152,6 +2215,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     container.slideUp(removed);
                 });
             });
+
+            // Delete then add, the order rows and columns have
+            if (definition.addPane) {
+                createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
+                    var pane = definition.addPane(container, {});
+
+                    addNode(definition.paneKind, pane, function() {}, {
+                        parent: container,
+                        source: 'tool',
+                        container: container,
+                    });
+                });
+            }
         }
 
         /**
@@ -2673,10 +2749,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             // Beside the gear, because every node that has one is a node a
-            // utility may apply to, whichever plugin built its drawer
+            // utility may apply to, whichever plugin built its drawer. A
+            // feature plugin's tools go there too, for the same reason: the
+            // gear is the one tool every drawer has.
             var kind = kindOf(node);
             $.each(UTILITIES, function(name, utility) {
                 if (utility.drawerTools) { utility.drawerTools(drawer, node, kind); }
+            });
+            $.each(FEATURES, function(name, feature) {
+                if (feature.drawerTools) { feature.drawerTools(drawer, node, kind); }
             });
 
             return details.appendTo(drawer);
@@ -3544,7 +3625,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var add = function() {
                 return addNode(kind, node, function() {
                     node[placement](options[placement]);
-                }, { parent: parent, source: 'api' });
+                }, { parent: parent, source: options.source || 'api' });
             };
 
             if (operationDepth > 0) {
@@ -3738,11 +3819,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return $();
         }
 
+        /**
+         * A content area for the first content type. With no content types
+         * it is a content area and nothing more: there is no type to name.
+         */
         function createDefaultContentWrapper() {
-            return $('<div/>')
-                .addClass('ge-content ge-content-type-' + settings.content_types[0])
-                .attr('data-ge-content-type', settings.content_types[0])
-            ;
+            var type = settings.content_types[0];
+            var contentArea = $('<div class="ge-content"/>');
+
+            if (type) {
+                contentArea.addClass('ge-content-type-' + type).attr('data-ge-content-type', type);
+            }
+
+            return contentArea;
         }
 
         /**
@@ -3810,6 +3899,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         var handle = {
             getHtml: getHtml,
+            getPlainHtml: getPlainHtml,
             // init and reset are deferred when a handler calls them, so an
             // operation in flight finishes before the canvas is rebuilt
             init: function() { defer(init); },

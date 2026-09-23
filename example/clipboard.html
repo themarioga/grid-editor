@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/jquery.grideditor.min.js"></script>
+    <!-- Copy and paste is a plugin of its own. The others are here so there
+         is a bit of everything to copy. -->
+    <script src="../dist/plugins/grideditor.clipboard.min.js"></script>
+    <script src="../dist/plugins/grideditor.sections.min.js"></script>
+    <script src="../dist/plugins/grideditor.tabs.min.js"></script>
+    <script src="../dist/plugins/grideditor.accordion.min.js"></script>
+    <script src="../dist/plugins/grideditor.elements.min.js"></script>
+
+    <script>
+        $(function() {
+            var settings = {
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                content_types: ['tinymce'],
+            };
+
+            $('#myGrid').gridEditor(settings);
+            $('#otherGrid').gridEditor(settings);
+
+            // A paste is an add like any other, with source 'paste'
+            $('#myGrid, #otherGrid').on('grideditor:after-add', function(e, payload) {
+                if (payload.source === 'paste') {
+                    $('#log').text('Pasted a ' + payload.kind + ' into ' + e.currentTarget.id);
+                }
+            });
+        });
+    </script>
+
+    <title>Grid Editor example - copy and paste</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container py-3">
+        <h2>Copy and paste</h2>
+        <p class="text-body-secondary">
+            Every row, column, section, container and element has a
+            <i class="bi bi-copy"></i> copy tool in its drawer. Once something
+            is copied, a <i class="bi bi-clipboard-plus"></i> paste tool shows
+            wherever it can go: a row into a column or a section, a column into
+            a row, a container or an element into a column. Rows and sections
+            also get a <em>Paste</em> button in the toolbar, which can be
+            clicked or dragged to where the copy should land.
+        </p>
+        <p class="text-body-secondary">
+            What is copied is kept in the browser, so it can be pasted in the
+            other editor, after a reload, or in this page open in another tab.
+            <span id="log" class="fw-semibold"></span>
+        </p>
+
+        <h5 class="mt-4">One editor</h5>
+        <div id="myGrid">
+            <div class="row" id="intro">
+                <div class="col-lg-6">
+                    <h3>Copy this row</h3>
+                    <p>Then paste it into a column below, or into the other editor. Its id is renamed in the copy, so <a href="#intro">links to it</a> keep working.</p>
+                </div>
+                <div class="col-lg-6">
+                    <blockquote data-ge-element="quote">An element: copy it into another column.</blockquote>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-4"><p>A column to paste into.</p></div>
+                <div class="col-lg-4"><p>Another one.</p></div>
+                <div class="col-lg-4"><p>And a third.</p></div>
+            </div>
+        </div>
+
+        <h5 class="mt-4">Another editor</h5>
+        <div id="otherGrid">
+            <div class="row">
+                <div class="col-lg-12"><p>Paste here what you copied above.</p></div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

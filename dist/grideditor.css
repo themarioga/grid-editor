@@ -119,6 +119,8 @@
   /* Content area */
   /* The column size picker, offered by holding the add column tool. It
        hangs off the tool itself, so it comes away with the drawers */
+  /* The copy tool says it copied, for a moment, with the clipboard
+       plugin */
   /* Containers: tabs, accordions and popups. A container sits in a column
        beside the content areas, and each of its panes is an ordinary region */
   /* A pane's own drawer is small and sits with its label rather than
@@ -313,6 +315,9 @@
 }
 .ge-canvas.ge-editing .ge-tools-drawer > a {
   position: relative;
+}
+.ge-canvas.ge-editing .ge-tools-drawer > a.ge-copied {
+  color: #198754;
 }
 .ge-canvas.ge-editing .ge-size-picker {
   position: absolute;

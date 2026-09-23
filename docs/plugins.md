@@ -107,7 +107,7 @@ not change without a major version.
 | `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one |
 | `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
-| `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events |
+| `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete |
 | `ge.makeLabelEditable(label)` | Rename in place, with the Bootstrap toggle suspended while typing |
 | `ge.labelIn(button)` | The label span inside a button, wrapped if it is not already |
@@ -124,6 +124,8 @@ not change without a major version.
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 | `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
 | `ge.rowFromLayout(layout)` | A detached row from a layout: `[8, 4]`, `['auto', 'equal']` or `{ row_cols, columns }` |
+| `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
+| `ge.toolbarItems(name)` | The toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 
 The add, delete and move events for a container and its panes are fired by the
@@ -149,6 +151,7 @@ $.fn.gridEditor.features.elements = function(ge) {
         regions: '.ge-section',           // more lists those blocks move in
         accepts: function(region, node) { … },  // false turns a block away from a region
         toolbar: [{ labelKey: …, kind: …, create: function() { … } }],  // buttons beside the containers'
+        drawerTools: function(drawer, node, kind) { … },  // tools beside the gear, in every drawer
     };
 };
 ```
@@ -167,6 +170,12 @@ needs to put a new kind of block on the canvas:
   `create()` returns to the canvas, announced as `kind`; a drop puts it where it
   was dropped, or, when that region will not have it, on the canvas just after
   the block it was dropped in.
+
+- **`drawerTools(drawer, node, kind)`** runs for every drawer that has a gear,
+  as a utility plugin's does, so a tool can go on any node. The clipboard
+  plugin puts its copy and paste tools in with it.
+- A **`toolbar`** item can also have an `iconClass`, `bi bi-plus` otherwise,
+  and a `source` for the add events, `tool` or `dragdrop` otherwise.
 
 - **`onSortable(sortable)`** is handed the function the editor makes all of its
   own lists with. A plugin describes a list; it never touches the drag toolkit

@@ -52,7 +52,7 @@ async function dispatchTests(t) {
 
     var handle = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');
-        const names = ['getHtml', 'init', 'deinit', 'reset', 'destroy', 'remove', 'changeView',
+        const names = ['getHtml', 'getPlainHtml', 'init', 'deinit', 'reset', 'destroy', 'remove', 'changeView',
             'getView', 'createRow', 'createColumn', 'createElement', 'createContainer',
             'addTab', 'addAccordionItem', 'setLocale'];
         return {

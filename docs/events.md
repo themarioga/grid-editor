@@ -59,6 +59,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-utility` | — | yes | before a utility class is written, from the panel, a plugin's tool or `setUtility` |
 | `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
+| `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied |
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
 because the indent tools are an operation like any other and announce
@@ -122,7 +123,9 @@ screen, and its `source` is `panel`, `tool` or `api`.
 
 `source` matters to a host that both drives the editor from its own palette and
 listens for what the user does: `api` is your own call coming back to you,
-`tool` is a click in the editor, `dragdrop` is a gesture.
+`tool` is a click in the editor, `dragdrop` is a gesture, and `paste` is a node
+the clipboard plugin put in, from a paste tool or the toolbar. A paste is an add
+like any other, so canceling its `before-add-*` turns it away.
 
 `kind: 'content'` appears when a content area itself is dragged between
 columns. The kinds for containers are the container's own type, so a listener

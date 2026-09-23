@@ -5,6 +5,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- The `clipboard` plugin: copy and paste. Rows, columns, sections, containers
+  and elements get a *Copy* tool; a *Paste* tool shows wherever what is copied
+  can go, and the toolbar gets *Paste row* and *Paste section* buttons. What is
+  copied is kept in `localStorage`, so it reaches other editors, reloads and
+  other tabs. A pasted copy takes new ids where the page already has them, and
+  its Bootstrap wiring follows. Pastes go through the add events with
+  `source: 'paste'`; a copy fires `grideditor:after-copy`. See
+  [example/clipboard.html](example/clipboard.html).
+- For plugins: a feature plugin can declare `drawerTools`, a toolbar item can
+  have an `iconClass` and a `source`, `ge.place` takes a `source`, and the
+  handle has `ge.nodeHtml(node)` and `ge.toolbarItems(name)`.
+- `getPlainHtml`: the markup `getHtml` returns without grid-editor's own
+  marking, for a page that publishes it. The `ge-*` classes, the `column`
+  class and the `data-ge-*` attributes are taken off, and a div left with
+  nothing on it (each content area, a bare element or container wrapper) is
+  replaced by its children. It is a one-way export; save `getHtml` to edit
+  again.
+
+### Fixed
+- With `content_types: []`, content areas were given a
+  `ge-content-type-undefined` class. They now name no type.
+- The drawers of sections and of tabs and accordions had their add tool
+  (*Add row*, *Add tab*, *Add item*) before the delete one, the other way
+  round from rows and columns. They now have delete first, then add.
+
 ## [5.0.0] - 2026-09-23
 ### Changed
 - **The all view writes one class.** A size or an offset set in the all view

@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
@@ -35,6 +35,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher | [live](https://themarioga.github.io/grid-editor/example/locale.html) |
 | [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/ckeditor.html) |
 | [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
+| [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
 | [example/autosave.html](example/autosave.html) | Saving the html as the user edits | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
 
@@ -76,7 +77,24 @@ $('#myGrid').gridEditor({
 });
 // Call this to get the result after the user has done some editing:
 var html = $('#myGrid').gridEditor('getHtml');
+
+// Or, for a page that only publishes the result and never edits it again:
+var published = $('#myGrid').gridEditor('getPlainHtml');
 ```
+
+`getHtml` keeps a little of the editor's own marking: the `column` class, the
+`div.ge-content` around each column's content, and the `ge-*` classes and
+`data-ge-*` attributes that say which rich text editor a content area uses and
+which parts are elements, tabs, accordions or popups. That marking is how the
+editor reads its markup back, so **save `getHtml`** for anything that will be
+edited again.
+
+`getPlainHtml` is the same markup with that marking taken off, and each
+`div.ge-content` replaced by what it holds. Bootstrap's own classes and
+attributes stay, so tabs, accordions and popups still work in a page that
+never loads grid-editor. It is a one-way export: loaded back into the editor,
+the rows, columns and text come back, but containers and elements are plain
+markup and the content areas lose their rich text editor.
 
 Methods
 -------
@@ -88,6 +106,7 @@ $('#myGrid').gridEditor('method', argument);
 | Method | Arguments | Returns | What it does |
 | --- | --- | --- | --- |
 | `getHtml` | — | `String` | The clean html: no drawers, no editor classes, no inline styles |
+| `getPlainHtml` | — | `String` | `getHtml` without grid-editor's marking (`ge-*`, `column`, `data-ge-*`), for publishing. It cannot be edited again as it was |
 | `init` | — | `this` | Run the editing pass over the canvas again. Safe to call after you inject markup |
 | `deinit` | — | `this` | Strip the editing furniture, leave the markup |
 | `reset` | — | `this` | `deinit()` then `init()` |
@@ -107,8 +126,9 @@ $('#myGrid').gridEditor('method', argument);
 | `setUtility` | `node`, `family`, `value`, `view?` | `Boolean` | Write it through the events; `null` is inherit. `false` if canceled or nothing changed |
 
 A method called on an element with no editor on it is a no-op that returns the
-set, so host code does not have to check first. `getHtml` is the exception: it
-returns the element's html either way.
+set, so host code does not have to check first. `getHtml` and `getPlainHtml`
+are the exception: they return the element's html either way, and
+`getPlainHtml` cleans it.
 
 The `create*` methods hand back the node they made rather than the jQuery set,
 because you need the node. It comes back **detached**: place it and call
@@ -489,6 +509,47 @@ $('#myGrid').gridEditor('createSection', { width: 'md', rows: [[6, 6]], appendTo
 ```
 
 __`sections`:__ `{ widths: ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'] }`, the widths the field offers.
+
+### Copy and paste
+
+A plugin:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.clipboard.min.js"></script>
+```
+
+Every row, column, section, container and element gets a *Copy* tool in its
+drawer. While something is copied, a *Paste* tool shows wherever it can go, and
+nowhere else:
+
+| Copied | Pasted into |
+| --- | --- |
+| a row | a column, a section, or the canvas from the toolbar's *Paste row* |
+| a column | a row |
+| a section | the canvas, from the toolbar's *Paste section* |
+| a container (tabs, accordion, popup, card) | a column |
+| an element | a column's content area |
+
+A paste goes at the end of where it was pasted; the toolbar's buttons can also
+be dragged to where the copy should land. Tabs and accordion items are not
+copied on their own: copy their container.
+
+What is copied is kept in `localStorage`, so it can be pasted in another
+editor on the page, after a reload, or in another tab of the same site. A
+browser that denies the page its storage keeps it in memory, for the page. An
+editor that does not load the plugin a copy needs - a section without the
+sections plugin, tabs without the tabs plugin - offers no paste for it.
+
+The copy is what `getHtml` would give for that node. When it is pasted, any id
+it carries that the page already has is renamed - `ge-tab-…` ids get new
+generated ones, the host's own get a suffix, `hero` becoming `hero-2` - and
+whatever inside the copy pointed at the old id (`data-bs-target`,
+`data-bs-parent`, `href="#…"`, `aria-*`, a popup's trigger) points at the new
+one. So the tabs of a copy open the copy's panes, not the original's.
+
+A paste is an add like any other: `before-add-*` and `after-add-*` with
+`source: 'paste'`, and canceling the first turns it away. A copy fires
+`grideditor:after-copy`.
 
 ### Containers
 

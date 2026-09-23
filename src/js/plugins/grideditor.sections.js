@@ -124,14 +124,14 @@ $.fn.gridEditor.features.sections = function(ge) {
         ge.createMoveTool(drawer);
         ge.addSettingsTool(drawer, section, ge.settings.section_classes || []).append(widthField(section));
 
-        ge.createTool(drawer, ge.t('tool.add_row_to_section'), 'ge-add-row', 'bi bi-plus-circle', function() {
-            ge.place(ge.rowFromLayout([12]), 'row', { appendTo: section });
-        });
-
         ge.createTool(drawer, ge.t('tool.delete_section'), 'ge-delete-section', 'bi bi-trash', function() {
             ge.deleteNode('section', section, ge.t('confirm.delete_section'), function(removed) {
                 section.slideUp(removed);
             });
+        });
+
+        ge.createTool(drawer, ge.t('tool.add_row_to_section'), 'ge-add-row', 'bi bi-plus-circle', function() {
+            ge.place(ge.rowFromLayout([12]), 'row', { appendTo: section });
         });
     }
 

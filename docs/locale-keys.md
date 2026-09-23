@@ -100,6 +100,19 @@ The sections plugin: Bootstrap's `.container` and its kin, on the canvas.
 | `confirm.delete_section` | Delete this section and everything in it? | Asked before a section is deleted |
 
 
+clipboard.*
+-----------
+
+The clipboard plugin: copy and paste.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `tool.copy` | Copy | Row, column, section, container and element drawers |
+| `tool.paste` | Paste | Column, row and section drawers, while something that fits there is copied |
+| `clipboard.paste_row` | Paste row | Toolbar button, while a row is copied |
+| `clipboard.paste_section` | Paste section | Toolbar button, while a section is copied |
+
+
 confirm.*
 ---------
 

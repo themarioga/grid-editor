@@ -59,8 +59,8 @@ async function controlTests(t, page) {
             widths: s.find('> .ge-tools-drawer .ge-section-width option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
         };
     `);
-    t.check('a container on the canvas is a section, with move, settings, add row and delete',
-        marked.section && marked.tools === 'ge-move,ge-settings,ge-add-row,ge-delete-section', marked);
+    t.check('a container on the canvas is a section, with move, settings, delete and add row, in the order rows and columns use',
+        marked.section && marked.tools === 'ge-move,ge-settings,ge-delete-section,ge-add-row', marked);
     t.check('a container inside an element\'s markup is left alone',
         !marked.nested, marked);
     t.check('the toolbar offers a section, and the width field every container',
