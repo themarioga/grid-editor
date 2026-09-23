@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.card.min.js"></script>
+    <script src="../dist/plugins/grideditor.elements.min.js"></script>
+
+    <style>
+        /* The drawer tool of a node that has an animation set. Under the
+           canvas's id, to outweigh the colour the editor gives each kind of
+           drawer's tools */
+        #myGrid .ge-tools-drawer > a.my-animation-tool.my-animation-set {
+            color: #d63384;
+        }
+    </style>
+
+    <!-- A plugin of this page's own: a drawer tool that opens a modal, and
+         what the user chooses there saved as an attribute on the node. -->
+    <script id="animation-plugin">
+        (function($) {
+
+            $.extend($.fn.gridEditor.locales.en, {
+                'animation.tool': 'Animation',
+                'animation.title': 'Animate on scroll',
+                'animation.effect': 'Effect',
+                'animation.none': 'None',
+                'animation.fade': 'Fade in',
+                'animation.slide': 'Slide up',
+                'animation.zoom': 'Zoom in',
+                'animation.duration': 'Duration (ms)',
+                'animation.delay': 'Delay (ms)',
+                'animation.once': 'Only the first time it scrolls into view',
+                'animation.cancel': 'Cancel',
+                'animation.save': 'Save',
+            });
+
+            // Not data-ge-*: getPlainHtml takes those off, and this has to
+            // reach the published page
+            var ATTRIBUTE = 'data-animation';
+            var EFFECTS = ['fade', 'slide', 'zoom'];
+
+            $.fn.gridEditor.features.animation = function(ge) {
+
+                var modal = null;
+
+                function read(node) {
+                    try {
+                        return JSON.parse(node.attr(ATTRIBUTE) || 'null');
+                    } catch (error) {
+                        return null;
+                    }
+                }
+
+                /**
+                 * An element lives inside a content area, and while a rich
+                 * text editor is open there, a change it does not know about
+                 * is one its undo would take back: undoing the next thing the
+                 * user types restores a snapshot from before the attribute.
+                 * Made through tinyMCE's undo manager, it is a step of its
+                 * own, which undo and redo treat like any other.
+                 */
+                function write(node, value) {
+                    var apply = function() {
+                        if (value) {
+                            node.attr(ATTRIBUTE, JSON.stringify(value));
+                        } else {
+                            node.removeAttr(ATTRIBUTE);
+                        }
+                    };
+                    var editor = editorAround(node);
+
+                    if (editor) {
+                        editor.undoManager.transact(apply);
+                    } else {
+                        apply();
+                    }
+                }
+
+                /** The tinyMCE editor open on the content area around node, if there is one. */
+                function editorAround(node) {
+                    var area = node.closest('.ge-content');
+                    if (!area.length || !window.tinymce) { return null; }
+
+                    return window.tinymce.get().filter(function(editor) {
+                        return editor.getBody && editor.getBody() === area[0];
+                    })[0] || null;
+                }
+
+                /** Built once, outside the canvas, so it is never part of getHtml. */
+                function dialog() {
+                    if (modal) { return modal; }
+
+                    var effects = $('<select class="form-select" name="effect" />')
+                        .append($('<option value="" />').text(ge.t('animation.none')));
+                    EFFECTS.forEach(function(effect) {
+                        effects.append($('<option />').val(effect).text(ge.t('animation.' + effect)));
+                    });
+
+                    var field = function(label, input) {
+                        return $('<div class="mb-3" />')
+                            .append($('<label class="form-label" />').text(ge.t(label)))
+                            .append(input);
+                    };
+
+                    modal = $(
+                        '<div class="modal fade my-animation-modal" tabindex="-1" aria-hidden="true">' +
+                            '<div class="modal-dialog modal-dialog-centered"><form class="modal-content">' +
+                                '<div class="modal-header">' +
+                                    '<h5 class="modal-title"></h5>' +
+                                    '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+                                '</div>' +
+                                '<div class="modal-body"></div>' +
+                                '<div class="modal-footer">' +
+                                    '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"></button>' +
+                                    '<button type="submit" class="btn btn-primary"></button>' +
+                                '</div>' +
+                            '</form></div>' +
+                        '</div>'
+                    ).appendTo('body');
+
+                    modal.find('.modal-title').text(ge.t('animation.title'));
+                    modal.find('.modal-footer .btn-secondary').text(ge.t('animation.cancel'));
+                    modal.find('.modal-footer .btn-primary').text(ge.t('animation.save'));
+                    modal.find('.modal-body')
+                        .append(field('animation.effect', effects))
+                        .append(field('animation.duration', '<input class="form-control" type="number" name="duration" min="0" step="100">'))
+                        .append(field('animation.delay', '<input class="form-control" type="number" name="delay" min="0" step="100">'))
+                        .append($('<div class="form-check" />')
+                            .append('<input class="form-check-input" type="checkbox" name="once" id="my-animation-once">')
+                            .append($('<label class="form-check-label" for="my-animation-once" />').text(ge.t('animation.once'))));
+
+                    return modal;
+                }
+
+                function open(node, kind, tool) {
+                    var form = dialog().find('form');
+                    var current = read(node) || {};
+
+                    form.find('[name=effect]').val(current.effect || '');
+                    form.find('[name=duration]').val(current.duration || 600);
+                    form.find('[name=delay]').val(current.delay || 0);
+                    form.find('[name=once]').prop('checked', current.once !== false);
+
+                    form.off('submit').on('submit', function(e) {
+                        e.preventDefault();
+
+                        var effect = form.find('[name=effect]').val();
+                        var value = effect ? {
+                            effect: effect,
+                            duration: parseInt(form.find('[name=duration]').val(), 10) || 0,
+                            delay: parseInt(form.find('[name=delay]').val(), 10) || 0,
+                            once: form.find('[name=once]').prop('checked'),
+                        } : null;
+
+                        var from = read(node);
+                        write(node, value);
+                        tool.toggleClass('my-animation-set', !!value);
+
+                        // Announced like the editor's own changes, for a host
+                        // that listens: grideditor:animation-change
+                        ge.emit('animation-change', ge.payloadFor(kind, node, {
+                            source: 'tool', from: from, to: value,
+                        }));
+
+                        window.bootstrap.Modal.getInstance(modal[0]).hide();
+                    });
+
+                    window.bootstrap.Modal.getOrCreateInstance(modal[0]).show();
+                }
+
+                return {
+                    // Every drawer that has a gear, and the kind of its node:
+                    // a row, a column, an element, a container's type, a pane
+                    drawerTools: function(drawer, node, kind) {
+                        var animated = ['row', 'column', 'section', 'element'].indexOf(kind) !== -1 ||
+                            !!$.fn.gridEditor.containers[kind];
+                        if (!animated) { return; }
+
+                        ge.createTool(drawer, ge.t('animation.tool'), 'my-animation-tool', 'bi bi-magic', function() {
+                            open(node, kind, tool);
+                        });
+
+                        // Drawers are built again on every init, so the tool
+                        // reads the node rather than remembering anything
+                        var tool = drawer.children('.my-animation-tool').last()
+                            .toggleClass('my-animation-set', !!read(node));
+                    },
+                };
+            };
+
+        })(jQuery);
+    </script>
+
+    <script>
+        $(function() {
+            $('#animation-source').text($('#animation-plugin').text().trim().replace(/^ {8}/gm, ''));
+
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                content_types: ['tinymce'],
+            });
+
+            $('#myGrid').on('grideditor:animation-change', function(e, payload) {
+                $('#log').text('The ' + payload.kind + ' now animates: ' +
+                    (payload.to ? payload.to.effect : 'no'));
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getPlainHtml'));
+            });
+
+            // The published page: the plain html, and a few lines of the
+            // host's own that read data-animation. Nothing of grid-editor.
+            $('#published').on('click', function() {
+                var html = $('#myGrid').gridEditor('getPlainHtml');
+                var page = window.open('', '_blank');
+
+                page.document.write(
+                    '<!DOCTYPE html><html><head>' +
+                    '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">' +
+                    '<style>' +
+                        '[data-animation] { transition-property: opacity, transform; }' +
+                        '.animate-waiting { opacity: 0; }' +
+                        '.animate-waiting.animate-slide { transform: translateY(40px); }' +
+                        '.animate-waiting.animate-zoom { transform: scale(.85); }' +
+                        'body { padding-bottom: 60vh; }' +
+                        '.scroll-hint { height: 100vh; }' +
+                    '</style>' +
+                    '</head><body>' +
+                    '<div class="container scroll-hint d-flex align-items-center justify-content-center text-body-secondary">' +
+                        'Scroll down: each node animates as it comes into view' +
+                    '</div>' +
+                    '<div class="container">' + html + '</div>' +
+                    '<script>' + $('#runtime').text() + '<\/script>' +
+                    '</body></html>'
+                );
+                page.document.close();
+            });
+        });
+    </script>
+
+    <!-- What the published page runs: not grid-editor's, the host's -->
+    <script type="text/plain" id="runtime">
+        document.querySelectorAll('[data-animation]').forEach(function(node) {
+            var options = JSON.parse(node.getAttribute('data-animation'));
+            node.style.transitionDuration = options.duration + 'ms';
+            node.style.transitionDelay = options.delay + 'ms';
+            // Prefixed: Bootstrap has a .fade class of its own
+            node.classList.add('animate-waiting', 'animate-' + options.effect);
+
+            new IntersectionObserver(function(entries, observer) {
+                entries.forEach(function(entry) {
+                    node.classList.toggle('animate-waiting', !entry.isIntersecting);
+                    if (entry.isIntersecting && options.once) { observer.disconnect(); }
+                });
+            }, { threshold: 0.2 }).observe(node);
+        });
+    </script>
+
+    <title>Grid Editor example - a plugin with a modal</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-9">
+                <h1 class="h4">A plugin with a modal</h1>
+                <p class="form-text">
+                    The <i class="bi bi-magic"></i> tool in the drawer of a row,
+                    a column, a card or an element is a plugin written on this
+                    page. It opens a modal, and what you choose there is saved
+                    on the node as a <code>data-animation</code> attribute, which
+                    <code>getPlainHtml</code> keeps: only <code>data-ge-*</code>
+                    attributes are the editor&rsquo;s to take off. A node with
+                    an animation has its tool highlighted.
+                </p>
+                <p class="form-text">
+                    The quote is an element, inside text tinyMCE edits. Open the
+                    editor there, set an animation on the quote, keep typing
+                    and press <kbd>Ctrl</kbd>+<kbd>Z</kbd>: the text goes, the
+                    animation stays, because the plugin wrote it through
+                    tinyMCE&rsquo;s undo manager. Written behind its back,
+                    undoing the typing would undo the attribute with it.
+                </p>
+                <p class="form-text">
+                    <em>Open as a published page</em> puts the plain html in a
+                    page of its own, with a few lines that read the attribute
+                    and animate each node as it scrolls into view.
+                    <span id="log" class="fw-semibold"></span>
+                </p>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show getPlainHtml</button>
+                <button class="btn btn-sm btn-primary" id="published" type="button">Open as a published page</button>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+            <div class="row" data-animation='{"effect":"fade","duration":800,"delay":0,"once":true}'>
+                <div class="col-lg-12">
+                    <h2>This row fades in</h2>
+                    <p>It came with its animation already set, in the markup the editor was started on.</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-6">
+                    <p>Ordinary text, edited by tinyMCE.</p>
+                    <blockquote class="blockquote" data-ge-element="quote" data-ge-label="Quote">
+                        <p>An element: give it an animation while you edit the text around it.</p>
+                    </blockquote>
+                    <p>More text, after the element.</p>
+                </div>
+                <div class="col-lg-6">
+                    <div data-ge-container="card">
+                        <div class="card">
+                            <div class="card-header">A card</div>
+                            <div class="card-body">
+                                <div class="row"><div class="col-lg-12">
+                                    <p>Containers take the tool too.</p>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row my-4">
+            <div class="col-lg-10">
+                <h2 class="h5">The plugin, in full</h2>
+                <p class="form-text">
+                    A feature plugin: <code>drawerTools</code> puts a tool in
+                    every drawer that has a gear, and the kind says whose drawer
+                    it is. See <a href="../docs/plugins.md">docs/plugins.md</a>.
+                </p>
+                <pre class="border rounded p-3 bg-light"><code id="animation-source"></code></pre>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

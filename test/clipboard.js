@@ -129,6 +129,25 @@ async function rowTests(t) {
     t.check('the toolbar\'s paste button is an icon on the right, beside source and preview',
         placed.inEnd && placed.iconOnly && placed.beforeSource && placed.sectionStays, placed);
 
+    // The other paste button is hidden, not gone, and Bootstrap's btn-group
+    // rules would square off the corners the two share
+    var ROUNDED = `
+        const shown = jQuery('.ge-mainControls [data-ge-feature="clipboard"]').filter(function() {
+            return this.style.display !== 'none';
+        }).first()[0];
+        const style = getComputedStyle(shown);
+        return ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius']
+            .map(function(corner) { return style[corner]; });
+    `;
+    var rowCorners = await page.eval(ROUNDED);
+    var sectionCorners = await page.eval(`
+        jQuery('#myGrid .ge-section > .ge-tools-drawer > .ge-copy').trigger('click');
+    ` + ROUNDED);
+    await page.eval(`jQuery('#hero > .ge-tools-drawer > .ge-copy').trigger('click');`);
+    var rounded = function(corners) { return corners.every(function(radius) { return parseFloat(radius) > 0; }); };
+    t.check('whichever paste button shows, all four of its corners are rounded',
+        rounded(rowCorners) && rounded(sectionCorners), { row: rowCorners, section: sectionCorners });
+
     var pasted = await page.eval(`
         const target = jQuery('#myGrid .row').eq(1).children('.column').first();
         target.children('.ge-tools-drawer').children('.ge-paste').trigger('click');

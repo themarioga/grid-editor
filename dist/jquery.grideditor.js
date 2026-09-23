@@ -894,7 +894,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             // Add row
             addRowGroup = $('<div class="ge-addRowGroup btn-group" />').appendTo(wrapper);
-            addContainerGroup = $('<div class="ge-addContainerGroup btn-group" />');
+            addContainerGroup = $('<div class="ge-addContainerGroup btn-group ms-1" />');
             $.each(settings.new_row_layouts, function(j, layout) {
                 var grouped = !Array.isArray(layout);
                 var btn = $('<a class="btn btn-sm btn-primary" />')
@@ -1040,9 +1040,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             ;
 
             // Floated right after the source and preview buttons, so it
-            // stands to their left
+            // stands to their left. Not a btn-group: its buttons show one at
+            // a time, and a hidden one still counts as a neighbour to
+            // Bootstrap, which squares off the corners they would share.
             if (endItems.length) {
-                $('<div class="btn-group pull-right ge-toolbar-end" />')
+                $('<div class="pull-right ge-toolbar-end" />')
                     .append(endItems)
                     .appendTo(wrapper)
                 ;
@@ -4314,6 +4316,14 @@ $.fn.gridEditor.locales = {
                         // had in there is gone. Saying so lets it put its own
                         // furniture back (see RTE_READY in the core).
                         contentArea.trigger('ge-rte-ready');
+
+                        // Undo and redo rewrite it too, from snapshots that
+                        // leave out whatever is marked data-mce-bogus - an
+                        // element's drawer among them - so it goes back in
+                        // after each of those as well
+                        editor.on('Undo Redo', function() {
+                            contentArea.trigger('ge-rte-ready');
+                        });
 
                         // The inline toolbar is laid out against the element's
                         // geometry at the moment tinyMCE draws it, and an

@@ -48,6 +48,9 @@
 .ge-mainControls .ge-toolbar-end {
   margin-right: 5px;
 }
+.ge-mainControls .ge-toolbar-end > .btn + .btn {
+  margin-left: 5px;
+}
 .ge-mainControls .btn:focus {
   box-shadow: none;
   outline: none;

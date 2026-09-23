@@ -64,6 +64,14 @@
                         // furniture back (see RTE_READY in the core).
                         contentArea.trigger('ge-rte-ready');
 
+                        // Undo and redo rewrite it too, from snapshots that
+                        // leave out whatever is marked data-mce-bogus - an
+                        // element's drawer among them - so it goes back in
+                        // after each of those as well
+                        editor.on('Undo Redo', function() {
+                            contentArea.trigger('ge-rte-ready');
+                        });
+
                         // The inline toolbar is laid out against the element's
                         // geometry at the moment tinyMCE draws it, and an
                         // element that has just appeared - a tab pane, an

@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- [example/attributes.html](example/attributes.html): a plugin of the page's
+  own that puts a tool in the drawers, opens a modal, and saves what the user
+  chose as a `data-animation` attribute that `getPlainHtml` keeps. It writes
+  through tinyMCE's undo manager for an element inside text being edited, and
+  [docs/plugins.md](docs/plugins.md) says why.
+
+### Fixed
+- Undo and redo in tinyMCE took an element's drawer away, until the editor
+  was closed: they rewrite the content area from snapshots that leave the
+  drawer out. It goes back in after each of them now.
+- The toolbar's paste button lost the rounded corners on one side: it was in
+  a btn-group with the other paste button, which is hidden but still counted
+  by Bootstrap's rules. They are in a plain group now.
+
+### Changed
+- The toolbar's add row buttons and the container buttons beside them have a
+  small gap between the two groups (`ms-1`).
+
 ## [5.1.1] - 2026-09-23
 ### Changed
 - The clipboard plugin's toolbar paste button is an icon on the right of the

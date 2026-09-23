@@ -28,6 +28,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas | [live](https://themarioga.github.io/grid-editor/example/basic.html) |
 | [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view | [live](https://themarioga.github.io/grid-editor/example/breakpoints.html) |
 | [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
+| [example/attributes.html](example/attributes.html) | A plugin of your own: a drawer tool, a modal, and its settings saved as an attribute | [live](https://themarioga.github.io/grid-editor/example/attributes.html) |
 | [example/containers.html](example/containers.html) | Tabs, accordions, popups and cards, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
 | [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output | [live](https://themarioga.github.io/grid-editor/example/elements.html) |
 | [example/autocols.html](example/autocols.html) | Equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/autocols.html) |

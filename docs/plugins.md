@@ -174,6 +174,37 @@ needs to put a new kind of block on the canvas:
 - **`drawerTools(drawer, node, kind)`** runs for every drawer that has a gear,
   as a utility plugin's does, so a tool can go on any node. The clipboard
   plugin puts its copy and paste tools in with it.
+
+### Settings of your own, saved on the node
+
+A tool that opens a dialog and saves what the user chose on the node is a
+feature plugin with `drawerTools` and nothing else.
+[example/attributes.html](../example/attributes.html) is one, in full: an
+animation for rows, columns, containers and elements, kept in a
+`data-animation` attribute. Three things to get right:
+
+- **The attribute's name.** Anything but `data-ge-*`, which `getPlainHtml`
+  takes off. `getHtml` keeps every attribute that is not the editor's.
+- **The dialog lives outside the canvas**, appended to `body`, so it is never
+  part of the markup.
+- **An element sits inside text a rich text editor may be editing.** Written
+  behind its back, the attribute is lost the next time the user undoes
+  something: undo restores a snapshot from before it. With tinyMCE, write it
+  through the editor's undo manager, and it becomes a step of its own:
+
+  ```javascript
+  var area = node.closest('.ge-content')[0];
+  var editor = window.tinymce && tinymce.get().filter(function(e) { return e.getBody() === area; })[0];
+  var apply = function() { node.attr('data-animation', JSON.stringify(value)); };
+
+  if (editor) { editor.undoManager.transact(apply); } else { apply(); }
+  ```
+
+  Rows, columns, sections and containers are outside any content area, and a
+  plain `attr()` is all they need.
+
+A node's drawer is built again on every `init`, so a tool reads the node
+rather than remembering anything about it.
 - A **`toolbar`** item can also have an `iconClass`, `bi bi-plus` otherwise,
   and a `source` for the add events, `tool` or `dragdrop` otherwise. With
   `align: 'end'` it goes on the right of the toolbar, beside the source and

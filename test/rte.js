@@ -229,7 +229,7 @@ async function tinymceTests(t) {
     t.check('example/basic.html logged no errors', errors.length === 0, errors.slice(0, 5));
 
     // The other two pages wiring up tinyMCE
-    for (var name of ['autosave.html', 'wrap_content.html']) {
+    for (var name of ['autosave.html', 'wrap_content.html', 'clipboard.html']) {
         var other = await t.page('/example/' + name);
         await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
 
@@ -489,6 +489,102 @@ async function otherEditorTests(t) {
         'example/summernote.html cannot initialize an editor at all.');
 }
 
+/**
+ * example/attributes.html: a plugin of the page's own that saves a modal's
+ * settings as an attribute, on an element inside text tinyMCE is editing.
+ * The attribute has to survive the user undoing their typing, which it only
+ * does because the plugin writes it through tinyMCE's undo manager, and it
+ * has to come out of getPlainHtml.
+ */
+async function attributePluginTests(t) {
+    var page = await t.page('/example/attributes.html',
+        `window.tinymce && jQuery('#myGrid').data('grideditor')`);
+
+    var tools = await page.eval(`
+        const tool = function(node) { return jQuery(node).children('.ge-tools-drawer').children('.my-animation-tool'); };
+        return {
+            rows: jQuery('#myGrid .row').get().every(function(row) { return tool(row).length === 1; }),
+            columns: jQuery('#myGrid .column').get().every(function(column) { return tool(column).length === 1; }),
+            card: tool(jQuery('#myGrid [data-ge-container="card"]')).length,
+            element: tool(jQuery('#myGrid .ge-element')).length,
+            presetHighlighted: tool(jQuery('#myGrid > .row').first()).hasClass('my-animation-set'),
+            othersPlain: tool(jQuery('#myGrid > .row').eq(1)).hasClass('my-animation-set'),
+        };
+    `);
+    t.check('example/attributes.html puts its tool on rows, columns, containers and elements',
+        tools.rows && tools.columns && tools.card === 1 && tools.element === 1 &&
+        tools.presetHighlighted && !tools.othersPlain,
+        tools);
+
+    // Open tinyMCE on the text around the quote, and type
+    await page.eval(`jQuery('#myGrid .ge-element').closest('.ge-content').trigger('click'); return 1;`);
+    await page.waitFor(`tinymce.get().length === 1 && tinymce.get()[0].initialized`, { label: 'tinyMCE' });
+    await sleep(300);
+    await page.eval(`tinymce.get()[0].insertContent(' BEFORE-MODAL '); return 1;`);
+
+    // Set an animation on the quote through the modal, with the editor open
+    await page.eval(`jQuery('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool').trigger('click'); return 1;`);
+    await page.waitFor(`jQuery('.my-animation-modal').hasClass('show')`, { label: 'the modal' });
+    await sleep(400);
+    await page.eval(`
+        const form = jQuery('.my-animation-modal form');
+        form.find('[name=effect]').val('slide');
+        form.find('[name=duration]').val('500');
+        form.find('[name=delay]').val('100');
+        form.find('[name=once]').prop('checked', false);
+        return 1;
+    `);
+    await page.click('.my-animation-modal .modal-footer .btn-primary');
+    await page.waitFor(`!jQuery('.my-animation-modal').hasClass('show')`, { label: 'the modal closing' });
+
+    // Keep typing, then undo that
+    var undone = await page.eval(`
+        const editor = tinymce.get()[0];
+        editor.insertContent(' AFTER-MODAL ');
+        editor.undoManager.undo();
+        return {
+            editorStillOpen: tinymce.get().length === 1,
+            // tinyMCE's snapshots leave the drawer out, so an undo that did
+            // not put it back would leave the element with no tools at all
+            drawers: jQuery('#myGrid .ge-element').children('.ge-tools-drawer').length,
+            highlighted: jQuery('#myGrid .ge-element > .ge-tools-drawer > .my-animation-tool').hasClass('my-animation-set'),
+        };
+    `);
+
+    var exported = await page.eval(`
+        const plain = jQuery('#myGrid').gridEditor('getPlainHtml');
+        const root = document.createElement('div');
+        root.innerHTML = plain;
+        const quote = root.querySelector('blockquote');
+        return {
+            quote: quote && quote.getAttribute('data-animation'),
+            row: root.querySelector('.row').getAttribute('data-animation'),
+            text: root.textContent,
+            editorMarks: /data-ge-|ge-tools-drawer|my-animation-tool/.test(plain),
+            modalOutside: jQuery('#myGrid .my-animation-modal').length === 0 && jQuery('body > .my-animation-modal').length === 1,
+        };
+    `);
+    var quote = null;
+    try { quote = JSON.parse(exported.quote); } catch (error) { quote = null; }
+
+    t.check('the modal saves its settings on the element as data-animation',
+        !!quote && quote.effect === 'slide' && quote.duration === 500 && quote.delay === 100 && quote.once === false &&
+        undone.highlighted && undone.editorStillOpen,
+        { undone: undone, exported: exported });
+    t.check('an element keeps its drawer through an undo in tinyMCE',
+        undone.drawers === 1, undone);
+    t.check('undoing the typing after it, in tinyMCE, keeps the attribute and undoes the typing',
+        !!quote && exported.text.indexOf('AFTER-MODAL') === -1 && exported.text.indexOf('BEFORE-MODAL') !== -1,
+        exported);
+    t.check('getPlainHtml keeps data-animation, preset and new, and nothing of the editor\'s',
+        exported.row === '{"effect":"fade","duration":800,"delay":0,"once":true}' && !!quote &&
+        !exported.editorMarks && exported.modalOutside,
+        exported);
+
+    var errors = page.errors();
+    t.check('example/attributes.html logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'rte',
     description: 'rich text editor integrations',
@@ -498,6 +594,7 @@ module.exports = {
         await elementTests(t);
         await utilityTests(t);
         await containerTests(t);
+        await attributePluginTests(t);
         await otherEditorTests(t);
     },
 };
