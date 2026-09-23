@@ -465,6 +465,10 @@ async function dragTests(t) {
         listen();
         return true;
     `);
+    // The drawer shows over the text once the pointer is on it, as a
+    // person's would be before they reached for the handle
+    await page.hover('#moving');
+    await t.sleep(200);
     await page.drag('#moving > .ge-tools-drawer .ge-move', '#right', { yRatio: 0.9, steps: 16 });
     var moved = await page.eval(`
         return {
@@ -514,6 +518,63 @@ async function utilityTests(t) {
     t.check('the text utility tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** The text drawer sits over the text and shows only while it is wanted. */
+async function overlayTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SETUP);
+
+    var STATE = `
+        const block = jQuery('#over');
+        const drawer = block.children('.ge-tools-drawer')[0];
+        const style = getComputedStyle(drawer);
+        return {
+            visibility: style.visibility,
+            position: style.position,
+            blockHeight: Math.round(block[0].getBoundingClientRect().height),
+            areaHeight: Math.round(block.children('.ge-content')[0].getBoundingClientRect().height),
+            spans: Math.round(drawer.getBoundingClientRect().width) === Math.round(block[0].getBoundingClientRect().width),
+        };
+    `;
+
+    await page.eval(`
+        restart();
+        jQuery('#myGrid .ge-text-block').first().attr('id', 'over');
+        return true;
+    `);
+    await page.hover('.ge-mainControls');
+    await t.sleep(300);
+    var away = await page.eval(STATE);
+    t.check('a text\'s drawer takes no room: the text block is as tall as its content area',
+        away.position === 'absolute' && away.blockHeight === away.areaHeight, away);
+    t.check('and is hidden while the pointer is elsewhere', away.visibility === 'hidden', away);
+
+    await page.hover('#over');
+    await t.sleep(200);
+    var over = await page.eval(STATE);
+    t.check('the pointer over the text shows it', over.visibility === 'visible' && !over.spans, over);
+
+    await page.eval(`jQuery('#over > .ge-content').trigger('click'); return true;`);
+    await page.hover('.ge-mainControls');
+    await t.sleep(300);
+    var editing = await page.eval(STATE);
+    t.check('it stays while the text is being edited, wherever the pointer is', editing.visibility === 'visible', editing);
+
+    await page.eval(`
+        jQuery('#myGrid').gridEditor('deinit');
+        jQuery('#myGrid').gridEditor('init');
+        jQuery('#myGrid .ge-text-block').first().attr('id', 'over');
+        jQuery('#over > .ge-tools-drawer > .ge-settings').trigger('click');
+        return true;
+    `);
+    await t.sleep(300);
+    var settings = await page.eval(STATE);
+    t.check('and while its settings are open, across the text so the panel has room',
+        settings.visibility === 'visible' && settings.spans, settings);
+
+    var errors = page.errors();
+    t.check('the overlay tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'texts',
     description: 'text blocks, and the text editor plugins\' contract, the bundle\'s copies and the RTEs adapter',
@@ -523,6 +584,7 @@ module.exports = {
         await blockTests(t);
         await choiceTests(t);
         await dragTests(t);
+        await overlayTests(t);
         await utilityTests(t);
     },
 };

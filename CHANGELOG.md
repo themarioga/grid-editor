@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Changed
+- A text's drawer sits over the text's top right corner instead of in a bar
+  above it, and takes no room: in 5.3.0 every text made its column about
+  35px taller. It shows while the pointer is over the text, while the text is
+  being edited or holds the focus, while its settings are open (across the
+  text then, so the panel has room) and during a drag.
+
 ## [5.3.0] - 2026-09-23
 ### Added
 - **Text as a block.** Each content area in a column is a text block while

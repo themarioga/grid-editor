@@ -411,7 +411,9 @@ it, and a drawer of its own - move, which editor, settings, the host's
 clipboard copies it, and spacing, text alignment and visibility apply to it.
 The markup does not change: the drawer sits beside the content area in a
 wrapper that only exists while editing, because inside it the text editor would
-take it for text.
+take it for text. It sits over the text's top right corner and takes no room,
+showing while the pointer is over the text, while the text is being edited or
+holds the focus, and while its settings are open.
 
 A column's drawer has an *Add text* tool, and the toolbar a *Text* button, one
 per editor when `content_types` offers several (*Text (tinyMCE)*, *Text

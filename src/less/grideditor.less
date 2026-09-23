@@ -558,8 +558,25 @@
         outline: 1px dashed fadeout(@textColor, 40%);
         margin-bottom: @editGutter;
 
+        /* Over the text rather than above it: nearly every column has a
+           text, and a bar for each would make every column taller. It shows
+           while it is wanted - the pointer over the text, the text being
+           edited or holding the focus, its settings open, a drag under way -
+           and takes no room either way. */
         > .ge-text-drawer {
-            background: fadeout(@textColor, 88%);
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 5;
+            width: auto;
+            margin: 0;
+            border-radius: 0 0 0 4px;
+            background: mix(@textColor, #fff, 18%);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            visibility: hidden;
+            /* Hidden only once it has faded, shown at once */
+            transition: opacity 120ms ease, visibility 0s linear 120ms;
 
             > a {
                 color: @textTextColor;
@@ -571,6 +588,25 @@
             > a.ge-text-missing {
                 color: #b02a37;
             }
+        }
+
+        &:hover,
+        &:focus-within,
+        &.ge-drag-chosen,
+        &:has(> .ge-rte-active),
+        &:has(> .ge-text-drawer.ge-picker-open),
+        &:has(> .ge-text-drawer > .ge-details[style*="block"]) {
+            > .ge-text-drawer {
+                opacity: 1;
+                visibility: visible;
+                transition-delay: 0s;
+            }
+        }
+
+        /* With its settings open it spans the text, so the panel has room */
+        &:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
+            left: 0;
+            border-radius: 0;
         }
     }
 

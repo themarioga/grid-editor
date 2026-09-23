@@ -483,9 +483,27 @@
   position: relative;
   outline: 1px dashed rgba(90, 111, 138, 0.6);
   margin-bottom: 5px;
+  /* Over the text rather than above it: nearly every column has a
+           text, and a bar for each would make every column taller. It shows
+           while it is wanted - the pointer over the text, the text being
+           edited or holding the focus, its settings open, a drag under way -
+           and takes no room either way. */
+  /* With its settings open it spans the text, so the panel has room */
 }
 .ge-canvas.ge-editing .ge-text-block > .ge-text-drawer {
-  background: rgba(90, 111, 138, 0.12);
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  width: auto;
+  margin: 0;
+  border-radius: 0 0 0 4px;
+  background: #e1e5ea;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  /* Hidden only once it has faded, shown at once */
+  transition: opacity 120ms ease, visibility 0s linear 120ms;
 }
 .ge-canvas.ge-editing .ge-text-block > .ge-text-drawer > a {
   color: #50637b;
@@ -496,6 +514,20 @@
 }
 .ge-canvas.ge-editing .ge-text-block > .ge-text-drawer > a.ge-text-missing {
   color: #b02a37;
+}
+.ge-canvas.ge-editing .ge-text-block:hover > .ge-text-drawer,
+.ge-canvas.ge-editing .ge-text-block:focus-within > .ge-text-drawer,
+.ge-canvas.ge-editing .ge-text-block.ge-drag-chosen > .ge-text-drawer,
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-rte-active) > .ge-text-drawer,
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer.ge-picker-open) > .ge-text-drawer,
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
+  left: 0;
+  border-radius: 0;
 }
 .ge-canvas.ge-editing .column:not(:has( > :not(.ge-tools-drawer, .ge-resize-handle)))::after {
   content: '';
