@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [5.3.1] - 2026-09-23
 ### Changed
 - A text's drawer sits over the text's top right corner instead of in a bar
   above it, and takes no room: in 5.3.0 every text made its column about
