@@ -14,6 +14,10 @@
  */
 (function($) {
 
+    $.extend($.fn.gridEditor.locales.en, {
+        'text.tinymce': 'tinyMCE',
+    });
+
     // tinyMCE snapshots the target element's attributes when an inline editor is
     // created and restores them on remove(), so this has to run *after* remove()
     // to keep the grid editor's own class and tinyMCE's leftovers off the element.
@@ -33,6 +37,7 @@
 
     $.fn.gridEditor.texts.tinymce = function(ge) {
         return {
+            labelKey: 'text.tinymce',
             initialContent: INITIAL_CONTENT,
             missingKey: 'error.tinymce_missing',
 

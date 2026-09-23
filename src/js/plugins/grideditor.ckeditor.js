@@ -14,6 +14,10 @@
  */
 (function($) {
 
+    $.extend($.fn.gridEditor.locales.en, {
+        'text.ckeditor': 'CKEditor',
+    });
+
     var INITIAL_CONTENT = '<p>Lorem initius... </p>';
 
     $.fn.gridEditor.texts.ckeditor = function(ge) {
@@ -36,6 +40,7 @@
         }
 
         return {
+            labelKey: 'text.ckeditor',
             initialContent: INITIAL_CONTENT,
             missingKey: 'error.ckeditor_missing',
 

@@ -2,8 +2,9 @@
  * Copy and paste for grid-editor.
  *
  * A feature plugin: load this file after the editor and every row, column,
- * section, container and element gets a copy tool, and every place one of
- * them can go gets a paste tool while there is something copied that fits.
+ * section, text block, container and element gets a copy tool, and every
+ * place one of them can go gets a paste tool while there is something copied
+ * that fits.
  * What it can ask the editor for is the handle its factory is called with,
  * described in docs/plugins.md.
  *
@@ -37,10 +38,10 @@ var editors = 0;
 /**
  * What each drawer takes when something is pasted into it, by the kind of the
  * node the drawer belongs to. A category is what was copied: a row, a column,
- * a section, a container of any type, an element.
+ * a section, a text block, a container of any type, an element.
  */
 var TARGETS = {
-    column: ['row', 'container', 'element'],
+    column: ['row', 'text', 'container', 'element'],
     row: ['column'],
     section: ['row'],
 };
@@ -117,7 +118,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
     function categoryOf(kind) {
         if ($.fn.gridEditor.containers[kind]) { return 'container'; }
 
-        return ['row', 'column', 'section', 'element'].indexOf(kind) !== -1 ? kind : null;
+        return ['row', 'column', 'section', 'text', 'element'].indexOf(kind) !== -1 ? kind : null;
     }
 
     function copy(node, kind) {
@@ -128,7 +129,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
 
         // The canvas came back with new drawers: the one to flash is the
         // node's new copy tool
-        var tool = node.children('.ge-tools-drawer').find('> .ge-copy');
+        var tool = ge.drawerOf(node).find('> .ge-copy');
         tool.addClass('ge-copied').find('i').attr('class', 'bi bi-check2');
         setTimeout(function() {
             tool.removeClass('ge-copied').find('i').attr('class', 'bi bi-copy');
@@ -145,7 +146,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
         // An element goes into the column's last content area. With none,
         // the column's next init wraps it in one of its own
         if (clip.category === 'element') {
-            var area = target.children('.ge-content').last();
+            var area = target.find('> .ge-text-block > .ge-content, > .ge-content').last();
             if (area.length) { into = area; }
         }
 

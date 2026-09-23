@@ -126,6 +126,7 @@ not change without a major version.
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
 | `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
 | `ge.rowFromLayout(layout)` | A detached row from a layout: `[8, 4]`, `['auto', 'equal']` or `{ row_cols, columns }` |
+| `ge.drawerOf(node)` | A node's drawer: its first child, or for a content area the one beside it in its text block |
 | `ge.textReady(block)` | A text editor has rewritten a content area: whatever the editor and its plugins put in there goes back in |
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
 | `ge.toolbarItems(name)` | The toolbar buttons the feature plugin `name` declared, for showing and hiding them |
@@ -176,7 +177,10 @@ needs to put a new kind of block on the canvas:
 
 - **`drawerTools(drawer, node, kind)`** runs for every drawer that has a gear,
   as a utility plugin's does, so a tool can go on any node. The clipboard
-  plugin puts its copy and paste tools in with it.
+  plugin puts its copy and paste tools in with it. A text block's drawer is
+  `kind: 'text'` with its content area as the node, and is not the node's
+  child: it sits beside it, in a wrapper that only exists while editing, so
+  `ge.drawerOf(node)` is how to find it.
 
 ### Settings of your own, saved on the node
 
@@ -265,7 +269,8 @@ and the three that ship, `grideditor.tinymce.js`, `grideditor.ckeditor.js` and
 ```javascript
 $.fn.gridEditor.texts.mytext = function(ge) {
     return {
-        initialContent: '<p>Write here</p>',   // what a new column's content area holds
+        labelKey: 'text.mytext',               // its name, in the toolbar and the drawer, optional
+        initialContent: '<p>Write here</p>',   // what a new text holds
         missingKey: 'error.mytext_missing',    // the error when the library is not loaded, optional
         available: function() { return !!window.MyText; },   // optional, true otherwise
 

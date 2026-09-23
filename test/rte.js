@@ -566,12 +566,13 @@ async function attributePluginTests(t) {
             columns: jQuery('#myGrid .column').get().every(function(column) { return tool(column).length === 1; }),
             card: tool(jQuery('#myGrid [data-ge-container="card"]')).length,
             element: tool(jQuery('#myGrid .ge-element')).length,
+            texts: jQuery('#myGrid .ge-text-block').get().every(function(block) { return tool(block).length === 1; }),
             presetHighlighted: tool(jQuery('#myGrid > .row').first()).hasClass('my-animation-set'),
             othersPlain: tool(jQuery('#myGrid > .row').eq(1)).hasClass('my-animation-set'),
         };
     `);
-    t.check('example/attributes.html puts its tool on rows, columns, containers and elements',
-        tools.rows && tools.columns && tools.card === 1 && tools.element === 1 &&
+    t.check('example/attributes.html puts its tool on rows, columns, texts, containers and elements',
+        tools.rows && tools.columns && tools.texts && tools.card === 1 && tools.element === 1 &&
         tools.presetHighlighted && !tools.othersPlain,
         tools);
 
@@ -644,6 +645,61 @@ async function attributePluginTests(t) {
     t.check('example/attributes.html logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * A text block's own attributes - its id and classes from the panel, a
+ * utility's class, a plugin's attribute - given while its editor is open.
+ * tinyMCE puts back the attributes it found when it opened, and every
+ * integration took the id off when it closed, so each of these used to be
+ * lost; and CKEditor left aria-readonly behind.
+ */
+async function textAttributeTests(t) {
+    var results = {};
+
+    for (var example of ['basic', 'ckeditor', 'summernote']) {
+        var page = await t.page('/example/' + example + '.html');
+        await page.waitFor(`jQuery('#myGrid').data('grideditor')`, { label: example });
+        await page.eval(`jQuery('#myGrid .ge-content').first().attr('id', 'kept-id'); return true;`);
+        await page.click('#kept-id');
+        await sleep(1800);
+
+        results[example] = await page.eval(`
+            const area = jQuery('#kept-id');
+            const open = area.hasClass('ge-rte-active');
+            const html = function() {
+                const root = document.createElement('div');
+                root.innerHTML = jQuery('#myGrid').gridEditor('getHtml');
+                const first = root.querySelector('.ge-content');
+                return Array.from(first.attributes).map(function(a) { return a.name + '=' + a.value; }).join(' | ');
+            };
+            const untouched = html();
+
+            jQuery('#kept-id').trigger('click');
+            return new Promise(function(resolve) {
+                setTimeout(function() {
+                    const reopened = jQuery('#kept-id');
+                    reopened.parent().find('> .ge-tools-drawer .ge-details .ge-id').val('given-id').trigger('change');
+                    jQuery('#given-id').addClass('host-class').attr('data-plugin', 'saved');
+                    resolve({ open: open, reopened: jQuery('#given-id').hasClass('ge-rte-active'), untouched: untouched, changed: html() });
+                }, 1800);
+            });
+        `);
+        results[example].errors = page.errors([/version is not secure/]);
+    }
+
+    ['basic', 'ckeditor', 'summernote'].forEach(function(name) {
+        var r = results[name];
+        var type = name === 'basic' ? 'tinymce' : name;
+        t.check('example/' + name + ': the content area keeps its id through an edit, and nothing of the editor\'s',
+            r.open && r.untouched === 'class=ge-content ge-content-type-' + type + ' | data-ge-content-type=' + type + ' | id=kept-id' &&
+            r.errors.length === 0,
+            r);
+        t.check('example/' + name + ': an id, a class and an attribute given while the editor is open are kept',
+            r.reopened && r.changed === 'class=ge-content ge-content-type-' + type + ' host-class | data-ge-content-type=' + type +
+                ' | id=given-id | data-plugin=saved',
+            r);
+    });
+}
+
 module.exports = {
     name: 'rte',
     description: 'rich text editor integrations',
@@ -654,6 +710,7 @@ module.exports = {
         await utilityTests(t);
         await containerTests(t);
         await attributePluginTests(t);
+        await textAttributeTests(t);
         await otherEditorTests(t);
     },
 };

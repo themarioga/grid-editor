@@ -5,6 +5,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- **Text as a block.** Each content area in a column is a text block while
+  editing, with a drawer of its own: move, which editor edits it, settings,
+  `text_tools`, delete. It drags between columns, the clipboard copies it
+  (a new `text` category, pasted into columns), and spacing, text alignment
+  and visibility apply to it. The drawer sits beside the content area rather
+  than inside it, where the text editor would take it for text, in a wrapper
+  `deinit` takes off: the markup is unchanged.
+- An *Add text* tool in each column's drawer, which offers every editor when
+  held, and a *Text* button in the toolbar per editor offered, to click or to
+  drag into a column.
+- `createText(type?, options?)`, and `before-add-text` / `after-add-text`,
+  with the generic add pair. Adding and deleting a text is `kind: 'text'`;
+  dragging one is still `kind: 'content'` until 6.0.
+- `text_tools` and `text_classes` settings; `labelKey` for a text editor
+  plugin; `ge.drawerOf(node)` in the handle.
+- An empty column keeps room to drop a block into.
+
+### Fixed
+- A content area lost its id whenever its text editor closed: every
+  integration took the id off, to remove the one an editor gives itself.
+- With tinyMCE, an id, a class or an attribute given to a content area while
+  its editor was open was lost when it closed: tinyMCE puts back the
+  attributes it found. And CKEditor left `aria-readonly` behind in `getHtml`.
+  The editor now plays the host's changes back onto the content area's own
+  attributes, whichever editor it is, and leaves the editor's out.
+- A drawer tool's title was spliced into markup, so a quote in it - a host
+  tool's title, a type name - cut it short. It is set as text now.
+- The content type a content area is edited with was read through jQuery's
+  data cache, and a changed `data-ge-content-type` went unnoticed. It is read
+  from the attribute.
+
 ## [5.2.0] - 2026-09-23
 ### Added
 - **Text editors are plugins.** tinyMCE, CKEditor and summernote are

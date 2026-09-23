@@ -100,6 +100,27 @@ The sections plugin: Bootstrap's `.container` and its kin, on the canvas.
 | `confirm.delete_section` | Delete this section and everything in it? | Asked before a section is deleted |
 
 
+text.*
+------
+
+Text blocks: a content area, the text editor that edits it, and its drawer.
+`{editor}` is an editor's label, one of the `text.<type>` keys below or, for a
+plugin with no label, its type.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `text.add` | Text | Toolbar button that adds a text block, when one editor is offered |
+| `text.add_type` | Text ({editor}) | The same, one per editor, when several are offered |
+| `text.no_editor` | No text editor "{type}" is loaded: this text can be moved and deleted, not edited | Text drawer, for a content area whose editor's plugin is not loaded |
+| `text.tinymce` | tinyMCE | The tinyMCE plugin's label |
+| `text.ckeditor` | CKEditor | The CKEditor plugin's label |
+| `text.summernote` | Summernote | The summernote plugin's label |
+| `tool.add_text` | Add text | Column drawer, adds a text block of the first editor offered |
+| `tool.add_text_type` | Add {editor} text | Title of each choice the add text tool offers, held, when several editors are |
+| `tool.text_info` | Text: {editor} | Text drawer, says which editor edits it |
+| `tool.delete_text` | Remove text | Text drawer |
+
+
 clipboard.*
 -----------
 
@@ -107,7 +128,7 @@ The clipboard plugin: copy and paste.
 
 | Key | English | Where |
 | --- | --- | --- |
-| `tool.copy` | Copy | Row, column, section, container and element drawers |
+| `tool.copy` | Copy | Row, column, section, text, container and element drawers |
 | `tool.paste` | Paste | Column, row and section drawers, while something that fits there is copied |
 | `clipboard.paste_row` | Paste row | Title of the toolbar's paste button, while a row is copied |
 | `clipboard.paste_section` | Paste section | Title of the toolbar's paste button, while a section is copied |
@@ -130,6 +151,7 @@ browser's own confirm instead.
 | `confirm.cancel` | Cancel | The button that does not, and the close button's label |
 | `confirm.delete_row` | Delete row? | Before a row is removed |
 | `confirm.delete_column` | Delete column? | Before a column is removed |
+| `confirm.delete_text` | Delete this text? | Before a text block is removed |
 | `confirm.delete_element` | Delete element? | Before an element is removed |
 | `confirm.delete_container` | Delete this container and everything in it? | Before a container is removed |
 | `confirm.delete_tab` | Delete this tab and everything in it? | Before a tab and its pane are removed |

@@ -14,10 +14,15 @@
  */
 (function($) {
 
+    $.extend($.fn.gridEditor.locales.en, {
+        'text.summernote': 'Summernote',
+    });
+
     var INITIAL_CONTENT = '<p>Lorem ipsum dolores</p>';
 
     $.fn.gridEditor.texts.summernote = function(ge) {
         return {
+            labelKey: 'text.summernote',
             initialContent: INITIAL_CONTENT,
             missingKey: 'error.summernote_missing',
 

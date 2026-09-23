@@ -252,7 +252,7 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
                 name: key + side,
                 prefix: key + side,
                 values: values,
-                appliesTo: ['row', 'column', 'element', 'container'],
+                appliesTo: ['row', 'column', 'text', 'element', 'container'],
                 labelKey: labelKey,
                 panel: false,
                 choices: function() {

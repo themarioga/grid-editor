@@ -39,7 +39,7 @@ $.fn.gridEditor.utilities.textalign = function(ge) {
             name: 'text-align',
             prefix: 'text',
             values: ['start', 'center', 'end'],
-            appliesTo: ['row', 'column', 'element', 'container'],
+            appliesTo: ['row', 'column', 'text', 'element', 'container'],
             labelKey: 'utility.text_align',
             label: label,
 

@@ -57,14 +57,15 @@ async function toolTests(t, page) {
             row: has('#myGrid .row'),
             column: has('#myGrid .column'),
             element: has('#myGrid .ge-element'),
+            text: jQuery('#myGrid .ge-text-block').first().children('.ge-tools-drawer').children('.ge-visibility-tool').length,
             container: has('#myGrid [data-ge-container]'),
             pane: jQuery('#myGrid .ge-pane-drawer .ge-visibility-tool').length,
             choices: col().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
             rowChoices: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value; }).get().join(','),
         };
     `);
-    t.check('rows, columns, elements and containers get the eye; panes do not',
-        tools.row === 1 && tools.column === 1 && tools.element === 1 && tools.container === 1 &&
+    t.check('rows, columns, texts, elements and containers get the eye; panes do not',
+        tools.row === 1 && tools.column === 1 && tools.text === 1 && tools.element === 1 && tools.container === 1 &&
         tools.pane === 0,
         tools);
     t.check('the field offers hidden and shown, and shown is flex on a row',
@@ -75,7 +76,7 @@ async function toolTests(t, page) {
         return { eyes: jQuery('#myGrid .ge-visibility-tool').length, fields: jQuery('#myGrid .ge-utility[data-ge-family="visibility"]').length };
     `);
     t.check('utilities.visibility.drawer false leaves the eye out and keeps the field',
-        off.eyes === 0 && off.fields === 3, off);
+        off.eyes === 0 && off.fields === 5, off);
 }
 
 async function breakpointTests(t, page) {

@@ -230,7 +230,7 @@ async function panelTests(t, page) {
     t.check('the Responsive section starts folded',
         panels.folded, panels);
     t.check('drawerTools runs for every drawer with a gear, right after it',
-        panels.toolKinds === 'column,column,row' && panels.toolAfterGear, panels);
+        panels.toolKinds === 'column,column,row,text,text' && panels.toolAfterGear, panels);
 
     var unfolded = await page.eval(`
         col().find('> .ge-tools-drawer .ge-utilities-toggle').trigger('click');

@@ -32,7 +32,7 @@ $.extend($.fn.gridEditor.locales.en, {
 /** A node that carries any class of the family, at any breakpoint. */
 var CLASS_PATTERN = /(?:^|\s)d-(?:(?:sm|md|lg|xl|xxl)-)?(?:none|block|flex)(?:\s|$)/;
 
-var NODES = '.row, .column, .ge-element, [data-ge-container]';
+var NODES = '.row, .column, .ge-content, .ge-element, [data-ge-container]';
 
 $.fn.gridEditor.utilities.visibility = function(ge) {
 
@@ -44,7 +44,7 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
     }
 
     function applies(node, kind) {
-        return kind === 'row' || kind === 'column' || kind === 'element' ||
+        return kind === 'row' || kind === 'column' || kind === 'element' || kind === 'text' ||
             node.is('[data-ge-container]');
     }
 
@@ -143,7 +143,7 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
             name: 'visibility',
             prefix: 'd',
             values: ['none', 'block', 'flex'],
-            appliesTo: ['row', 'column', 'element', 'container'],
+            appliesTo: ['row', 'column', 'text', 'element', 'container'],
             labelKey: 'utility.visibility',
 
             /** Hidden, or shown the way this kind of node is shown. */

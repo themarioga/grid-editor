@@ -123,6 +123,7 @@ $('#myGrid').gridEditor('method', argument);
 | `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` |
 | `createSection` | `options?` | `jQuery` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
 | `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
+| `createText` | `type?`, `options?` | `jQuery` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded |
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
 | `addAccordionItem` | `container`, `options?` | `jQuery` | Appends an item, returns its body |
@@ -402,6 +403,32 @@ $('#myGrid').gridEditor({
 ```
 
 
+### Text
+
+A column's text is a *text block*: a content area, the text editor that edits
+it, and a drawer of its own - move, which editor, settings, the host's
+`text_tools`, delete - like any other block. It drags between columns, the
+clipboard copies it, and spacing, text alignment and visibility apply to it.
+The markup does not change: the drawer sits beside the content area in a
+wrapper that only exists while editing, because inside it the text editor would
+take it for text.
+
+A column's drawer has an *Add text* tool, and the toolbar a *Text* button, one
+per editor when `content_types` offers several (*Text (tinyMCE)*, *Text
+(CKEditor)*...). Held, the add text tool offers each editor. The button adds a
+row with the text in it, or, dragged, puts the text where it is dropped.
+
+```javascript
+$('#myGrid').gridEditor('createText', { content: '<p>Hello</p>', appendTo: '#myColumn' });
+```
+
+A text whose editor's plugin is not loaded is still a block, to move and
+delete, and its drawer says it cannot be edited.
+
+__`text_tools`:__ Extra tools on every text drawer, same shape as `row_tools`.
+
+__`text_classes`:__ Preset class toggles on a text's settings panel, as `row_classes`.
+
 ### Elements
 
 An element is a node inside a content area that the editor treats as one
@@ -522,7 +549,7 @@ A plugin:
 <script src="grid-editor/dist/plugins/grideditor.clipboard.min.js"></script>
 ```
 
-Every row, column, section, container and element gets a *Copy* tool in its
+Every row, column, section, text, container and element gets a *Copy* tool in its
 drawer. While something is copied, a *Paste* tool shows wherever it can go, and
 nowhere else:
 
@@ -532,6 +559,7 @@ nowhere else:
 | a column | a row |
 | a section | the canvas, from the toolbar's paste button |
 | a container (tabs, accordion, popup, card) | a column |
+| a text | a column |
 | an element | a column's content area |
 
 The toolbar's paste button is the clipboard icon on the right, beside the

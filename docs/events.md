@@ -47,6 +47,8 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-add-accordion-item` | `grideditor:after-add` | no | |
 | `grideditor:before-add-element` | `grideditor:before-add` | yes | before an element is inserted |
 | `grideditor:after-add-element` | `grideditor:after-add` | no | |
+| `grideditor:before-add-text` | `grideditor:before-add` | yes | before a text block is inserted, from the add text tool, the toolbar or `createText` |
+| `grideditor:after-add-text` | `grideditor:after-add` | no | |
 | `grideditor:before-delete` | — | yes | before any node is removed, whatever its kind |
 | `grideditor:after-delete` | — | no | after removal completes, animation included |
 | `grideditor:before-move` | — | yes | on drag start (see *Canceling*) |
@@ -127,8 +129,9 @@ listens for what the user does: `api` is your own call coming back to you,
 the clipboard plugin put in, from a paste tool or the toolbar. A paste is an add
 like any other, so canceling its `before-add-*` turns it away.
 
-`kind: 'content'` appears when a content area itself is dragged between
-columns. The kinds for containers are the container's own type, so a listener
+A text block is `kind: 'text'`, with its content area as the node, when it is
+added or deleted, and in `drawerTools`. Dragged between columns it is still
+`kind: 'content'`, as it was in 5.x; 6.0 makes that `text` too. The kinds for containers are the container's own type, so a listener
 can tell a tabs container from an accordion without reading the markup.
 
 

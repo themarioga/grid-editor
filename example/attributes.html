@@ -189,7 +189,7 @@
                     // Every drawer that has a gear, and the kind of its node:
                     // a row, a column, an element, a container's type, a pane
                     drawerTools: function(drawer, node, kind) {
-                        var animated = ['row', 'column', 'section', 'element'].indexOf(kind) !== -1 ||
+                        var animated = ['row', 'column', 'section', 'text', 'element'].indexOf(kind) !== -1 ||
                             !!$.fn.gridEditor.containers[kind];
                         if (!animated) { return; }
 
@@ -289,7 +289,7 @@
                 <h1 class="h4">A plugin with a modal</h1>
                 <p class="form-text">
                     The <i class="bi bi-magic"></i> tool in the drawer of a row,
-                    a column, a card or an element is a plugin written on this
+                    a column, a text, a card or an element is a plugin written on this
                     page. It opens a modal, and what you choose there is saved
                     on the node as a <code>data-animation</code> attribute, which
                     <code>getPlainHtml</code> keeps: only <code>data-ge-*</code>

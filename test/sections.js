@@ -123,26 +123,31 @@ async function controlTests(t, page) {
 async function dragTests(t, page) {
     await page.eval(`start(); return true;`);
 
-    // Dropped on a region's drawer, a block lands first in that region
-    await page.drag('#r0 > .ge-tools-drawer .ge-move', '#s1', { yRatio: 0.01, steps: 24 });
+    // The gestures go against the direction a dragged block would shift the
+    // page in: a row leaving the canvas above a section, or leaving the
+    // section, takes its height with it, and what was under the pointer
+    // moves up out from under it.
+
+    // Dropped on a region's top edge, a block lands first in that region
+    await page.drag('#r2 > .ge-tools-drawer .ge-move', '#s1', { yRatio: 0.01, steps: 24 });
     var into = await page.eval(`return { top: topLevel(), section: inside('s1') };`);
     t.check('a row dragged into a section lands in it',
-        into.top === 's1,r2' && into.section === 'r0,r1', into);
+        into.top === 'r0,s1' && into.section === 'r2,r1', into);
 
-    // At a section's bottom edge, on the canvas just after it
-    await page.drag('#r1 > .ge-tools-drawer .ge-move', '#s1', { yRatio: 0.995, steps: 24 });
+    // Out of the section, onto the canvas above it
+    await page.drag('#r1 > .ge-tools-drawer .ge-move', '#r0', { yRatio: 0.02, steps: 24 });
     var out = await page.eval(`return { top: topLevel(), section: inside('s1') };`);
     t.check('a row dragged out of a section lands on the canvas',
-        out.top === 's1,r1,r2' && out.section === 'r0', out);
+        out.top === 'r1,r0,s1' && out.section === 'r2', out);
 
     await page.eval(`window.log = []; return true;`);
-    await page.drag('#s1 > .ge-tools-drawer .ge-move', '#myGrid', { yRatio: 0.998, steps: 24 });
+    await page.drag('#s1 > .ge-tools-drawer .ge-move', '#myGrid', { yRatio: 0.002, steps: 24 });
     var moved = await page.eval(`return { top: topLevel(), log: window.log.filter(function(entry) { return entry[1] === 'section'; }) };`);
     t.check('a section is dragged along the canvas, and the move is a section\'s',
-        moved.top === 'r1,r2,s1' && moved.log.length === 1 && moved.log[0][0] === 'after-move', moved);
+        moved.top === 's1,r1,r0' && moved.log.length === 1 && moved.log[0][0] === 'after-move', moved);
 
-    await page.drag('#s1 > .ge-tools-drawer .ge-move', '#r2c', { yRatio: 0.9 });
-    var refused = await page.eval(`return { top: topLevel(), inColumn: jQuery('#r2c').children('.ge-section').length };`);
+    await page.drag('#s1 > .ge-tools-drawer .ge-move', '#r0c', { yRatio: 0.9 });
+    var refused = await page.eval(`return { top: topLevel(), inColumn: jQuery('#r0c').children('.ge-section').length };`);
     t.check('a section is not dropped into a column',
         refused.inColumn === 0 && /s1/.test(refused.top), refused);
 

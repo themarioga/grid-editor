@@ -5,6 +5,8 @@
 @colTextColor: darken(@colColor, 10%);
 @elementColor: #7B5EA7;
 @elementTextColor: darken(@elementColor, 5%);
+@textColor: #5A6F8A;
+@textTextColor: darken(@textColor, 5%);
 @containerColor: #1D8A5E;
 @containerTextColor: darken(@containerColor, 5%);
 
@@ -549,6 +551,38 @@
         }
     }
     
+    /* A text block: a content area and, beside it rather than inside,
+       where the text editor would take it, its drawer */
+    .ge-text-block {
+        position: relative;
+        outline: 1px dashed fadeout(@textColor, 40%);
+        margin-bottom: @editGutter;
+
+        > .ge-text-drawer {
+            background: fadeout(@textColor, 88%);
+
+            > a {
+                color: @textTextColor;
+                padding: 2px 5px;
+            }
+            > a.ge-text-info {
+                cursor: default;
+            }
+            > a.ge-text-missing {
+                color: #b02a37;
+            }
+        }
+    }
+
+    /* A column with nothing in it but its drawer still has room to drop a
+       block into */
+    .column:not(:has(> :not(.ge-tools-drawer, .ge-resize-handle)))::after {
+        content: '';
+        display: block;
+        min-height: 40px;
+        border: 1px dashed fadeout(@colColor, 50%);
+    }
+
     /* Sorting. The dragged node stays in the list and shows where it would
        land - that is the placeholder - while a copy of it follows the
        pointer. */

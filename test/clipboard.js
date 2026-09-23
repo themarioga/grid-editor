@@ -215,7 +215,7 @@ async function otherKindTests(t) {
         return {
             showing: showing,
             columns: jQuery('#hero').children('.column').length,
-            text: jQuery('#hero').children('.column').last().children('.ge-content').text().trim(),
+            text: jQuery('#hero').children('.column').last().children('.ge-text-block').children('.ge-content').text().trim(),
             sized: jQuery('#hero').children('.column').last().hasClass('col-lg-6'),
         };
     `);
@@ -253,15 +253,41 @@ async function otherKindTests(t) {
         tabs.ownPanes && tabs.newIds && tabs.idsUnique && tabs.pastes.indexOf('tabs') !== -1,
         tabs);
 
+    var text = await page.eval(`
+        const source = jQuery('#myGrid').children('.row').eq(1).children('.column').first().children('.ge-text-block').first();
+        const area = source.children('.ge-content').html('<p>Copied text</p>');
+        source.children('.ge-tools-drawer').children('.ge-copy').trigger('click');
+        const stored = JSON.parse(localStorage.getItem('grideditor.clipboard'));
+        const showing = (function() { ${SHOWING} })();
+        // Its drawer is beside the content area, not in it, and the text block
+        // around both is a new one: copying took the canvas out of editing
+        const flashed = area.parent('.ge-text-block').children('.ge-tools-drawer').children('.ge-copy').hasClass('ge-copied');
+
+        const target = jQuery('#hero').children('.column').last();
+        target.children('.ge-tools-drawer').children('.ge-paste').trigger('click');
+        const pasted = target.children('.ge-text-block').last();
+        return {
+            category: stored.category,
+            showing: showing,
+            flashed: flashed,
+            text: pasted.children('.ge-content').text(),
+            drawer: pasted.children('.ge-tools-drawer').length,
+        };
+    `);
+    t.check('a text block copies and pastes into a column, as a text block of its own',
+        text.category === 'text' && text.showing.columnPaste > 0 && text.showing.rowPaste === 0 &&
+        text.showing.toolbar.length === 0 && text.flashed && text.text === 'Copied text' && text.drawer === 1,
+        text);
+
     var element = await page.eval(`
-        const area = jQuery('#hero').children('.column').first().children('.ge-content');
+        const area = jQuery('#hero').children('.column').first().children('.ge-text-block').children('.ge-content');
         const quote = ge.createElement('<blockquote>Quoted</blockquote>', { type: 'quote', appendTo: area });
         quote.children('.ge-tools-drawer').children('.ge-copy').trigger('click');
 
         const target = jQuery('#myGrid .row').eq(1).children('.column').first();
         target.children('.ge-tools-drawer').children('.ge-paste').trigger('click');
         return {
-            inArea: target.children('.ge-content').last().children('.ge-element').length,
+            inArea: target.children('.ge-text-block').children('.ge-content').last().children('.ge-element').length,
             text: target.find('.ge-element blockquote').text(),
             kind: target.find('.ge-element').attr('data-ge-element'),
         };
@@ -352,7 +378,7 @@ async function idTests(t) {
         const original = made.attr('data-ge-popup-id');
 
         // A trigger the host wrote elsewhere on the page, for the original
-        jQuery('#myGrid').children('.row').eq(1).children('.column').last().children('.ge-content')
+        jQuery('#myGrid').children('.row').eq(1).children('.column').last().children('.ge-text-block').children('.ge-content')
             .append('<button type="button" class="btn btn-link" id="host-trigger" data-ge-popup-target="' + original + '">Terms</button>');
         ge.reset();
 
@@ -398,7 +424,7 @@ async function idTests(t) {
         const original = made.attr('data-ge-popup-id');
 
         // The host's trigger, in the same row as the popup it opens
-        column.children('.ge-content').append('<a href="#" class="host-trigger" data-ge-popup-target="' + original + '">Open</a>');
+        column.children('.ge-text-block').children('.ge-content').append('<a href="#" class="host-trigger" data-ge-popup-target="' + original + '">Open</a>');
         ge.reset();
 
         jQuery('#hero > .ge-tools-drawer > .ge-copy').trigger('click');
