@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Changed
+- The clipboard plugin's toolbar paste button is an icon on the right of the
+  toolbar, beside the source and preview buttons, rather than a labelled
+  button beside the add ones.
+
+### Added
+- For plugins: a toolbar item with `align: 'end'` goes on the right of the
+  toolbar, as its icon alone.
+
 ## [5.1.0] - 2026-09-23
 ### Added
 - The `clipboard` plugin: copy and paste. Rows, columns, sections, containers

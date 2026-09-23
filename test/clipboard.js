@@ -115,6 +115,20 @@ async function rowTests(t) {
         copied.showing.toolbar.join(',') === 'Paste row',
         copied.showing);
 
+    var placed = await page.eval(`
+        const paste = jQuery('.ge-mainControls [data-ge-feature="clipboard"]');
+        const end = jQuery('.ge-mainControls .ge-toolbar-end');
+        return {
+            inEnd: paste.length > 0 && paste.parent().is(end),
+            iconOnly: paste.get().every(function(button) { return jQuery(button).children('span').length === 0; }),
+            // Floated right after the source and preview group, so it stands to its left
+            beforeSource: end.prevAll('.btn-group').has('.gm-edit-mode').length === 1,
+            sectionStays: jQuery('.ge-addContainerGroup [data-ge-feature="sections"] span').text() === 'Section',
+        };
+    `);
+    t.check('the toolbar\'s paste button is an icon on the right, beside source and preview',
+        placed.inEnd && placed.iconOnly && placed.beforeSource && placed.sectionStays, placed);
+
     var pasted = await page.eval(`
         const target = jQuery('#myGrid .row').eq(1).children('.column').first();
         target.children('.ge-tools-drawer').children('.ge-paste').trigger('click');

@@ -232,6 +232,9 @@ $.fn.gridEditor.features.clipboard = function(ge) {
     ].map(function(item) {
         return $.extend(item, {
             iconClass: 'bi bi-clipboard-plus',
+            // On the right, as an icon: pasting is not one of the things
+            // the add buttons make
+            align: 'end',
             source: 'paste',
             // What the button showed, even if another tab has copied
             // something else since

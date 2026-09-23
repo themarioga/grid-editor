@@ -961,25 +961,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
 
             // A feature plugin's own buttons, beside the containers': what
-            // one makes goes onto the canvas, where the plugin says it belongs
+            // one makes goes onto the canvas, where the plugin says it belongs.
+            // One with align 'end' goes on the right instead, as an icon,
+            // beside the source and preview buttons.
+            var endItems = [];
             $.each(FEATURES, function(name, feature) {
                 (feature.toolbar || []).forEach(function(item, index) {
-                    $('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />')
-                        .attr('title', t(item.labelKey))
-                        .attr('data-ge-toolbar', 'feature')
-                        .attr('data-ge-feature', name)
-                        .attr('data-ge-item', index)
-                        .append($('<i />').addClass(item.iconClass || 'bi bi-plus'))
-                        .append($('<span />').text(t(item.labelKey)))
-                        .on('click', function() {
-                            var made = item.create();
+                    var button = featureButton(name, item, index);
 
-                            addNode(item.kind, made, function() {
-                                made.appendTo(canvas);
-                            }, { parent: canvas, source: item.source || 'tool' });
-                        })
-                        .appendTo(addContainerGroup)
-                    ;
+                    if (item.align === 'end') {
+                        endItems.push(button);
+                    } else {
+                        button.appendTo(addContainerGroup);
+                    }
                 });
             });
 
@@ -1045,7 +1039,38 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .appendTo(btnGroup)
             ;
 
+            // Floated right after the source and preview buttons, so it
+            // stands to their left
+            if (endItems.length) {
+                $('<div class="btn-group pull-right ge-toolbar-end" />')
+                    .append(endItems)
+                    .appendTo(wrapper)
+                ;
+            }
+
             makeToolbarDraggable();
+        }
+
+        /** A feature plugin's toolbar button: its label as text, or as the title alone at the end. */
+        function featureButton(name, item, index) {
+            var button = $('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />')
+                .attr('title', t(item.labelKey))
+                .attr('data-ge-toolbar', 'feature')
+                .attr('data-ge-feature', name)
+                .attr('data-ge-item', index)
+                .append($('<i />').addClass(item.iconClass || 'bi bi-plus'))
+                .on('click', function() {
+                    var made = item.create();
+
+                    addNode(item.kind, made, function() {
+                        made.appendTo(canvas);
+                    }, { parent: canvas, source: item.source || 'tool' });
+                })
+            ;
+
+            if (item.align !== 'end') { button.append($('<span />').text(t(item.labelKey))); }
+
+            return button;
         }
         
         /**

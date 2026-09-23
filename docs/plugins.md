@@ -175,7 +175,9 @@ needs to put a new kind of block on the canvas:
   as a utility plugin's does, so a tool can go on any node. The clipboard
   plugin puts its copy and paste tools in with it.
 - A **`toolbar`** item can also have an `iconClass`, `bi bi-plus` otherwise,
-  and a `source` for the add events, `tool` or `dragdrop` otherwise.
+  and a `source` for the add events, `tool` or `dragdrop` otherwise. With
+  `align: 'end'` it goes on the right of the toolbar, beside the source and
+  preview buttons, as its icon alone, with the label as its title.
 
 - **`onSortable(sortable)`** is handed the function the editor makes all of its
   own lists with. A plugin describes a list; it never touches the drag toolkit

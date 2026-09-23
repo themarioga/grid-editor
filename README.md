@@ -524,13 +524,15 @@ nowhere else:
 
 | Copied | Pasted into |
 | --- | --- |
-| a row | a column, a section, or the canvas from the toolbar's *Paste row* |
+| a row | a column, a section, or the canvas from the toolbar's paste button |
 | a column | a row |
-| a section | the canvas, from the toolbar's *Paste section* |
+| a section | the canvas, from the toolbar's paste button |
 | a container (tabs, accordion, popup, card) | a column |
 | an element | a column's content area |
 
-A paste goes at the end of where it was pasted; the toolbar's buttons can also
+The toolbar's paste button is the clipboard icon on the right, beside the
+source and preview buttons, and shows only while a row or a section is copied.
+A paste goes at the end of where it was pasted; the toolbar's button can also
 be dragged to where the copy should land. Tabs and accordion items are not
 copied on their own: copy their container.
 

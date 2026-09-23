@@ -48,7 +48,6 @@ if (existingTags.includes(newTag)) {
   process.exit(1);
 }
 
-execSync('npm run build', { stdio: 'inherit' });
 replaceInFile('package.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`);
 replaceInFile('bower.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`);
 // package-lock.json records the version twice: at the top level and on the
@@ -56,6 +55,9 @@ replaceInFile('bower.json', /"version": "[0-9.]+"/, `"version": "${newVersion}"`
 // This is a JSON edit, not a regex: the lockfile has a "version" key for every
 // dependency and a regex would rewrite all of them.
 setLockfileVersion('package-lock.json', newVersion);
+// Built after the version is bumped, not before: the bundle's banner reads
+// the version from package.json, and built first it names the old one
+execSync('npm run build', { stdio: 'inherit' });
 execSync('git add -A');
 
 confirm(`This will:
