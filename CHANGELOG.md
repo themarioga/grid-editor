@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- `iconClass` for a container plugin and a text editor plugin: their toolbar
+  button shows the icon alone, with the label as its title, where it showed a
+  plus and the label.
+
+### Changed
+- A feature plugin's toolbar item with an `iconClass` shows the icon alone,
+  with its label as the title, wherever it is in the toolbar. It showed the
+  icon and the label unless it had `align: 'end'`.
+
+
 ## [6.0.0-beta.3] - 2026-09-23
 ### Changed
 - Which editor edits a text is shown first in its settings, as a read-only

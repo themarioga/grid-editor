@@ -60,6 +60,7 @@ $.fn.gridEditor.containers.carousel = function(ge) {
 
     return {
         labelKey: 'container.add_carousel',   // the toolbar button's label
+        iconClass: 'bi bi-images',            // optional: the button shows it in place of the label
         addPaneKey: 'container.add_slide',    // the drawer's add pane tool
         paneKind: 'slide',                    // the kind its panes report
 
@@ -77,6 +78,9 @@ $.fn.gridEditor.containers.carousel = function(ge) {
 })(jQuery);
 ```
 
+- **`iconClass`**, when given, is the toolbar button's face: the icon alone,
+  with the label as its title. Without one the button shows a plus and the
+  label.
 - **`create(options)`** returns a detached container. It must carry
   `data-ge-container="<type>"`: that attribute, and never a class, is how the
   editor recognises one.
@@ -211,10 +215,11 @@ animation for rows, columns, containers and elements, kept in a
 
 A node's drawer is built again on every `init`, so a tool reads the node
 rather than remembering anything about it.
-- A **`toolbar`** item can also have an `iconClass`, `bi bi-plus` otherwise,
+- A **`toolbar`** item can also have an `iconClass`, which it shows alone,
+  with the label as its title, where one without shows a plus and the label;
   and a `source` for the add events, `tool` or `dragdrop` otherwise. With
   `align: 'end'` it goes on the right of the toolbar, beside the source and
-  preview buttons, as its icon alone, with the label as its title.
+  preview buttons, always as an icon - `bi bi-plus` when it has none.
 
 - **`onSortable(sortable)`** is handed the function the editor makes all of its
   own lists with. A plugin describes a list; it never touches the drag toolkit
@@ -269,6 +274,7 @@ and the three that ship, `grideditor.tinymce.js`, `grideditor.ckeditor.js` and
 $.fn.gridEditor.texts.mytext = function(ge) {
     return {
         labelKey: 'text.mytext',               // its name, in the toolbar and the drawer, optional
+        iconClass: 'bi bi-fonts',              // optional: its toolbar button shows it in place of the name
         initialContent: '<p>Write here</p>',   // what a new text holds
         missingKey: 'error.mytext_missing',    // the error when the library is not loaded, optional
         available: function() { return !!window.MyText; },   // optional, true otherwise

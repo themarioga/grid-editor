@@ -229,13 +229,71 @@ async function settingTests(t) {
     t.check('the toolbar tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** A plugin's iconClass puts its icon on its toolbar button in place of its label, which becomes the title. */
+async function iconTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var faces = await page.eval(`
+        var card = $.fn.gridEditor.containers.card;
+        $.fn.gridEditor.containers.card = function(ge) {
+            return $.extend(card(ge), { iconClass: 'bi bi-square' });
+        };
+        $.fn.gridEditor.texts.plain = function() {
+            return { labelKey: 'text.plain', iconClass: 'bi bi-fonts', start: function() {}, stop: function() {} };
+        };
+        $.fn.gridEditor.features.stamp = function() {
+            return { toolbar: [
+                { labelKey: 'stamp.add', kind: 'row', iconClass: 'bi bi-star', create: function() { return jQuery('<div class="row"></div>'); } },
+                { labelKey: 'stamp.plain', kind: 'row', create: function() { return jQuery('<div class="row"></div>'); } },
+            ] };
+        };
+        $.extend($.fn.gridEditor.locales.en, { 'text.plain': 'Plain', 'stamp.add': 'Stamp', 'stamp.plain': 'Plain stamp' });
+
+        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.init({ content_types: ['plain'], plugins: window.fixture.plugins(['stamp']) });
+
+        function face(button) {
+            return {
+                title: button.attr('title'),
+                icon: button.children('i').attr('class'),
+                label: button.children('span').text(),
+            };
+        }
+        var faces = {
+            card: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]')),
+            tabs: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="tabs"]')),
+            text: face(jQuery('.ge-addContainerGroup a[data-ge-text="plain"]')),
+            stamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="0"]')),
+            plainStamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="1"]')),
+        };
+
+        $.fn.gridEditor.containers.card = card;
+        delete $.fn.gridEditor.texts.plain;
+        delete $.fn.gridEditor.features.stamp;
+        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.init({});
+        return faces;
+    `);
+    t.check('a container, a text and a toolbar item with an iconClass show the icon alone, their label as the title',
+        faces.card.icon === 'bi bi-square' && faces.card.label === '' && faces.card.title === 'Card' &&
+        faces.text.icon === 'bi bi-fonts' && faces.text.label === '' && faces.text.title === 'Text' &&
+        faces.stamp.icon === 'bi bi-star' && faces.stamp.label === '' && faces.stamp.title === 'Stamp', faces);
+    t.check('without one they keep the plus and their label',
+        faces.tabs.icon === 'bi bi-plus' && faces.tabs.label === faces.tabs.title && faces.tabs.label !== '' &&
+        faces.plainStamp.icon === 'bi bi-plus' && faces.plainStamp.label === 'Plain stamp', faces);
+
+    var errors = page.errors();
+    t.check('the toolbar icon tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'toolbar',
-    description: 'dragging the toolbar buttons onto the canvas',
+    description: 'dragging the toolbar buttons onto the canvas, and their icons',
     run: async function(t) {
         await paletteTests(t);
         await markerTests(t);
         await settingTests(t);
+        await iconTests(t);
     },
 };
 

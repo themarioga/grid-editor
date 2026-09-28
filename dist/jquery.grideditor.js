@@ -953,12 +953,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             texts.forEach(function(type) {
                 var label = texts.length > 1 ? t('text.add_type', { editor: textLabel(type) }) : t('text.add');
 
-                $('<a class="btn btn-sm btn-primary ge-add-container ge-add-text-button" />')
-                    .attr('title', label)
+                labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-text-button" />'), label, TEXTS[type].iconClass)
                     .attr('data-ge-toolbar', 'text')
                     .attr('data-ge-text', type)
-                    .append('<i class="bi bi-plus"></i>')
-                    .append($('<span />').text(label))
                     .on('click', function() {
                         var row = createRow();
                         var block = makeText(type);
@@ -979,12 +976,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // A container starts in a row of its own, the way the add row
             // buttons next to these ones do
             $.each(CONTAINERS, function(type, definition) {
-                $('<a class="btn btn-sm btn-primary ge-add-container" />')
-                    .attr('title', t(definition.labelKey))
+                labelButton($('<a class="btn btn-sm btn-primary ge-add-container" />'), t(definition.labelKey), definition.iconClass)
                     .attr('data-ge-toolbar', 'container')
                     .attr('data-ge-container-type', type)
-                    .append('<i class="bi bi-plus"></i>')
-                    .append($('<span />').text(t(definition.labelKey)))
                     .on('click', function() {
                         var row = createRow();
                         var column = createColumn(MAX_COL_SIZE).appendTo(row);
@@ -1093,14 +1087,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             makeToolbarDraggable();
         }
 
-        /** A feature plugin's toolbar button: its label as text, or as the title alone at the end. */
+        /**
+         * A toolbar button's face: the plugin's icon alone when it has one,
+         * with its label as the title, or a plus and the label otherwise.
+         */
+        function labelButton(button, label, iconClass) {
+            button.attr('title', label);
+
+            if (iconClass) { return button.append($('<i />').addClass(iconClass)); }
+
+            return button
+                .append('<i class="bi bi-plus"></i>')
+                .append($('<span />').text(label))
+            ;
+        }
+
+        /** A feature plugin's toolbar button. At the end it is always an icon, `bi bi-plus` if it has none of its own. */
         function featureButton(name, item, index) {
-            var button = $('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />')
-                .attr('title', t(item.labelKey))
+            var iconClass = item.iconClass || (item.align === 'end' ? 'bi bi-plus' : null);
+            var button = labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />'), t(item.labelKey), iconClass)
                 .attr('data-ge-toolbar', 'feature')
                 .attr('data-ge-feature', name)
                 .attr('data-ge-item', index)
-                .append($('<i />').addClass(item.iconClass || 'bi bi-plus'))
                 .on('click', function() {
                     var made = item.create();
 
@@ -1109,8 +1117,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     }, { parent: canvas, source: item.source || 'tool' });
                 })
             ;
-
-            if (item.align !== 'end') { button.append($('<span />').text(t(item.labelKey))); }
 
             return button;
         }
