@@ -178,9 +178,9 @@ async function createTests(t) {
             contentAreas: row.find('.ge-content').length,
         };
     `);
-    t.check('createRow returns a detached row with its columns and no drawers',
+    t.check('createRow returns a detached row with its columns, empty, and no drawers',
         detached.detached && detached.rowsOnCanvas && detached.columns === 2 &&
-        detached.drawers === 0 && detached.contentAreas === 2 &&
+        detached.drawers === 0 && detached.contentAreas === 0 &&
         /(^|\s)col-8(\s|$)/.test(detached.classes[0]) && /(^|\s)col-4(\s|$)/.test(detached.classes[1]),
         detached);
 
@@ -229,20 +229,40 @@ async function createTests(t) {
     var column = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');
         const column = ge.createColumn(4, { content: '<p>column content</p>' });
+        const blank = ge.createColumn(4, { content: '' });
         const sized = ge.createColumn(3, { appendTo: jQuery('#myGrid > .row').first() });
         return {
             detached: column.parent().length === 0,
             classes: column.attr('class'),
             content: column.find('.ge-content').html(),
+            // The fixture offers no text editor: what it is given is plain
+            type: column.find('.ge-content').attr('data-ge-content-type') || null,
+            blank: blank.children('.ge-content').length === 1 && blank.children('.ge-content').html() === '' &&
+                !blank.children('.ge-content').attr('data-ge-content-type'),
             placedClasses: sized.attr('class'),
             placedDrawer: sized.find('> .ge-tools-drawer').length,
+            placedEmpty: sized.children().not('.ge-tools-drawer, .ge-resize-handle').length,
         };
     `);
-    t.check('createColumn writes the column classes and takes content',
+    t.check('createColumn writes the column classes and takes content, as plain content with no editor offered',
         column.detached && column.classes === 'column col-4' &&
-        column.content === '<p>column content</p>' && /(^|\s)col-3(\s|$)/.test(column.placedClasses) &&
-        column.placedDrawer === 1,
+        column.content === '<p>column content</p>' && column.type === null && column.blank &&
+        /(^|\s)col-3(\s|$)/.test(column.placedClasses) && column.placedDrawer === 1 && column.placedEmpty === 0,
         column);
+
+    var offered = await page.eval(`
+        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.init({ content_types: ['tinymce', 'ckeditor'] });
+        const ge = jQuery('#myGrid').data('grideditor');
+        const column = ge.createColumn(6, { content: '<p>C</p>' });
+        const area = column.children('.ge-content');
+        const result = { type: area.attr('data-ge-content-type'), classed: area.hasClass('ge-content-type-tinymce'), html: area.html() };
+        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.init();
+        return result;
+    `);
+    t.check('with editors offered, createColumn\'s content is a text of the first one',
+        offered.type === 'tinymce' && offered.classed && offered.html === '<p>C</p>', offered);
 
     var noSize = await page.eval(`
         const ge = jQuery('#myGrid').data('grideditor');

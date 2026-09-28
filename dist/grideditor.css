@@ -295,6 +295,8 @@
        rather than solid, so a page full of them still reads as content */
   /* A text block: a content area and, beside it rather than inside,
        where the text editor would take it, its drawer */
+  /* The host's plain content: a block to move and delete, edited in the
+       source - greyer than a text, which an editor edits in place */
   /* A column with nothing in it but its drawer still has room to drop a
        block into */
   /* Sorting. The dragged node stays in the list and shows where it would
@@ -567,6 +569,8 @@
   /* Except when something in it is in use: its settings, a choice it
            offers, a drag */
   /* With its settings open it spans the text, so the panel has room */
+  /* The choice of editor a click on plain content offers hangs off
+           the drawer, which sits at the right: so it opens leftwards */
 }
 .ge-canvas.ge-editing .ge-text-block > .ge-text-drawer {
   position: absolute;
@@ -614,6 +618,16 @@
 .ge-canvas.ge-editing .ge-text-block:has(> .ge-text-drawer > .ge-details[style*="block"]) > .ge-text-drawer {
   left: 0;
   border-radius: 0;
+}
+.ge-canvas.ge-editing .ge-text-block > .ge-text-drawer > .ge-convert-picker {
+  left: auto;
+  right: 0;
+}
+.ge-canvas.ge-editing .ge-text-block.ge-plain-block {
+  outline-color: rgba(0, 0, 0, 0.25);
+}
+.ge-canvas.ge-editing .ge-text-block.ge-plain-block > .ge-text-drawer {
+  background: #e9ecef;
 }
 .ge-canvas.ge-editing .column:not(:has( > :not(.ge-tools-drawer, .ge-resize-handle)))::after {
   content: '';

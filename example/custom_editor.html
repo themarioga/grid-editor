@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+
+    <!-- The editor, and no text editor of the shipped ones: the one this page
+         edits text with is written below -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/jquery.grideditor.min.js"></script>
+
+    <!-- A text editor of the page's own. It is a feature plugin like any
+         other: the core knows nothing of text, and asks the plugins through
+         textTypes which types there are. This one edits with the browser's
+         own contenteditable. -->
+    <script id="simpletext-plugin">
+        (function($) {
+
+            $.extend($.fn.gridEditor.locales.en, {
+                'simpletext.label': 'Simple text',
+                'simpletext.add': 'Simple text',
+            });
+
+            var TYPE = 'simpletext';
+
+            $.fn.gridEditor.features.simpletext = function(ge) {
+
+                /** A content area of this plugin's: its type is on it. */
+                function isOurs(area) {
+                    return area.attr('data-ge-content-type') === TYPE;
+                }
+
+                function start(area) {
+                    if (area.hasClass('ge-rte-active')) { return; }
+
+                    area.addClass('ge-rte-active').attr('contenteditable', 'true').trigger('focus');
+                }
+
+                // Whatever start put on the content area comes off: what is
+                // left is what getHtml saves
+                function stop(area) {
+                    area.removeClass('ge-rte-active').removeAttr('contenteditable');
+                }
+
+                /**
+                 * A text's drawer. The editor wraps each content area of a
+                 * column in a .ge-text-block while editing, and leaves the
+                 * drawer of a type a plugin declares to that plugin.
+                 */
+                function createDrawer(textBlock) {
+                    var area = textBlock.children('.ge-content');
+                    var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
+
+                    ge.createMoveTool(drawer);
+                    ge.createTool(drawer, ge.t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
+                        ge.deleteNode('text', area, ge.t('confirm.delete_text'), function(removed) {
+                            stop(area);
+                            textBlock.slideUp(function() {
+                                textBlock.remove();
+                                removed();
+                            });
+                        });
+                    });
+                }
+
+                function onClick() {
+                    if (isOurs($(this))) { start($(this)); }
+                }
+
+                return {
+                    // The types this plugin edits. The core uses them to know
+                    // whose a content area is, and to offer them when the
+                    // host's plain content is clicked: edit() is handed the
+                    // content area once the core has written the type on it
+                    textTypes: function() {
+                        return [{
+                            type: TYPE,
+                            label: ge.t('simpletext.label'),
+                            edit: function(area) {
+                                var textBlock = area.parent('.ge-text-block');
+                                if (textBlock.length && !textBlock.children('.ge-tools-drawer').length) {
+                                    createDrawer(textBlock);
+                                }
+
+                                start(area);
+                            },
+                        }];
+                    },
+
+                    // A button to make a new text, in a row of its own or
+                    // where it is dropped in a column
+                    toolbar: [{
+                        labelKey: 'simpletext.add',
+                        iconClass: 'bi bi-fonts',
+                        kind: 'text',
+                        inColumn: true,
+                        create: function() {
+                            return $('<div class="ge-content" />')
+                                .addClass('ge-content-type-' + TYPE)
+                                .attr('data-ge-content-type', TYPE)
+                                .html('<p>Write here</p>');
+                        },
+                    }],
+
+                    onInit: function() {
+                        ge.canvas.find('.ge-text-block').each(function() {
+                            var textBlock = $(this);
+                            if (textBlock.children('.ge-tools-drawer').length) { return; }
+                            if (isOurs(textBlock.children('.ge-content'))) { createDrawer(textBlock); }
+                        });
+
+                        ge.canvas.off('click.simpletext').on('click.simpletext', '.ge-content', onClick);
+                    },
+
+                    // Before the drawers and the text blocks come off
+                    onBeforeDeinit: function() {
+                        ge.canvas.find('.ge-content').each(function() {
+                            if (isOurs($(this))) { stop($(this)); }
+                        });
+                    },
+
+                    onDeinit: function() {
+                        ge.canvas.off('click.simpletext');
+                    },
+                };
+            };
+
+        })(jQuery);
+    </script>
+
+    <script>
+        $(function() {
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            });
+        });
+    </script>
+
+    <title>Grid Editor example - a text editor of your own</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container py-3">
+        <h2>A text editor of your own</h2>
+        <p class="text-body-secondary">
+            No tinyMCE, CKEditor or summernote on this page: its text editor is
+            the plugin in the page's source, a few dozen lines on the browser's
+            <code>contenteditable</code>. The markup below had no text editor's
+            type on it, so the editor took it for the host's <em>plain
+            content</em>: it can be moved and deleted, and a click makes it a
+            text of this editor. The second column was saved as one already.
+            See <a href="../docs/plugins.md">docs/plugins.md</a>.
+        </p>
+
+        <div id="myGrid">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h3>Plain content</h3>
+                    <p>Loose markup of the page's own. Click it and it is a simple text.</p>
+                </div>
+                <div class="col-lg-6">
+                    <div class="ge-content ge-content-type-simpletext" data-ge-content-type="simpletext">
+                        <p>A simple text, saved as one: a click edits it.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="mt-4">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="output">Show getHtml</button>
+        </p>
+        <pre class="bg-body-tertiary border rounded p-3 small"><code id="html"></code></pre>
+    </div>
+</body>
+</html>

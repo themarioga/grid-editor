@@ -206,10 +206,14 @@ async function tinymceTests(t) {
         sourceMode.editorsOpen === 0 && sourceMode.textareaVisible && sourceMode.textareaClean === true,
         Object.assign(sourceMode, { editableAfterwards: (await page.eval(CONTENT_AREA_STATE)).editorAttached }));
 
-    // A row added from the toolbar gets content areas with the placeholder in
-    // them, which the editor clears as it takes over
+    // A row added from the toolbar has empty columns since 6.0; the Text
+    // button adds a text with the placeholder in it, which the editor clears
+    // as it takes over
     var before = await page.eval(`return { contentAreas: jQuery('.ge-content').length };`);
     await page.click('.ge-addRowGroup a', 1);
+    await sleep(400);
+    var emptyRow = await page.eval(`return { contentAreas: jQuery('.ge-content').length };`);
+    await page.click('.ge-add-text-button');
     await sleep(400);
     var added = await page.eval(`return { contentAreas: jQuery('.ge-content').length };`);
     await page.click('.ge-content', added.contentAreas - 1);
@@ -221,9 +225,10 @@ async function tinymceTests(t) {
             placeholderCleared: contentArea.html().indexOf('Lorem ipsum dolores') === -1,
         };
     `);
-    t.check('a content area in a newly added row becomes editable and drops its placeholder',
-        added.contentAreas > before.contentAreas && newArea.editorAttached && newArea.placeholderCleared,
-        Object.assign({ before: before.contentAreas, after: added.contentAreas }, newArea));
+    t.check('a new row has empty columns; a new text becomes editable and drops its placeholder',
+        emptyRow.contentAreas === before.contentAreas && added.contentAreas === before.contentAreas + 1 &&
+            newArea.editorAttached && newArea.placeholderCleared,
+        Object.assign({ before: before.contentAreas, emptyRow: emptyRow.contentAreas, after: added.contentAreas }, newArea));
 
     var errors = page.errors();
     t.check('example/basic.html logged no errors', errors.length === 0, errors.slice(0, 5));
@@ -233,9 +238,9 @@ async function tinymceTests(t) {
         var other = await t.page('/example/' + name);
         await other.waitFor(`window.tinymce && jQuery('#myGrid').data('grideditor')`, { label: name });
 
-        // The autosave page starts from an empty grid, so give it a row first
+        // The autosave page starts from an empty grid, so give it a text first
         if (!await other.eval(`return jQuery('.ge-content').length;`)) {
-            await other.click('.ge-addRowGroup a', 1);
+            await other.click('.ge-add-text-button');
             await sleep(400);
         }
 
@@ -440,6 +445,9 @@ async function containerTests(t) {
         jQuery('#myGrid').html('<div class="row"><div class="col-lg-12"><div class="ge-content" data-ge-content-type="tinymce"><p>Before</p></div></div></div>');
         jQuery('#myGrid').gridEditor({ new_row_layouts: [[12]], content_types: ['tinymce'] });
         jQuery('.ge-addContainerGroup a[data-ge-container-type="tabs"]').trigger('click');
+        // A pane starts with an empty column since 6.0: a text in each
+        const ge = jQuery('#myGrid').data('grideditor');
+        jQuery('#myGrid .tab-pane .column').each(function() { ge.createText({ appendTo: jQuery(this) }); });
         window.scrollTo(0, 0);
         return jQuery('#myGrid [data-ge-container="tabs"]').length;
     `);
@@ -576,13 +584,17 @@ async function attributePluginTests(t) {
             columns: jQuery('#myGrid .column').get().every(function(column) { return tool(column).length === 1; }),
             card: tool(jQuery('#myGrid [data-ge-container="card"]')).length,
             element: tool(jQuery('#myGrid .ge-element')).length,
-            texts: jQuery('#myGrid .ge-text-block').get().every(function(block) { return tool(block).length === 1; }),
+            texts: jQuery('#myGrid .ge-text-block:not(.ge-plain-block)').get().every(function(block) { return tool(block).length === 1; }),
+            // The host's plain content - the loose markup of the first row
+            // and of the card - has a drawer of move and delete, and no gear
+            plains: jQuery('#myGrid .ge-plain-block').length > 0 &&
+                jQuery('#myGrid .ge-plain-block').get().every(function(block) { return tool(block).length === 0; }),
             presetHighlighted: tool(jQuery('#myGrid > .row').first()).hasClass('my-animation-set'),
             othersPlain: tool(jQuery('#myGrid > .row').eq(1)).hasClass('my-animation-set'),
         };
     `);
-    t.check('example/attributes.html puts its tool on rows, columns, texts, containers and elements',
-        tools.rows && tools.columns && tools.texts && tools.card === 1 && tools.element === 1 &&
+    t.check('example/attributes.html puts its tool on rows, columns, texts, containers and elements, not on plain content',
+        tools.rows && tools.columns && tools.texts && tools.plains && tools.card === 1 && tools.element === 1 &&
         tools.presetHighlighted && !tools.othersPlain,
         tools);
 
@@ -714,13 +726,15 @@ async function textAttributeTests(t) {
     ['basic', 'ckeditor', 'summernote'].forEach(function(name) {
         var r = results[name];
         var type = name === 'basic' ? 'tinymce' : name;
+        // The example's content is the host's plain content, which the click
+        // made a text: the type comes after the id the test gave it first
         t.check('example/' + name + ': the content area keeps its id through an edit, and nothing of the editor\'s',
-            r.open && r.untouched === 'class=ge-content ge-content-type-' + type + ' | data-ge-content-type=' + type + ' | id=kept-id' &&
+            r.open && r.untouched === 'class=ge-content ge-content-type-' + type + ' | id=kept-id | data-ge-content-type=' + type &&
             r.errors.length === 0,
             r);
         t.check('example/' + name + ': an id, a class and an attribute given while the editor is open are kept',
-            r.reopened && r.changed === 'class=ge-content ge-content-type-' + type + ' host-class | data-ge-content-type=' + type +
-                ' | id=given-id | data-plugin=saved',
+            r.reopened && r.changed === 'class=ge-content ge-content-type-' + type + ' host-class | id=given-id | data-ge-content-type=' + type +
+                ' | data-plugin=saved',
             r);
     });
 }

@@ -339,8 +339,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
-            'text_tools'        : [], // Host tools on text block drawers
-            'text_classes'      : [], // Preset class toggles on a text block's settings panel
+            // content_types, text_tools and text_classes are the text editor
+            // plugins' settings since 6.0: see grideditor.text.js
             'container_classes' : [], // The same, on a container's panel
             'pane_classes'      : [], // And on a tab's or an accordion item's
             'container_tools'   : [], // Host tools on container drawers
@@ -351,7 +351,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'utilities'         : {}, // Options for the utility plugins, by plugin name
             'elements'          : NESTED_SETTINGS.elements, // Element level controls, below the column
             'custom_filter'     : '',
-            'content_types'     : ['tinymce'],
             'valid_col_sizes'   : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 'equal', 'auto'],
             'valid_col_offsets' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             'add_column'        : NESTED_SETTINGS.add_column, // The add column tool
@@ -836,19 +835,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (node.hasClass('row')) { return 'row'; }
             if (node.hasClass('column')) { return 'column'; }
             if (node.hasClass('ge-element')) { return 'element'; }
-            if (node.hasClass('ge-content') || node.hasClass('ge-text-block')) { return 'text'; }
+            // A content area is a text when an editor's type is on it, and the
+            // host's plain content when there is none
+            if (node.hasClass('ge-text-block')) { node = node.children('.ge-content'); }
+            if (node.hasClass('ge-content')) { return node.attr('data-ge-content-type') ? 'text' : 'plain'; }
             return 'node';
         }
         
         // Copy html to sourceElement if a source textarea is given
         if (settings.source_textarea) {
             var sourceHtml = $(settings.source_textarea).val();
+            // Html with no grid in it goes into a row and a full width column
+            // of its own, where init wraps it as the host's plain content
             if (sourceHtml.length > 0 && $('<div>' + sourceHtml + '</div>').find('.row').addBack('.row').length == 0) {
-                var sourceRow = createRow();
-                var sourceColumn = createColumn(12).appendTo(sourceRow);
-                sourceColumn.find('.ge-content').html(sourceHtml);
-                sourceHtml = sourceColumn.html();
-            } 
+                sourceHtml = '<div class="row"><div class="col-lg-12">' + sourceHtml + '</div></div>';
+            }
             baseElem.html(sourceHtml);
         }
         
@@ -871,8 +872,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // Make controls fixed on scroll
             $(window).on('scroll', onScroll);
 
-            /* Init RTE on click */
-            canvas.on('click', '.ge-content', initRTE);
+            /* A click on the host's plain content offers to make it a text */
+            canvas.on('click', '.ge-content', onContentClick);
 
             /* A trigger is often a link, and a link still navigates even
                with its Bootstrap attributes suspended */
@@ -884,12 +885,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // which costs the element drawers inside it. The integrations say
             // when their editor is ready, and the drawers go back in.
             canvas.on('ge-rte-ready', '.ge-content', function() {
-                // The first time only: an undo says ready again, and by then
-                // the host may have changed the content area itself
-                if ($(this).data('ge-text-before') && !$(this).data('ge-text-ready')) {
-                    $(this).data('ge-text-ready', attributesOf(this));
-                }
-
                 plugins('onContentReady', $(this));
                 refreshPreviews($(this));
             });
@@ -947,32 +942,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             addContainerGroup.appendTo(wrapper);
 
-            // A text block of each editor offered. Like a container, it goes
-            // into a row of its own when clicked, or where it is dropped
-            var texts = offeredTexts();
-            texts.forEach(function(type) {
-                var label = texts.length > 1 ? t('text.add_type', { editor: textLabel(type) }) : t('text.add');
-
-                labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-text-button" />'), label, TEXTS[type].iconClass)
-                    .attr('data-ge-toolbar', 'text')
-                    .attr('data-ge-text', type)
-                    .on('click', function() {
-                        var row = createRow();
-                        var block = makeText(type);
-                        createColumn(MAX_COL_SIZE).appendTo(row).find('> .ge-content').replaceWith(block);
-
-                        var added = addNode('text', block, function() {
-                            row.appendTo(canvas);
-                        }, { parent: canvas, source: 'tool' });
-
-                        if (added && row[0].scrollIntoView) {
-                            row[0].scrollIntoView({behavior: 'smooth'});
-                        }
-                    })
-                    .appendTo(addContainerGroup)
-                ;
-            });
-
             // A container starts in a row of its own, the way the add row
             // buttons next to these ones do
             $.each(CONTAINERS, function(type, definition) {
@@ -982,9 +951,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     .on('click', function() {
                         var row = createRow();
                         var column = createColumn(MAX_COL_SIZE).appendTo(row);
-                        var container = definition.create({});
-
-                        column.find('> .ge-content').replaceWith(container);
+                        var container = definition.create({}).appendTo(column);
 
                         addNode(type, container, function() {
                             row.appendTo(canvas);
@@ -1105,16 +1072,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /** A feature plugin's toolbar button. At the end it is always an icon, `bi bi-plus` if it has none of its own. */
         function featureButton(name, item, index) {
             var iconClass = item.iconClass || (item.align === 'end' ? 'bi bi-plus' : null);
-            var button = labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />'), t(item.labelKey), iconClass)
+            // A label of its own, worked out when the toolbar is built - and
+            // built again by setLocale - or the string its labelKey names
+            var label = typeof item.label === 'function' ? item.label() : (item.label || t(item.labelKey));
+            var button = labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />'), label, iconClass)
+                .addClass(item.className || '')
                 .attr('data-ge-toolbar', 'feature')
                 .attr('data-ge-feature', name)
                 .attr('data-ge-item', index)
                 .on('click', function() {
                     var made = item.create();
 
-                    addNode(item.kind, made, function() {
-                        made.appendTo(canvas);
+                    // One that belongs in a column brings a row and a column
+                    // of its own, the way a container does
+                    var placed = item.inColumn ? inRowOfItsOwn(made) : made;
+
+                    var added = addNode(item.kind, made, function() {
+                        placed.appendTo(canvas);
                     }, { parent: canvas, source: item.source || 'tool' });
+
+                    if (added && item.inColumn && placed[0].scrollIntoView) {
+                        placed[0].scrollIntoView({behavior: 'smooth'});
+                    }
                 })
             ;
 
@@ -1256,8 +1235,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function insertFeatureFromToolbar(button, where) {
             var item = FEATURES[button.attr('data-ge-feature')].toolbar[parseInt(button.attr('data-ge-item'), 10)];
             var made = item.create();
+            var placed = made;
 
-            if (!acceptsBlock(where.region, made)) {
+            if (item.inColumn) {
+                // Where it lands in a column, or in a row and a column of its
+                // own anywhere else
+                if (!where.region.is('.column')) { placed = inRowOfItsOwn(made); }
+            } else if (!acceptsBlock(where.region, made)) {
                 var top = where.region.parentsUntil(canvas).addBack().first();
                 where = { region: canvas, before: top.length ? top.next() : null };
                 if (where.before && !where.before.length) { where.before = null; }
@@ -1265,33 +1249,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             return addNode(item.kind, made, function() {
                 if (where.before) {
-                    made.insertBefore(where.before);
-                } else {
-                    made.appendTo(where.region);
-                }
-            }, { parent: where.region, source: item.source || 'dragdrop' });
-        }
-
-        /**
-         * A text block dropped from the toolbar: where it lands in a column,
-         * or in a row and a column of its own anywhere else.
-         */
-        function insertTextFromToolbar(button, where) {
-            var made = makeText(button.attr('data-ge-text'));
-            var placed = made;
-
-            if (!where.region.is('.column')) {
-                placed = createRow();
-                createColumn(MAX_COL_SIZE).appendTo(placed).find('> .ge-content').replaceWith(made);
-            }
-
-            return addNode('text', made, function() {
-                if (where.before) {
                     placed.insertBefore(where.before);
                 } else {
                     placed.appendTo(where.region);
                 }
-            }, { parent: where.region, source: 'dragdrop' });
+            }, { parent: where.region, source: item.source || 'dragdrop' });
+        }
+
+        /** A detached row with one full width column holding `node`. */
+        function inRowOfItsOwn(node) {
+            var row = createRow();
+            createColumn(MAX_COL_SIZE).appendTo(row).append(node);
+
+            return row;
         }
 
         /** A line where the block would go, following the pointer. */
@@ -1323,9 +1293,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (button.attr('data-ge-toolbar') === 'feature') {
                 return insertFeatureFromToolbar(button, where);
             }
-            if (button.attr('data-ge-toolbar') === 'text') {
-                return insertTextFromToolbar(button, where);
-            }
 
             var container = button.attr('data-ge-toolbar') === 'container';
             var type = button.attr('data-ge-container-type');
@@ -1336,11 +1303,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // A container belongs in a column: dropped straight onto the
             // canvas it brings a row and a column of its own
             var placed = made;
-            if (container && !where.region.is('.column')) {
-                placed = createRow();
-                createColumn(MAX_COL_SIZE).appendTo(placed)
-                    .find('> .ge-content').replaceWith(made);
-            }
+            if (container && !where.region.is('.column')) { placed = inRowOfItsOwn(made); }
 
             return addNode(container ? type : 'row', made, function() {
                 if (where.before) {
@@ -1467,30 +1430,153 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             }
         }
         
-        function initRTE(e) {
-            if ($(this).hasClass('ge-rte-active')) { return; }
+        /**
+         * A click on the host's plain content makes it a text: of the one
+         * editor offered, or of the one chosen when there are several. What
+         * a click on a text does is its editor plugin's business.
+         */
+        function onContentClick() {
+            var block = $(this);
+            if (block.attr('data-ge-content-type')) { return; }
 
-            // A content area nobody can see - a tab that is not the open one,
-            // a closed accordion item - has no geometry for an editor to lay
+            // A second click, with the choice still open, withdraws it
+            if (closeSizePicker()) { return; }
+
+            // Content nobody can see - a tab that is not the open one, a
+            // closed accordion item - has no geometry for an editor to lay
             // its toolbar out against, and nothing anyone can type into
-            if (!$(this).is(':visible')) { return; }
-            
-            // The attribute, not jQuery's cached copy of it: it is markup, and
-            // the drawer reads it the same way
-            var type = $(this).attr('data-ge-content-type');
-            var text = textFor(type);
-            if (!text) { return; }
+            if (!block.is(':visible')) { return; }
 
-            // Not marked active, so the next click tries again: the library
-            // may be loaded by then
-            if (text.available && !text.available()) {
-                if (text.missingKey) { console.error(t(text.missingKey)); }
-                return;
+            var offers = textOffers();
+            if (!offers.length) { return; }
+
+            if (offers.length === 1) {
+                convertPlain(block, offers[0]);
+            } else {
+                openConvertPicker(block, offers);
+            }
+        }
+
+        /**
+         * Plain content made a text of `offer`'s type, through the convert
+         * events: the type goes on, and the plugin that declared it takes the
+         * block over and opens its editor. Nothing else about the node
+         * changes. False when the library is missing or a handler canceled.
+         */
+        function convertPlain(block, offer) {
+            // Not converted, so the next click tries again: the library may
+            // be loaded by then
+            if (offer.available && !offer.available()) {
+                if (offer.missingKey) { console.error(t(offer.missingKey)); }
+                return false;
             }
 
-            $(this).data('ge-text-before', attributesOf(this)).removeData('ge-text-ready');
-            $(this).addClass('ge-rte-active');
-            text.start($(this));
+            return operate(function() {
+                var payload = payloadFor('plain', block, { source: 'tool', from: 'plain', to: offer.type });
+
+                if (!emit('before-convert', payload)) { return false; }
+
+                block.addClass('ge-content-type-' + offer.type).attr('data-ge-content-type', offer.type);
+
+                // Its plain drawer goes: the block is the plugin's now, and
+                // the plugin gives it the drawer a text has
+                block.parent('.ge-text-block').removeClass('ge-plain-block').children('.ge-tools-drawer').remove();
+
+                emit('after-convert', payload);
+                offer.edit(block);
+
+                return true;
+            });
+        }
+
+        /**
+         * The text types offered, as a strip under the plain content's
+         * drawer, when there is more than one to choose from.
+         */
+        function openConvertPicker(block, offers) {
+            var textBlock = block.parent('.ge-text-block');
+
+            openPicker(textBlock.children('.ge-tools-drawer'), offers.map(function(offer) {
+                return {
+                    label: offer.label,
+                    title: t('tool.convert_type', { editor: offer.label }),
+                    attributes: { 'data-ge-content-type': offer.type },
+                    choose: function() { convertPlain(block, offer); },
+                };
+            }), 'ge-text-picker ge-convert-picker', textBlock);
+        }
+
+        /**
+         * A choice as a strip under `anchor` - a tool, or a drawer - one
+         * button per `{ label, title, attributes, choose }`. Leaving `hover`
+         * (the anchor by default) withdraws it, and so does closeSizePicker.
+         */
+        function openPicker(anchor, choices, className, hover) {
+            closeSizePicker();
+
+            anchor.closest('.ge-tools-drawer').addClass('ge-picker-open');
+            sizePicker = $('<div class="ge-size-picker" />').addClass(className || '').appendTo(anchor);
+
+            choices.forEach(function(choice) {
+                $('<a class="ge-size ge-size-flex" />')
+                    .attr(choice.attributes || {})
+                    .attr('title', choice.title || choice.label)
+                    .text(choice.label)
+                    .on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        closeSizePicker();
+                        choice.choose();
+                    })
+                    .appendTo(sizePicker)
+                ;
+            });
+
+            (hover || anchor).one('mouseleave', function() {
+                window.setTimeout(function() {
+                    if (sizePicker && !sizePicker.is(':hover')) { closeSizePicker(); }
+                }, 400);
+            });
+        }
+
+        /**
+         * Every text type the feature plugins declare, in the order they
+         * were registered: the first plugin to declare a type owns it.
+         */
+        function textTypes() {
+            var owners = {};
+            var entries = [];
+
+            $.each(FEATURES, function(name, feature) {
+                if (!feature.textTypes) { return; }
+
+                (feature.textTypes() || []).forEach(function(entry) {
+                    if (owners[entry.type]) {
+                        if (owners[entry.type] !== name) {
+                            warnOnceHere('text-type:' + entry.type, 'the "' + name + '" plugin declares the ' +
+                                'text type "' + entry.type + '", which the "' + owners[entry.type] +
+                                '" plugin already declares: ignored');
+                        }
+                        return;
+                    }
+
+                    owners[entry.type] = name;
+                    entries.push(entry);
+                });
+            });
+
+            return entries;
+        }
+
+        /** The types plain content can be made, in order: the ones not marked `offered: false`. */
+        function textOffers() {
+            return textTypes().filter(function(entry) { return entry.offered !== false; });
+        }
+
+        /** Whether a plugin declares this text type. */
+        function hasTextOwner(type) {
+            return textTypes().some(function(entry) { return entry.type === type; });
         }
 
         function reset() {
@@ -1527,9 +1613,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // Its panel goes home to its drawer first, and both go together
             closeSettings();
             canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
-            canvas.find('.ge-content').each(function() {
-                closeText($(this));
-            });
+            // Before the drawers and the text blocks come off: an editor
+            // plugin closes its editors here, and finds them where it left them
+            plugins('onBeforeDeinit');
             closeSizePicker();
             hideDropMarker();
             canvas.find('.ge-tools-drawer').remove();
@@ -1582,7 +1668,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             mainControls.remove();
             htmlTextArea.remove();
             $(window).off('scroll', onScroll);
-            canvas.off('click', '.ge-content', initRTE);
+            canvas.off('click', '.ge-content', onContentClick);
             canvas.off('ge-rte-ready', '.ge-content');
             canvas.removeData('grideditor');
         }
@@ -1633,30 +1719,27 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return !settings.plugins || settings.plugins.indexOf(name) !== -1;
             };
 
+            // What the plugins setting does not choose: the text editors,
+            // which content_types chooses. A page that names its containers
+            // there has named no editor, and still wants the one it uses.
+            var featureWanted = function(name, factory) {
+                return factory.always === true || wanted(name);
+            };
+
             $.each($.fn.gridEditor.containers, function(type, factory) {
                 if (wanted(type)) { CONTAINERS[type] = factory(api); }
             });
 
             $.each($.fn.gridEditor.features, function(name, factory) {
-                if (wanted(name)) { FEATURES[name] = factory(api); }
+                if (featureWanted(name, factory)) { FEATURES[name] = factory(api); }
             });
 
-            // Text editors are chosen by content_types rather than by the
-            // plugins setting: a page that names its containers there has
-            // named no editor, and still wants the one it uses
-            $.each($.fn.gridEditor.texts, function(type, factory) {
-                TEXTS[type] = factory(api);
-            });
-
-            // 5.x's registry, for an integration a host wrote itself. One the
-            // plugins above already provide is theirs.
-            $.each($.fn.gridEditor.RTEs, function(type, rte) {
-                if (TEXTS[type]) { return; }
-
-                warnOnceHere('rtes:' + type, '$.fn.gridEditor.RTEs is deprecated and will be removed ' +
-                    'in 7.0: register "' + type + '" under $.fn.gridEditor.texts, see docs/plugins.md');
-                TEXTS[type] = legacyText(rte);
-            });
+            // 5.x's registry of text editors is gone: an editor of a host's
+            // own is a plugin of its own since 6.0
+            if (!$.isEmptyObject($.fn.gridEditor.RTEs || {})) {
+                warnOnceHere('rtes', '$.fn.gridEditor.RTEs was removed in 6.0 and what is registered there ' +
+                    'is ignored: write the editor as a plugin, see docs/plugins.md');
+            }
 
             $.each($.fn.gridEditor.utilities, function(name, factory) {
                 if (!wanted(name)) { return; }
@@ -1737,6 +1820,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 // A text editor has rewritten a content area, so whatever the
                 // editor and its plugins had put in there goes back in
                 textReady: function(block) { block.trigger('ge-rte-ready'); },
+                // A choice under a tool, offered by holding it
+                attachPicker: attachPicker,
+                openPicker: openPicker,
+                closePicker: closeSizePicker,
                 // A node's settings panel, in its drawer or open outside it
                 detailsOf: detailsOf,
                 // A node's drawer: its first child, or for a content area the
@@ -1810,6 +1897,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * name the ones it means.
          */
         function appliesTo(family, kind) {
+            // The host's plain content reads and previews its utilities as a
+            // text does; with no gear, nothing in its drawer writes them
+            if (kind === 'plain') { kind = 'text'; }
             if (family.appliesTo.indexOf(kind) !== -1) { return true; }
 
             return !!CONTAINERS[kind] && family.appliesTo.indexOf('container') !== -1;
@@ -2279,7 +2369,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * -------------------------------------------------------------- */
 
         var CONTAINERS = {}; // The container plugins in use, by the type each builds
-        var TEXTS = {}; // The text editor plugins, by the content type each edits
         var FEATURES = {}; // The feature plugins in use, by name
         var UTILITIES = {}; // The utility plugins in use, by name
         var featureMethods = {}; // The methods those features contribute
@@ -2729,22 +2818,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                         }, 400, removed);
                     });
                 });
-
-                // A text block of the first editor offered; held, the tool
-                // offers each of them when there is more than one
-                var texts = offeredTexts();
-                if (texts.length) {
-                    createTool(drawer, t('tool.add_text'), 'ge-add-text', 'bi bi-type', function() {
-                        if (closeSizePicker()) { return; } // The picker was open: that was the answer
-
-                        addTextTo(col, texts[0]);
-                    });
-
-                    if (texts.length > 1) {
-                        var textTool = drawer.find('> .ge-add-text');
-                        attachPicker(textTool, function() { openTextPicker(textTool, col); });
-                    }
-                }
 
                 createTool(drawer, t('tool.add_row'), 'ge-add-row', 'bi bi-plus-circle', function() {
                     // An empty row: the columns in it are the next decision,
@@ -4208,7 +4281,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             var column = createColumn(size, options.offset);
             if (options.content !== undefined) {
-                column.find('.ge-content').html(options.content);
+                column.append(contentFor(options.content));
             }
 
             return place(column, 'column', options);
@@ -4276,10 +4349,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the all view. `offset` indents it, within the same 12 unit budget.
          */
         function createColumn(size, offset) {
-            var text = textFor(settings.content_types[0]);
-            var column = $('<div class="column"/>')
-                .append(createDefaultContentWrapper().html(text ? text.initialContent : ''))
-            ;
+            // Empty: what goes in it is the next decision, and the tools of
+            // the column and the toolbar are where it is made
+            var column = $('<div class="column"/>');
 
             // The tier being edited, or the base class in the all view
             var tier = tiersFor(curView)[0];
@@ -4373,8 +4445,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                         return;
                     } else if (kept) {
                         // Of the same type, or of none if it had none
-                        placed = (type ? createDefaultContentWrapper(type) : $('<div class="ge-content" />'))
-                            .append(piece.text);
+                        placed = createDefaultContentWrapper(type).append(piece.text);
                     } else {
                         // The content area itself, moved along if an
                         // element came before the first text
@@ -4430,7 +4501,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Wrap a run of loose column content in a content area, and hand back
+         * Wrap a run of loose column content in a content area of no type -
+         * the host's plain content - and hand back
          * an empty set: the caller has to forget what it just wrapped, or the
          * next boundary wraps the same nodes again and leaves the first
          * wrapper behind, empty.
@@ -4445,12 +4517,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * A content area for a content type, the first one by default. With
-         * no content types it is a content area and nothing more: there is no
-         * type to name.
+         * A content area of a text type, or with none the host's plain
+         * content: a content area and nothing more.
          */
         function createDefaultContentWrapper(type) {
-            type = type || settings.content_types[0];
             var contentArea = $('<div class="ge-content"/>');
 
             if (type) {
@@ -4461,21 +4531,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /* --------------------------------------------------------------
-         * Text blocks: a content area as a block of its own, with a drawer.
+         * Content blocks: a content area as a block of its own, with a drawer.
          *
          * The drawer cannot go inside the content area, as every other
-         * block's does: what is inside is the text editor's, which would make
-         * the drawer editable text, copy it into its own document or take it
-         * away on an undo. So while editing, each content area in a column
-         * sits in a .ge-text-block beside its drawer, and that wrapper is the
-         * block the column moves. deinit takes it off again: it is never part
-         * of the markup.
+         * block's does: what is inside may be a text editor's, which would
+         * make the drawer editable text, copy it into its own document or
+         * take it away on an undo. So while editing, each content area in a
+         * column sits in a .ge-text-block beside its drawer, and that wrapper
+         * is the block the column moves. deinit takes it off again: it is
+         * never part of the markup.
+         *
+         * A content area with no type is the host's plain content, and its
+         * drawer is the editor's: move and delete, nothing else. One whose
+         * type a plugin declares is that plugin's text, and the plugin gives
+         * it its drawer. One whose type nobody declares is a text whose
+         * editor is not loaded: a block to move and delete, not to edit.
          * -------------------------------------------------------------- */
-
-        /** The text editors this editor offers, in content_types order: the ones loaded. */
-        function offeredTexts() {
-            return settings.content_types.filter(function(type) { return !!TEXTS[type]; });
-        }
 
         function wrapTexts() {
             canvas.find('.column > .ge-content').each(function() {
@@ -4484,7 +4555,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             canvas.find('.ge-text-block').each(function() {
                 var textBlock = $(this);
-                if (!textBlock.children('.ge-tools-drawer').length) { createTextControls(textBlock); }
+                if (textBlock.children('.ge-tools-drawer').length) { return; }
+
+                var type = textBlock.children('.ge-content').attr('data-ge-content-type');
+
+                if (!type) {
+                    createPlainControls(textBlock);
+                } else if (!hasTextOwner(type)) {
+                    createOrphanControls(textBlock, type);
+                }
             });
         }
 
@@ -4495,41 +4574,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             });
         }
 
-        function createTextControls(textBlock) {
+        /** The host's plain content: moved and deleted here, edited in the source. */
+        function createPlainControls(textBlock) {
             var block = textBlock.children('.ge-content');
-            var type = block.attr('data-ge-content-type');
-            var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
+            var drawer = $('<div class="ge-tools-drawer ge-text-drawer ge-plain-drawer" />').prependTo(textBlock);
+            textBlock.addClass('ge-plain-block');
 
             createMoveTool(drawer);
-
-            // That no editor can edit it: a type whose plugin is not loaded is
-            // still a block to move and delete, but not to edit
-            if (type && !TEXTS[type]) {
-                createTool(drawer, t('text.no_editor', { type: type }), 'ge-text-info ge-text-missing',
-                    'bi bi-exclamation-triangle');
-            }
-
-            var details = addSettingsTool(drawer, block, settings.text_classes);
-
-            // Which editor edits it, first in its settings: something to
-            // know about it, not something to do with it
-            if (type && TEXTS[type]) {
-                $('<div class="ge-field ge-text-editor" />')
-                    .append($('<span class="ge-field-label" />').text(t('panel.editor')))
-                    .append($('<span class="ge-field-value" />').text(textLabel(type)))
-                    .prependTo(details.children('.ge-details-general'));
-            }
-
-            settings.text_tools.forEach(function(hostTool) {
-                createTool(drawer, hostTool.title || '', hostTool.className || '',
-                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-            });
-
-            createTool(drawer, t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
-                deleteNode('text', block, t('confirm.delete_text'), function(removed) {
-                    // Its editor lets go first: removed while open, it would
-                    // be left behind, attached to nothing
-                    closeText(block);
+            createTool(drawer, t('tool.delete_plain'), 'ge-delete-plain', 'bi bi-trash', function() {
+                deleteNode('plain', block, t('confirm.delete_plain'), function(removed) {
                     textBlock.slideUp(function() {
                         textBlock.remove();
                         removed();
@@ -4539,162 +4592,34 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Close the text editor on one content area, and leave the content
-         * area's own attributes as the host left them.
-         *
-         * An editor adds attributes of its own while it is open, and takes
-         * them off again, more or less: CKEditor leaves aria-readonly behind.
-         * tinyMCE does worse, and puts back every attribute as it was when it
-         * opened, so an id, a class or a plugin's attribute given while it was
-         * open is lost. So the attributes are read three times - before the
-         * editor opens, once it has opened, and before it closes - and what
-         * changed between the second and the third, the host's doing, is
-         * played back onto the first, the host's markup. What the editor did
-         * is left out either way.
+         * A text whose editor is not loaded: still a block to move and delete,
+         * and its drawer says why it cannot be edited.
          */
-        function closeText(block) {
-            var text = textFor(block.attr('data-ge-content-type'));
-            var before = block.data('ge-text-before');
-            var open = before ? attributesOf(block[0]) : null;
+        function createOrphanControls(textBlock, type) {
+            var block = textBlock.children('.ge-content');
+            var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
 
-            // Every content area is told, as in 5.x: one whose editor never
-            // started is the plugin's to ignore
-            if (text) { text.stop(block); }
-
-            // After stop, not before: an editor that restores the class
-            // attribute it snapshotted would put ge-rte-active back
-            block.removeClass('ge-rte-active');
-
-            if (before) {
-                restoreAttributes(block, before, block.data('ge-text-ready') || before, open);
-                block.removeData('ge-text-before').removeData('ge-text-ready');
-            }
-        }
-
-        /** What a text editor puts on a content area while it is open, whenever it likes. */
-        var EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
-        var EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
-
-        function attributesOf(element) {
-            var found = {};
-            $.each($.makeArray(element.attributes), function(i, attribute) {
-                found[attribute.name] = attribute.value;
+            createMoveTool(drawer);
+            createTool(drawer, t('text.no_editor', { type: type }), 'ge-text-info ge-text-missing',
+                'bi bi-exclamation-triangle');
+            createTool(drawer, t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
+                deleteNode('text', block, t('confirm.delete_text'), function(removed) {
+                    textBlock.slideUp(function() {
+                        textBlock.remove();
+                        removed();
+                    });
+                });
             });
-            return found;
-        }
-
-        function classesIn(value) {
-            return (value || '').split(/\s+/).filter(function(name) {
-                return name !== '' && !EDITOR_CLASS.test(name);
-            });
-        }
-
-        /** The host's markup, with what changed from `ready` to `open` played back onto it. */
-        function restoreAttributes(block, before, ready, open) {
-            var result = $.extend({}, before);
-
-            $.each($.extend({}, ready, open), function(name) {
-                if (name === 'class' || EDITOR_ATTRIBUTE.test(name) || ready[name] === open[name]) { return; }
-
-                if (open[name] === undefined) {
-                    delete result[name];
-                } else {
-                    result[name] = open[name];
-                }
-            });
-
-            var readyClasses = classesIn(ready['class']);
-            var openClasses = classesIn(open['class']);
-            var classes = classesIn(before['class']).filter(function(name) {
-                return openClasses.indexOf(name) !== -1 || readyClasses.indexOf(name) === -1;
-            });
-            openClasses.forEach(function(name) {
-                if (readyClasses.indexOf(name) === -1 && classes.indexOf(name) === -1) { classes.push(name); }
-            });
-
-            // In the host's order, class where it was: getHtml should not
-            // shuffle a node's attributes because it was edited
-            if (classes.length) { result['class'] = classes.join(' '); } else { delete result['class']; }
-
-            $.each(attributesOf(block[0]), function(name) { block.removeAttr(name); });
-            $.each(result, function(name, value) { block.attr(name, value); });
-        }
-
-        /** What a text editor is called: its plugin's label, or its type. */
-        function textLabel(type) {
-            var text = TEXTS[type];
-            return text && text.labelKey ? t(text.labelKey) : type;
-        }
-
-        /** A detached content area of `type`, holding `content` or the editor's initial content. */
-        function makeText(type, content) {
-            var text = TEXTS[type];
-            return createDefaultContentWrapper(type)
-                .html(content !== undefined ? content : (text && text.initialContent) || '');
-        }
-
-        /** A text block at the end of a column, through the add events. */
-        function addTextTo(col, type) {
-            var block = makeText(type);
-
-            return addNode('text', block, function() {
-                col.append(block);
-            }, { parent: col, source: 'tool' });
         }
 
         /**
-         * createText(type?, options?): a content area of a text editor's,
-         * detached unless a placement is given. The type is the first one
-         * offered by default. `options.content` is its html.
+         * A detached content area holding `content`: a text of the first type
+         * offered, or the host's plain content when no editor is offered.
          */
-        function apiCreateText(type, options) {
-            if (type && typeof type === 'object') {
-                options = type;
-                type = undefined;
-            }
-            options = options || {};
-            type = type || offeredTexts()[0];
+        function contentFor(content) {
+            var offers = textOffers();
 
-            if (!type || !TEXTS[type]) {
-                warnOnceHere('createText:' + type, 'createText: no text editor "' + type + '" is loaded; ' +
-                    'load its plugin and name it in content_types');
-                return null;
-            }
-
-            return place(makeText(type, options.content), 'text', options);
-        }
-
-        /**
-         * The text editors offered, as a strip under the add text tool, when
-         * there is more than one to choose from.
-         */
-        function openTextPicker(tool, col) {
-            closeSizePicker();
-
-            tool.closest('.ge-tools-drawer').addClass('ge-picker-open');
-            sizePicker = $('<div class="ge-size-picker ge-text-picker" />').appendTo(tool);
-
-            offeredTexts().forEach(function(type) {
-                $('<a class="ge-size ge-size-flex" />')
-                    .attr('data-ge-content-type', type)
-                    .attr('title', t('tool.add_text_type', { editor: textLabel(type) }))
-                    .text(textLabel(type))
-                    .on('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-
-                        closeSizePicker();
-                        addTextTo(col, type);
-                    })
-                    .appendTo(sizePicker)
-                ;
-            });
-
-            tool.one('mouseleave', function() {
-                window.setTimeout(function() {
-                    if (sizePicker && !sizePicker.is(':hover')) { closeSizePicker(); }
-                }, 400);
-            });
+            return createDefaultContentWrapper(offers.length ? offers[0].type : null).html(content);
         }
 
         /**
@@ -4751,23 +4676,6 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return curView;
         }
         
-        /** The text editor plugin for a content type, or null. */
-        function textFor(type) {
-            return TEXTS[type] || null;
-        }
-
-        /**
-         * An integration written to 5.x's contract - init and deinit over a
-         * set of content areas - as a text editor plugin.
-         */
-        function legacyText(rte) {
-            return {
-                initialContent: rte.initialContent,
-                start: function(block) { rte.init(settings, block); },
-                stop: function(block) { rte.deinit(settings, block); },
-            };
-        }
-
         /**
          * The instance handle, documented API as of 3.0: the methods the
          * plugin dispatches, plus the settings and the canvas. A host holding
@@ -4787,7 +4695,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             getView: getView,
             createRow: apiCreateRow,
             createColumn: apiCreateColumn,
-            createText: apiCreateText,
+            createText: function(type, options) {
+                if (!featureMethods.createText) {
+                    warnOnceHere('plugin:text', 'createText needs a text editor plugin: include ' +
+                        'dist/plugins/grideditor.tinymce.js, or another editor\'s, after the editor');
+                    return null;
+                }
+
+                return featureMethods.createText(type, options);
+            },
             createElement: function(content, options) {
                 if (!featureMethods.createElement) {
                     warnOnceHere('plugin:elements', 'createElement needs the elements plugin: ' +
@@ -4832,6 +4748,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         baseElem.data('grideditor', handle);
 
         loadPlugins();
+        // Again, with what the plugins filled in: the text editors'
+        // content_types when the host gave none
+        handle.settings = settingsCopy();
         setup();
         init();
 
@@ -4842,14 +4761,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 };
 
 /**
- * Text editor plugins: tinyMCE, CKEditor, summernote, and whatever a host
- * writes. A factory registered under the content type it edits, called once
- * per editor with the handle described in docs/plugins.md, returning
- * { labelKey, initialContent, available, missingKey, start, stop }.
+ * 5.x's registry of text editors, removed in 6.0: still there to register
+ * into, so a page written for 5.x does not throw, but what it holds is
+ * ignored with a warning. The text editors are plugins since 6.0.
  */
-$.fn.gridEditor.texts = {};
-
-/** 5.x's registry of text editors, adapted with a warning. Removed in 7.0. */
 $.fn.gridEditor.RTEs = {};
 
 /**
@@ -4905,11 +4820,9 @@ $.fn.gridEditor.locales = {
         'tool.move': 'Move',
         'tool.settings': 'Settings',
         'tool.add_row': 'Add row',
-        'tool.add_text': 'Add text',
-        'tool.add_text_type': 'Add {editor} text',
         'tool.delete_text': 'Remove text',
-        'text.add': 'Text',
-        'text.add_type': 'Text ({editor})',
+        'tool.delete_plain': 'Remove content',
+        'tool.convert_type': 'Edit as {editor} text',
         'text.no_editor': 'No text editor "{type}" is loaded: this text can be moved and deleted, not edited',
         'tool.add_column': 'Add column\n(hold to choose the width)',
         'tool.column_size': '{size} of 12',
@@ -4931,10 +4844,8 @@ $.fn.gridEditor.locales = {
         'panel.done': 'Done',
         'panel.id': 'Id',
         'panel.classes': 'Classes',
-        'panel.editor': 'Editor',
         'panel.kind_row': 'Row',
         'panel.kind_column': 'Column',
-        'panel.kind_text': 'Text',
         'panel.kind_element': 'Element',
         'panel.kind_section': 'Section',
         'panel.kind_tab': 'Tab',
@@ -4952,6 +4863,7 @@ $.fn.gridEditor.locales = {
         'confirm.delete_row': 'Delete row?',
         'confirm.delete_column': 'Delete column?',
         'confirm.delete_text': 'Delete this text?',
+        'confirm.delete_plain': 'Delete this content?',
         'confirm.delete_container': 'Delete this container and everything in it?',
         'view.all': 'All sizes',
         'view.xs': 'Phone',

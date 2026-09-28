@@ -89,8 +89,8 @@ var PLUGIN = `
 function canvasWith(classes) {
     return `
         jQuery('#myGrid').html(
-            '<div class="row"><div class="column col-6 ${classes}"><div class="ge-content"><p>a</p></div></div>' +
-            '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>'
+            '<div class="row"><div class="column col-6 ${classes}"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
+            '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>'
         );
     `;
 }

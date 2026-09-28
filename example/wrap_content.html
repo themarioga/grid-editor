@@ -63,9 +63,11 @@
             <code>.col-*</code> anywhere. Grid editor does not refuse it: it
             wraps all of it into one row with a single
             <code>col-lg-12</code> column, and from there it is an ordinary
-            grid. Add rows, split the column, edit the text, then press
-            <em>Refresh</em> to see the html that comes out: as
-            <code>getHtml</code> returns it, to save and edit again, and as
+            grid. What was in there is the page's <em>plain content</em>: a
+            block to move and delete, edited in the source, until a click
+            makes it a text of tinyMCE's. Add rows, split the column, edit the
+            text, then press <em>Refresh</em> to see the html that comes out:
+            as <code>getHtml</code> returns it, to save and edit again, and as
             <code>getPlainHtml</code> returns it, to publish.
         </p>
 

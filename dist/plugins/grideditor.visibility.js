@@ -44,7 +44,7 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
     }
 
     function applies(node, kind) {
-        return kind === 'row' || kind === 'column' || kind === 'element' || kind === 'text' ||
+        return kind === 'row' || kind === 'column' || kind === 'element' || kind === 'text' || kind === 'plain' ||
             node.is('[data-ge-container]');
     }
 

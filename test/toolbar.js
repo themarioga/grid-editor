@@ -238,8 +238,8 @@ async function iconTests(t) {
         $.fn.gridEditor.containers.card = function(ge) {
             return $.extend(card(ge), { iconClass: 'bi bi-square' });
         };
-        $.fn.gridEditor.texts.plain = function() {
-            return { labelKey: 'text.plain', iconClass: 'bi bi-fonts', start: function() {}, stop: function() {} };
+        $.fn.gridEditor.texts.simple = function() {
+            return { labelKey: 'text.simple', iconClass: 'bi bi-fonts', start: function() {}, stop: function() {} };
         };
         $.fn.gridEditor.features.stamp = function() {
             return { toolbar: [
@@ -247,10 +247,10 @@ async function iconTests(t) {
                 { labelKey: 'stamp.plain', kind: 'row', create: function() { return jQuery('<div class="row"></div>'); } },
             ] };
         };
-        $.extend($.fn.gridEditor.locales.en, { 'text.plain': 'Plain', 'stamp.add': 'Stamp', 'stamp.plain': 'Plain stamp' });
+        $.extend($.fn.gridEditor.locales.en, { 'text.simple': 'Simple', 'stamp.add': 'Stamp', 'stamp.plain': 'Plain stamp' });
 
         jQuery('#myGrid').gridEditor('destroy');
-        window.fixture.init({ content_types: ['plain'], plugins: window.fixture.plugins(['stamp']) });
+        window.fixture.init({ content_types: ['simple'], plugins: window.fixture.plugins(['stamp']) });
 
         function face(button) {
             return {
@@ -262,13 +262,13 @@ async function iconTests(t) {
         var faces = {
             card: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]')),
             tabs: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="tabs"]')),
-            text: face(jQuery('.ge-addContainerGroup a[data-ge-text="plain"]')),
+            text: face(jQuery('.ge-addContainerGroup .ge-add-text-button')),
             stamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="0"]')),
             plainStamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="1"]')),
         };
 
         $.fn.gridEditor.containers.card = card;
-        delete $.fn.gridEditor.texts.plain;
+        delete $.fn.gridEditor.texts.simple;
         delete $.fn.gridEditor.features.stamp;
         jQuery('#myGrid').gridEditor('destroy');
         window.fixture.init({});

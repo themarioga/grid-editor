@@ -707,6 +707,23 @@
             left: 0;
             border-radius: 0;
         }
+
+        /* The choice of editor a click on plain content offers hangs off
+           the drawer, which sits at the right: so it opens leftwards */
+        > .ge-text-drawer > .ge-convert-picker {
+            left: auto;
+            right: 0;
+        }
+    }
+
+    /* The host's plain content: a block to move and delete, edited in the
+       source - greyer than a text, which an editor edits in place */
+    .ge-text-block.ge-plain-block {
+        outline-color: rgba(0, 0, 0, 0.25);
+
+        > .ge-text-drawer {
+            background: #e9ecef;
+        }
     }
 
     /* A column with nothing in it but its drawer still has room to drop a

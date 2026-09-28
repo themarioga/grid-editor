@@ -49,6 +49,8 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-add-element` | `grideditor:after-add` | no | |
 | `grideditor:before-add-text` | `grideditor:before-add` | yes | before a text block is inserted, from the add text tool, the toolbar or `createText` |
 | `grideditor:after-add-text` | `grideditor:after-add` | no | |
+| `grideditor:before-convert` | — | yes | before the host's plain content is made a text, on a click, with the type chosen |
+| `grideditor:after-convert` | — | no | once the type is on it, before its editor has finished opening |
 | `grideditor:before-delete` | — | yes | before any node is removed, whatever its kind |
 | `grideditor:after-delete` | — | no | after removal completes, animation included |
 | `grideditor:before-move` | — | yes | on drag start (see *Canceling*) |
@@ -74,7 +76,7 @@ The payload
 
 ```javascript
 {
-    kind: 'row',          // row | column | content | element
+    kind: 'row',          // row | column | text | plain | element
                           // tabs | accordion | popup | tab | accordion-item
                           // section, with the sections plugin
     node: jQuery,         // the node added, deleted, moved or resized
@@ -97,6 +99,10 @@ The payload
 
     // a pane inside a container
     container: jQuery,
+
+    // convert only
+    from: 'plain',
+    to: 'tinymce',        // the text type it is made
 
     // popup-orphan only
     missing: 'ge-popup-3-a91',   // the id the trigger pointed at
@@ -131,7 +137,10 @@ like any other, so canceling its `before-add-*` turns it away.
 
 A text block is `kind: 'text'`, with its content area as the node, when it is
 added, deleted or moved, and in `drawerTools`. Up to 5.x a content area
-dragged between columns was `kind: 'content'`. The kinds for containers are
+dragged between columns was `kind: 'content'`. The host's plain content - a
+content area with no text type on it - is `kind: 'plain'` when it is deleted,
+moved or converted; the convert pair's `source` is `tool`, and canceling
+`before-convert` leaves it plain, with no editor opened. The kinds for containers are
 the container's own type, so a listener can tell a tabs container from an
 accordion without reading the markup.
 

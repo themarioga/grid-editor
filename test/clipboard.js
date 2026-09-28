@@ -21,7 +21,10 @@ var START = `
     if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
     jQuery('#myGrid').html(
         '<div class="row" id="hero"><div class="col-lg-12"><h1>First row</h1><p><a href="#hero">Back up</a></p></div></div>' +
-        '<div class="row"><div class="col-lg-6"><p>Left</p></div><div class="col-lg-6"><p>Right</p></div></div>'
+        // Texts as the editor saves them: the first row's loose markup is the
+        // host's plain content, which is not copied
+        '<div class="row"><div class="col-lg-6"><div class="ge-content" data-ge-content-type="tinymce"><p>Left</p></div></div>' +
+        '<div class="col-lg-6"><div class="ge-content" data-ge-content-type="tinymce"><p>Right</p></div></div></div>'
     );
     window.fixture.init({ plugins: window.fixture.plugins(['clipboard', 'sections']) });
     window.ge = jQuery('#myGrid').data('grideditor');
@@ -61,7 +64,7 @@ async function toolTests(t) {
     var tools = await page.eval(START + `
         ge.createSection({ appendTo: jQuery('#myGrid') });
         ge.createContainer('tabs', { appendTo: jQuery('#myGrid .column').eq(1) });
-        ge.createElement('<blockquote>Quoted</blockquote>', { appendTo: jQuery('#myGrid .column').eq(2).find('.ge-content') });
+        ge.createElement('<blockquote>Quoted</blockquote>', { appendTo: jQuery('#myGrid .column').last() });
         const copyOn = function(selector) {
             return jQuery(selector).map(function() {
                 return jQuery(this).children('.ge-tools-drawer').children('.ge-copy').length;

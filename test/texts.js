@@ -1,6 +1,7 @@
 /**
- * Browser tests for text blocks and the text editor plugins' contract:
- * $.fn.gridEditor.texts, and the adapter for 5.x's $.fn.gridEditor.RTEs.
+ * Browser tests for text blocks and what the text editor plugins share: the
+ * text feature every editor's file carries, its $.fn.gridEditor.texts
+ * registry, and 5.x's $.fn.gridEditor.RTEs, which 6.0 removed.
  *
  * These run offline, on the fixture, with a stand-in for tinyMCE that has
  * only what the integration touches: the real editors are rte.js's business.
@@ -33,14 +34,23 @@ var SETUP = `
     };
     window.tinymce = window.fakeTinymce;
 
-    // From markup with no content areas yet, so each start wraps its own,
-    // of the content type it is started with: a content area keeps its type
+    // Two texts of the first content type started with, as the editor saved
+    // them: loose markup would be the host's plain content. With no content
+    // types there is no type to give them, and they are plain.
     window.restart = function(overrides) {
         if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
+        const settings = Object.assign({}, window.fixture.settings, { content_types: ['tinymce'] }, overrides || {});
+        // content_types: undefined is the editor's own default, every editor loaded
+        if (settings.content_types === undefined) { delete settings.content_types; }
+        const type = (settings.content_types || ['tinymce'])[0];
+        const text = function(html) {
+            return type ? '<div class="ge-content ge-content-type-' + type + '" data-ge-content-type="' + type + '">' + html + '</div>' : html;
+        };
         jQuery('#myGrid').html(
-            '<div class="row"><div class="col-lg-6"><p>Left</p></div><div class="col-lg-6"><p>Right</p></div></div>'
+            '<div class="row"><div class="col-lg-6">' + text('<p>Left</p>') + '</div>' +
+            '<div class="col-lg-6">' + text('<p>Right</p>') + '</div></div>'
         );
-        window.fixture.init(Object.assign({ content_types: ['tinymce'] }, overrides || {}));
+        jQuery('#myGrid').gridEditor(settings);
     };
     return true;
 `;
@@ -107,7 +117,7 @@ async function contractTests(t) {
 
     var own = await page.eval(`
         window.calls = [];
-        $.fn.gridEditor.texts.plain = function(ge) {
+        $.fn.gridEditor.texts.simple = function(ge) {
             return {
                 initialContent: '<p>Write here</p>',
                 start: function(block) {
@@ -129,16 +139,19 @@ async function contractTests(t) {
         $.fn.gridEditor.features.probe = function() {
             return { onContentReady: function(area) { window.readyFor.push(area.attr('data-ge-content-type')); } };
         };
-        restart({ content_types: ['plain'], plugins: window.fixture.plugins(['probe']) });
+        restart({ content_types: ['simple'], plugins: window.fixture.plugins(['probe']) });
         delete $.fn.gridEditor.features.probe;
 
         const area = jQuery('#myGrid .ge-content').eq(0);
         const ge = jQuery('#myGrid').data('grideditor');
         area.trigger('click');
-        const drawerBack = window.readyFor.join(',') === 'plain' ? 1 : 0;
+        const drawerBack = window.readyFor.join(',') === 'simple' ? 1 : 0;
 
         const column = ge.createColumn(6, { appendTo: jQuery('#myGrid .row').first() });
-        const fresh = column.children('.ge-text-block').children('.ge-content').html();
+        const empty = column.children().not('.ge-tools-drawer, .ge-resize-handle').length;
+        const withContent = ge.createColumn(6, { content: '<p>Given</p>', appendTo: jQuery('#myGrid .row').first() })
+            .children('.ge-text-block').children('.ge-content');
+        const fresh = { empty: empty, type: withContent.attr('data-ge-content-type'), html: withContent.html() };
 
         jQuery('#myGrid').gridEditor('getHtml');
         return { calls: window.calls.slice(), drawerBack: drawerBack, fresh: fresh, warnings: window.warnings.slice() };
@@ -147,8 +160,8 @@ async function contractTests(t) {
         own.calls.join(',') === 'start,stop', own);
     t.check('ge.textReady tells the plugins the editor rewrote the content area, through onContentReady',
         own.drawerBack === 1, own);
-    t.check('a new column starts with the text editor\'s initial content',
-        own.fresh === '<p>Write here</p>', own);
+    t.check('a new column starts empty; one made with content holds it as a text of the first editor offered',
+        own.fresh.empty === 0 && own.fresh.type === 'simple' && own.fresh.html === '<p>Given</p>', own);
     t.check('a text editor under texts is not deprecated',
         !own.warnings.some(function(w) { return /deprecated/.test(w); }), own.warnings);
 
@@ -156,45 +169,31 @@ async function contractTests(t) {
         window.warnings = [];
         window.legacyCalls = [];
         $.fn.gridEditor.RTEs.legacy = {
-            init: function(settings, areas) {
-                window.legacyCalls.push('init:' + areas.length + ':' + (settings.content_types[0]));
-                areas.addClass('active');
-            },
-            deinit: function(settings, areas) {
-                if (areas.filter('.active').length) { window.legacyCalls.push('deinit'); }
-                areas.removeClass('active');
-            },
+            init: function() { window.legacyCalls.push('init'); },
+            deinit: function() { window.legacyCalls.push('deinit'); },
             initialContent: '<p>Legacy</p>',
         };
-        restart({ content_types: ['legacy'] });
-        jQuery('#myGrid .ge-content').eq(0).trigger('click');
+        $.fn.gridEditor.RTEs.tinymce = { init: function() { window.legacyCalls.push('shadow'); }, deinit: function() {} };
+        restart({ content_types: ['legacy', 'tinymce'] });
+        const legacyArea = jQuery('#myGrid .ge-content').eq(0);
+        legacyArea.trigger('click');
+        const orphan = legacyArea.parent().find('> .ge-tools-drawer > .ge-text-missing').length;
         jQuery('#myGrid').gridEditor('getHtml');
-        restart({ content_types: ['legacy'] });
-        return {
-            calls: window.legacyCalls.slice(),
-            deprecations: window.warnings.filter(function(w) { return /RTEs is deprecated/.test(w); }).length,
-            fresh: jQuery('#myGrid').data('grideditor').createColumn(6).children('.ge-content').html(),
-        };
-    `);
-    t.check('an integration written to 5.x\'s RTEs contract still edits, with settings and the content area',
-        legacy.calls.join(',') === 'init:1:legacy,deinit' && legacy.fresh === '<p>Legacy</p>', legacy);
-    t.check('and warns, once per editor, that RTEs is deprecated',
-        legacy.deprecations === 2, legacy);
-
-    var shadowed = await page.eval(`
-        window.warnings = [];
-        $.fn.gridEditor.RTEs.tinymce = { init: function() { window.oldOneUsed = true; }, deinit: function() {}, initialContent: '' };
         restart();
         jQuery('#myGrid .ge-content').eq(0).trigger('click');
+        delete $.fn.gridEditor.RTEs.legacy;
         delete $.fn.gridEditor.RTEs.tinymce;
         return {
-            oldOneUsed: !!window.oldOneUsed,
+            calls: window.legacyCalls.slice(),
+            orphan: orphan,
             attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce'),
-            deprecations: window.warnings.filter(function(w) { return /register "tinymce"/.test(w); }).length,
+            removed: window.warnings.filter(function(w) { return /RTEs was removed in 6\.0/.test(w); }).length,
         };
     `);
-    t.check('an RTEs entry a text plugin already provides is left unused, without a warning',
-        !shadowed.oldOneUsed && shadowed.attached && shadowed.deprecations === 0, shadowed);
+    t.check('an integration registered under 5.x\'s RTEs is ignored: its texts are a type nobody edits',
+        legacy.calls.length === 0 && legacy.orphan === 1 && legacy.attached, legacy);
+    t.check('and each editor says once that RTEs was removed in 6.0',
+        legacy.removed === 2, legacy);
 
     var errors = page.errors();
     t.check('the contract tests logged no errors', errors.length === 0, errors.slice(0, 5));
@@ -204,16 +203,16 @@ async function contractTests(t) {
  * A second text editor, for the choices that only exist with more than one:
  * it opens by marking the content area and closes by unmarking it.
  */
-var PLAIN_EDITOR = `
-    $.fn.gridEditor.texts.plain = function(ge) {
+var SIMPLE_EDITOR = `
+    $.fn.gridEditor.texts.simple = function(ge) {
         return {
-            labelKey: 'text.plain_label',
-            initialContent: '<p>Plain</p>',
+            labelKey: 'text.simple_label',
+            initialContent: '<p>Simple</p>',
             start: function(block) { block.addClass('active'); ge.textReady(block); },
             stop: function(block) { block.removeClass('active'); },
         };
     };
-    $.fn.gridEditor.locales.en['text.plain_label'] = 'Plain';
+    $.fn.gridEditor.locales.en['text.simple_label'] = 'Simple';
 
     window.events = [];
     window.listen = function() {
@@ -239,7 +238,7 @@ var TOOLS = `
 async function blockTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(SETUP);
-    await page.eval(PLAIN_EDITOR);
+    await page.eval(SIMPLE_EDITOR);
     await page.eval(TOOLS);
 
     var drawer = await page.eval(`
@@ -331,12 +330,12 @@ async function blockTests(t) {
         restart({ content_types: [] });
         return {
             addText: jQuery('#myGrid .ge-add-text').length,
-            buttons: jQuery('.ge-mainControls [data-ge-toolbar="text"]').length,
+            buttons: jQuery('.ge-mainControls .ge-add-text-button').length,
             blocks: jQuery('#myGrid .ge-text-block').length,
             info: jQuery('#myGrid .ge-text-info').length,
         };
     `);
-    t.check('with no text editor offered there is no add text tool and no text button; content areas are still blocks',
+    t.check('with no text editor offered there is no add text tool and no text button; plain content is still a block',
         none.addText === 0 && none.buttons === 0 && none.blocks === 2 && none.info === 0, none);
 
     var missing = await page.eval(`
@@ -359,22 +358,22 @@ async function blockTests(t) {
 async function choiceTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(SETUP);
-    await page.eval(PLAIN_EDITOR);
+    await page.eval(SIMPLE_EDITOR);
 
     var one = await page.eval(`
         restart();
-        return jQuery('.ge-mainControls [data-ge-toolbar="text"]').map(function() { return jQuery(this).attr('title'); }).get();
+        return jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get();
     `);
     t.check('with one text editor offered, the toolbar has one Text button', one.join('|') === 'Text', one);
 
     var two = await page.eval(`
-        restart({ content_types: ['tinymce', 'plain', 'nothing-loaded'] });
+        restart({ content_types: ['tinymce', 'simple', 'nothing-loaded'] });
         return {
-            buttons: jQuery('.ge-mainControls [data-ge-toolbar="text"]').map(function() { return jQuery(this).attr('title'); }).get(),
+            buttons: jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get(),
         };
     `);
     t.check('with two, one button each, named after its editor; a type with no plugin is not offered',
-        two.buttons.join('|') === 'Text (tinyMCE)|Text (Plain)', two);
+        two.buttons.join('|') === 'Text (tinyMCE)|Text (Simple)', two);
 
     // Held, the add text tool offers each editor
     var tool = '#myGrid .column:first > .ge-tools-drawer > .ge-add-text';
@@ -388,14 +387,14 @@ async function choiceTests(t) {
         return { offered: offered, type: last.attr('data-ge-content-type'), html: last.html(), closed: jQuery('.ge-text-picker').length === 0 };
     `);
     t.check('held, the add text tool offers every editor, and a choice adds a text of that one',
-        picker.offered.join('|') === 'tinyMCE|Plain' && picker.type === 'plain' && picker.html === '<p>Plain</p>' && picker.closed,
+        picker.offered.join('|') === 'tinyMCE|Simple' && picker.type === 'simple' && picker.html === '<p>Simple</p>' && picker.closed,
         picker);
 
     var clicked = await page.eval(`
         window.events = [];
         listen();
         const before = jQuery('#myGrid').children('.row').length;
-        jQuery('.ge-mainControls [data-ge-toolbar="text"]').last().trigger('click');
+        jQuery('.ge-mainControls .ge-add-text-button').last().trigger('click');
         const row = jQuery('#myGrid').children('.row').last();
         return {
             rows: jQuery('#myGrid').children('.row').length - before,
@@ -406,7 +405,7 @@ async function choiceTests(t) {
         };
     `);
     t.check('a Text button adds a row with a column holding one text of its editor, announced as a text',
-        clicked.rows === 1 && clicked.columns === 1 && clicked.blocks === 1 && clicked.type === 'plain' &&
+        clicked.rows === 1 && clicked.columns === 1 && clicked.blocks === 1 && clicked.type === 'simple' &&
         clicked.events.join(',') === 'text:tool', clicked);
 
     var api = await page.eval(`
@@ -414,7 +413,7 @@ async function choiceTests(t) {
         const ge = jQuery('#myGrid').data('grideditor');
         const column = jQuery('#myGrid .column').first();
         const detached = ge.createText();
-        const placed = ge.createText('plain', { content: '<p>From the API</p>', appendTo: column });
+        const placed = ge.createText('simple', { content: '<p>From the API</p>', appendTo: column });
         const unknown = ge.createText('nothing-loaded');
         const viaMethod = jQuery('#myGrid').gridEditor('createText', { content: '<p>Method</p>' });
         return {
@@ -438,7 +437,7 @@ async function choiceTests(t) {
 async function dragTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(SETUP);
-    await page.eval(PLAIN_EDITOR);
+    await page.eval(SIMPLE_EDITOR);
 
     await page.eval(`
         restart({ toolbar_drag: true });
@@ -467,7 +466,7 @@ async function dragTests(t) {
     t.check('and the move is announced for the content area, as a text',
         moved.events.join(' ') === 'before-move:text:true after-move:text:true', moved.events);
 
-    await page.drag('.ge-mainControls [data-ge-toolbar="text"]', '#left', { yRatio: 0.9 });
+    await page.drag('.ge-mainControls .ge-add-text-button', '#left', { yRatio: 0.9 });
     var dropped = await page.eval(`
         return {
             inLeft: jQuery('#left').children('.ge-text-block').length,
@@ -480,6 +479,58 @@ async function dragTests(t) {
 
     var errors = page.errors();
     t.check('the text drag tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
+/**
+ * The text feature each editor's file carries: installed once however many
+ * are loaded, every editor loaded offered when content_types is not given,
+ * and nothing at all with none loaded.
+ */
+async function loadingTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SETUP);
+
+    var all = await page.eval(`
+        restart({ content_types: undefined });
+        const columns = jQuery('#myGrid .column');
+        return {
+            buttons: jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get(),
+            addTextPerColumn: columns.get().map(function(col) { return jQuery(col).find('> .ge-tools-drawer > .ge-add-text').length; }),
+            features: Object.keys($.fn.gridEditor.features).filter(function(name) { return name === 'text'; }).length,
+        };
+    `);
+    t.check('with no content_types, every editor loaded is offered, in the order the page loaded them',
+        all.buttons.join('|') === 'Text (tinyMCE)|Text (CKEditor)|Text (Summernote)', all);
+    t.check('three editors loaded install the text feature once: one add text tool per column',
+        all.features === 1 && all.addTextPerColumn.join(',') === '1,1', all);
+
+    var none = await page.eval(`
+        window.warnings = [];
+        const feature = $.fn.gridEditor.features.text;
+        delete $.fn.gridEditor.features.text;
+        restart({ content_types: undefined });
+        const ge = jQuery('#myGrid').data('grideditor');
+        const first = ge.createText();
+        const second = ge.createText();
+        const result = {
+            buttons: jQuery('.ge-mainControls .ge-add-text-button').length,
+            addText: jQuery('#myGrid .ge-add-text').length,
+            first: first,
+            second: second,
+            warned: window.warnings.filter(function(w) { return /createText needs a text editor plugin/.test(w); }).length,
+            orphans: jQuery('#myGrid .ge-text-missing').length,
+        };
+        jQuery('#myGrid').gridEditor('destroy');
+        $.fn.gridEditor.features.text = feature;
+        return result;
+    `);
+    t.check('with no text editor loaded there is no Text button and no add text tool; createText warns once and makes nothing',
+        none.buttons === 0 && none.addText === 0 && none.first === null && none.second === null && none.warned === 1, none);
+    t.check('and a text saved with an editor\'s type is a block that says its editor is not loaded',
+        none.orphans === 2, none);
+
+    var errors = page.errors();
+    t.check('the loading tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 async function utilityTests(t) {
@@ -677,7 +728,7 @@ async function drawerDragTests(t) {
 
 module.exports = {
     name: 'texts',
-    description: 'text blocks, the text editor plugins\' contract and the RTEs adapter',
+    description: 'text blocks, the text feature the editor plugins share, and RTEs removed',
     run: async function(t) {
         await bundleTests(t);
         await contractTests(t);
@@ -687,6 +738,7 @@ module.exports = {
         await drawerDragTests(t);
         await overlayTests(t);
         await utilityTests(t);
+        await loadingTests(t);
     },
 };
 

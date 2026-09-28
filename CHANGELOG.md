@@ -10,11 +10,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iconClass` for a container plugin and a text editor plugin: their toolbar
   button shows the icon alone, with the label as its title, where it showed a
   plus and the label.
+- **Plain content.** What the editor wraps that is not the grid's - loose
+  markup in a column, a page with no row - is the host's plain content: a
+  content area with no text type, `<div class="ge-content">`. A block to move
+  and delete, with no gear, edited in the source, and never made by the
+  editor's tools; `kind: 'plain'` in the events. With a text editor loaded a
+  click makes it a text of that editor, or of the one chosen when several are
+  offered, through the new `before-convert` (cancelable) and `after-convert`
+  events. See [docs/plugins.md](docs/plugins.md#text).
+- `textTypes` for a feature plugin: the text types it edits, which is how the
+  core knows whose a text is and what plain content can be made.
+  [example/custom_editor.html](example/custom_editor.html) is a text editor
+  written that way, with none of the shipped ones.
+- `onBeforeDeinit` for a plugin, run by every `deinit` before the drawers come
+  off; `inColumn`, `label` and `className` for a feature plugin's toolbar
+  item; `ge.attachPicker`, `ge.openPicker` and `ge.closePicker` in the handle.
 
 ### Changed
+- **Text is out of the core.** The text block's drawer, the *Text* buttons,
+  the *Add text* tool, `createText`, opening and closing an editor and the
+  `content_types`, `text_tools` and `text_classes` settings are the text
+  editor plugins': each of `grideditor.tinymce.js`, `grideditor.ckeditor.js`
+  and `grideditor.summernote.js` carries them, installed once however many a
+  page loads. Without one, `createText` warns and returns null.
+- **New columns start empty**, whatever makes them: the add column tool, the
+  row buttons, `createRow`, `createColumn`, a container's or a pane's region.
+  `createColumn(size, { content })` holds its content as a text of the first
+  editor offered, or as plain content with none.
+- Loose content was wrapped as a text of the first `content_types`; it is
+  plain content now, and a click makes it a text.
+- `content_types` defaults to every text editor loaded, in the order the page
+  loaded them, where it was `['tinymce']`.
+- A text whose type no plugin declares has a drawer of move, the missing
+  editor's notice and delete, with no gear, whatever else is loaded.
+- The *Text* buttons stand after the containers' in the toolbar.
 - A feature plugin's toolbar item with an `iconClass` shows the icon alone,
   with its label as the title, wherever it is in the toolbar. It showed the
   icon and the label unless it had `align: 'end'`.
+
+### Removed
+- `$.fn.gridEditor.RTEs`, 5.x's registry of text editors: what is registered
+  there is ignored, with a warning. `$.fn.gridEditor.texts` is no longer a
+  documented contract: it is the shipped editors' own registry.
 
 
 ## [6.0.0-beta.3] - 2026-09-23
@@ -132,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `$.fn.gridEditor.texts`, with a contract a host can write its own editor to:
   `start`, `stop`, `initialContent`, `available`, and `ge.textReady` in the
   handle. They are chosen by `content_types`, not by the `plugins` setting.
-  See [docs/plugins.md](docs/plugins.md#text-editor-plugins).
+  See [docs/plugins.md](docs/plugins.md#text).
 
 ### Deprecated
 - The copies of the three text editors in the main bundle. A page that edits

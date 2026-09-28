@@ -120,10 +120,10 @@ $('#myGrid').gridEditor('method', argument);
 | `getView` | — | `String` | The view the editor is in |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
 | `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
-| `createColumn` | `size`, `options?` | `jQuery` | A column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` |
+| `createColumn` | `size`, `options?` | `jQuery` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
 | `createSection` | `options?` | `jQuery` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
 | `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
-| `createText` | `type?`, `options?` | `jQuery` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded |
+| `createText` | `type?`, `options?` | `jQuery` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded, or no text editor is |
 | `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
 | `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
 | `addAccordionItem` | `container`, `options?` | `jQuery` | Appends an item, returns its body |
@@ -444,6 +444,16 @@ $('#myGrid').gridEditor('createText', { content: '<p>Hello</p>', appendTo: '#myC
 A text whose editor's plugin is not loaded is still a block, to move and
 delete, and its drawer says it cannot be edited.
 
+What the editor finds in a column that is not the grid's - loose markup, or a
+page that had no row at all - is the host's *plain content*: a content area
+with no text editor's type on it. It moves and deletes like any block, is
+edited in the source (the toolbar's code button), and nothing in the editor
+makes a new one. With a text editor loaded, a click makes it a text of that
+editor - of the one chosen, when there are several - through the
+`before-convert` and `after-convert` events. New columns start empty, and
+`createColumn(size, { content })` holds its content as a text of the first
+editor offered, or as plain content with none.
+
 __`text_tools`:__ Extra tools on every text drawer, same shape as `row_tools`.
 
 __`text_classes`:__ Preset class toggles on a text's settings panel, as `row_classes`.
@@ -708,10 +718,11 @@ Grid editor comes with support for the following rich text editors (RTEs), each 
 A text editor is chosen by `content_types`, not by the `plugins` setting: a page
 that names its containers in `plugins` still has its editor. Summernote 0.9.1
 calls `$.now()`, which jQuery 4 removed; its plugin gives it back, and only if
-it is missing. [docs/plugins.md](docs/plugins.md#text-editor-plugins) says how
-to write a plugin for another editor.
+it is missing. Another editor is a plugin of your own:
+[docs/plugins.md](docs/plugins.md#text) says how, and
+[example/custom_editor.html](example/custom_editor.html) is one.
 
-__`content_types`:__ Specify the RTE to use. Valid values: `['tinymce']`, `['summernote']`, `['ckeditor']`, or the name of a text editor plugin of your own. Default value: `['tinymce']`.
+__`content_types`:__ Specify the RTEs to offer, in order. Valid values: any of `'tinymce'`, `'summernote'`, `'ckeditor'` whose plugin is loaded. Default value: every text editor loaded, in the order the page loaded them.
 
 ```javascript
 $('#myGrid').gridEditor({

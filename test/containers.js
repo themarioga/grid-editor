@@ -31,7 +31,7 @@ var SHAPE = `
         panes: jQuery('#myGrid .tab-pane').length,
         items: jQuery('#myGrid .accordion-item').length,
         popups: jQuery('#myGrid [data-ge-popup-id]').length,
-        regions: jQuery('#myGrid [data-ge-container] .ge-content').length,
+        regions: jQuery('#myGrid [data-ge-container] .column').length,
         labels: jQuery('#myGrid .ge-pane-label').map(function() { return jQuery(this).text(); }).get(),
     };
 `;
@@ -378,7 +378,8 @@ async function nestingTests(t) {
         const row = ge.createRow([6, 6], { appendTo: pane });
         const element = ge.createElement('<span>nested element</span>', {
             type: 'nested',
-            appendTo: pane.find('.ge-content').first(),
+            // A pane's region starts as an empty column since 6.0
+            appendTo: pane.find('.column').first(),
         });
 
         return {
@@ -589,7 +590,7 @@ async function popupTests(t) {
             backdrops: jQuery('.modal-backdrop').length,
             bodyLocked: jQuery('body').hasClass('modal-open'),
             triggerAttrs: popup.find('.ge-popup-trigger').attr('data-bs-toggle'),
-            region: popup.find('.modal-body .ge-content').length,
+            region: popup.find('.modal-body .column').length,
         };
     `);
     t.check('a popup is edited unfolded in place, with Bootstrap never asked to open it',
@@ -737,13 +738,13 @@ async function cardTests(t) {
             shape: (function() { ${SHAPE} })(),
             header: card.find('.card-header').text(),
             footer: card.find('.card-footer').text(),
-            regions: card.find('.card-body > .row .ge-content').length,
+            regions: card.find('.card-body > .row > .column').length,
             drawer: card.find('> .ge-tools-drawer > a').map(function() {
                 return jQuery(this).attr('class').split(' ')[0];
             }).get().join(','),
             bareHeaders: bare.find('.card-header').length,
             bareFooters: bare.find('.card-footer').length,
-            bareTitle: bare.find('.card-body .ge-content').length,
+            bareTitle: bare.find('.card-body .column').length,
         };
     `);
     t.check('a card is a header, one region and an optional footer',
@@ -771,7 +772,7 @@ async function cardTests(t) {
 
     var exported = await page.eval(`
         jQuery('#myGrid .card-header .ge-pane-label').text('What it costs');
-        jQuery('#myGrid .card-body .ge-content').first().html('<p>Inside the card</p>');
+        jQuery('#myGrid .card-body .column').first().append('<p>Inside the card</p>');
         const html = jQuery('#myGrid').gridEditor('getHtml');
         return {
             html: html,
@@ -796,7 +797,7 @@ async function cardTests(t) {
         return {
             cards: jQuery('#myGrid [data-ge-container="card"]').length,
             label: jQuery('#myGrid .card-header .ge-pane-label').text(),
-            regions: jQuery('#myGrid .card-body .ge-content').length,
+            regions: jQuery('#myGrid .card-body .column').length,
             content: jQuery('#myGrid .card-body').text().indexOf('Inside the card') !== -1,
         };
     `);

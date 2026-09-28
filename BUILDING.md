@@ -23,7 +23,9 @@ the languages and the container plugins it actually wants. See
 
 The text editor plugins - tinyMCE, CKEditor and summernote - are built to
 `dist/plugins/` like the others, and like them are not part of the main
-bundle. Up to 5.x the bundle carried a copy of each.
+bundle. Up to 5.x the bundle carried a copy of each. Each one is built as
+`src/js/text/grideditor.text.js`, what every text editor shares, followed by
+the editor's own file: that shared file is never published on its own.
 
 One more file comes out of it: `dist/jquery.grideditor.bundle.min.js`, the
 minified editor concatenated with the copy of SortableJS in `node_modules`,

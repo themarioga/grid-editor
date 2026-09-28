@@ -2,8 +2,8 @@
  * Summernote for grid-editor's content areas.
  *
  * A text editor plugin: load this file after the editor, and summernote
- * after or before it, and content_types: ['summernote'] edits each content
- * area with summernote in air mode. What it can ask the editor for is the
+ * after or before it, and a text of the summernote type is edited with
+ * summernote in air mode. What it can ask the editor for is the
  * handle its factory is called with, described in docs/plugins.md.
  *
  *   <script src="summernote/summernote-bs5.min.js"></script>
@@ -11,7 +11,11 @@
  *   <script src="dist/plugins/grideditor.summernote.min.js"></script>
  *
  * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin.
+ * loaded on its own, like every plugin. The built file starts with what
+ * every text editor shares - text blocks, the Text button and the Add text
+ * tool, createText, making the host's plain content a text - from
+ * src/js/text/grideditor.text.js, installed once however many editors a
+ * page loads.
  */
 (function($) {
 

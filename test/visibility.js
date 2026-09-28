@@ -35,8 +35,8 @@ var HELPERS = `
     window.start = function(rowClasses, colClasses, settings) {
         if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
         jQuery('#myGrid').html(
-            '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content"><p>a</p></div></div>' +
-            '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>'
+            '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
+            '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>'
         );
         window.fixture.init(jQuery.extend({ plugins: window.fixture.plugins(['visibility']) }, settings || {}));
     };
@@ -49,7 +49,7 @@ async function toolTests(t, page) {
         jQuery('#myGrid .column').first().find('.ge-content').append('<div data-ge-element="box">box</div>');
         jQuery('#myGrid .column').eq(1).append(
             '<div data-ge-container="tabs"><ul class="nav nav-tabs"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p1">One</button></li></ul>' +
-            '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content"><p>in</p></div></div></div></div></div></div>'
+            '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content" data-ge-content-type="tinymce"><p>in</p></div></div></div></div></div></div>'
         );
         window.fixture.init({ plugins: window.fixture.plugins(['visibility']) });
         const has = function(selector) { return eye(jQuery(selector).first()).length; };

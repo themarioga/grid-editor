@@ -24,11 +24,27 @@ module.exports = function(grunt) {
     dest: 'dist/locales/',
   }];
 
+  // The text editors carry what every text shares, src/js/text/, at their
+  // top: a page loads the editor it uses and has text with it. That file is
+  // never published on its own.
+  var editors = ['tinymce', 'ckeditor', 'summernote'];
+  var editorFiles = {};
+  editors.forEach(function(editor) {
+    editorFiles['dist/plugins/grideditor.' + editor + '.js'] = [
+      'src/js/text/grideditor.text.js',
+      'src/js/plugins/grideditor.' + editor + '.js',
+    ];
+  });
+  var editorMinFiles = {};
+  Object.keys(editorFiles).forEach(function(dest) {
+    editorMinFiles[dest.replace(/\.js$/, '.min.js')] = editorFiles[dest];
+  });
+
   // Container plugins, likewise: a page loads the ones it wants
   var pluginFiles = [{
     expand: true,
     cwd: 'src/js/plugins/',
-    src: ['*.js'],
+    src: ['*.js'].concat(editors.map(function(editor) { return '!grideditor.' + editor + '.js'; })),
     dest: 'dist/plugins/',
   }];
   
@@ -39,6 +55,10 @@ module.exports = function(grunt) {
       js: {
         src: jsFiles,
         dest: 'dist/jquery.grideditor.js',
+      },
+
+      editors: {
+        files: editorFiles,
       },
 
       // One file for a page that would rather load one: the editor with its
@@ -84,6 +104,12 @@ module.exports = function(grunt) {
         files: pluginFiles.map(function(files) {
           return Object.assign({}, files, { ext: '.min.js', extDot: 'last' });
         }),
+      },
+      editors: {
+        options: {
+          sourceMap: true,
+        },
+        files: editorMinFiles,
       },
     },
     
@@ -132,8 +158,8 @@ module.exports = function(grunt) {
         },
       },
       plugins: {
-        files: ['src/js/plugins/*.js'],
-        tasks: ['copy:plugins', 'uglify:plugins'],
+        files: ['src/js/plugins/*.js', 'src/js/text/*.js'],
+        tasks: ['copy:plugins', 'uglify:plugins', 'concat:editors', 'uglify:editors'],
         options: {
           spawn: false,
           livereload: true,
@@ -151,6 +177,6 @@ module.exports = function(grunt) {
     
   });
 
-  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy', 'concat:bundle']);
+  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy', 'concat:editors', 'concat:bundle']);
 
 };

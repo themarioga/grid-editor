@@ -1,9 +1,11 @@
 Upgrading from grid-editor `5.*` to `6.*`
 =========================================
 
-Two changes make it a major: **elements are blocks of the column**, no longer
-part of a text, and **the text editors are not in the main bundle**. Markup
-5.x saved loads as it is, and `getPlainHtml` publishes the same from it.
+Three changes make it a major: **elements are blocks of the column**, no longer
+part of a text, **the text editors are not in the main bundle** - text itself
+is theirs, not the core's - and **what is not the grid's is the host's plain
+content**. Markup 5.x saved loads as it is, and `getPlainHtml` publishes the
+same from it.
 
 * __Load your text editor as a plugin.__ tinyMCE, CKEditor and summernote are
   plugins in `dist/plugins/`, loaded after the editor:
@@ -62,10 +64,37 @@ part of a text, and **the text editors are not in the main bundle**. Markup
   element's attributes through tinyMCE's `undoManager.transact` can write them
   with a plain `attr()`.
 
-* __An integration of your own under `$.fn.gridEditor.RTEs`__ still works,
-  wrapped, with a warning that it is deprecated. Register it under
-  `$.fn.gridEditor.texts` instead; [docs/plugins.md](docs/plugins.md#text-editor-plugins)
-  has the contract. `RTEs` goes in 7.0.
+* __Loose content is plain content, not a text.__ Up to 5.x the markup the
+  editor found loose in a column - or a whole page with no row - was wrapped
+  as a text of the first `content_types`, `<div class="ge-content"
+  data-ge-content-type="tinymce">`. Now it is wrapped with no type, as the
+  host's plain content: a block to move and delete, edited in the source, and
+  a click with a text editor loaded makes it a text, through
+  `before-convert` and `after-convert`. Markup 5.x saved, with its content
+  areas typed, loads as texts, as before. What to do: nothing, unless you
+  read the saved markup expecting every content area to carry a type.
+
+* __New columns are empty.__ A column the add column tool, a row button,
+  `createRow` or `createColumn` makes - and a new container's or pane's
+  region - has no content area in it. Add a text with the column's *Add text*
+  tool, the toolbar's *Text* button or `createText`. `createColumn(size, {
+  content })` still holds its content: as a text of the first editor
+  offered, or as plain content with none.
+
+* __`content_types` defaults to every text editor loaded__, in the order the
+  page loaded them, where it was `['tinymce']`. A page that loads one editor
+  needs no `content_types`; one that loads several and wants one names it.
+
+* __`text_tools`, `text_classes` and `createText` are the text editors'.__
+  They work as before with any of the shipped editors loaded; with none,
+  `createText` warns and returns null.
+
+* __An integration of your own under `$.fn.gridEditor.RTEs`__ is ignored,
+  with a warning, and so is one under `$.fn.gridEditor.texts` on a page
+  that loads none of the shipped editors: `texts` is their own registry. An
+  editor of your own is a feature plugin that declares its type with
+  `textTypes`; [docs/plugins.md](docs/plugins.md#text) has the contract, and
+  [example/custom_editor.html](example/custom_editor.html) is one in full.
 
 
 Upgrading from grid-editor `4.*` to `5.*`
