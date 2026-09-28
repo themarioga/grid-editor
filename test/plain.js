@@ -18,25 +18,33 @@ var SETUP = `
     const warn = console.warn;
     console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
 
+    window.$$ = function(selector, root) { return Array.from((root || document).querySelectorAll(selector)); };
+    window.kids = function(node, selector) {
+        return node ? Array.from(node.children).filter(function(c) { return !selector || c.matches(selector); }) : [];
+    };
+    window.kid = function(node, selector) { return window.kids(node, selector)[0] || null; };
+    window.ge = function() { return window.fixture.editor(); };
+
     window.events = [];
+    const recorded = ['before-delete', 'after-delete', 'before-move', 'after-move', 'before-convert', 'after-convert'];
+    const record = function(e) { window.events.push(e.type.replace('grideditor:', '') + ':' + e.detail.kind); };
     window.start = function(html, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
-        jQuery('#myGrid').html(html);
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        const grid = document.querySelector('#myGrid');
+        grid.innerHTML = html;
         window.events = [];
-        jQuery('#myGrid').off('.test').on('grideditor:before-delete.test grideditor:after-delete.test ' +
-            'grideditor:before-move.test grideditor:after-move.test ' +
-            'grideditor:before-convert.test grideditor:after-convert.test', function(e, payload) {
-            window.events.push(e.type.replace('grideditor:', '') + ':' + payload.kind);
+        recorded.forEach(function(name) {
+            grid.removeEventListener('grideditor:' + name, record);
+            grid.addEventListener('grideditor:' + name, record);
         });
-        window.fixture.init(settings || {});
-        return jQuery('#myGrid').data('grideditor');
+        return window.fixture.init(settings || {});
     };
 
     /** The tools in a block's drawer, by their first class. */
     window.toolsOf = function(block) {
-        return block.children('.ge-tools-drawer').children('a').map(function() {
-            return jQuery(this).attr('class').split(' ')[0];
-        }).get().join(',');
+        return kids(kid(block, '.ge-tools-drawer'), 'a').map(function(tool) {
+            return tool.getAttribute('class').split(' ')[0];
+        }).join(',');
     };
     return true;
 `;
@@ -50,8 +58,7 @@ async function wrapTests(t) {
     await page.eval(SETUP);
 
     var bare = await page.eval(`
-        start('<h1>A</h1><p>B</p>');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = start('<h1>A</h1><p>B</p>').getHtml();
         const root = document.createElement('div');
         root.innerHTML = html;
         const area = root.querySelector('.row > .col-lg-12 > .ge-content');
@@ -67,12 +74,12 @@ async function wrapTests(t) {
 
     var withEditor = await page.eval(`
         start('<h1>A</h1><p>B</p>', { content_types: ['tinymce'] });
-        const area = jQuery('#myGrid .ge-content');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const area = $$('#myGrid .ge-content');
+        const html = ge().getHtml();
         return {
             areas: area.length,
             typed: /data-ge-content-type|ge-content-type-/.test(html),
-            kind: jQuery('#myGrid').data('grideditor') && area.length ? 'ok' : null,
+            kind: ge() && area.length ? 'ok' : null,
         };
     `);
     t.check('with a text editor offered it is plain content all the same',
@@ -80,31 +87,33 @@ async function wrapTests(t) {
 
     var split = await page.eval(`
         start('<div class="row"><div class="col-12" id="outer"><p>1</p><div class="row"><div class="col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>x</p></div></div></div><p>2</p></div></div>');
-        const outer = jQuery('#outer');
-        return outer.children().not('.ge-tools-drawer, .ge-resize-handle').map(function() {
-            const child = jQuery(this);
-            if (child.is('.ge-plain-block')) { return 'plain:' + child.children('.ge-content').text(); }
-            if (child.is('.row')) { return 'row'; }
-            return this.className;
-        }).get().join(',');
+        return kids(document.querySelector('#outer')).filter(function(c) { return !c.matches('.ge-tools-drawer, .ge-resize-handle'); }).map(function(child) {
+            if (child.matches('.ge-plain-block')) { return 'plain:' + kid(child, '.ge-content').textContent; }
+            if (child.matches('.row')) { return 'row'; }
+            return child.className;
+        }).join(',');
     `);
     t.check('each run of loose content in a column is plain content of its own, a row between them',
         split === 'plain:1,row,plain:2', split);
 
     var bareText = await page.eval(`
         start('<div class="row"><div class="col-12" id="only">Hola</div></div>');
-        return { areas: jQuery('#only .ge-content').length, text: jQuery('#only').text().indexOf('Hola') !== -1 };
+        return { areas: $$('#only .ge-content').length, text: document.querySelector('#only').textContent.indexOf('Hola') !== -1 };
     `);
     t.check('a column whose only content is a bare text node is not wrapped',
         bareText.areas === 0 && bareText.text, bareText);
 
     var source = await page.eval(`
-        jQuery('#source').remove();
-        jQuery('<textarea id="source" style="display:none"></textarea>').val('<p>X</p>').appendTo('body');
+        $$('#source').forEach(function(n) { n.remove(); });
+        const textarea = document.createElement('textarea');
+        textarea.id = 'source';
+        textarea.style.display = 'none';
+        textarea.value = '<p>X</p>';
+        document.body.appendChild(textarea);
         start('', { source_textarea: '#source', content_types: ['tinymce'] });
-        const area = jQuery('#myGrid > .row > .column > .ge-text-block > .ge-content');
-        jQuery('#source').remove();
-        return { areas: area.length, html: area.html(), typed: !!area.attr('data-ge-content-type') };
+        const area = $$('#myGrid > .row > .column > .ge-text-block > .ge-content');
+        textarea.remove();
+        return { areas: area.length, html: area[0] && area[0].innerHTML, typed: !!(area[0] && area[0].getAttribute('data-ge-content-type')) };
     `);
     t.check('source_textarea html with no grid is plain content in a row and a full width column, editor or not',
         source.areas === 1 && source.html === '<p>X</p>' && !source.typed, source);
@@ -113,31 +122,30 @@ async function wrapTests(t) {
     await page.click('.gm-edit-mode');
     await t.sleep(200);
     var roundTrip = await page.eval(`
-        jQuery('.ge-html-output').val('<div class="row"><div class="col-6"><p>L</p><div class="ge-content" data-ge-content-type="tinymce"><p>T</p></div><div class="ge-content"><p>P</p></div></div></div>');
-        jQuery('.gm-edit-mode').trigger('click');
-        return jQuery('#myGrid .column').first().children('.ge-text-block').map(function() {
-            const area = jQuery(this).children('.ge-content');
-            return (area.attr('data-ge-content-type') || 'plain') + ':' + area.text();
-        }).get().join(',');
+        document.querySelector('.ge-html-output').value = '<div class="row"><div class="col-6"><p>L</p><div class="ge-content" data-ge-content-type="tinymce"><p>T</p></div><div class="ge-content"><p>P</p></div></div></div>';
+        $$('.gm-edit-mode').forEach(function(b) { b.click(); });
+        return kids(document.querySelector('#myGrid .column'), '.ge-text-block').map(function(block) {
+            const area = kid(block, '.ge-content');
+            return (area.getAttribute('data-ge-content-type') || 'plain') + ':' + area.textContent;
+        }).join(',');
     `);
     t.check('back from the source, loose content and a content area with no type are plain, a typed one a text',
         roundTrip === 'plain:L,tinymce:T,plain:P', roundTrip);
 
     var auto = await page.eval(`
         start('<div class="row"><div class="col-12"><p>1</p><p>2</p></div></div>', { elements: { auto: true } });
-        return { elements: jQuery('#myGrid .ge-element').length, plains: jQuery('#myGrid .ge-plain-block').length };
+        return { elements: $$('#myGrid .ge-element').length, plains: $$('#myGrid .ge-plain-block').length };
     `);
     t.check('with elements.auto every loose node of a column is an element, and none is plain content',
         auto.elements === 2 && auto.plains === 0, auto);
 
     var marked = await page.eval(`
         start('<div class="row"><div class="col-12" id="cut"><div class="ge-content"><p>1</p><blockquote data-ge-element="q">Q</blockquote><p>2</p></div></div></div>');
-        return jQuery('#cut').children().not('.ge-tools-drawer, .ge-resize-handle').map(function() {
-            const child = jQuery(this);
-            if (child.is('.ge-element')) { return 'element'; }
-            const area = child.children('.ge-content');
-            return (area.attr('data-ge-content-type') || 'plain') + ':' + area.text();
-        }).get().join(',');
+        return kids(document.querySelector('#cut')).filter(function(c) { return !c.matches('.ge-tools-drawer, .ge-resize-handle'); }).map(function(child) {
+            if (child.matches('.ge-element')) { return 'element'; }
+            const area = kid(child, '.ge-content');
+            return (area.getAttribute('data-ge-content-type') || 'plain') + ':' + area.textContent;
+        }).join(',');
     `);
     t.check('plain content with an element among its children is cut there, into plain content and the element',
         marked === 'plain:1,element,plain:2', marked);
@@ -156,15 +164,15 @@ async function drawerTests(t) {
             plugins: window.fixture.plugins(['clipboard', 'spacing', 'textalign', 'visibility']),
             text_tools: [{ title: 'Host tool', className: 'host-tool' }],
         });
-        const block = jQuery('#left > .ge-plain-block');
-        const handle = jQuery('#myGrid').data('grideditor');
+        const block = document.querySelector('#left > .ge-plain-block');
+        const handle = ge();
         return {
             tools: toolsOf(block),
-            gear: block.find('.ge-settings, .ge-details').length,
-            kind: jQuery('#myGrid').data('grideditor') ? block.children('.ge-content').length : 0,
+            gear: $$('.ge-settings, .ge-details', block).length,
+            kind: handle ? kids(block, '.ge-content').length : 0,
             createPlain: typeof handle.createPlain,
-            toolbar: jQuery('.ge-mainControls a').filter(function() { return /plain/i.test(this.className + ' ' + (this.title || '')); }).length,
-            columnTools: jQuery('#left > .ge-tools-drawer > a').filter(function() { return /plain/i.test(this.className); }).length,
+            toolbar: $$('.ge-mainControls a').filter(function(a) { return /plain/i.test(a.className + ' ' + (a.title || '')); }).length,
+            columnTools: $$('#left > .ge-tools-drawer > a').filter(function(a) { return /plain/i.test(a.className); }).length,
         };
     `);
     t.check('plain content\'s drawer is move and delete, and nothing else, whatever the plugins and host tools',
@@ -174,18 +182,18 @@ async function drawerTests(t) {
 
     await page.eval(`
         start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] });
-        jQuery('#left > .ge-plain-block > .ge-tools-drawer > .ge-delete-plain').trigger('click');
+        $$('#left > .ge-plain-block > .ge-tools-drawer > .ge-delete-plain').forEach(function(tool) { tool.click(); });
         return true;
     `);
     await t.sleep(600);
     var message = await page.eval(`
-        const message = jQuery('.ge-confirm .ge-confirm-message').text();
-        jQuery('.ge-confirm .ge-confirm-ok').trigger('click');
+        const message = $$('.ge-confirm .ge-confirm-message').map(function(n) { return n.textContent; }).join('');
+        $$('.ge-confirm .ge-confirm-ok').forEach(function(b) { b.click(); });
         return message;
     `);
     await t.sleep(900);
     var asked = await page.eval(`
-        return { gone: jQuery('#left > .ge-plain-block').length === 0, events: window.events.slice() };
+        return { gone: $$('#left > .ge-plain-block').length === 0, events: window.events.slice() };
     `);
     asked.message = message;
     t.check('deleting plain content asks, removes it and announces it as plain',
@@ -194,11 +202,13 @@ async function drawerTests(t) {
 
     var canceled = await page.eval(`
         start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [], confirm_delete: false });
-        jQuery('#myGrid').on('grideditor:before-delete.test', function(e) { e.preventDefault(); });
-        jQuery('#left > .ge-plain-block > .ge-tools-drawer > .ge-delete-plain').trigger('click');
+        const refuse = function(e) { e.preventDefault(); };
+        document.querySelector('#myGrid').addEventListener('grideditor:before-delete', refuse);
+        $$('#left > .ge-plain-block > .ge-tools-drawer > .ge-delete-plain').forEach(function(tool) { tool.click(); });
         return new Promise(function(resolve) {
             setTimeout(function() {
-                resolve({ kept: jQuery('#left > .ge-plain-block').length === 1, events: window.events.slice() });
+                document.querySelector('#myGrid').removeEventListener('grideditor:before-delete', refuse);
+                resolve({ kept: $$('#left > .ge-plain-block').length === 1, events: window.events.slice() });
             }, 600);
         });
     `);
@@ -207,14 +217,14 @@ async function drawerTests(t) {
 
     var clicked = await page.eval(`
         start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] });
-        const area = jQuery('#left .ge-content');
-        const before = { attributes: area[0].outerHTML, html: jQuery('#myGrid').gridEditor('getHtml') };
-        jQuery('#left .ge-content').trigger('click');
-        const after = jQuery('#left .ge-content');
+        const area = document.querySelector('#left .ge-content');
+        const before = { attributes: area.outerHTML, html: ge().getHtml() };
+        document.querySelector('#left .ge-content').click();
+        const after = document.querySelector('#left .ge-content');
         return {
-            same: after[0].outerHTML === jQuery('#left .ge-content')[0].outerHTML && !after.attr('data-ge-content-type') &&
-                !after.hasClass('ge-rte-active'),
-            html: jQuery('#myGrid').gridEditor('getHtml') === before.html,
+            same: after.outerHTML === document.querySelector('#left .ge-content').outerHTML && !after.getAttribute('data-ge-content-type') &&
+                !after.classList.contains('ge-rte-active'),
+            html: ge().getHtml() === before.html,
             events: window.events.slice(),
         };
     `);
@@ -223,25 +233,25 @@ async function drawerTests(t) {
 
     var saved = await page.eval(`
         start('<div class="row"><div class="col-12"><div class="ge-content lead" id="intro"><p>Mine</p></div></div></div>', { content_types: ['tinymce'] });
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = ge().getHtml();
         const root = document.createElement('div');
         root.innerHTML = html;
         const area = root.querySelector('.ge-content');
         start(html, { content_types: ['tinymce'] });
+        const intro = document.querySelector('#intro');
         return {
             id: area.id,
             classes: area.className,
             marks: /data-ge-|ge-text-block|ge-tools-drawer/.test(html),
-            plainAgain: jQuery('#intro').parent().is('.ge-plain-block') && !jQuery('#intro').attr('data-ge-content-type'),
-            plainHtml: jQuery('#myGrid').gridEditor('getPlainHtml'),
+            plainAgain: intro.parentElement.matches('.ge-plain-block') && !intro.getAttribute('data-ge-content-type'),
+            plainHtml: ge().getPlainHtml(),
         };
     `);
     t.check('getHtml keeps plain content\'s own id and classes and nothing of the editor\'s; it is plain again on reload',
         saved.id === 'intro' && saved.classes === 'ge-content lead' && !saved.marks && saved.plainAgain, saved);
 
     var published = await page.eval(`
-        start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] });
-        return jQuery('#myGrid').gridEditor('getPlainHtml');
+        return start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] }).getPlainHtml();
     `);
     t.check('getPlainHtml gives back its children, without the div around them',
         /<div class="col-lg-6" id="left"><p>Left<\/p><\/div>/.test(published), published);
@@ -282,20 +292,20 @@ async function dragTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(SETUP);
 
-    await page.eval(`start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] }); jQuery('#left > .ge-plain-block').attr('id', 'moving'); return true;`);
+    await page.eval(`start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [] }); document.querySelector('#left > .ge-plain-block').id = 'moving'; return true;`);
     await page.hover('#moving');
     await t.sleep(200);
     await page.drag('#moving > .ge-tools-drawer .ge-move', '#right', { yRatio: 0.9, steps: 16 });
-    var moved = await page.eval(`return { inRight: jQuery('#right').children('#moving').length, events: window.events.slice() };`);
+    var moved = await page.eval(`return { inRight: $$('#right > #moving').length, events: window.events.slice() };`);
     t.check('plain content drags from one column to another, announced as plain',
         moved.inRight === 1 && moved.events.join(' ') === 'before-move:plain after-move:plain', moved);
 
-    await page.eval(`start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [], drag_handle: 'drawer' }); jQuery('#left > .ge-plain-block').attr('id', 'moving'); return true;`);
+    await page.eval(`start(${JSON.stringify(TWO_COLUMNS)}, { content_types: [], drag_handle: 'drawer' }); document.querySelector('#left > .ge-plain-block').id = 'moving'; return true;`);
     await page.hover('#moving');
     await t.sleep(200);
     var points = await page.eval(POINTS);
     await dragFrom(page, points.from, points.to);
-    var byDrawer = await page.eval(`return { inRight: jQuery('#right').children('#moving').length, move: jQuery('#moving .ge-move').length };`);
+    var byDrawer = await page.eval(`return { inRight: $$('#right > #moving').length, move: $$('#moving .ge-move').length };`);
     t.check('with drag_handle drawer it drags by its drawer, which has no move tool',
         byDrawer.inRight === 1 && byDrawer.move === 0, byDrawer);
 
@@ -308,21 +318,21 @@ async function orphanTests(t) {
     await page.eval(SETUP);
 
     var none = await page.eval(`
-        const feature = $.fn.gridEditor.features.text;
-        delete $.fn.gridEditor.features.text;
+        const feature = GridEditor.features.text;
+        delete GridEditor.features.text;
         start('<div class="row"><div class="col-12" id="only"><div class="ge-content ge-content-type-tinymce" data-ge-content-type="tinymce"><p>T</p></div></div></div>');
-        const block = jQuery('#only > .ge-text-block');
-        const area = block.children('.ge-content');
-        area.trigger('click');
+        const block = document.querySelector('#only > .ge-text-block');
+        const area = kid(block, '.ge-content');
+        area.click();
         const result = {
             tools: toolsOf(block),
-            title: block.find('> .ge-tools-drawer > .ge-text-missing').attr('title'),
-            active: area.hasClass('ge-rte-active'),
-            kind: jQuery('#myGrid').data('grideditor') ? null : null,
-            html: jQuery('#myGrid').gridEditor('getHtml'),
+            title: block.querySelector(':scope > .ge-tools-drawer > .ge-text-missing').getAttribute('title'),
+            active: area.classList.contains('ge-rte-active'),
+            kind: null,
+            html: ge().getHtml(),
         };
-        jQuery('#myGrid').gridEditor('destroy');
-        $.fn.gridEditor.features.text = feature;
+        ge().destroy();
+        GridEditor.features.text = feature;
         return result;
     `);
     t.check('with no text editor loaded, a text saved with a type is a block: move, why it is not editable, delete',
@@ -331,12 +341,12 @@ async function orphanTests(t) {
 
     var ghost = await page.eval(`
         start('<div class="row"><div class="col-12" id="only"><div class="ge-content" data-ge-content-type="ghost"><p>G</p></div></div></div>', { content_types: ['tinymce'] });
-        const block = jQuery('#only > .ge-text-block');
-        block.children('.ge-content').trigger('click');
+        const block = document.querySelector('#only > .ge-text-block');
+        kid(block, '.ge-content').click();
         return {
             tools: toolsOf(block),
-            title: block.find('> .ge-tools-drawer > .ge-text-missing').attr('title'),
-            active: block.children('.ge-content').hasClass('ge-rte-active'),
+            title: block.querySelector(':scope > .ge-tools-drawer > .ge-text-missing').getAttribute('title'),
+            active: kid(block, '.ge-content').classList.contains('ge-rte-active'),
         };
     `);
     t.check('and so is a text of a type no plugin loaded here declares, with an editor loaded',
@@ -344,9 +354,9 @@ async function orphanTests(t) {
 
     var deleted = await page.eval(`
         start('<div class="row"><div class="col-12" id="only"><div class="ge-content" data-ge-content-type="ghost"><p>G</p></div></div></div>', { confirm_delete: false });
-        jQuery('#only .ge-delete-text').trigger('click');
+        $$('#only .ge-delete-text').forEach(function(tool) { tool.click(); });
         return new Promise(function(resolve) {
-            setTimeout(function() { resolve({ gone: jQuery('#only .ge-content').length === 0, events: window.events.slice() }); }, 700);
+            setTimeout(function() { resolve({ gone: $$('#only .ge-content').length === 0, events: window.events.slice() }); }, 700);
         });
     `);
     t.check('its delete is announced as a text',
@@ -364,11 +374,11 @@ async function previewTests(t) {
         const ge = start('<div class="row"><div class="col-12" id="only"><div class="ge-content d-md-none"><p>H</p></div></div></div>',
             { content_types: [], plugins: window.fixture.plugins(['visibility']) });
         ge.changeView('md');
-        const area = jQuery('#only .ge-content');
+        const area = document.querySelector('#only .ge-content');
         return {
-            faded: area.hasClass('ge-hidden-in-view'),
-            eye: jQuery('#only .ge-visibility-tool').length === jQuery('#only > .ge-tools-drawer .ge-visibility-tool').length,
-            plainEye: jQuery('#only > .ge-plain-block .ge-visibility-tool').length,
+            faded: area.classList.contains('ge-hidden-in-view'),
+            eye: $$('#only .ge-visibility-tool').length === $$('#only > .ge-tools-drawer .ge-visibility-tool').length,
+            plainEye: $$('#only > .ge-plain-block .ge-visibility-tool').length,
         };
     `);
     t.check('a utility class the host wrote on plain content is previewed, though its drawer offers no tool for it',

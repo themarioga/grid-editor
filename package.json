@@ -3,29 +3,28 @@
     "build": "grunt",
     "lint": "eslint .",
     "start": "npm run watch",
-    "test": "node test/run.js",
+    "test": "tsc -p test/types && node test/run.js",
     "test:vendor": "node test/vendor/update.js",
-    "watch": "grunt watch"
+    "watch": "grunt watch",
+    "test:types": "tsc -p test/types"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/themarioga/grid-editor.git"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "grunt": "^1.6.3",
     "grunt-cli": "^1.5.0",
-    "grunt-contrib-clean": "^2.0.1",
-    "grunt-contrib-concat": "^2.1.0",
-    "grunt-contrib-copy": "^1.0.0",
     "grunt-contrib-cssmin": "^5.0.0",
     "grunt-contrib-less": "^3.0.0",
-    "grunt-contrib-uglify": "^5.2.2",
     "grunt-contrib-watch": "^1.1.0",
-    "sortablejs": "^1.15.6"
+    "sortablejs": "^1.15.6",
+    "typescript": "^7.0.2"
   },
   "name": "@themarioga/grid-editor",
-  "description": "Visual javascript editor for the bootstrap grid system, written as a jQuery plugin.",
+  "description": "Visual javascript editor for the bootstrap grid system, in plain DOM: no jQuery needed.",
   "bugs": {
     "url": "https://github.com/themarioga/grid-editor/issues"
   },
@@ -35,9 +34,43 @@
     "access": "public"
   },
   "version": "6.0.0",
-  "main": "dist/jquery.grideditor.js",
+  "main": "dist/grideditor.js",
+  "module": "dist/grideditor.esm.js",
+  "types": "dist/grideditor.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/grideditor.d.ts",
+      "import": "./dist/grideditor.esm.js",
+      "default": "./dist/grideditor.js"
+    },
+    "./jquery": "./dist/grideditor.jquery.js",
+    "./plugins/*": {
+      "import": "./dist/plugins/grideditor.*.esm.js",
+      "default": "./dist/plugins/grideditor.*.js"
+    },
+    "./locales/*": {
+      "import": "./dist/locales/grideditor.*.esm.js",
+      "default": "./dist/locales/grideditor.*.js"
+    },
+    "./css": "./dist/grideditor.css",
+    "./css/min": "./dist/grideditor.min.css",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./dist/plugins/*",
+    "./dist/locales/*",
+    "./dist/grideditor.js",
+    "./dist/grideditor.min.js",
+    "./dist/grideditor.bundle.min.js",
+    "./dist/grideditor.jquery.js",
+    "./dist/grideditor.jquery.min.js",
+    "*.css",
+    "./src/js/**/*.js"
+  ],
   "files": [
     "dist",
+    "types",
     "src",
     "docs",
     "example",
@@ -50,8 +83,6 @@
     "example": "example"
   },
   "keywords": [
-    "jquery-plugin",
-    "ecosystem:jquery",
     "bootstrap5",
     "grid",
     "bootstrap-grid",

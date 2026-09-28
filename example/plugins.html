@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <!-- Grid editor CSS -->
@@ -17,7 +16,7 @@
     <!-- The editor, and the plugins this page offers. Loading a file is what
          makes its feature available; nothing here is in the main bundle. -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.tabs.min.js"></script>
     <script src="../dist/plugins/grideditor.accordion.min.js"></script>
     <script src="../dist/plugins/grideditor.popup.min.js"></script>
@@ -27,17 +26,17 @@
     <!-- And one written here, to show what a plugin of your own takes. It is
          a container type: a bootstrap alert whose body is an editable region. -->
     <script id="callout-plugin">
-        (function($) {
+        (function() {
 
             // A plugin brings its own strings
-            $.extend($.fn.gridEditor.locales.en, {
+            Object.assign(GridEditor.locales.en, {
                 'container.add_callout': 'Callout',
                 'container.callout_title': 'Heads up',
             });
 
             // Registered under the type it builds, and called once per editor
-            // with the handle it works through
-            $.fn.gridEditor.containers.callout = function(ge) {
+            // with the handle it works through. The handle hands out elements.
+            GridEditor.containers.callout = function(ge) {
 
                 return {
                     // The toolbar button's label
@@ -46,21 +45,31 @@
                     // A detached container. data-ge-container is what the
                     // editor recognises: never a class, so restyling is free.
                     create: function(options) {
-                        var callout = $('<div class="alert alert-primary" role="alert" />')
-                            .append($('<h4 class="alert-heading" />')
-                                .append($('<span class="ge-pane-label" />')
-                                    .text(options.title || ge.t('container.callout_title'))))
-                            .append(ge.defaultRegion())
-                        ;
+                        var label = document.createElement('span');
+                        label.className = 'ge-pane-label';
+                        label.textContent = options.title || ge.t('container.callout_title');
 
-                        return $('<div />').attr('data-ge-container', 'callout').append(callout);
+                        var heading = document.createElement('h4');
+                        heading.className = 'alert-heading';
+                        heading.appendChild(label);
+
+                        var callout = document.createElement('div');
+                        callout.className = 'alert alert-primary';
+                        callout.setAttribute('role', 'alert');
+                        callout.appendChild(heading);
+                        callout.appendChild(ge.defaultRegion());
+
+                        var container = document.createElement('div');
+                        container.setAttribute('data-ge-container', 'callout');
+                        container.appendChild(callout);
+                        return container;
                     },
 
                     // Editing furniture on, and off again. Anything mark()
                     // adds, unmark() has to take away: what is left is what
                     // getHtml hands back.
                     mark: function(container) {
-                        ge.makeLabelEditable(ge.labelIn(container.find('.alert-heading')));
+                        ge.makeLabelEditable(ge.labelIn(container.querySelector('.alert-heading')));
                     },
 
                     unmark: function(container) {
@@ -69,21 +78,26 @@
                 };
             };
 
-        })(jQuery);
+        })();
     </script>
 
     <script>
-        $(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             // Show the plugin written above as the page's own source
-            $('#callout-source').text($('#callout-plugin').text().trim().replace(/^ {8}/gm, ''));
+            document.getElementById('callout-source').textContent =
+                document.getElementById('callout-plugin').textContent.trim().replace(/^ {8}/gm, '');
 
             function activePlugins() {
-                return $('.plugin-choice:checked').map(function() { return this.value; }).get();
+                return Array.prototype.map.call(document.querySelectorAll('.plugin-choice:checked'), function(box) {
+                    return box.value;
+                });
             }
 
             function start() {
-                $('#myGrid').gridEditor('destroy');
-                $('#myGrid').gridEditor({
+                var running = GridEditor.get('#myGrid');
+                if (running) { running.destroy(); }
+
+                new GridEditor('#myGrid', {
                     new_row_layouts: [[12], [6, 6]],
                     content_types: [],
 
@@ -92,16 +106,17 @@
                     plugins: activePlugins(),
                 });
 
-                $('#in-use').text(activePlugins().join(', ') || 'none');
-                $('#registered').text(
-                    Object.keys($.fn.gridEditor.containers).concat(
-                        Object.keys($.fn.gridEditor.features)).sort().join(', ')
-                );
+                document.getElementById('in-use').textContent = activePlugins().join(', ') || 'none';
+                document.getElementById('registered').textContent =
+                    Object.keys(GridEditor.containers).concat(
+                        Object.keys(GridEditor.features)).sort().join(', ');
             }
 
-            $('.plugin-choice').on('change', start);
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.querySelectorAll('.plugin-choice').forEach(function(box) {
+                box.addEventListener('change', start);
+            });
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = GridEditor.get('#myGrid').getHtml();
             });
 
             start();

@@ -6,7 +6,7 @@
  * and gy-{breakpoint}-* classes. What it can ask the editor for is the handle
  * its factory is called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.gutters.min.js"></script>
  *
  * The editor draws its own frame round every column, narrower than any
@@ -15,9 +15,10 @@
  * utilities.gutters.scale is what 0 to 5 come to, for a page that changed
  * Bootstrap's $spacers.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.gutters': 'Gutters',
     'utility.gutters_x': 'Horizontal gutters',
     'utility.gutters_y': 'Vertical gutters',
@@ -33,16 +34,17 @@ var DEFAULT_Y = '0';
 var INFIXES = ['', 'sm', 'md', 'lg', 'xl', 'xxl'];
 var CLASS_PATTERN = /(?:^|\s)g[xy]?-(?:(?:sm|md|lg|xl|xxl)-)?[0-5](?:\s|$)/;
 
-$.fn.gridEditor.utilities.gutters = function(ge) {
+GridEditor.utilities.gutters = function(ge) {
 
-    var options = $.extend({ scale: SCALE }, ge.settings.utilities.gutters);
+    var options = Object.assign({ scale: SCALE }, ge.settings.utilities.gutters);
+    var listening = null; // The after-utility listener, while editing
 
     /**
      * The class of a family that decides a row's gutters at a breakpoint:
      * the widest breakpoint up to it that has one, as { tier, value }.
      */
     function source(row, prefix, tier) {
-        var classes = (row.attr('class') || '').split(/\s+/);
+        var classes = (row.getAttribute('class') || '').split(/\s+/);
 
         for (var i = tier; i >= 0; i--) {
             for (var value = VALUES.length - 1; value >= 0; value--) {
@@ -86,7 +88,8 @@ $.fn.gridEditor.utilities.gutters = function(ge) {
      * taken off: left on, the bigger of the two would win, and the field the
      * user just chose would not be what the row shows.
      */
-    function afterUtility(e, payload) {
+    function afterUtility(e) {
+        var payload = e.detail;
         if (payload.family !== 'g') { return; }
 
         ['gx', 'gy'].forEach(function(family) {
@@ -95,9 +98,8 @@ $.fn.gridEditor.utilities.gutters = function(ge) {
     }
 
     function mark(scope) {
-        scope.find('.row').addBack('.row').each(function() {
-            var row = $(this);
-            row.toggleClass('ge-gutters', CLASS_PATTERN.test(row.attr('class') || ''));
+        dom.selfAndAll(scope, '.row').forEach(function(row) {
+            dom.toggleClass(row, 'ge-gutters', CLASS_PATTERN.test(row.getAttribute('class') || ''));
         });
     }
 
@@ -130,16 +132,19 @@ $.fn.gridEditor.utilities.gutters = function(ge) {
         ],
 
         onInit: function() {
-            ge.canvas.off('grideditor:after-utility.ge-gutters').on('grideditor:after-utility.ge-gutters', afterUtility);
+            // init runs again whenever a node is added, without a deinit
+            // between, so the listener is replaced rather than stacked
+            if (listening) { ge.canvas.removeEventListener('grideditor:after-utility', listening); }
+            listening = afterUtility;
+            ge.canvas.addEventListener('grideditor:after-utility', listening);
         },
 
         onRefresh: mark,
 
         onDeinit: function() {
-            ge.canvas.off('grideditor:after-utility.ge-gutters');
-            ge.canvas.find('.ge-gutters').removeClass('ge-gutters');
+            if (listening) { ge.canvas.removeEventListener('grideditor:after-utility', listening); }
+            listening = null;
+            dom.all(ge.canvas, '.ge-gutters').forEach(function(row) { dom.removeClass(row, 'ge-gutters'); });
         },
     };
 };
-
-})(jQuery);

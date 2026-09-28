@@ -1,29 +1,28 @@
 /**
- * Grid editor plugin.
+ * Grid editor.
  *
  * A fork of https://github.com/Friendly-Pixel/grid-editor by Simon Epskamp,
  * maintained at https://github.com/themarioga/grid-editor.
+ *
+ * Plain DOM since 7.0: nothing here needs jQuery. A page written for the 6.x
+ * jQuery API loads grideditor.jquery.js beside this file and keeps working;
+ * see UPGRADING.md.
  */
-(function( $ ){
+import * as dom from './dom.js';
 
 /**
- * Every method the plugin dispatches, and how to dispatch it.
- *
- * `value` marks a method that hands back something other than the jQuery set
- * - html, a breakpoint key, a created node - so it runs against the first
- * element of the set only and does not chain. `noInstance` is the answer for
- * an element that carries no editor; every other method is a no-op returning
- * the set. `unimplemented` registers a method a later phase fills in, so a
- * host that calls it early gets told rather than ignored.
+ * The methods an instance has, and which of them hand back something other
+ * than the instance: html, a view key, a created node. After destroy() every
+ * one of them is a no-op that says so once, and the value methods answer
+ * null - but for getHtml and getPlainHtml, which read the element as it is.
  */
 var METHODS = {
-    getHtml:          { value: true, noInstance: function(element) { return element.html(); } },
-    getPlainHtml:     { value: true, noInstance: function(element) { return plainHtml(element.html()); } },
+    getHtml:          { value: true },
+    getPlainHtml:     { value: true },
     init:             {},
     deinit:           {},
     reset:            {},
     destroy:          {},
-    remove:           {},
     changeView:       {},
     getView:          { value: true },
     createRow:        { value: true },
@@ -170,6 +169,9 @@ var warned = {};
 /** Editors on the page, counted so each one's sortable groups are its own. */
 var editorCounter = 0;
 
+/** The editor on each canvas element, so there is never a second one. */
+var instances = new WeakMap();
+
 /**
  * Translate one key.
  *
@@ -177,12 +179,11 @@ var editorCounter = 0;
  * then the key itself, so a missing string is a visible key and never an
  * empty tooltip. `params` fills {name} placeholders.
  *
- * Exposed as $.fn.gridEditor.t for the editor integrations in the other
- * source files, which are handed the settings and have no instance of their
- * own.
+ * Exposed as GridEditor.t for the plugins that have settings and no
+ * instance of their own.
  */
 function translate(settings, key, params) {
-    var locales = $.fn.gridEditor.locales;
+    var locales = GridEditor.locales;
     var locale = locales[settings.locale] || {};
     var overrides = settings.locale_strings || {};
     var string = overrides[key];
@@ -213,40 +214,46 @@ function warnOnce(key, message) {
     warn(message);
 }
 
+/** A string in English, for the few things said before an editor has settings. */
+function english(key, params) {
+    return translate({ locale: 'en' }, key, params);
+}
+
 /**
- * Run a string method against a set of elements.
- *
- * An element with no editor on it is not an error: the method is a no-op and
- * the set comes back for chaining, so host code does not have to check first.
- * `getHtml` is the exception, because reading an element's html makes sense
- * whether or not it is being edited.
+ * The element an editor goes on: an element, or the first one a selector
+ * matches. Anything else is a mistake worth throwing for, since there is no
+ * editor to hand back.
  */
-function dispatch(set, name, args) {
-    var descriptor = METHODS[name];
-
-    if (!descriptor) {
-        warnOnce('method:' + name, 'unknown method "' + name + '"');
-        return set;
+function targetElement(target) {
+    if (typeof target === 'string') {
+        var found = document.querySelector(target);
+        if (!found) { throw new TypeError('grid-editor: no element matches ' + JSON.stringify(target)); }
+        return found;
     }
 
-    if (descriptor.value) {
-        var element = set.first();
-        if (!element.length) { return null; }
+    if (target && target.nodeType === 1) { return target; }
 
-        var instance = element.data('grideditor');
-        if (!instance) {
-            return descriptor.noInstance ? descriptor.noInstance(element) : null;
-        }
+    throw new TypeError('grid-editor: the target is an element or a selector, not ' +
+        (target === null ? 'null' : typeof target));
+}
 
-        return instance[name].apply(instance, args);
-    }
+/** A node a caller handed in, as an element: an element, a selector's first match, or null. */
+function nodeFrom(node) {
+    if (typeof node === 'string') { return document.querySelector(node); }
+    return node && node.nodeType === 1 ? node : null;
+}
 
-    set.each(function() {
-        var found = $(this).data('grideditor');
-        if (found) { found[name].apply(found, args); }
-    });
+/**
+ * SortableJS, and Bootstrap's Modal, as the host provided them: assigned to
+ * GridEditor by a page that imports them as modules, or the page's globals.
+ */
+function sortableLibrary() {
+    return GridEditor.Sortable || window.Sortable || null;
+}
 
-    return set;
+function modalLibrary() {
+    var bootstrap = GridEditor.bootstrap || window.bootstrap;
+    return bootstrap && bootstrap.Modal ? bootstrap.Modal : null;
 }
 
 /**
@@ -261,60 +268,85 @@ function dispatch(set, name, args) {
 function plainHtml(html) {
     // Parsed in a document of its own, which is inert: no script in the
     // markup runs and no image starts loading while it is being cleaned
-    var root = $(document.implementation.createHTMLDocument('').body);
-    root[0].innerHTML = html;
+    var root = document.implementation.createHTMLDocument('').body;
+    root.innerHTML = html;
     var emptied = [];
 
-    root.find('*').each(function() {
-        var node = $(this);
+    dom.all(root, '*').forEach(function(node) {
         var marked = false;
 
-        $.each($.makeArray(this.attributes), function(i, attribute) {
+        Array.prototype.slice.call(node.attributes).forEach(function(attribute) {
             if (attribute.name.indexOf('data-ge-') === 0) {
-                node.removeAttr(attribute.name);
+                node.removeAttribute(attribute.name);
                 marked = true;
             }
         });
 
-        var classes = (node.attr('class') || '').split(/\s+/).filter(Boolean);
+        var classes = (node.getAttribute('class') || '').split(/\s+/).filter(Boolean);
         var kept = classes.filter(function(name) {
             return name !== 'column' && name.indexOf('ge-') !== 0;
         });
         if (kept.length !== classes.length) { marked = true; }
         if (kept.length) {
-            node.attr('class', kept.join(' '));
+            node.setAttribute('class', kept.join(' '));
         } else {
-            node.removeAttr('class');
+            node.removeAttribute('class');
         }
 
-        if (marked && this.tagName === 'DIV' && !this.attributes.length) {
-            emptied.push(this);
+        if (marked && node.tagName === 'DIV' && !node.attributes.length) {
+            emptied.push(node);
         }
     });
 
     emptied.forEach(function(div) {
-        $(div).replaceWith($(div).contents());
+        dom.unwrap(div);
     });
 
-    return root[0].innerHTML;
+    return root.innerHTML;
 }
 
-$.fn.gridEditor = function( optionsOrMethod ) {
+/**
+ * An editor on `target`: an element, or the first one a selector matches.
+ *
+ *   var ge = new GridEditor('#myGrid', { new_row_layouts: [[12], [6, 6]] });
+ *   var html = ge.getHtml();
+ *
+ * An element carries one editor at most: asked for a second, this hands back
+ * the one it has, with the options it was made with, and says so once.
+ */
+function GridEditor(target, options) {
+    var element = targetElement(target);
+    var existing = instances.get(element);
 
-    var self = this;
-
-    /** Methods **/
-
-    if (typeof optionsOrMethod == 'string') {
-        return dispatch(self, optionsOrMethod, Array.prototype.slice.call(arguments, 1));
+    if (existing) {
+        if (!doubleWarned.has(element)) {
+            doubleWarned.add(element);
+            warn(english('warning.already_editing'));
+        }
+        return existing;
     }
 
-    /** Initialize plugin */
+    if (!(this instanceof GridEditor)) { return new GridEditor(element, options); }
 
-    self.each(function(baseIndex, baseElem) {
-        baseElem = $(baseElem);
+    build(this, element, options || {});
+}
 
-        var settings = $.extend({
+/** The elements a second editor was asked for on, so each is told about once. */
+var doubleWarned = new WeakSet();
+
+GridEditor.create = function(target, options) {
+    return new GridEditor(target, options);
+};
+
+/** The editor on `target`, or null. */
+GridEditor.get = function(target) {
+    var element = nodeFrom(target);
+    return element ? instances.get(element) || null : null;
+};
+
+function build(instance, baseElem, optionsOrMethod) {
+
+        var settings = Object.assign({
             'new_row_layouts'   : [ // Column layouts for add row buttons
                                     [12],
                                     [6, 6],
@@ -330,8 +362,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'col_tools'         : [], /* Example:
                                         [ {
                                             title: 'Set background image',
-                                            iconClass: 'glyphicon-picture',
-                                            on: { click: function() {} }
+                                            iconClass: 'bi bi-image',
+                                            on: { click: function(event) {} }
                                         } ]
                                     */
             'row_tools'         : [],
@@ -359,7 +391,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'resize'            : NESTED_SETTINGS.resize, // Resizing a column by dragging its edge
             'source_textarea'   : '',
             'edit_source'       : true, // The toolbar's button to edit the canvas as html
-            'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
+            'locale'            : 'en', // Code of a locale in GridEditor.locales
             'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
             'confirm_delete'    : true, // Ask before deleting a row or a column
@@ -369,18 +401,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         // Merged rather than replaced, so `elements: { auto: true }` keeps the
         // default selector instead of losing it
-        $.each(NESTED_SETTINGS, function(name, defaults) {
-            settings[name] = $.extend({}, defaults, settings[name]);
+        Object.keys(NESTED_SETTINGS).forEach(function(name) {
+            settings[name] = Object.assign({}, NESTED_SETTINGS[name], settings[name]);
         });
 
         // Both handed out the drag toolkit's own options, which 4.0 stops
         // promising: there is no widget underneath a host should be reaching
         // for. What they were used for is a setting of the editor's now.
-        $.each(REMOVED_SETTINGS, function(name, replacement) {
+        Object.keys(REMOVED_SETTINGS).forEach(function(name) {
             if (optionsOrMethod && optionsOrMethod[name] !== undefined) {
-                warn($.fn.gridEditor.t(settings, 'warning.setting_removed', {
+                warn(translate(settings, 'warning.setting_removed', {
                     setting: name,
-                    replacement: replacement,
+                    replacement: REMOVED_SETTINGS[name],
                 }));
             }
         });
@@ -403,10 +435,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
+        var destroyed = false;
 
-        // Before anything else, because the instance handle hands the canvas
-        // to hosts and the rest of setup() runs at the end of this function
-        canvas = baseElem.addClass('ge-canvas');
+        // What the editor remembers about the nodes it edits, which used to
+        // be jQuery data: a node's settings panel, a drag or a resize in
+        // progress. Kept off the markup, and gone with the node.
+        var detailsFor = new WeakMap(); // node -> its settings panel
+        var moves = new WeakMap(); // dragged node -> { from, canceled }
+        var resizes = new WeakMap(); // column -> { from, units }
+        var sectionNodes = new WeakMap(); // Responsive section -> the node it edits
+        var editableLabels = new WeakSet(); // labels made editable in place
+
+        // Listeners the editor puts on things it does not own - the window,
+        // the document, the canvas - taken off together by destroy()
+        var lifetime = new AbortController();
+
+        // Before anything else, because the instance hands the canvas to
+        // hosts and the rest of setup() runs at the end of this function
+        canvas = dom.addClass(baseElem, 'ge-canvas');
 
         function warnOnceHere(key, message) {
             if (warnedHere[key]) { return; }
@@ -425,7 +471,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function setLocale(code) {
             settings.locale = code;
-            handle.settings = settingsCopy();
+            instance.settings = settingsCopy();
 
             removeConfirmModal();
             removeSettingsPanels();
@@ -442,14 +488,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * so no caller assembles one by hand and gets a field wrong.
          *
          * `parent` is where the node is going, or where it is coming from on a
-         * delete, which is not the same as node.parent() while the node is
+         * delete, which is not the same as the node's parent while the node is
          * still detached - so an add passes it in.
          */
         function payloadFor(kind, node, extra) {
-            return $.extend({
+            return Object.assign({
                 kind: kind,
                 node: node,
-                parent: node.parent(),
+                parent: node.parentElement,
                 canvas: canvas,
                 breakpoint: getView(),
                 source: 'api',
@@ -457,11 +503,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Deliver one notification twice: as a jQuery event on the canvas -
-         * the specific name first, then the generic one - and as the matching
+         * Deliver one notification twice: as a DOM event on the canvas - the
+         * specific name first, then the generic one - and as the matching
          * settings.callbacks entries. Everything is delivered whatever the
          * first listener says, and the answer is whether any of them canceled,
          * which only means something for a before-* notification.
+         *
+         * A listener that throws is the browser's to report: the other
+         * listeners, the callbacks and the operation go on.
          */
         function emit(name, payload) {
             var names = [name];
@@ -471,9 +520,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var canceled = false;
 
             names.forEach(function(eventName) {
-                var event = $.Event('grideditor:' + eventName);
-                canvas.trigger(event, [payload]);
-                if (event.isDefaultPrevented()) { canceled = true; }
+                var event = new CustomEvent('grideditor:' + eventName, {
+                    detail: payload,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                if (!canvas.dispatchEvent(event)) { canceled = true; }
             });
 
             names.forEach(function(eventName) {
@@ -548,7 +600,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * containers binds one name, not three.
          */
         function addEventName(kind) {
-            return $.fn.gridEditor.containers[kind] ? 'container' : kind;
+            return GridEditor.containers[kind] ? 'container' : kind;
         }
 
         /**
@@ -560,7 +612,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * so it is never part of what getHtml returns.
          *
          * A page that loaded Bootstrap's css but not its javascript still gets
-         * asked - by the browser, as before.
+         * asked - by the browser, as before. A page that imports Bootstrap as
+         * a module hands its Modal over as GridEditor.bootstrap.
          */
         function askToDelete(message, whenConfirmed) {
             if (!settings.confirm_delete) {
@@ -568,7 +621,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return;
             }
 
-            if (!window.bootstrap || !window.bootstrap.Modal) {
+            var Modal = modalLibrary();
+
+            if (!Modal) {
                 if (window.confirm(message)) { whenConfirmed(); }
                 return;
             }
@@ -576,30 +631,34 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var modal = confirmModal();
             var confirmed = false;
 
-            modal.find('.ge-confirm-message').text(message);
-            modal.find('.ge-confirm-ok').off('click').on('click', function() {
+            dom.one(modal, '.ge-confirm-message').textContent = message;
+            dom.one(modal, '.ge-confirm-ok').onclick = function() {
                 confirmed = true;
-                window.bootstrap.Modal.getInstance(modal[0]).hide();
-            });
+                Modal.getInstance(modal).hide();
+            };
 
-            modal.off('hidden.bs.modal').on('hidden.bs.modal', function() {
+            confirmHandlers.hidden = function() {
                 // After the modal is out of the way, so the backdrop is not
                 // sitting over the animation the delete runs
                 if (confirmed) { whenConfirmed(); }
-            });
+            };
 
-            modal.off('shown.bs.modal').on('shown.bs.modal', function() {
-                modal.find('.ge-confirm-ok').trigger('focus');
-            });
+            confirmHandlers.shown = function() {
+                dom.one(modal, '.ge-confirm-ok').focus();
+            };
 
-            window.bootstrap.Modal.getOrCreateInstance(modal[0]).show();
+            Modal.getOrCreateInstance(modal).show();
         }
+
+        // What the confirm modal does when Bootstrap says it is shown or
+        // hidden: this question's answer, replaced by the next question's
+        var confirmHandlers = { hidden: null, shown: null };
 
         /** Built once per instance, and taken away again by destroy(). */
         function confirmModal() {
             if (confirmDialog) { return confirmDialog; }
 
-            confirmDialog = $(
+            confirmDialog = dom.create(
                 '<div class="modal fade ge-confirm" tabindex="-1" aria-hidden="true">' +
                     '<div class="modal-dialog modal-dialog-centered">' +
                         '<div class="modal-content">' +
@@ -615,12 +674,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                         '</div>' +
                     '</div>' +
                 '</div>'
-            ).appendTo('body');
+            );
+            document.body.appendChild(confirmDialog);
 
-            confirmDialog.find('.modal-title').text(t('confirm.title'));
-            confirmDialog.find('.btn-close').attr('aria-label', t('confirm.cancel'));
-            confirmDialog.find('.ge-confirm-cancel').text(t('confirm.cancel'));
-            confirmDialog.find('.ge-confirm-ok').text(t('confirm.ok'));
+            dom.one(confirmDialog, '.modal-title').textContent = t('confirm.title');
+            dom.one(confirmDialog, '.btn-close').setAttribute('aria-label', t('confirm.cancel'));
+            dom.one(confirmDialog, '.ge-confirm-cancel').textContent = t('confirm.cancel');
+            dom.one(confirmDialog, '.ge-confirm-ok').textContent = t('confirm.ok');
+
+            trackModal(confirmDialog);
+            confirmDialog.addEventListener('hidden.bs.modal', function() {
+                if (confirmHandlers.hidden) { confirmHandlers.hidden(); }
+            });
+            confirmDialog.addEventListener('shown.bs.modal', function() {
+                if (confirmHandlers.shown) { confirmHandlers.shown(); }
+            });
 
             return confirmDialog;
         }
@@ -629,13 +697,48 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function removeConfirmModal() {
             if (!confirmDialog) { return; }
 
-            if (window.bootstrap && window.bootstrap.Modal) {
-                var instance = window.bootstrap.Modal.getInstance(confirmDialog[0]);
-                if (instance) { instance.dispose(); }
+            // Its answer is not wanted any more: the editor it asked for is going
+            confirmHandlers.hidden = null;
+            confirmHandlers.shown = null;
+            retireModal(confirmDialog);
+            confirmDialog = null;
+        }
+
+        /**
+         * Take a Bootstrap modal away. One out of sight goes at once. One that
+         * is showing, or on its way in or out, is asked to hide and goes when
+         * Bootstrap says it is hidden: Bootstrap finishes a transition on the
+         * node it started it on, and a node taken away under it throws, and
+         * leaves the page's body locked, with no scrolling.
+         */
+        function retireModal(panel) {
+            var Modal = modalLibrary();
+            var modal = Modal ? Modal.getInstance(panel) : null;
+            var gone = false;
+            var finish = function() {
+                if (gone) { return; }
+                gone = true;
+                if (modal) { modal.dispose(); }
+                panel.remove();
+            };
+
+            if (!modal || (!modalMoving.get(panel) && !dom.hasClass(panel, 'show'))) {
+                finish();
+                return;
             }
 
-            confirmDialog.remove();
-            confirmDialog = null;
+            panel.addEventListener('hidden.bs.modal', finish, { once: true });
+            // Still on its way in, it ignores a hide: once it is in, it takes one
+            panel.addEventListener('shown.bs.modal', function() { modal.hide(); }, { once: true });
+            modal.hide();
+        }
+
+        /** Whether a modal is between Bootstrap's show and shown, or hide and hidden. */
+        var modalMoving = new WeakMap();
+
+        function trackModal(panel) {
+            dom.on(panel, 'show.bs.modal hide.bs.modal', function() { modalMoving.set(panel, true); });
+            dom.on(panel, 'shown.bs.modal hidden.bs.modal', function() { modalMoving.set(panel, false); });
         }
 
         /**
@@ -815,51 +918,57 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * counted, so the index is the one a host would recognize.
          */
         function positionOf(node) {
-            var parent = node.parent();
+            var parent = node.parentElement;
 
             return {
                 parent: parent,
-                index: parent.children().not('.ge-tools-drawer').index(node),
+                index: dom.children(parent).filter(function(child) {
+                    return !dom.hasClass(child, 'ge-tools-drawer');
+                }).indexOf(node),
             };
         }
 
         function kindOf(node) {
             var fromPlugin = null;
 
-            $.each(FEATURES, function(name, feature) {
+            Object.keys(FEATURES).forEach(function(name) {
+                var feature = FEATURES[name];
                 if (!fromPlugin && feature.kindOf) { fromPlugin = feature.kindOf(node); }
             });
             if (fromPlugin) { return fromPlugin; }
 
-            if (node.attr('data-ge-container')) { return node.attr('data-ge-container'); }
-            if (node.hasClass('ge-tab')) { return 'tab'; }
-            if (node.hasClass('ge-accordion-item')) { return 'accordion-item'; }
-            if (node.hasClass('row')) { return 'row'; }
-            if (node.hasClass('column')) { return 'column'; }
-            if (node.hasClass('ge-element')) { return 'element'; }
+            if (node.getAttribute('data-ge-container')) { return node.getAttribute('data-ge-container'); }
+            if (dom.hasClass(node, 'ge-tab')) { return 'tab'; }
+            if (dom.hasClass(node, 'ge-accordion-item')) { return 'accordion-item'; }
+            if (dom.hasClass(node, 'row')) { return 'row'; }
+            if (dom.hasClass(node, 'column')) { return 'column'; }
+            if (dom.hasClass(node, 'ge-element')) { return 'element'; }
             // A content area is a text when an editor's type is on it, and the
             // host's plain content when there is none
-            if (node.hasClass('ge-text-block')) { node = node.children('.ge-content'); }
-            if (node.hasClass('ge-content')) { return node.attr('data-ge-content-type') ? 'text' : 'plain'; }
+            if (dom.hasClass(node, 'ge-text-block')) { node = dom.child(node, '.ge-content') || node; }
+            if (dom.hasClass(node, 'ge-content')) { return node.getAttribute('data-ge-content-type') ? 'text' : 'plain'; }
             return 'node';
         }
-        
+
         // Copy html to sourceElement if a source textarea is given
         if (settings.source_textarea) {
-            var sourceHtml = $(settings.source_textarea).val();
+            var sourceHtml = nodeFrom(settings.source_textarea).value;
             // Html with no grid in it goes into a row and a full width column
             // of its own, where init wraps it as the host's plain content
-            if (sourceHtml.length > 0 && $('<div>' + sourceHtml + '</div>').find('.row').addBack('.row').length == 0) {
+            var probe = dom.element('div');
+            probe.innerHTML = sourceHtml;
+            if (sourceHtml.length > 0 && !probe.querySelector('.row')) {
                 sourceHtml = '<div class="row"><div class="col-lg-12">' + sourceHtml + '</div></div>';
             }
-            baseElem.html(sourceHtml);
+            dom.setHtml(baseElem, sourceHtml);
         }
-        
+
         // Wrap content if it is non-bootstrap
-        if (baseElem.children().length && !baseElem.find('div.row').length) {
-            var children = baseElem.children();
-            var newRow = $('<div class="row"><div class="col-lg-12"/></div>').appendTo(baseElem);
-            newRow.find('.col-lg-12').append(children);
+        if (baseElem.children.length && !baseElem.querySelector('div.row')) {
+            var children = dom.children(baseElem);
+            var newRow = dom.create('<div class="row"><div class="col-lg-12"></div></div>');
+            baseElem.appendChild(newRow);
+            children.forEach(function(child) { newRow.firstChild.appendChild(child); });
         }
 
         // setup() and init() run at the end of this function, once every
@@ -867,29 +976,36 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         // the container registry, and a var declared later is not there yet.
 
         function setup() {
-            htmlTextArea = $('<textarea class="ge-html-output"/>').insertBefore(canvas);
+            htmlTextArea = dom.element('textarea', { 'class': 'ge-html-output' });
+            canvas.parentNode.insertBefore(htmlTextArea, canvas);
 
             createMainControls();
 
+            var signal = { signal: lifetime.signal };
+
             // Make controls fixed on scroll
-            $(window).on('scroll', onScroll);
+            window.addEventListener('scroll', onScroll, signal);
 
             /* A click on the host's plain content offers to make it a text */
-            canvas.on('click', '.ge-content', onContentClick);
+            dom.delegate(canvas, 'click', '.ge-content', onContentClick, signal);
 
             /* A trigger is often a link, and a link still navigates even
                with its Bootstrap attributes suspended */
-            canvas.on('click', '.ge-popup-trigger, [data-ge-popup-target]', function(e) {
-                if (canvas.hasClass('ge-editing')) { e.preventDefault(); }
-            });
+            dom.delegate(canvas, 'click', '.ge-popup-trigger, [data-ge-popup-target]', function(e) {
+                if (dom.hasClass(canvas, 'ge-editing')) { e.preventDefault(); }
+            }, signal);
+        }
 
-            // A rich text editor rewrites the content area as it takes over,
-            // which costs the element drawers inside it. The integrations say
-            // when their editor is ready, and the drawers go back in.
-            canvas.on('ge-rte-ready', '.ge-content', function() {
-                plugins('onContentReady', $(this));
-                refreshPreviews($(this));
-            });
+        /**
+         * A rich text editor rewrites the content area as it takes over,
+         * which costs the element drawers inside it. The integrations say
+         * when their editor is ready, and the drawers go back in.
+         */
+        function textReady(block) {
+            if (!dom.is(block, '.ge-content') || !canvas.contains(block)) { return; }
+
+            plugins('onContentReady', block);
+            refreshPreviews(block);
         }
 
         /**
@@ -897,70 +1013,72 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * string in it comes from the locale, so setLocale() rebuilds it.
          */
         function createMainControls() {
-            mainControls = $('<div class="ge-mainControls" />').insertBefore(htmlTextArea);
-            wrapper = $('<div class="ge-wrapper ge-top" />').appendTo(mainControls);
+            mainControls = dom.element('div', { 'class': 'ge-mainControls' });
+            htmlTextArea.parentNode.insertBefore(mainControls, htmlTextArea);
+            wrapper = mainControls.appendChild(dom.element('div', { 'class': 'ge-wrapper ge-top' }));
 
             // Add row
-            addRowGroup = $('<div class="ge-addRowGroup btn-group" />').appendTo(wrapper);
-            addContainerGroup = $('<div class="ge-addContainerGroup btn-group ms-1" />');
-            $.each(settings.new_row_layouts, function(j, layout) {
+            addRowGroup = wrapper.appendChild(dom.element('div', { 'class': 'ge-addRowGroup btn-group' }));
+            addContainerGroup = dom.element('div', { 'class': 'ge-addContainerGroup btn-group ms-1' });
+            settings.new_row_layouts.forEach(function(layout) {
                 var grouped = !Array.isArray(layout);
-                var btn = $('<a class="btn btn-sm btn-primary" />')
-                    .attr('title', grouped
+                var btn = dom.element('a', {
+                    'class': 'btn btn-sm btn-primary',
+                    title: grouped
                         ? t('row.add_row_cols', { columns: layout.columns, counts: rowColsText(layout.row_cols) })
-                        : t('row.add', { layout: layout.join('-') }))
+                        : t('row.add', { layout: layout.join('-') }),
                     // What this button makes, in the markup rather than in
-                    // jQuery data: a drag works on a clone of it
-                    .attr('data-ge-toolbar', 'row')
-                    .attr('data-ge-layout', grouped ? JSON.stringify(layout) : layout.join(','))
-                    .on('click', function() {
-                        var row = rowFromLayoutValue(layout);
+                    // memory: a drag works on a clone of it
+                    'data-ge-toolbar': 'row',
+                    'data-ge-layout': grouped ? JSON.stringify(layout) : layout.join(','),
+                });
 
-                        var added = addNode('row', row, function() {
-                            row.appendTo(canvas);
-                        }, { parent: canvas, source: 'tool' });
+                btn.addEventListener('click', function() {
+                    var row = rowFromLayoutValue(layout);
 
-                        if (added && row[0].scrollIntoView) {
-                            row[0].scrollIntoView({behavior: 'smooth'});
-                        }
-                    })
-                    .appendTo(addRowGroup)
-                ;
+                    var added = addNode('row', row, function() {
+                        canvas.appendChild(row);
+                    }, { parent: canvas, source: 'tool' });
 
-                btn.append('<i class="bi bi-plus"></i>');
+                    if (added && row.scrollIntoView) {
+                        row.scrollIntoView({behavior: 'smooth'});
+                    }
+                });
+                addRowGroup.appendChild(btn);
+
+                btn.appendChild(dom.create('<i class="bi bi-plus"></i>'));
 
                 // A row of columns shares out the icon as they share the row;
                 // a row with row-cols draws one line of its widest count
                 var sizes = grouped ? rowColsIcon(layout) : layout;
                 var icon = '<div class="row ge-row-icon">';
                 sizes.forEach(function(size) {
-                    // Closed explicitly: jQuery 4 no longer expands <div/>, and
-                    // each column would be parsed inside the one before
                     icon += '<div class="column ' + sizeClass(BREAKPOINTS[0], size) + '"></div>';
                 });
                 icon += '</div>';
-                btn.append(icon);
+                btn.appendChild(dom.create(icon));
             });
 
-            addContainerGroup.appendTo(wrapper);
+            wrapper.appendChild(addContainerGroup);
 
             // A container starts in a row of its own, the way the add row
             // buttons next to these ones do
-            $.each(CONTAINERS, function(type, definition) {
-                labelButton($('<a class="btn btn-sm btn-primary ge-add-container" />'), t(definition.labelKey), definition.iconClass)
-                    .attr('data-ge-toolbar', 'container')
-                    .attr('data-ge-container-type', type)
-                    .on('click', function() {
-                        var row = createRow();
-                        var column = createColumn(MAX_COL_SIZE).appendTo(row);
-                        var container = definition.create({}).appendTo(column);
+            Object.keys(CONTAINERS).forEach(function(type) {
+                var definition = CONTAINERS[type];
+                var button = labelButton(dom.element('a', { 'class': 'btn btn-sm btn-primary ge-add-container' }),
+                    t(definition.labelKey), definition.iconClass);
 
-                        addNode(type, container, function() {
-                            row.appendTo(canvas);
-                        }, { parent: canvas, source: 'tool' });
-                    })
-                    .appendTo(addContainerGroup)
-                ;
+                dom.attr(button, { 'data-ge-toolbar': 'container', 'data-ge-container-type': type });
+                button.addEventListener('click', function() {
+                    var row = createRow();
+                    var column = row.appendChild(createColumn(MAX_COL_SIZE));
+                    var container = column.appendChild(definition.create({}));
+
+                    addNode(type, container, function() {
+                        canvas.appendChild(row);
+                    }, { parent: canvas, source: 'tool' });
+                });
+                addContainerGroup.appendChild(button);
             });
 
             // A feature plugin's own buttons, beside the containers': what
@@ -968,85 +1086,82 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // One with align 'end' goes on the right instead, as an icon,
             // beside the source and preview buttons.
             var endItems = [];
-            $.each(FEATURES, function(name, feature) {
-                (feature.toolbar || []).forEach(function(item, index) {
+            Object.keys(FEATURES).forEach(function(name) {
+                (FEATURES[name].toolbar || []).forEach(function(item, index) {
                     var button = featureButton(name, item, index);
 
                     if (item.align === 'end') {
                         endItems.push(button);
                     } else {
-                        button.appendTo(addContainerGroup);
+                        addContainerGroup.appendChild(button);
                     }
                 });
             });
 
             // Buttons on right
-            layoutDropdown = $('<div class="dropdown pull-right ge-layout-mode">' +
+            layoutDropdown = dom.create('<div class="dropdown pull-right ge-layout-mode">' +
                 '<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>' +
                     '<div class="dropdown-menu" role="menu"></div>' +
-                '</div>')
-                .on('click', 'a', function() {
-                    // Through changeView, so the dropdown and the method are
-                    // one path rather than two that have to agree
-                    changeView($(this).attr('data-ge-view'));
-                })
-                .appendTo(wrapper)
-            ;
-            settings.layout_modes.forEach(function(view) {
-                $('<a class="dropdown-item" />')
-                    .attr('data-ge-view', view)
-                    .attr('title', t(labelKeyFor(view)))
-                    .text(t(labelKeyFor(view)))
-                    .appendTo(layoutDropdown.find('.dropdown-menu'))
-                ;
+                '</div>');
+            dom.delegate(layoutDropdown, 'click', 'a', function() {
+                // Through changeView, so the dropdown and the method are
+                // one path rather than two that have to agree
+                changeView(this.getAttribute('data-ge-view'));
             });
-            layoutDropdown.find('button').text(t(labelKeyFor(curView)));
+            wrapper.appendChild(layoutDropdown);
 
-            var btnGroup = $('<div class="btn-group pull-right"/>')
-                .appendTo(wrapper)
-            ;
+            settings.layout_modes.forEach(function(view) {
+                dom.one(layoutDropdown, '.dropdown-menu').appendChild(dom.element('a', {
+                    'class': 'dropdown-item',
+                    'data-ge-view': view,
+                    title: t(labelKeyFor(view)),
+                }, t(labelKeyFor(view))));
+            });
+            dom.one(layoutDropdown, 'button').textContent = t(labelKeyFor(curView));
+
+            var btnGroup = wrapper.appendChild(dom.element('div', { 'class': 'btn-group pull-right' }));
+
             if (settings.edit_source) {
                 // Built again by setLocale, maybe with the source open
-                var htmlButton = $('<button type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>')
-                    .attr('title', t('tool.edit_source'))
-                    .toggleClass('active btn-danger', sourceOpen)
-                    .on('click', function() {
-                        if (sourceOpen) {
-                            closeSource();
-                        } else {
-                            openSource();
-                        }
-
-                        htmlButton.toggleClass('active btn-danger', sourceOpen);
-                    })
-                    .appendTo(btnGroup)
-                ;
-            }
-            var previewButton = $('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>')
-                .attr('title', t('tool.preview'))
-                .on('mouseenter', function() {
-                    canvas.removeClass('ge-editing');
-                })
-                .on('click', function() {
-                    previewButton.toggleClass('active btn-danger').trigger('mouseleave');
-                })
-                .on('mouseleave', function() {
-                    if (!previewButton.hasClass('active')) {
-                        canvas.addClass('ge-editing');
+                var htmlButton = dom.create('<button type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>');
+                htmlButton.setAttribute('title', t('tool.edit_source'));
+                dom.toggleClass(htmlButton, 'active btn-danger', sourceOpen);
+                htmlButton.addEventListener('click', function() {
+                    if (sourceOpen) {
+                        closeSource();
+                    } else {
+                        openSource();
                     }
-                })
-                .appendTo(btnGroup)
-            ;
+
+                    dom.toggleClass(htmlButton, 'active btn-danger', sourceOpen);
+                });
+                btnGroup.appendChild(htmlButton);
+            }
+
+            var previewButton = dom.create('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>');
+            var endPreview = function() {
+                if (!dom.hasClass(previewButton, 'active')) {
+                    dom.addClass(canvas, 'ge-editing');
+                }
+            };
+            previewButton.setAttribute('title', t('tool.preview'));
+            previewButton.addEventListener('mouseenter', function() {
+                dom.removeClass(canvas, 'ge-editing');
+            });
+            previewButton.addEventListener('click', function() {
+                dom.toggleClass(previewButton, 'active btn-danger');
+                endPreview();
+            });
+            previewButton.addEventListener('mouseleave', endPreview);
+            btnGroup.appendChild(previewButton);
 
             // Floated right after the source and preview buttons, so it
             // stands to their left. Not a btn-group: its buttons show one at
             // a time, and a hidden one still counts as a neighbour to
             // Bootstrap, which squares off the corners they would share.
             if (endItems.length) {
-                $('<div class="pull-right ge-toolbar-end" />')
-                    .append(endItems)
-                    .appendTo(wrapper)
-                ;
+                var end = wrapper.appendChild(dom.element('div', { 'class': 'pull-right ge-toolbar-end' }));
+                endItems.forEach(function(button) { end.appendChild(button); });
             }
 
             makeToolbarDraggable();
@@ -1057,14 +1172,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * with its label as the title, or a plus and the label otherwise.
          */
         function labelButton(button, label, iconClass) {
-            button.attr('title', label);
+            button.setAttribute('title', label);
 
-            if (iconClass) { return button.append($('<i />').addClass(iconClass)); }
+            if (iconClass) {
+                button.appendChild(dom.element('i', { 'class': iconClass }));
+                return button;
+            }
 
-            return button
-                .append('<i class="bi bi-plus"></i>')
-                .append($('<span />').text(label))
-            ;
+            button.appendChild(dom.create('<i class="bi bi-plus"></i>'));
+            button.appendChild(dom.element('span', {}, label));
+            return button;
         }
 
         /** A feature plugin's toolbar button. At the end it is always an icon, `bi bi-plus` if it has none of its own. */
@@ -1073,31 +1190,33 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // A label of its own, worked out when the toolbar is built - and
             // built again by setLocale - or the string its labelKey names
             var label = typeof item.label === 'function' ? item.label() : (item.label || t(item.labelKey));
-            var button = labelButton($('<a class="btn btn-sm btn-primary ge-add-container ge-add-feature" />'), label, iconClass)
-                .addClass(item.className || '')
-                .attr('data-ge-toolbar', 'feature')
-                .attr('data-ge-feature', name)
-                .attr('data-ge-item', index)
-                .on('click', function() {
-                    var made = item.create();
+            var button = labelButton(dom.element('a', { 'class': 'btn btn-sm btn-primary ge-add-container ge-add-feature' }), label, iconClass);
 
-                    // One that belongs in a column brings a row and a column
-                    // of its own, the way a container does
-                    var placed = item.inColumn ? inRowOfItsOwn(made) : made;
+            dom.addClass(button, item.className || '');
+            dom.attr(button, {
+                'data-ge-toolbar': 'feature',
+                'data-ge-feature': name,
+                'data-ge-item': index,
+            });
+            button.addEventListener('click', function() {
+                var made = item.create();
 
-                    var added = addNode(item.kind, made, function() {
-                        placed.appendTo(canvas);
-                    }, { parent: canvas, source: item.source || 'tool' });
+                // One that belongs in a column brings a row and a column
+                // of its own, the way a container does
+                var placed = item.inColumn ? inRowOfItsOwn(made) : made;
 
-                    if (added && item.inColumn && placed[0].scrollIntoView) {
-                        placed[0].scrollIntoView({behavior: 'smooth'});
-                    }
-                })
-            ;
+                var added = addNode(item.kind, made, function() {
+                    canvas.appendChild(placed);
+                }, { parent: canvas, source: item.source || 'tool' });
+
+                if (added && item.inColumn && placed.scrollIntoView) {
+                    placed.scrollIntoView({behavior: 'smooth'});
+                }
+            });
 
             return button;
         }
-        
+
         /**
          * The toolbar's buttons as a palette: drag one onto the canvas and
          * what it makes is created where it lands, rather than at the end.
@@ -1113,14 +1232,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function makeToolbarDraggable() {
-            var buttons = mainControls.find('[data-ge-toolbar]')
-                .removeClass('ge-palette-button')
-                .off('pointerdown.ge-palette')
-            ;
+            var buttons = dom.all(mainControls, '[data-ge-toolbar]');
+
+            buttons.forEach(function(button) {
+                dom.removeClass(button, 'ge-palette-button');
+                button.removeEventListener('pointerdown', startToolbarDrag);
+            });
 
             if (!toolbarDrags()) { return; }
 
-            buttons.addClass('ge-palette-button').on('pointerdown.ge-palette', startToolbarDrag);
+            buttons.forEach(function(button) {
+                dom.addClass(button, 'ge-palette-button');
+                button.addEventListener('pointerdown', startToolbarDrag);
+            });
         }
 
         /**
@@ -1132,7 +1256,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * also what keeps the add column tool's hold-to-pick working.
          */
         function startToolbarDrag(e) {
-            var button = $(e.currentTarget);
+            var button = e.currentTarget;
             var startX = e.pageX;
             var startY = e.pageY;
             var helper = null;
@@ -1148,35 +1272,37 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 if (!helper) {
                     if (!far(move)) { return; }
 
-                    helper = button.clone()
-                        .addClass('ge-toolbar-helper')
-                        .appendTo('body')
-                    ;
-                    canvas.addClass('ge-dropping');
+                    helper = dom.addClass(button.cloneNode(true), 'ge-toolbar-helper');
+                    document.body.appendChild(helper);
+                    dom.addClass(canvas, 'ge-dropping');
                 }
 
-                helper.css({ left: move.pageX - 14, top: move.pageY - 14 });
+                dom.css(helper, { left: move.pageX - 14, top: move.pageY - 14 });
                 showDropMarker(move.pageX, move.pageY);
             }
 
             function onUp(up) {
-                $(document)
-                    .off('pointermove.ge-toolbar', onMove)
-                    .off('pointerup.ge-toolbar pointercancel.ge-toolbar', onUp)
-                ;
+                document.removeEventListener('pointermove', onMove);
+                dom.off(document, 'pointerup pointercancel', onUp);
 
                 if (!helper) { return; }
 
                 helper.remove();
-                canvas.removeClass('ge-dropping');
+                dom.removeClass(canvas, 'ge-dropping');
                 hideDropMarker();
 
                 // The click that follows a drag would add the block a second
-                // time, at the end of the canvas
-                button.one('click', function(click) {
+                // time, at the end of the canvas. Caught on the way down, so
+                // it never reaches the button's own handler.
+                var swallow = function(click) {
+                    if (click.target !== button && !button.contains(click.target)) { return; }
                     click.preventDefault();
                     click.stopImmediatePropagation();
-                });
+                };
+                window.addEventListener('click', swallow, { capture: true, once: true });
+                // A drag the browser does not follow with a click leaves
+                // nothing to swallow: the next click is a click
+                window.setTimeout(function() { window.removeEventListener('click', swallow, { capture: true }); }, 0);
 
                 var where = dropPlaceAt(up.pageX, up.pageY);
                 if (where) { insertFromToolbar(button, where); }
@@ -1185,10 +1311,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // On the document, not on the button: until the gesture is far
             // enough along to be a drag there is nothing to capture the
             // pointer with, and the pointer has left the button by then
-            $(document)
-                .on('pointermove.ge-toolbar', onMove)
-                .on('pointerup.ge-toolbar pointercancel.ge-toolbar', onUp)
-            ;
+            document.addEventListener('pointermove', onMove);
+            dom.on(document, 'pointerup pointercancel', onUp);
         }
 
         /**
@@ -1208,18 +1332,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (!under) { return null; }
 
-            var region = $(under).closest(['.column', '.ge-canvas'].concat(pluginHooks('regions')).join(', '));
-            if (!region.length || (region[0] !== canvas[0] && !canvas[0].contains(region[0]))) {
+            var region = dom.closest(under, ['.column', '.ge-canvas'].concat(pluginHooks('regions')).join(', '));
+            if (!region || (region !== canvas && !canvas.contains(region))) {
                 return null;
             }
 
             var before = null;
 
-            region.children(blockSelector()).each(function() {
+            dom.children(region, blockSelector()).forEach(function(block) {
                 if (before) { return; }
 
-                var box = this.getBoundingClientRect();
-                if (y < box.top + box.height / 2) { before = $(this); }
+                var box = block.getBoundingClientRect();
+                if (y < box.top + box.height / 2) { before = block; }
             });
 
             return { region: region, before: before };
@@ -1231,25 +1355,25 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * to the canvas, just after the top level block the pointer was in.
          */
         function insertFeatureFromToolbar(button, where) {
-            var item = FEATURES[button.attr('data-ge-feature')].toolbar[parseInt(button.attr('data-ge-item'), 10)];
+            var item = FEATURES[button.getAttribute('data-ge-feature')].toolbar[parseInt(button.getAttribute('data-ge-item'), 10)];
             var made = item.create();
             var placed = made;
 
             if (item.inColumn) {
                 // Where it lands in a column, or in a row and a column of its
                 // own anywhere else
-                if (!where.region.is('.column')) { placed = inRowOfItsOwn(made); }
+                if (!dom.is(where.region, '.column')) { placed = inRowOfItsOwn(made); }
             } else if (!acceptsBlock(where.region, made)) {
-                var top = where.region.parentsUntil(canvas).addBack().first();
-                where = { region: canvas, before: top.length ? top.next() : null };
-                if (where.before && !where.before.length) { where.before = null; }
+                var ancestors = where.region === canvas ? [] : dom.parentsUntil(where.region, canvas).reverse().concat([where.region]);
+                var top = ancestors[0] || null;
+                where = { region: canvas, before: top ? top.nextElementSibling : null };
             }
 
             return addNode(item.kind, made, function() {
                 if (where.before) {
-                    placed.insertBefore(where.before);
+                    where.before.parentNode.insertBefore(placed, where.before);
                 } else {
-                    placed.appendTo(where.region);
+                    where.region.appendChild(placed);
                 }
             }, { parent: where.region, source: item.source || 'dragdrop' });
         }
@@ -1257,7 +1381,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /** A detached row with one full width column holding `node`. */
         function inRowOfItsOwn(node) {
             var row = createRow();
-            createColumn(MAX_COL_SIZE).appendTo(row).append(node);
+            row.appendChild(createColumn(MAX_COL_SIZE)).appendChild(node);
 
             return row;
         }
@@ -1268,12 +1392,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (!where) { return hideDropMarker(); }
 
-            if (!dropMarker) { dropMarker = $('<div class="ge-drop-marker" />'); }
+            if (!dropMarker) { dropMarker = dom.element('div', { 'class': 'ge-drop-marker' }); }
 
             if (where.before) {
-                dropMarker.insertBefore(where.before);
+                where.before.parentNode.insertBefore(dropMarker, where.before);
             } else {
-                dropMarker.appendTo(where.region);
+                where.region.appendChild(dropMarker);
             }
 
             return undefined;
@@ -1288,26 +1412,26 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the pointer left it.
          */
         function insertFromToolbar(button, where) {
-            if (button.attr('data-ge-toolbar') === 'feature') {
+            if (button.getAttribute('data-ge-toolbar') === 'feature') {
                 return insertFeatureFromToolbar(button, where);
             }
 
-            var container = button.attr('data-ge-toolbar') === 'container';
-            var type = button.attr('data-ge-container-type');
+            var container = button.getAttribute('data-ge-toolbar') === 'container';
+            var type = button.getAttribute('data-ge-container-type');
             var made = container
                 ? CONTAINERS[type].create({})
-                : rowFromLayout(button.attr('data-ge-layout'));
+                : rowFromLayout(button.getAttribute('data-ge-layout'));
 
             // A container belongs in a column: dropped straight onto the
             // canvas it brings a row and a column of its own
             var placed = made;
-            if (container && !where.region.is('.column')) { placed = inRowOfItsOwn(made); }
+            if (container && !dom.is(where.region, '.column')) { placed = inRowOfItsOwn(made); }
 
             return addNode(container ? type : 'row', made, function() {
                 if (where.before) {
-                    placed.insertBefore(where.before);
+                    where.before.parentNode.insertBefore(placed, where.before);
                 } else {
-                    placed.appendTo(where.region);
+                    where.region.appendChild(placed);
                 }
             }, { parent: where.region, source: 'dragdrop' });
         }
@@ -1369,16 +1493,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var row = createRow();
 
             if (Array.isArray(layout)) {
-                layout.forEach(function(size) { createColumn(size).appendTo(row); });
+                layout.forEach(function(size) { row.appendChild(createColumn(size)); });
                 return row;
             }
 
-            $.each(layout.row_cols || {}, function(key, value) {
+            Object.keys(layout.row_cols || {}).forEach(function(key) {
+                var value = layout.row_cols[key];
                 var tier = breakpoint(key);
-                if (tier && ROW_COLS_VALUES.indexOf(String(value)) !== -1) { row.addClass(rowColsClass(tier, value)); }
+                if (tier && ROW_COLS_VALUES.indexOf(String(value)) !== -1) { dom.addClass(row, rowColsClass(tier, value)); }
             });
 
-            for (var i = 0; i < (layout.columns || 0); i++) { createColumn(null).appendTo(row); }
+            for (var i = 0; i < (layout.columns || 0); i++) { row.appendChild(createColumn(null)); }
 
             return row;
         }
@@ -1393,49 +1518,46 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /** The icon of a row-cols layout: one line of equal columns, as many as its widest count. */
         function rowColsIcon(layout) {
             var widest = 1;
-            $.each(layout.row_cols || {}, function(key, value) {
+            Object.keys(layout.row_cols || {}).forEach(function(key) {
+                var value = layout.row_cols[key];
                 if (value !== 'auto') { widest = Math.max(widest, parseInt(value, 10) || 1); }
             });
 
             return Array.apply(null, Array(Math.min(widest, layout.columns || widest))).map(function() { return 'equal'; });
         }
 
-        function onScroll(e) {
-            var $window = $(window);
-            
+        function onScroll() {
+            var scrollTop = window.pageYOffset;
+
             if (
-                $window.scrollTop() > mainControls.offset().top &&
-                $window.scrollTop() < canvas.offset().top + canvas.height()
+                scrollTop > dom.offset(mainControls).top &&
+                scrollTop < dom.offset(canvas).top + dom.contentHeight(canvas)
             ) {
-                if (wrapper.hasClass('ge-top')) {
-                    wrapper
-                        .css({
-                            left: wrapper.offset().left,
-                            width: wrapper.outerWidth(),
-                        })
-                        .removeClass('ge-top')
-                        .addClass('ge-fixed')
-                    ;
+                if (dom.hasClass(wrapper, 'ge-top')) {
+                    dom.css(wrapper, {
+                        left: dom.offset(wrapper).left,
+                        width: dom.outerWidth(wrapper),
+                    });
+                    dom.removeClass(wrapper, 'ge-top');
+                    dom.addClass(wrapper, 'ge-fixed');
                 }
             } else {
-                if (wrapper.hasClass('ge-fixed')) {
-                    wrapper
-                        .css({ left: '', width: '' })
-                        .removeClass('ge-fixed')
-                        .addClass('ge-top')
-                    ;
+                if (dom.hasClass(wrapper, 'ge-fixed')) {
+                    dom.css(wrapper, { left: '', width: '' });
+                    dom.removeClass(wrapper, 'ge-fixed');
+                    dom.addClass(wrapper, 'ge-top');
                 }
             }
         }
-        
+
         /**
          * A click on the host's plain content makes it a text: of the one
          * editor offered, or of the one chosen when there are several. What
          * a click on a text does is its editor plugin's business.
          */
         function onContentClick() {
-            var block = $(this);
-            if (block.attr('data-ge-content-type')) { return; }
+            var block = this;
+            if (block.getAttribute('data-ge-content-type')) { return; }
 
             // A second click, with the choice still open, withdraws it
             if (closeSizePicker()) { return; }
@@ -1443,7 +1565,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // Content nobody can see - a tab that is not the open one, a
             // closed accordion item - has no geometry for an editor to lay
             // its toolbar out against, and nothing anyone can type into
-            if (!block.is(':visible')) { return; }
+            if (!dom.visible(block)) { return; }
 
             var offers = textOffers();
             if (!offers.length) { return; }
@@ -1474,11 +1596,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 if (!emit('before-convert', payload)) { return false; }
 
-                block.addClass('ge-content-type-' + offer.type).attr('data-ge-content-type', offer.type);
+                dom.addClass(block, 'ge-content-type-' + offer.type);
+                block.setAttribute('data-ge-content-type', offer.type);
 
                 // Its plain drawer goes: the block is the plugin's now, and
                 // the plugin gives it the drawer a text has
-                block.parent('.ge-text-block').removeClass('ge-plain-block').children('.ge-tools-drawer').remove();
+                var textBlock = block.parentElement;
+                if (dom.hasClass(textBlock, 'ge-text-block')) {
+                    dom.removeClass(textBlock, 'ge-plain-block');
+                    dom.children(textBlock, '.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
+                }
 
                 emit('after-convert', payload);
                 offer.edit(block);
@@ -1492,9 +1619,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * drawer, when there is more than one to choose from.
          */
         function openConvertPicker(block, offers) {
-            var textBlock = block.parent('.ge-text-block');
+            var textBlock = dom.hasClass(block.parentElement, 'ge-text-block') ? block.parentElement : null;
+            if (!textBlock) { return; }
 
-            openPicker(textBlock.children('.ge-tools-drawer'), offers.map(function(offer) {
+            openPicker(dom.child(textBlock, '.ge-tools-drawer'), offers.map(function(offer) {
                 return {
                     label: offer.label,
                     title: t('tool.convert_type', { editor: offer.label }),
@@ -1511,31 +1639,37 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function openPicker(anchor, choices, className, hover) {
             closeSizePicker();
+            if (!anchor) { return; }
 
-            anchor.closest('.ge-tools-drawer').addClass('ge-picker-open');
-            sizePicker = $('<div class="ge-size-picker" />').addClass(className || '').appendTo(anchor);
+            var drawer = dom.closest(anchor, '.ge-tools-drawer');
+            if (drawer) { dom.addClass(drawer, 'ge-picker-open'); }
+            sizePicker = anchor.appendChild(dom.addClass(dom.element('div', { 'class': 'ge-size-picker' }), className || ''));
 
             choices.forEach(function(choice) {
-                $('<a class="ge-size ge-size-flex" />')
-                    .attr(choice.attributes || {})
-                    .attr('title', choice.title || choice.label)
-                    .text(choice.label)
-                    .on('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
+                var button = dom.attr(dom.element('a', { 'class': 'ge-size ge-size-flex' }), choice.attributes || {});
 
-                        closeSizePicker();
-                        choice.choose();
-                    })
-                    .appendTo(sizePicker)
-                ;
+                button.setAttribute('title', choice.title || choice.label);
+                button.textContent = choice.label;
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    closeSizePicker();
+                    choice.choose();
+                });
+                sizePicker.appendChild(button);
             });
 
-            (hover || anchor).one('mouseleave', function() {
+            withdrawOnLeave(hover || anchor);
+        }
+
+        /** Leaving `node` withdraws the picker open under it, unless the pointer went into the picker. */
+        function withdrawOnLeave(node) {
+            node.addEventListener('mouseleave', function() {
                 window.setTimeout(function() {
-                    if (sizePicker && !sizePicker.is(':hover')) { closeSizePicker(); }
+                    if (sizePicker && !sizePicker.matches(':hover')) { closeSizePicker(); }
                 }, 400);
-            });
+            }, { once: true });
         }
 
         /**
@@ -1546,7 +1680,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var owners = {};
             var entries = [];
 
-            $.each(FEATURES, function(name, feature) {
+            Object.keys(FEATURES).forEach(function(name) {
+                var feature = FEATURES[name];
                 if (!feature.textTypes) { return; }
 
                 (feature.textTypes() || []).forEach(function(entry) {
@@ -1590,34 +1725,38 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function openSource() {
             deinit();
-            htmlTextArea
-                .height(0.8 * $(window).height())
-                .val(canvas.html())
-                .show()
-            ;
-            canvas.hide();
+            htmlTextArea.style.height = (0.8 * document.documentElement.clientHeight) + 'px';
+            htmlTextArea.value = canvas.innerHTML;
+            dom.show(htmlTextArea);
+            dom.hide(canvas);
             sourceOpen = true;
             plugins('onSourceOpen', htmlTextArea);
         }
 
+        /**
+         * The textarea's html back into the canvas. innerHTML, so a <script>
+         * typed into the source is markup like any other and does not run in
+         * the editor; the page it is published on runs it.
+         */
         function closeSource() {
             plugins('onSourceClose', htmlTextArea);
             sourceOpen = false;
-            canvas.empty().html(htmlTextArea.val()).show();
+            dom.setHtml(canvas, htmlTextArea.value);
+            dom.show(canvas);
             init();
-            htmlTextArea.hide();
+            dom.hide(htmlTextArea);
         }
 
         function init() {
             // The node whose settings were open is gone - deleted, say - and
             // its panel with it
-            if (openSettingsState && !$.contains(document.documentElement, openSettingsState.node[0])) {
+            if (openSettingsState && !dom.attached(openSettingsState.node)) {
                 closeSettings();
             }
 
             runFilter(true);
-            canvas.addClass('ge-editing');
-            canvas.toggleClass('ge-drag-drawer', settings.drag_handle === 'drawer');
+            dom.addClass(canvas, 'ge-editing');
+            dom.toggleClass(canvas, 'ge-drag-drawer', settings.drag_handle === 'drawer');
             addAllColClasses();
             var cutter = textCutter();
             splitTexts(cutter);
@@ -1636,26 +1775,26 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function deinit() {
             // Its panel goes home to its drawer first, and both go together
             closeSettings();
-            canvas.removeClass('ge-editing ge-drag-drawer ge-dropping');
+            dom.removeClass(canvas, 'ge-editing ge-drag-drawer ge-dropping');
             // Before the drawers and the text blocks come off: an editor
             // plugin closes its editors here, and finds them where it left them
             plugins('onBeforeDeinit');
             closeSizePicker();
             hideDropMarker();
-            canvas.find('.ge-tools-drawer').remove();
+            dom.all(canvas, '.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
             unwrapTexts();
             plugins('onDeinit');
             // After the rich text editors have let go of their content areas:
             // one that rebuilt its area's DOM brought the preview styles back
             // with it, and the attribute recording them came back too
             clearPreviews(canvas);
-            canvas.find('[data-ge-row-cols]').removeAttr('data-ge-row-cols');
+            dom.all(canvas, '[data-ge-row-cols]').forEach(function(row) { row.removeAttribute('data-ge-row-cols'); });
             unmarkContainers();
             removeSortable();
             removeResizable();
             runFilter(false);
         }
-        
+
         /**
          * The markup as a host would save it: no drawers, no editor, no
          * sortables. The canvas goes back to editing afterwards.
@@ -1663,7 +1802,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function getHtml() {
             deinit();
             stripPixelWidths(canvas);
-            var html = canvas.html();
+            var html = canvas.innerHTML;
             init();
             return html;
         }
@@ -1675,7 +1814,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function nodeHtml(node) {
             deinit();
             stripPixelWidths(node);
-            var html = node[0].outerHTML;
+            var html = node.outerHTML;
             init();
             return html;
         }
@@ -1685,6 +1824,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return plainHtml(getHtml());
         }
 
+        /**
+         * Take the editor off the canvas: the markup stays, as getHtml would
+         * give it, and everything the editor added - controls, panels,
+         * listeners - goes. Safe on a canvas already taken out of the page,
+         * as a framework tearing a component down does.
+         */
         function destroy() {
             // The html being edited is what the canvas is left with
             if (sourceOpen) { closeSource(); }
@@ -1693,43 +1838,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             removeSettingsPanels();
             mainControls.remove();
             htmlTextArea.remove();
-            $(window).off('scroll', onScroll);
-            canvas.off('click', '.ge-content', onContentClick);
-            canvas.off('ge-rte-ready', '.ge-content');
-            canvas.removeData('grideditor');
+            lifetime.abort();
+            instances.delete(canvas);
+            destroyed = true;
         }
 
-        function deprecatedRemove() {
-            warnOnceHere('remove', 'remove() is deprecated and will be removed in a later ' +
-                'release. Use destroy(), which does the same thing.');
-            destroy();
-        }
-
-
-        /** The elements of one content area: its marked children, or all of them. */
-
         /**
-         * Give every element its class, its drawer and, while editing, the
-         * contenteditable="false" that makes a rich text editor treat it as
-         * one atomic thing rather than as text it may rewrite.
-         *
-         * The class is re-applied on every init rather than trusted to
-         * survive: an editor that snapshots and restores the markup inside a
-         * content area can drop it, and the marking that identifies an
-         * element lives in a data attribute for exactly that reason.
-         */
-
-
-
-        /**
-         * What the info tool calls this element: its label, its type, or both.
-         * An element found by elements.auto has neither, so it is named after
-         * its tag, which is the only thing it has said about itself.
-         */
-
-        /**
-         * The container plugins this editor is using: the ones registered by
-         * the files the page loaded, narrowed by the plugins setting.
+         * The plugins this editor is using: the ones registered by the files
+         * the page loaded, narrowed by the plugins setting.
          *
          * Each is a factory, called once here with the handle it works
          * through. Everything a plugin needs from the editor goes through
@@ -1752,33 +1868,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 return factory.always === true || wanted(name);
             };
 
-            $.each($.fn.gridEditor.containers, function(type, factory) {
-                if (wanted(type)) { CONTAINERS[type] = factory(api); }
+            Object.keys(GridEditor.containers).forEach(function(type) {
+                if (wanted(type)) { CONTAINERS[type] = GridEditor.containers[type](api); }
             });
 
-            $.each($.fn.gridEditor.features, function(name, factory) {
+            Object.keys(GridEditor.features).forEach(function(name) {
+                var factory = GridEditor.features[name];
                 if (featureWanted(name, factory)) { FEATURES[name] = factory(api); }
             });
 
-            // 5.x's registry of text editors is gone: an editor of a host's
-            // own is a plugin of its own since 6.0
-            if (!$.isEmptyObject($.fn.gridEditor.RTEs || {})) {
-                warnOnceHere('rtes', '$.fn.gridEditor.RTEs was removed in 6.0 and what is registered there ' +
-                    'is ignored: write the editor as a plugin, see docs/plugins.md');
-            }
-
-            $.each($.fn.gridEditor.utilities, function(name, factory) {
+            Object.keys(GridEditor.utilities).forEach(function(name) {
                 if (!wanted(name)) { return; }
 
-                UTILITIES[name] = factory(api);
+                UTILITIES[name] = GridEditor.utilities[name](api);
                 (UTILITIES[name].families || []).forEach(function(family) {
                     registerFamily(name, UTILITIES[name], family);
                 });
             });
 
-            $.each(FEATURES, function(name, feature) {
-                $.each(feature.methods || {}, function(method, implementation) {
-                    featureMethods[method] = implementation;
+            Object.keys(FEATURES).forEach(function(name) {
+                var methods = FEATURES[name].methods || {};
+                Object.keys(methods).forEach(function(method) {
+                    featureMethods[method] = methods[method];
                 });
             });
 
@@ -1797,14 +1908,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * nodes the other two may have just made.
          */
         function plugins(hook, argument) {
-            $.each(CONTAINERS, function(type, definition) {
-                if (definition[hook]) { definition[hook](argument); }
-            });
-            $.each(FEATURES, function(name, feature) {
-                if (feature[hook]) { feature[hook](argument); }
-            });
-            $.each(UTILITIES, function(name, utility) {
-                if (utility[hook]) { utility[hook](argument); }
+            [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    if (registry[name][hook]) { registry[name][hook](argument); }
+                });
             });
         }
 
@@ -1845,7 +1952,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 nodeHtml: nodeHtml,
                 // A text editor has rewritten a content area, so whatever the
                 // editor and its plugins had put in there goes back in
-                textReady: function(block) { block.trigger('ge-rte-ready'); },
+                textReady: textReady,
                 // A choice under a tool, offered by holding it
                 attachPicker: attachPicker,
                 openPicker: openPicker,
@@ -1854,17 +1961,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 detailsOf: detailsOf,
                 // A node's drawer: its first child, or for a content area the
                 // one beside it in its text block
-                drawerOf: function(node) {
-                    return node.hasClass('ge-content')
-                        ? node.parent('.ge-text-block').children('.ge-tools-drawer')
-                        : node.children('.ge-tools-drawer');
-                },
+                drawerOf: drawerOf,
                 toolbarItems: function(name) {
                     return mainControls
-                        ? mainControls.find('[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
-                        : $();
+                        ? dom.all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
+                        : [];
                 },
             };
+        }
+
+        function drawerOf(node) {
+            if (dom.hasClass(node, 'ge-content')) {
+                var textBlock = node.parentElement;
+                return dom.hasClass(textBlock, 'ge-text-block') ? dom.child(textBlock, '.ge-tools-drawer') : null;
+            }
+
+            return dom.child(node, '.ge-tools-drawer');
         }
 
         /* --------------------------------------------------------------
@@ -1900,7 +2012,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             FAMILIES[name] = {
                 plugin: pluginName,
-                family: $.extend({}, family, {
+                family: Object.assign({}, family, {
                     name: name,
                     values: family.values.map(String),
                     appliesTo: family.appliesTo || utility.appliesTo || ['row', 'column'],
@@ -1932,8 +2044,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function familiesFor(kind) {
-            return $.map(FAMILIES, function(entry) {
-                return appliesTo(entry.family, kind) ? entry.family : null;
+            return Object.keys(FAMILIES).map(function(name) {
+                return FAMILIES[name].family;
+            }).filter(function(family) {
+                return appliesTo(family, kind);
             });
         }
 
@@ -1945,7 +2059,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** The value a node carries a class for at exactly this tier, or null. */
         function ownUtility(node, family, tier) {
-            var classes = (node.attr('class') || '').split(/\s+/);
+            var classes = (node.getAttribute('class') || '').split(/\s+/);
 
             for (var i = 0; i < family.values.length; i++) {
                 if (classes.indexOf(utilityClass(family, tier, family.values[i])) !== -1) {
@@ -1988,11 +2102,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         function writeUtility(node, family, tier, value) {
             family.values.forEach(function(candidate) {
-                node.removeClass(utilityClass(family, tier, candidate));
+                dom.removeClass(node, utilityClass(family, tier, candidate));
             });
 
-            if (value !== null) { node.addClass(utilityClass(family, tier, value)); }
-            if (!node.attr('class')) { node.removeAttr('class'); }
+            if (value !== null) { dom.addClass(node, utilityClass(family, tier, value)); }
+            dom.dropEmptyClass(node);
         }
 
         /**
@@ -2040,10 +2154,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** getUtility(node, family, view?): the value that applies, or null. */
         function getUtility(node, name, view) {
-            node = $(node).first();
+            node = nodeFrom(node);
 
             var family = familyNamed(name, 'getUtility');
-            if (!family || !node.length) { return null; }
+            if (!family || !node) { return null; }
 
             var key = view === undefined ? curView : viewKey(view);
             if (key === null) {
@@ -2062,10 +2176,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function setUtility(node, name, value, options) {
             options = typeof options == 'string' ? { view: options } : (options || {});
-            node = $(node).first();
+            node = nodeFrom(node);
 
             var family = familyNamed(name, 'setUtility');
-            if (!family || !node.length) { return false; }
+            if (!family || !node) { return false; }
 
             var view = options.view === undefined ? curView : viewKey(options.view);
             if (view === null) {
@@ -2130,15 +2244,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function bareStyle(node, name, property) {
             var family = familyNamed(name, 'bareStyle');
-            node = $(node).first();
-            if (!family || !node.length) { return null; }
+            node = nodeFrom(node);
+            if (!family || !node) { return null; }
 
-            var original = node.attr('class');
+            var original = node.getAttribute('class');
             BREAKPOINTS.forEach(function(tier) { writeUtility(node, family, tier, null); });
 
-            var value = getComputedStyle(node[0]).getPropertyValue(property);
+            var value = getComputedStyle(node).getPropertyValue(property);
 
-            if (original === undefined) { node.removeAttr('class'); } else { node.attr('class', original); }
+            if (original === null) { node.removeAttribute('class'); } else { node.setAttribute('class', original); }
 
             return value;
         }
@@ -2147,15 +2261,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function refreshUtilities(node) {
             var details = detailsOf(node);
 
-            details.find('.ge-classes').val(hostClasses(node).join(' '));
-            details.children('.ge-utilities').each(function() { renderUtilities($(this)); });
+            if (details) {
+                var classes = dom.one(details, '.ge-classes');
+                if (classes) { classes.value = hostClasses(node).join(' '); }
+                dom.children(details, '.ge-utilities').forEach(function(section) { renderUtilities(section); });
+            }
             refreshPreviews(node);
         }
 
         /* Preview */
 
         function utilityNodes(scope) {
-            return scope.find(UTILITY_NODES).addBack(UTILITY_NODES);
+            return dom.selfAndAll(scope, UTILITY_NODES);
         }
 
         /**
@@ -2181,57 +2298,58 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function previewTier(scope, tier) {
-            utilityNodes(scope).each(function() {
-                var node = $(this);
+            utilityNodes(scope).forEach(function(node) {
                 var kind = kindOf(node);
                 var styles = {};
 
                 familiesFor(kind).forEach(function(family) {
                     if (!family.preview || !utilityTiers(node, family).length) { return; }
 
-                    $.extend(styles, family.preview(effectiveUtility(node, family, tier), node, kind));
+                    Object.assign(styles, family.preview(effectiveUtility(node, family, tier), node, kind));
                 });
 
-                if (kind === 'column') { $.extend(styles, rowColsPreview(node, tier)); }
+                if (kind === 'column') { Object.assign(styles, rowColsPreview(node, tier)); }
 
                 // A plugin whose families settle one property between them
                 // previews the node as a whole
-                $.each(UTILITIES, function(name, utility) {
-                    if (utility.preview) { $.extend(styles, utility.preview(node, kind, tier.key)); }
+                Object.keys(UTILITIES).forEach(function(name) {
+                    var utility = UTILITIES[name];
+                    if (utility.preview) { Object.assign(styles, utility.preview(node, kind, tier.key)); }
                 });
 
-                if (!$.isEmptyObject(styles)) { applyPreview(node, styles); }
+                if (Object.keys(styles).length) { applyPreview(node, styles); }
             });
         }
 
         /**
          * Set inline !important styles, which is the one thing that beats
          * Bootstrap's own !important, and remember what each property was so
-         * it can be put back. The record is an attribute rather than jQuery
-         * data because a rich text editor rebuilds the DOM of the area it
-         * edits, and the record has to come back with the node.
+         * it can be put back. The record is an attribute because a rich text
+         * editor rebuilds the DOM of the area it edits, and the record has to
+         * come back with the node.
          */
         function applyPreview(node, styles) {
-            var style = node[0].style;
+            var style = node.style;
             var was = {};
 
-            $.each(styles, function(property, value) {
+            Object.keys(styles).forEach(function(property) {
                 was[property] = [style.getPropertyValue(property), style.getPropertyPriority(property)];
-                style.setProperty(property, String(value), 'important');
+                style.setProperty(property, String(styles[property]), 'important');
             });
 
-            node.attr(PREVIEW_ATTR, JSON.stringify(was));
+            node.setAttribute(PREVIEW_ATTR, JSON.stringify(was));
         }
 
         function clearPreviews(scope) {
-            scope.find('[' + PREVIEW_ATTR + ']').addBack('[' + PREVIEW_ATTR + ']').each(function() {
-                var node = $(this);
-                var style = this.style;
+            dom.selfAndAll(scope, '[' + PREVIEW_ATTR + ']').forEach(function(node) {
+                var style = node.style;
                 var was = {};
 
-                try { was = JSON.parse(node.attr(PREVIEW_ATTR)) || {}; } catch (error) { /* a mangled record: drop it */ }
+                try { was = JSON.parse(node.getAttribute(PREVIEW_ATTR)) || {}; } catch (error) { /* a mangled record: drop it */ }
 
-                $.each(was, function(property, before) {
+                Object.keys(was).forEach(function(property) {
+                    var before = was[property];
+
                     if (before && before[0]) {
                         style.setProperty(property, before[0], before[1]);
                     } else {
@@ -2239,8 +2357,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     }
                 });
 
-                node.removeAttr(PREVIEW_ATTR);
-                if (!node.attr('style')) { node.removeAttr('style'); }
+                node.removeAttribute(PREVIEW_ATTR);
+                dom.dropEmptyStyle(node);
             });
         }
 
@@ -2259,28 +2377,29 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 .filter(function(family) { return family.panel !== false; })
                 .map(function(family) { return createField(node, family); });
 
-            $.each(UTILITIES, function(name, utility) {
+            Object.keys(UTILITIES).forEach(function(name) {
+                var utility = UTILITIES[name];
                 var own = utility.panel ? utility.panel(node, kind) : null;
-                if (own && own.length) { fields.push(own); }
+                if (own) { fields.push(own); }
             });
 
             if (!fields.length) { return null; }
 
-            var section = $('<div class="ge-utilities" />')
-                .toggleClass('ge-open', utilitiesOpen)
-                .data('ge-node', node)
-            ;
+            var section = dom.toggleClass(dom.element('div', { 'class': 'ge-utilities' }), 'ge-open', utilitiesOpen);
+            sectionNodes.set(section, node);
 
-            $('<a class="ge-utilities-toggle" />')
-                .appendTo(section)
-                .on('click', function() {
-                    utilitiesOpen = !section.hasClass('ge-open');
-                    settingsScope().find('.ge-utilities').toggleClass('ge-open', utilitiesOpen);
-                })
-            ;
+            var toggle = section.appendChild(dom.element('a', { 'class': 'ge-utilities-toggle' }));
+            toggle.addEventListener('click', function() {
+                utilitiesOpen = !dom.hasClass(section, 'ge-open');
+                settingsScope().forEach(function(scope) {
+                    dom.all(scope, '.ge-utilities').forEach(function(each) {
+                        dom.toggleClass(each, 'ge-open', utilitiesOpen);
+                    });
+                });
+            });
 
-            var body = $('<div class="ge-utilities-body" />').appendTo(section);
-            fields.forEach(function(field) { field.appendTo(body); });
+            var body = section.appendChild(dom.element('div', { 'class': 'ge-utilities-body' }));
+            fields.forEach(function(field) { body.appendChild(field); });
 
             renderUtilities(section);
 
@@ -2293,19 +2412,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * view or the node's classes change.
          */
         function createField(node, family) {
-            var field = $('<label class="ge-utility" />').attr('data-ge-family', family.name);
+            var field = dom.element('label', { 'class': 'ge-utility', 'data-ge-family': family.name });
 
-            $('<span class="ge-utility-label" />')
-                .text(family.labelKey ? t(family.labelKey) : family.name)
-                .appendTo(field)
-            ;
-            $('<select class="form-select form-select-sm" />')
-                .appendTo(field)
-                .on('change', function() {
-                    setUtility(node, family.name, this.value, { source: 'panel' });
-                })
-            ;
-            $('<small class="ge-utility-note" />').appendTo(field);
+            field.appendChild(dom.element('span', { 'class': 'ge-utility-label' },
+                family.labelKey ? t(family.labelKey) : family.name));
+
+            var select = field.appendChild(dom.element('select', { 'class': 'form-select form-select-sm' }));
+            select.addEventListener('change', function() {
+                setUtility(node, family.name, this.value, { source: 'panel' });
+            });
+
+            field.appendChild(dom.element('small', { 'class': 'ge-utility-note' }));
 
             return field;
         }
@@ -2313,7 +2430,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /** ge.utilityField(node, family): a field a plugin places in a panel of its own. */
         function utilityField(node, name) {
             var family = familyNamed(name, 'utilityField');
-            if (!family) { return $(); }
+            if (!family) { return null; }
 
             var field = createField(node, family);
             renderField(field, node);
@@ -2323,19 +2440,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** Fill a section's fields, the families' and the plugins' own, for the view being edited. */
         function renderUtilities(section) {
-            var node = section.data('ge-node');
+            var node = sectionNodes.get(section);
 
-            section.children('.ge-utilities-toggle')
-                .text(t('utility.section', { view: t(labelKeyFor(curView)) }));
+            dom.children(section, '.ge-utilities-toggle').forEach(function(toggle) {
+                toggle.textContent = t('utility.section', { view: t(labelKeyFor(curView)) });
+            });
 
-            section.find('.ge-utility').each(function() { renderField($(this), node); });
+            dom.all(section, '.ge-utility').forEach(function(field) { renderField(field, node); });
         }
 
         function renderField(field, node) {
-            var family = FAMILIES[field.attr('data-ge-family')].family;
-            var select = field.children('select').empty();
+            var family = FAMILIES[field.getAttribute('data-ge-family')].family;
+            var select = dom.child(field, 'select');
             var choices = family.choices ? family.choices(node, kindOf(node)) : family.values;
             var own, blank, note = '';
+
+            select.innerHTML = '';
 
             if (curView === ALL_VIEW) {
                 own = ownUtility(node, family, BREAKPOINTS[0]);
@@ -2368,13 +2488,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // would not offer it here, rather than shown as something else
             if (own !== null && choices.indexOf(own) === -1) { choices = choices.concat([own]); }
 
-            $('<option value="" />').text(blank).appendTo(select);
+            select.appendChild(dom.element('option', { value: '' }, blank));
             choices.forEach(function(value) {
-                $('<option />').attr('value', value).text(labelOf(family, value)).appendTo(select);
+                select.appendChild(dom.element('option', { value: value }, labelOf(family, value)));
             });
 
-            select.val(own === null ? '' : own);
-            field.children('.ge-utility-note').text(note).toggle(note !== '');
+            select.value = own === null ? '' : own;
+
+            var noteNode = dom.child(field, '.ge-utility-note');
+            noteNode.textContent = note;
+            dom.toggle(noteNode, note !== '');
         }
 
         function labelOf(family, value) {
@@ -2401,9 +2524,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var containerCounter = 0;
 
         /**
-         * Ids go into the markup rather than into jQuery data: Bootstrap's
-         * toggles are written in terms of them, and the markup has to survive
-         * getHtml with those toggles still pointing at the right panes.
+         * Ids go into the markup rather than into memory: Bootstrap's toggles
+         * are written in terms of them, and the markup has to survive getHtml
+         * with those toggles still pointing at the right panes.
          */
         function containerId(type) {
             containerCounter++;
@@ -2415,17 +2538,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /** A pane's starting content: one full width column, ready to edit. */
         function defaultRegion() {
             var row = createRow();
-            createColumn(MAX_COL_SIZE).appendTo(row);
+            row.appendChild(createColumn(MAX_COL_SIZE));
             return row;
         }
 
         function containerTypeOf(container) {
-            return container.attr('data-ge-container');
+            return container ? container.getAttribute('data-ge-container') : null;
         }
 
         function markContainers() {
-            canvas.find('[data-ge-container]').each(function() {
-                var container = $(this);
+            dom.all(canvas, '[data-ge-container]').forEach(function(container) {
                 var type = containerTypeOf(container);
                 var definition = CONTAINERS[type];
 
@@ -2434,43 +2556,54 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     return;
                 }
 
-                container.addClass('ge-container ge-container-' + type);
+                dom.addClass(container, 'ge-container ge-container-' + type);
                 definition.mark(container);
 
-                if (!container.find('> .ge-tools-drawer').length) {
+                if (!dom.child(container, '.ge-tools-drawer')) {
                     createContainerControls(container, type, definition);
                 }
             });
         }
 
         function unmarkContainers() {
-            canvas.find('[data-ge-container]').each(function() {
-                var container = $(this);
+            dom.all(canvas, '[data-ge-container]').forEach(function(container) {
                 var definition = CONTAINERS[containerTypeOf(container)];
 
                 if (definition) { definition.unmark(container); }
 
-                container.removeClass('ge-container ge-container-' + containerTypeOf(container));
-                if (!container.attr('class')) { container.removeAttr('class'); }
+                dom.removeClass(container, 'ge-container ge-container-' + containerTypeOf(container));
+                dom.dropEmptyClass(container);
+            });
+        }
+
+        /** A new drawer as the first child of `node`. */
+        function prependDrawer(node, className) {
+            var drawer = dom.element('div', { 'class': className });
+            node.insertBefore(drawer, node.firstChild);
+            return drawer;
+        }
+
+        /** The host's own tools, from a *_tools setting, in a drawer. */
+        function hostTools(drawer, tools) {
+            (tools || []).forEach(function(hostTool) {
+                createTool(drawer, hostTool.title || '', hostTool.className || '',
+                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
             });
         }
 
         function createContainerControls(container, type, definition) {
-            var drawer = $('<div class="ge-tools-drawer ge-container-drawer" />').prependTo(container);
+            var drawer = prependDrawer(container, 'ge-tools-drawer ge-container-drawer');
 
             createMoveTool(drawer);
             addSettingsTool(drawer, container, settings.container_classes);
 
-            settings.container_tools.forEach(function(hostTool) {
-                createTool(drawer, hostTool.title || '', hostTool.className || '',
-                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-            });
+            hostTools(drawer, settings.container_tools);
 
             if (definition.tools) { definition.tools(drawer, container); }
 
             createTool(drawer, t('tool.delete_container'), 'ge-delete-container', 'bi bi-trash', function() {
                 deleteNode(type, container, t('confirm.delete_container'), function(removed) {
-                    container.slideUp(removed);
+                    dom.slideUp(container, removed);
                 });
             });
 
@@ -2492,16 +2625,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * A pane drawer: small, inline, and made the same way for every
          * container type so a tab and an accordion item behave alike.
          */
-        function createPaneControls(pane, kind, hostTools, confirmText, remove) {
-            var drawer = $('<div class="ge-tools-drawer ge-pane-drawer" />').prependTo(pane);
+        function createPaneControls(pane, kind, tools, confirmText, remove) {
+            var drawer = prependDrawer(pane, 'ge-tools-drawer ge-pane-drawer');
 
             createMoveTool(drawer);
             addSettingsTool(drawer, pane, settings.pane_classes);
 
-            hostTools.forEach(function(hostTool) {
-                createTool(drawer, hostTool.title || '', hostTool.className || '',
-                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-            });
+            hostTools(drawer, tools);
 
             createTool(drawer, t('tool.delete_pane'), 'ge-delete-pane', 'bi bi-trash', function() {
                 deleteNode(kind, pane, confirmText, function(removed) {
@@ -2523,31 +2653,31 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * way out.
          */
         function suspendToggles(scope) {
-            scope.find('[data-bs-toggle], [data-bs-dismiss]').addBack('[data-bs-toggle], [data-bs-dismiss]')
-                .each(function() {
-                    var node = $(this);
+            if (!scope) { return; }
 
-                    ['toggle', 'dismiss'].forEach(function(name) {
-                        var value = node.attr('data-bs-' + name);
-                        if (value === undefined) { return; }
+            dom.selfAndAll(scope, '[data-bs-toggle], [data-bs-dismiss]').forEach(function(node) {
+                ['toggle', 'dismiss'].forEach(function(name) {
+                    var value = node.getAttribute('data-bs-' + name);
+                    if (value === null) { return; }
 
-                        node.attr('data-ge-bs-' + name, value).removeAttr('data-bs-' + name);
-                    });
+                    node.setAttribute('data-ge-bs-' + name, value);
+                    node.removeAttribute('data-bs-' + name);
                 });
+            });
         }
 
         function resumeToggles(scope) {
-            scope.find('[data-ge-bs-toggle], [data-ge-bs-dismiss]').addBack('[data-ge-bs-toggle], [data-ge-bs-dismiss]')
-                .each(function() {
-                    var node = $(this);
+            if (!scope) { return; }
 
-                    ['toggle', 'dismiss'].forEach(function(name) {
-                        var value = node.attr('data-ge-bs-' + name);
-                        if (value === undefined) { return; }
+            dom.selfAndAll(scope, '[data-ge-bs-toggle], [data-ge-bs-dismiss]').forEach(function(node) {
+                ['toggle', 'dismiss'].forEach(function(name) {
+                    var value = node.getAttribute('data-ge-bs-' + name);
+                    if (value === null) { return; }
 
-                        node.attr('data-bs-' + name, value).removeAttr('data-ge-bs-' + name);
-                    });
+                    node.setAttribute('data-bs-' + name, value);
+                    node.removeAttribute('data-ge-bs-' + name);
                 });
+            });
         }
 
         /**
@@ -2556,100 +2686,52 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * edited: typing in a tab's name must not switch tabs.
          */
         function makeLabelEditable(label) {
-            if (label.data('ge-editable')) { return; }
+            if (editableLabels.has(label)) { return; }
 
-            var toggle = label.closest('[data-bs-toggle], [data-ge-bs-toggle]');
+            var toggle = dom.closest(label, '[data-bs-toggle], [data-ge-bs-toggle]');
 
-            label.data('ge-editable', true)
-                .attr('title', t('tool.rename'))
-                .on('dblclick', function(e) {
+            editableLabels.add(label);
+            label.setAttribute('title', t('tool.rename'));
+            label.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                suspendToggles(toggle);
+                label.setAttribute('contenteditable', 'true');
+                label.focus();
+                window.getSelection().selectAllChildren(label);
+            });
+            label.addEventListener('keydown', function(e) {
+                if (label.getAttribute('contenteditable') !== 'true') { return; }
+
+                if (e.key === 'Enter') {
                     e.preventDefault();
-                    e.stopPropagation();
-
-                    suspendToggles(toggle);
-                    label.attr('contenteditable', 'true').trigger('focus');
-                    window.getSelection().selectAllChildren(label[0]);
-                })
-                .on('keydown', function(e) {
-                    if (label.attr('contenteditable') !== 'true') { return; }
-
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        label.trigger('blur');
-                    }
-                })
-                .on('blur', function() {
-                    label.removeAttr('contenteditable');
-                    resumeToggles(toggle);
-                })
-            ;
+                    label.blur();
+                }
+            });
+            label.addEventListener('blur', function() {
+                label.removeAttribute('contenteditable');
+                resumeToggles(toggle);
+            });
         }
 
-
-        /** Exactly one tab is the active one, in the strip and in the content. */
-
-        /**
-         * An accordion whose items carry no data-bs-parent is one Bootstrap
-         * lets you open several items in at once. The markup is the state:
-         * there is nothing else to remember it in.
-         */
-
-
-        /**
-         * An item dropped into another accordion collapses against the one it
-         * landed in, and takes on that accordion's idea of whether several
-         * items may be open at once.
-         */
-        /**
-         * Open or close an item while editing.
-         *
-         * The editor does this itself rather than letting Bootstrap's collapse
-         * run over the canvas, and it writes what it does to data-ge-open, so
-         * what is left open here is what the authored page opens with. An
-         * accordion that closes its siblings - one without stay_open - closes
-         * them here too, because the canvas is meant to look like the page.
-         */
-
-        /** One item's state, in the attribute and in Bootstrap's own classes. */
-
-
-
-
-        /**
-         * A trigger is any node the host marked with data-ge-popup-target,
-         * plus the button the container makes for itself. Ids go stale - a
-         * popup deleted, a trigger pasted from another page - so what can be
-         * repaired is repaired, and the rest is reported rather than removed.
-         * Grid-editor never deletes a node the host wrote.
-         */
-
-        /**
-         * On the way out, every trigger gets the attributes that make
-         * Bootstrap open the modal in the authored page. An orphan gets
-         * nothing, because there is nothing to point it at.
-         */
-
-
-        /**
-         * What each container type is made of, and what has to happen to one
-         * while it is being edited. Everything type specific lives here; the
-         * core above treats them all the same.
-         */
         /** The label inside a pane's button, wrapped so it can be edited alone. */
         function labelIn(button) {
-            var label = button.find('> .ge-pane-label');
+            var label = dom.child(button, '.ge-pane-label');
 
-            if (!label.length) {
-                label = $('<span class="ge-pane-label" />').text(button.text().trim());
-                button.empty().append(label);
+            if (!label) {
+                label = dom.element('span', { 'class': 'ge-pane-label' }, button.textContent.trim());
+                button.innerHTML = '';
+                button.appendChild(label);
             }
 
             return label;
         }
 
         function unwrapLabels(scope) {
-            scope.find('.ge-pane-label').each(function() {
-                $(this).removeData('ge-editable').contents().unwrap();
+            dom.all(scope, '.ge-pane-label').forEach(function(label) {
+                editableLabels.delete(label);
+                dom.unwrap(label);
             });
         }
 
@@ -2660,7 +2742,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var column = createColumn(size);
 
             return addNode('column', column, function() {
-                row.append(column);
+                row.appendChild(column);
             }, { parent: row, source: 'tool' });
         }
 
@@ -2673,7 +2755,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * see is a gesture nobody finds.
          */
         function attachSizePicker(tool, row) {
-            if (!settings.add_column.picker) { return; }
+            if (!settings.add_column.picker || !tool) { return; }
 
             attachPicker(tool, function() { openSizePicker(tool, row); });
         }
@@ -2690,7 +2772,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 timer = null;
             };
 
-            tool.on('mouseenter mousedown', function() {
+            dom.on(tool, 'mouseenter mousedown', function() {
                 if (timer || sizePicker) { return; }
 
                 timer = window.setTimeout(function() {
@@ -2699,8 +2781,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 }, settings.add_column.delay);
             });
 
-            tool.on('mouseleave', cancel);
-            tool.on('mouseup', cancel);
+            dom.on(tool, 'mouseleave mouseup', cancel);
         }
 
         /**
@@ -2716,37 +2797,34 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // The drawer it hangs off is raised while it is open: drawers sit
             // below the resize handles, so without this the drawer of the
             // column below takes the clicks meant for the picker
-            tool.closest('.ge-tools-drawer').addClass('ge-picker-open');
+            var drawer = dom.closest(tool, '.ge-tools-drawer');
+            if (drawer) { dom.addClass(drawer, 'ge-picker-open'); }
 
-            sizePicker = $('<div class="ge-size-picker" />').appendTo(tool);
+            sizePicker = tool.appendChild(dom.element('div', { 'class': 'ge-size-picker' }));
 
             settings.valid_col_sizes.forEach(function(size) {
-                $('<a class="ge-size" />')
-                    .attr('data-ge-size', size)
-                    .attr('title', sizeTitle(size))
-                    .toggleClass('ge-size-tight', isUnits(size) && size > room)
-                    .toggleClass('ge-size-flex', !isUnits(size))
-                    .text(isUnits(size) ? size : sizeClass(BREAKPOINTS[0], size))
-                    .on('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
+                var choice = dom.element('a', {
+                    'class': 'ge-size',
+                    'data-ge-size': size,
+                    title: sizeTitle(size),
+                }, isUnits(size) ? size : sizeClass(BREAKPOINTS[0], size));
 
-                        closeSizePicker();
-                        addColumnTo(row, size);
-                    })
-                    .appendTo(sizePicker)
-                ;
+                dom.toggleClass(choice, 'ge-size-tight', isUnits(size) && size > room);
+                dom.toggleClass(choice, 'ge-size-flex', !isUnits(size));
+                choice.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    closeSizePicker();
+                    addColumnTo(row, size);
+                });
+                sizePicker.appendChild(choice);
             });
 
             // Anywhere else, and the question is withdrawn
-            tool.one('mouseleave', function() {
-                window.setTimeout(function() {
-                    if (sizePicker && !sizePicker.is(':hover')) { closeSizePicker(); }
-                }, 400);
-            });
+            withdrawOnLeave(tool);
         }
 
-        /** True when there was one to close, which is also a click's answer. */
         function sizeTitle(size) {
             if (size === 'equal') { return t('tool.column_equal'); }
             if (size === 'auto') { return t('tool.column_auto'); }
@@ -2754,10 +2832,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return t('tool.column_size', { size: size });
         }
 
+        /** True when there was one to close, which is also a click's answer. */
         function closeSizePicker() {
             if (!sizePicker) { return false; }
 
-            sizePicker.closest('.ge-tools-drawer').removeClass('ge-picker-open');
+            var drawer = dom.closest(sizePicker, '.ge-tools-drawer');
+            if (drawer) { dom.removeClass(drawer, 'ge-picker-open'); }
             sizePicker.remove();
             sizePicker = null;
 
@@ -2765,21 +2845,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function createRowControls() {
-            canvas.find('.row').each(function() {
-                var row = $(this);
-                if (row.find('> .ge-tools-drawer').length) { return; }
+            dom.all(canvas, '.row').forEach(function(row) {
+                if (dom.child(row, '.ge-tools-drawer')) { return; }
 
-                var drawer = $('<div class="ge-tools-drawer" />').prependTo(row);
+                var drawer = prependDrawer(row, 'ge-tools-drawer');
                 createMoveTool(drawer);
                 addSettingsTool(drawer, row, settings.row_classes);
 
-                settings.row_tools.forEach(function(hostTool) {
-                    createTool(drawer, hostTool.title || '', hostTool.className || '',
-                        hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-                });
+                hostTools(drawer, settings.row_tools);
                 createTool(drawer, t('tool.delete_row'), 'ge-delete-row', 'bi bi-trash', function() {
                     deleteNode('row', row, t('confirm.delete_row'), function(removed) {
-                        row.slideUp(removed);
+                        dom.slideUp(row, removed);
                     });
                 });
                 createTool(drawer, t('tool.add_column'), 'ge-add-column', 'bi bi-plus-circle', function() {
@@ -2789,17 +2865,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     addColumnTo(row, rowColsSource(row, leadingTier()) ? null : settings.add_column.size);
                 });
 
-                attachSizePicker(drawer.find('> .ge-add-column'), row);
+                attachSizePicker(dom.child(drawer, '.ge-add-column'), row);
 
             });
         }
 
         function createColControls() {
-            canvas.find('.column').each(function() {
-                var col = $(this);
-                if (col.find('> .ge-tools-drawer').length) { return; }
+            dom.all(canvas, '.column').forEach(function(col) {
+                if (dom.child(col, '.ge-tools-drawer')) { return; }
 
-                var drawer = $('<div class="ge-tools-drawer" />').prependTo(col);
+                var drawer = prependDrawer(col, 'ge-tools-drawer');
 
                 createMoveTool(drawer);
 
@@ -2830,18 +2905,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 addSettingsTool(drawer, col, settings.col_classes);
 
-                settings.col_tools.forEach(function(hostTool) {
-                    createTool(drawer, hostTool.title || '', hostTool.className || '',
-                        hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-                });
+                hostTools(drawer, settings.col_tools);
 
                 createTool(drawer, t('tool.delete_column'), 'ge-delete-column', 'bi bi-trash', function() {
                     deleteNode('column', col, t('confirm.delete_column'), function(removed) {
-                        col.animate({
-                            opacity: 'hide',
-                            width: 'hide',
-                            height: 'hide'
-                        }, 400, removed);
+                        dom.shrinkAway(col, 400, removed, true);
                     });
                 });
 
@@ -2851,7 +2919,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     var row = createRow();
 
                     addNode('row', row, function() {
-                        col.append(row);
+                        col.appendChild(row);
                     }, { parent: col, source: 'tool' });
                 });
 
@@ -2892,14 +2960,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var size = currentSize(col);
             if (isUnits(size)) { return size; }
 
-            var units = Math.round(col.outerWidth() / rowContentWidth(col.parent()) * MAX_COL_SIZE);
+            var units = Math.round(dom.outerWidth(col) / rowContentWidth(col.parentElement) * MAX_COL_SIZE);
             return Math.min(Math.max(units, 1), MAX_COL_SIZE);
         }
 
         function rowContentWidth(row) {
-            var style = window.getComputedStyle(row[0]);
+            var style = window.getComputedStyle(row);
 
-            return row[0].clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            return row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         }
 
         function currentOffset(col) {
@@ -2933,7 +3001,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * its own indent. What "hold shift for max" means.
          */
         function widestFor(col) {
-            var room = spare(col.parent(), leadingTier(), col) - currentOffset(col);
+            var room = spare(col.parentElement, leadingTier(), col) - currentOffset(col);
 
             return Math.min(largest(settings.valid_col_sizes), Math.max(room, 1));
         }
@@ -2943,7 +3011,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * itself left inside the row.
          */
         function deepestFor(col) {
-            var room = spare(col.parent(), leadingTier(), col) - currentUnits(col);
+            var room = spare(col.parentElement, leadingTier(), col) - currentUnits(col);
 
             return Math.min(largest(settings.valid_col_offsets), Math.max(room, 0));
         }
@@ -2953,29 +3021,34 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * a tool that only says "drag from here" is one tool too many.
          */
         function createMoveTool(drawer) {
-            if (settings.drag_handle === 'drawer') { return; }
+            if (settings.drag_handle === 'drawer') { return null; }
 
-            createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+            return createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
         }
 
+        /**
+         * A tool in a drawer: a link with an icon, and what it does. The
+         * handlers are a click handler, or { eventName: handler }; each gets
+         * the DOM event, with `this` the tool. Hands back the tool.
+         */
         function createTool(drawer, title, className, iconClass, eventHandlers) {
-            // Through attr rather than spliced into markup: a title is text,
-            // and a quote in it - a type name, a host's own title - would
-            // end the attribute early
-            var tool = $('<a />')
-                .attr('title', title)
-                .attr('class', className)
-                .append($('<i />').attr('class', iconClass))
-                .appendTo(drawer)
-            ;
+            // Through setAttribute rather than spliced into markup: a title is
+            // text, and a quote in it - a type name, a host's own title -
+            // would end the attribute early
+            var tool = dom.element('a', { title: title, 'class': className });
+            tool.appendChild(dom.element('i', { 'class': iconClass }));
+            drawer.appendChild(tool);
+
             if (typeof eventHandlers == 'function') {
-                tool.on('click', eventHandlers);
+                tool.addEventListener('click', eventHandlers);
             }
-            if (typeof eventHandlers == 'object') {
-                $.each(eventHandlers, function(name, func) {
-                    tool.on(name, func);
+            if (eventHandlers && typeof eventHandlers == 'object') {
+                Object.keys(eventHandlers).forEach(function(name) {
+                    dom.on(tool, name, eventHandlers[name]);
                 });
             }
+
+            return tool;
         }
 
         /**
@@ -2984,7 +3057,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * and the only ones it is allowed to take away.
          */
         function hostClasses(node) {
-            return (node.attr('class') || '').split(/\s+/).filter(function(name) {
+            return (node.getAttribute('class') || '').split(/\s+/).filter(function(name) {
                 return name !== '' && !isEditorClass(name);
             });
         }
@@ -3000,13 +3073,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function setHostClasses(node, value) {
-            hostClasses(node).forEach(function(name) { node.removeClass(name); });
+            hostClasses(node).forEach(function(name) { dom.removeClass(node, name); });
 
             value.split(/\s+/).forEach(function(name) {
-                if (name !== '') { node.addClass(name); }
+                if (name !== '') { dom.addClass(node, name); }
             });
 
-            if (!node.attr('class')) { node.removeAttr('class'); }
+            dom.dropEmptyClass(node);
         }
 
         /**
@@ -3015,10 +3088,10 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          */
         function addSettingsTool(drawer, node, presets) {
             var details = createDetails(node, presets || []);
-            node.data('ge-details', details);
+            detailsFor.set(node, details);
 
             createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
-                toggleSettings(node, details, $(this));
+                toggleSettings(node, details, this);
             });
 
             // Beside the gear, because every node that has one is a node a
@@ -3026,71 +3099,79 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // feature plugin's tools go there too, for the same reason: the
             // gear is the one tool every drawer has.
             var kind = kindOf(node);
-            $.each(UTILITIES, function(name, utility) {
-                if (utility.drawerTools) { utility.drawerTools(drawer, node, kind); }
+            Object.keys(UTILITIES).forEach(function(name) {
+                if (UTILITIES[name].drawerTools) { UTILITIES[name].drawerTools(drawer, node, kind); }
             });
-            $.each(FEATURES, function(name, feature) {
-                if (feature.drawerTools) { feature.drawerTools(drawer, node, kind); }
+            Object.keys(FEATURES).forEach(function(name) {
+                if (FEATURES[name].drawerTools) { FEATURES[name].drawerTools(drawer, node, kind); }
             });
 
-            return details.appendTo(drawer);
+            return drawer.appendChild(details);
         }
 
         function createDetails(container, cssClasses) {
-            var detailsDiv = $('<div class="ge-details" />');
-            var general = $('<div class="ge-details-general" />').appendTo(detailsDiv);
+            var detailsDiv = dom.element('div', { 'class': 'ge-details' });
+            var general = detailsDiv.appendChild(dom.element('div', { 'class': 'ge-details-general' }));
             var field = function(label) {
-                return $('<label class="ge-field" />')
-                    .append($('<span class="ge-field-label" />').text(label))
-                    .appendTo(general);
+                var holder = dom.element('label', { 'class': 'ge-field' });
+                holder.appendChild(dom.element('span', { 'class': 'ge-field-label' }, label));
+                return general.appendChild(holder);
             };
 
-            $('<input class="ge-id form-control form-control-sm" />')
-                .attr('placeholder', t('tool.id_placeholder'))
-                .val(container.attr('id'))
-                .attr('title', t('tool.id_title'))
-                .appendTo(field(t('panel.id')))
-                .on('change', function() {
-                    // An empty field means no id, not an empty one
-                    if (this.value === '') {
-                        container.removeAttr('id');
-                    } else {
-                        container.attr('id', this.value);
-                    }
-                })
-            ;
+            var id = dom.element('input', {
+                'class': 'ge-id form-control form-control-sm',
+                placeholder: t('tool.id_placeholder'),
+                title: t('tool.id_title'),
+            });
+            id.value = container.getAttribute('id') || '';
+            field(t('panel.id')).appendChild(id);
+            id.addEventListener('change', function() {
+                // An empty field means no id, not an empty one
+                if (this.value === '') {
+                    container.removeAttribute('id');
+                } else {
+                    container.setAttribute('id', this.value);
+                }
+            });
 
-            $('<input class="ge-classes form-control form-control-sm" />')
-                .attr('placeholder', t('tool.classes_placeholder'))
-                .attr('title', t('tool.classes_title'))
-                .val(hostClasses(container).join(' '))
-                .appendTo(field(t('panel.classes')))
-                .on('change', function() {
-                    setHostClasses(container, this.value);
-                    refreshUtilities(container);
-                })
-            ;
+            var classes = dom.element('input', {
+                'class': 'ge-classes form-control form-control-sm',
+                placeholder: t('tool.classes_placeholder'),
+                title: t('tool.classes_title'),
+            });
+            classes.value = hostClasses(container).join(' ');
+            field(t('panel.classes')).appendChild(classes);
+            classes.addEventListener('change', function() {
+                setHostClasses(container, this.value);
+                refreshUtilities(container);
+            });
 
             // Bootstrap 5's outline buttons, filled while their class is on;
             // up to 5.x they carried Bootstrap 3's btn-default, which 5 lacks
-            var classGroup = $('<div class="btn-group btn-group-sm ge-presets" role="group" />').appendTo(general);
+            var classGroup = general.appendChild(dom.element('div', { 'class': 'btn-group btn-group-sm ge-presets', role: 'group' }));
             cssClasses.forEach(function(rowClass) {
-                var btn = $('<a role="button" class="btn btn-sm btn-outline-secondary" />')
-                    .html(rowClass.label)
-                    .attr('title', rowClass.title ? rowClass.title : t('tool.toggle_class', { label: rowClass.label }))
-                    .toggleClass('active', container.hasClass(rowClass.cssClass))
-                    .attr('aria-pressed', container.hasClass(rowClass.cssClass) ? 'true' : 'false')
-                    .on('click', function() {
-                        btn.toggleClass('active').attr('aria-pressed', btn.hasClass('active') ? 'true' : 'false');
-                        container.toggleClass(rowClass.cssClass, btn.hasClass('active'));
-                        refreshUtilities(container);
-                    })
-                    .appendTo(classGroup)
-                ;
+                var on = dom.hasClass(container, rowClass.cssClass);
+                var btn = dom.element('a', {
+                    role: 'button',
+                    'class': 'btn btn-sm btn-outline-secondary',
+                    title: rowClass.title ? rowClass.title : t('tool.toggle_class', { label: rowClass.label }),
+                    'aria-pressed': on ? 'true' : 'false',
+                });
+
+                // A preset's label is the host's markup, as it was in 6.x
+                btn.innerHTML = rowClass.label;
+                dom.toggleClass(btn, 'active', on);
+                btn.addEventListener('click', function() {
+                    dom.toggleClass(btn, 'active');
+                    btn.setAttribute('aria-pressed', dom.hasClass(btn, 'active') ? 'true' : 'false');
+                    dom.toggleClass(container, rowClass.cssClass, dom.hasClass(btn, 'active'));
+                    refreshUtilities(container);
+                });
+                classGroup.appendChild(btn);
             });
 
             var utilities = createUtilitiesSection(container);
-            if (utilities) { utilities.appendTo(detailsDiv); }
+            if (utilities) { detailsDiv.appendChild(utilities); }
 
             return detailsDiv;
         }
@@ -3113,6 +3194,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var PANEL_MODES = ['offcanvas', 'popover', 'modal', 'inline'];
         var settingsPanels = {}; // One of each, built on first use, outside the canvas
         var openSettingsState = null; // What is open: { mode, node, details, home, next, gear }
+        var modalState = new WeakMap(); // modal panel -> { watched, wanted, busy }
 
         function panelMode() {
             if (PANEL_MODES.indexOf(settings.settings_panel) !== -1) { return settings.settings_panel; }
@@ -3122,17 +3204,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             return 'offcanvas';
         }
 
-        /** A node's panel, wherever it is at the moment. */
+        /** A node's panel, wherever it is at the moment, or null. */
         function detailsOf(node) {
-            var details = node.data('ge-details');
-            return details && details.length ? details : $();
+            return (node && detailsFor.get(node)) || null;
         }
 
         /** Where settings fields are found: the canvas, and the panel open outside it. */
         function settingsScope() {
             return openSettingsState && openSettingsState.mode !== 'inline'
-                ? canvas.add(openSettingsState.details)
-                : canvas;
+                ? [canvas, openSettingsState.details]
+                : [canvas];
         }
 
         /** The gear: its node's panel, opened or closed; another node's closes first. */
@@ -3140,57 +3221,61 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var mode = panelMode();
 
             if (mode === 'inline') {
-                details.toggle();
+                dom.toggle(details);
                 return;
             }
 
-            var same = openSettingsState && openSettingsState.details[0] === details[0];
+            var same = openSettingsState && openSettingsState.details === details;
             closeSettings();
             if (!same) { openSettings(mode, node, details, gear); }
         }
 
         function openSettings(mode, node, details, gear) {
             var panel = settingsPanel(mode);
+            var listening = new AbortController();
 
             openSettingsState = {
                 mode: mode,
                 node: node,
                 details: details,
-                home: details.parent(),
-                next: details.next(),
+                home: details.parentElement,
+                next: details.nextElementSibling,
                 gear: gear,
+                listening: listening,
             };
 
-            panel.find('.ge-settings-title').text(t('panel.title', { kind: kindLabel(node) }));
-            details.appendTo(panel.find('.ge-settings-body')).show();
-            node.addClass('ge-settings-target');
+            dom.one(panel, '.ge-settings-title').textContent = t('panel.title', { kind: kindLabel(node) });
+            dom.one(panel, '.ge-settings-body').appendChild(details);
+            dom.show(details);
+            dom.addClass(node, 'ge-settings-target');
 
-            var ns = '.ge-settings-' + instanceId;
-            $(document).on('keydown' + ns, function(e) {
+            var signal = { signal: listening.signal };
+            document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') { closeSettings(); }
-            });
+            }, signal);
 
             if (mode === 'offcanvas') {
                 // From the bottom on a phone, from the side anywhere wider
                 var narrow = window.innerWidth < 576;
-                panel.toggleClass('offcanvas-end', !narrow).toggleClass('offcanvas-bottom', narrow);
-                panel.removeClass('hiding');
-                panel[0].getBoundingClientRect(); // So the slide in is a transition, not a jump
-                panel.addClass('show');
+                dom.toggleClass(panel, 'offcanvas-end', !narrow);
+                dom.toggleClass(panel, 'offcanvas-bottom', narrow);
+                dom.removeClass(panel, 'hiding');
+                panel.getBoundingClientRect(); // So the slide in is a transition, not a jump
+                dom.addClass(panel, 'show');
             } else if (mode === 'popover') {
                 placePopover(panel, gear);
-                $(window).on('scroll' + ns + ' resize' + ns, function() { placePopover(panel, gear); });
+                dom.on(window, 'scroll resize', function() { placePopover(panel, gear); }, signal);
 
                 // And again whenever what is in it changes size: the
                 // Responsive section unfolding, a plugin swapping a field
                 if (window.ResizeObserver) {
                     openSettingsState.observer = new window.ResizeObserver(function() { placePopover(panel, gear); });
-                    openSettingsState.observer.observe(details[0]);
+                    openSettingsState.observer.observe(details);
                 }
                 // A press anywhere else puts it away, as a popover does
-                $(document).on('mousedown' + ns + ' touchstart' + ns, function(e) {
-                    if (!$(e.target).closest(panel).length && !$(e.target).closest(gear).length) { closeSettings(); }
-                });
+                dom.on(document, 'mousedown touchstart', function(e) {
+                    if (!panel.contains(e.target) && !gear.contains(e.target)) { closeSettings(); }
+                }, signal);
             } else {
                 showModal(panel);
             }
@@ -3203,29 +3288,30 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             openSettingsState = null;
 
             var panel = settingsPanels[open.mode];
-            $(document).off('.ge-settings-' + instanceId);
-            $(window).off('.ge-settings-' + instanceId);
+            open.listening.abort();
             if (open.observer) { open.observer.disconnect(); }
 
             if (open.mode === 'offcanvas') {
-                panel.removeClass('show').addClass('hiding');
-                window.setTimeout(function() { panel.removeClass('hiding'); }, 300);
+                dom.removeClass(panel, 'show');
+                dom.addClass(panel, 'hiding');
+                window.setTimeout(function() { dom.removeClass(panel, 'hiding'); }, 300);
             } else if (open.mode === 'popover') {
-                panel.hide();
+                dom.hide(panel);
             } else {
                 hideModal(panel);
             }
 
-            open.node.removeClass('ge-settings-target');
-            open.details.css('display', '');
+            dom.removeClass(open.node, 'ge-settings-target');
+            open.details.style.removeProperty('display');
+            dom.dropEmptyStyle(open.details);
 
             // Where it was in its drawer, if the drawer is still there: a
             // node deleted while its settings were open took it with it
-            if (open.home.length && $.contains(document.documentElement, open.home[0])) {
-                if (open.next.length && open.next.parent()[0] === open.home[0]) {
-                    open.details.insertBefore(open.next);
+            if (open.home && dom.attached(open.home)) {
+                if (open.next && open.next.parentElement === open.home) {
+                    open.home.insertBefore(open.details, open.next);
                 } else {
-                    open.details.appendTo(open.home);
+                    open.home.appendChild(open.details);
                 }
             } else {
                 open.details.remove();
@@ -3236,58 +3322,64 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function settingsPanel(mode) {
             if (settingsPanels[mode]) { return settingsPanels[mode]; }
 
-            var closeButton = function(extra) {
-                return $('<button type="button" class="btn-close ge-settings-close" />')
-                    .addClass(extra || '')
-                    .attr('aria-label', t('panel.close'));
+            var closeButton = function() {
+                return dom.element('button', {
+                    type: 'button',
+                    'class': 'btn-close ge-settings-close',
+                    'aria-label': t('panel.close'),
+                });
             };
             var panel;
 
             if (mode === 'offcanvas') {
-                panel = $('<div class="offcanvas offcanvas-end ge-settings-panel ge-settings-offcanvas" tabindex="-1" role="dialog" />')
-                    .append($('<div class="offcanvas-header" />')
-                        .append('<h5 class="offcanvas-title ge-settings-title"></h5>')
-                        .append(closeButton()))
-                    .append('<div class="offcanvas-body ge-settings-body"></div>');
+                panel = dom.create('<div class="offcanvas offcanvas-end ge-settings-panel ge-settings-offcanvas" tabindex="-1" role="dialog">' +
+                    '<div class="offcanvas-header"><h5 class="offcanvas-title ge-settings-title"></h5></div>' +
+                    '<div class="offcanvas-body ge-settings-body"></div>' +
+                '</div>');
+                dom.one(panel, '.offcanvas-header').appendChild(closeButton());
             } else if (mode === 'popover') {
-                panel = $('<div class="popover bs-popover-bottom ge-settings-panel ge-settings-popover" role="dialog" />')
-                    .append('<div class="popover-arrow"></div>')
-                    .append($('<div class="popover-header" />')
-                        .append('<span class="ge-settings-title"></span>')
-                        .append(closeButton()))
-                    .append('<div class="popover-body ge-settings-body"></div>')
-                    .hide();
+                panel = dom.create('<div class="popover bs-popover-bottom ge-settings-panel ge-settings-popover" role="dialog">' +
+                    '<div class="popover-arrow"></div>' +
+                    '<div class="popover-header"><span class="ge-settings-title"></span></div>' +
+                    '<div class="popover-body ge-settings-body"></div>' +
+                '</div>');
+                dom.one(panel, '.popover-header').appendChild(closeButton());
+                dom.hide(panel);
             } else {
-                panel = $('<div class="modal fade ge-settings-panel ge-settings-modal" tabindex="-1" role="dialog" aria-hidden="true" />')
-                    .append($('<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" />')
-                        .append($('<div class="modal-content" />')
-                            .append($('<div class="modal-header" />')
-                                .append('<h5 class="modal-title ge-settings-title"></h5>')
-                                .append(closeButton()))
-                            .append('<div class="modal-body ge-settings-body"></div>')
-                            .append($('<div class="modal-footer" />')
-                                .append($('<button type="button" class="btn btn-primary ge-settings-close" />')
-                                    .text(t('panel.done'))))));
+                panel = dom.create('<div class="modal fade ge-settings-panel ge-settings-modal" tabindex="-1" role="dialog" aria-hidden="true">' +
+                    '<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header"><h5 class="modal-title ge-settings-title"></h5></div>' +
+                            '<div class="modal-body ge-settings-body"></div>' +
+                            '<div class="modal-footer"></div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>');
+                dom.one(panel, '.modal-header').appendChild(closeButton());
+                dom.one(panel, '.modal-footer').appendChild(dom.element('button', {
+                    type: 'button',
+                    'class': 'btn btn-primary ge-settings-close',
+                }, t('panel.done')));
             }
 
-            panel.on('click', '.ge-settings-close', function(e) {
+            dom.delegate(panel, 'click', '.ge-settings-close', function(e) {
                 e.preventDefault();
                 closeSettings();
             });
 
-            settingsPanels[mode] = panel.appendTo('body');
+            settingsPanels[mode] = document.body.appendChild(panel);
             return panel;
         }
 
         function removeSettingsPanels() {
             closeSettings();
 
-            $.each(settingsPanels, function(mode, panel) {
-                if (mode === 'modal' && window.bootstrap && window.bootstrap.Modal) {
-                    var instance = window.bootstrap.Modal.getInstance(panel[0]);
-                    if (instance) { instance.dispose(); }
+            Object.keys(settingsPanels).forEach(function(mode) {
+                if (mode === 'modal') {
+                    retireModal(settingsPanels[mode]);
+                } else {
+                    settingsPanels[mode].remove();
                 }
-                panel.remove();
             });
             if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
             settingsPanels = {};
@@ -3299,37 +3391,37 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * scrolls.
          */
         function placePopover(panel, gear) {
-            if (!$.contains(document.documentElement, gear[0])) { return; }
+            if (!dom.attached(gear)) { return; }
 
-            panel.show();
+            dom.show(panel);
 
-            var tool = gear[0].getBoundingClientRect();
+            var tool = gear.getBoundingClientRect();
             var gap = 8;
-            var body = panel.children('.popover-body').css('max-height', '');
-            var width = panel.outerWidth();
-            var height = panel.outerHeight();
+            var body = dom.child(panel, '.popover-body');
+            body.style.removeProperty('max-height');
+            var width = dom.outerWidth(panel);
+            var height = dom.outerHeight(panel);
             var roomBelow = window.innerHeight - tool.bottom - 2 * gap;
             var roomAbove = tool.top - 2 * gap;
             var below = height <= roomBelow || roomBelow >= roomAbove;
             var room = below ? roomBelow : roomAbove;
 
             if (height > room) {
-                body.css('max-height', Math.max(120, room - (height - body.outerHeight())));
-                height = panel.outerHeight();
+                dom.css(body, { 'max-height': Math.max(120, room - (height - dom.outerHeight(body))) });
+                height = dom.outerHeight(panel);
             }
 
             var top = below ? tool.bottom + gap : tool.top - gap - height;
             var left = Math.max(gap, Math.min(tool.left + tool.width / 2 - 24, window.innerWidth - width - gap));
 
-            panel
-                .toggleClass('bs-popover-bottom', below)
-                .toggleClass('bs-popover-top', !below)
-                .css({ top: top + window.pageYOffset, left: left + window.pageXOffset })
-            ;
+            dom.toggleClass(panel, 'bs-popover-bottom', below);
+            dom.toggleClass(panel, 'bs-popover-top', !below);
+            dom.css(panel, { top: top + window.pageYOffset, left: left + window.pageXOffset });
 
             // The arrow points at the gear, wherever the popover had to go
-            panel.children('.popover-arrow').css('left',
-                Math.max(gap, Math.min(tool.left + tool.width / 2 - left - 8, width - 24)));
+            dom.css(dom.child(panel, '.popover-arrow'), {
+                left: Math.max(gap, Math.min(tool.left + tool.width / 2 - left - 8, width - 24)),
+            });
         }
 
         var settingsBackdrop = null; // The modal's backdrop, when Bootstrap's javascript is not there to make one
@@ -3343,32 +3435,40 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * closes the settings as the close button does.
          */
         function showModal(panel) {
-            if (!window.bootstrap || !window.bootstrap.Modal) {
-                settingsBackdrop = $('<div class="modal-backdrop fade show ge-settings-backdrop" />')
-                    .appendTo('body')
-                    .on('click', function() { closeSettings(); });
-                panel.addClass('show').css('display', 'block').removeAttr('aria-hidden');
+            var Modal = modalLibrary();
+
+            if (!Modal) {
+                settingsBackdrop = dom.element('div', { 'class': 'modal-backdrop fade show ge-settings-backdrop' });
+                settingsBackdrop.addEventListener('click', function() { closeSettings(); });
+                document.body.appendChild(settingsBackdrop);
+                dom.addClass(panel, 'show');
+                panel.style.display = 'block';
+                panel.removeAttribute('aria-hidden');
                 return;
             }
 
-            var modal = window.bootstrap.Modal.getOrCreateInstance(panel[0]);
+            var modal = Modal.getOrCreateInstance(panel);
+            var state = modalState.get(panel);
 
-            if (!panel.data('ge-watched')) {
-                panel.data('ge-watched', true);
-                panel.on('hide.bs.modal', function() {
+            if (!state) {
+                state = { wanted: null, busy: false };
+                modalState.set(panel, state);
+                trackModal(panel);
+
+                panel.addEventListener('hide.bs.modal', function() {
                     // Not asked for: Escape or the backdrop
-                    if (panel.data('ge-wanted') === 'open') {
-                        panel.data('ge-wanted', 'closed');
-                        panel.data('ge-busy', true);
+                    if (state.wanted === 'open') {
+                        state.wanted = 'closed';
+                        state.busy = true;
                     }
                 });
-                panel.on('shown.bs.modal', function() {
-                    panel.data('ge-busy', false);
-                    if (panel.data('ge-wanted') === 'closed') { hideModal(panel); }
+                panel.addEventListener('shown.bs.modal', function() {
+                    state.busy = false;
+                    if (state.wanted === 'closed') { hideModal(panel); }
                 });
-                panel.on('hidden.bs.modal', function() {
-                    panel.data('ge-busy', false);
-                    if (panel.data('ge-wanted') === 'open') {
+                panel.addEventListener('hidden.bs.modal', function() {
+                    state.busy = false;
+                    if (state.wanted === 'open') {
                         showModal(panel);
                     } else if (openSettingsState && openSettingsState.mode === 'modal') {
                         closeSettings();
@@ -3376,28 +3476,33 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 });
             }
 
-            panel.data('ge-wanted', 'open');
-            if (!panel.data('ge-busy')) {
-                panel.data('ge-busy', true);
+            state.wanted = 'open';
+            if (!state.busy) {
+                state.busy = true;
                 modal.show();
             }
         }
 
         function hideModal(panel) {
-            if (!window.bootstrap || !window.bootstrap.Modal) {
+            var Modal = modalLibrary();
+
+            if (!Modal) {
                 if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
-                panel.removeClass('show').css('display', '').attr('aria-hidden', 'true');
+                dom.removeClass(panel, 'show');
+                panel.style.removeProperty('display');
+                panel.setAttribute('aria-hidden', 'true');
                 return;
             }
 
-            panel.data('ge-wanted', 'closed');
+            var state = modalState.get(panel) || { wanted: null, busy: false };
+            state.wanted = 'closed';
 
             // Already out of sight - Bootstrap hid it itself, and this is its
             // hidden event closing the settings - and nothing is under way:
             // a hide now would be ignored, and no event would come to say so
-            if (!panel.data('ge-busy') && panel.hasClass('show')) {
-                panel.data('ge-busy', true);
-                window.bootstrap.Modal.getOrCreateInstance(panel[0]).hide();
+            if (!state.busy && dom.hasClass(panel, 'show')) {
+                state.busy = true;
+                Modal.getOrCreateInstance(panel).hide();
             }
         }
 
@@ -3430,11 +3535,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * column that had none.
          */
         function addAllColClasses() {
-            canvas.find('.column, div[class*="col-"], div.col').each(function() {
-                var col = $(this).addClass('column');
+            dom.all(canvas, '.column, div[class*="col-"], div.col').forEach(function(col) {
+                dom.addClass(col, 'column');
 
                 // A column in a row with row-cols is sized by its row
-                if (sizedTiers(col).length || hasRowCols(col.parent())) { return; }
+                if (sizedTiers(col).length || hasRowCols(col.parentElement)) { return; }
 
                 setSize(col, BREAKPOINTS[0], MAX_COL_SIZE);
             });
@@ -3452,18 +3557,18 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * -------------------------------------------------------------- */
 
         function hasRowCols(row) {
-            return row.hasClass('row') && BREAKPOINTS.some(function(tier) {
-                return ROW_COLS_VALUES.some(function(value) { return row.hasClass(rowColsClass(tier, value)); });
+            return dom.hasClass(row, 'row') && BREAKPOINTS.some(function(tier) {
+                return ROW_COLS_VALUES.some(function(value) { return dom.hasClass(row, rowColsClass(tier, value)); });
             });
         }
 
         /** The row-cols class that applies to a row at a tier, as { tier, value }, or null. */
         function rowColsSource(row, tier) {
-            if (!row.hasClass('row')) { return null; }
+            if (!dom.hasClass(row, 'row')) { return null; }
 
             for (var i = BREAKPOINTS.indexOf(tier); i >= 0; i--) {
                 for (var v = 0; v < ROW_COLS_VALUES.length; v++) {
-                    if (row.hasClass(rowColsClass(BREAKPOINTS[i], ROW_COLS_VALUES[v]))) {
+                    if (dom.hasClass(row, rowColsClass(BREAKPOINTS[i], ROW_COLS_VALUES[v]))) {
                         return { tier: i, value: ROW_COLS_VALUES[v] };
                     }
                 }
@@ -3487,7 +3592,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * the column's own size does.
          */
         function rowColsWinner(col, tier) {
-            var row = rowColsSource(col.parent(), tier);
+            var row = rowColsSource(col.parentElement, tier);
             if (!row) { return null; }
 
             var own = columnSource(col, tier);
@@ -3520,7 +3625,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             // A wider breakpoint's row-cols is live in a wide window; a
             // column with no size of its own here is a full width one
-            if (hasRowCols(col.parent()) && !columnSource(col, tier)) {
+            if (hasRowCols(col.parentElement) && !columnSource(col, tier)) {
                 return { flex: '0 0 auto', width: '100%', 'max-width': '100%' };
             }
 
@@ -3532,16 +3637,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * and in the all view by its row-cols with no breakpoint.
          */
         function markRowCols(scope) {
-            scope.find('.row').addBack('.row').each(function() {
-                var row = $(this);
+            dom.selfAndAll(scope, '.row').forEach(function(row) {
                 var source = settings.row_cols === false ? null : (curView === ALL_VIEW
                     ? (rowColsSource(row, BREAKPOINTS[0]) || null)
                     : rowColsSource(row, breakpoint(curView)));
 
                 if (!source) {
-                    row.removeAttr('data-ge-row-cols');
+                    row.removeAttribute('data-ge-row-cols');
                 } else {
-                    row.attr('data-ge-row-cols', rowColsLabel(source.value));
+                    row.setAttribute('data-ge-row-cols', rowColsLabel(source.value));
                 }
             });
         }
@@ -3578,8 +3682,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var units = readUnits(col, tier.colPrefix);
             if (units !== null) { return units; }
 
-            if (col.hasClass(sizeClass(tier, 'auto'))) { return 'auto'; }
-            if (col.hasClass(sizeClass(tier, 'equal'))) { return 'equal'; }
+            if (dom.hasClass(col, sizeClass(tier, 'auto'))) { return 'auto'; }
+            if (dom.hasClass(col, sizeClass(tier, 'equal'))) { return 'equal'; }
 
             return null;
         }
@@ -3617,26 +3721,26 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function readUnits(col, prefix) {
-            var match = new RegExp('(?:^|\\s)' + prefix + '(\\d+)(?:\\s|$)').exec(col.attr('class') || '');
+            var match = new RegExp('(?:^|\\s)' + prefix + '(\\d+)(?:\\s|$)').exec(col.getAttribute('class') || '');
             return match ? parseInt(match[1], 10) : null;
         }
 
         function writeUnits(col, prefix, units) {
-            var classes = (col.attr('class') || '').split(/\s+/).filter(function(name) {
+            var classes = (col.getAttribute('class') || '').split(/\s+/).filter(function(name) {
                 return name !== '' && !new RegExp('^' + prefix + '\\d+$').test(name);
             });
 
             if (units !== null) { classes.push(prefix + units); }
 
-            col.attr('class', classes.join(' '));
+            col.setAttribute('class', classes.join(' '));
         }
 
         /** One size per tier: writing a size takes whatever size the tier had off. */
         function setSize(col, tier, size) {
             writeUnits(col, tier.colPrefix, null);
-            FLEX_SIZES.forEach(function(flex) { col.removeClass(sizeClass(tier, flex)); });
+            FLEX_SIZES.forEach(function(flex) { dom.removeClass(col, sizeClass(tier, flex)); });
 
-            if (size !== null && size !== undefined) { col.addClass(sizeClass(tier, size)); }
+            if (size !== null && size !== undefined) { dom.addClass(col, sizeClass(tier, size)); }
         }
 
         /** An offset of 0 is written as no class at all, which is what it means. */
@@ -3658,9 +3762,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function spare(row, tier, ignore) {
             var used = 0;
 
-            row.children('.column').each(function() {
-                var sibling = $(this);
-                if (ignore && sibling[0] === ignore[0]) { return; }
+            dom.children(row, '.column').forEach(function(sibling) {
+                if (ignore && sibling === ignore) { return; }
 
                 // An equal or auto column takes what is left, so it uses none;
                 // one its row sizes uses its share of the line
@@ -3709,14 +3812,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * been written.
          */
         function stripPixelWidths(scope) {
-            scope.find('.column').addBack('.column').each(function() {
-                var col = $(this);
-
-                col.css({ width: '', height: '', left: '', top: '' });
+            dom.selfAndAll(scope, '.column').forEach(function(col) {
+                dom.css(col, { width: '', height: '', left: '', top: '' });
 
                 // Clearing the last property leaves style="" behind, which is
                 // an editor leftover like any other
-                if (!col.attr('style')) { col.removeAttr('style'); }
+                dom.dropEmptyStyle(col);
             });
         }
 
@@ -3744,7 +3845,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** A selector every feature plugin may contribute to, under one name. */
         function pluginHooks(name) {
-            return $.map(FEATURES, function(feature) { return feature[name] || null; });
+            return Object.keys(FEATURES).map(function(key) {
+                return FEATURES[key][name] || null;
+            }).filter(function(hook) { return hook !== null; });
         }
 
         /**
@@ -3755,7 +3858,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function acceptsBlock(region, node) {
             var accepted = true;
 
-            $.each(FEATURES, function(name, feature) {
+            Object.keys(FEATURES).forEach(function(name) {
+                var feature = FEATURES[name];
                 if (accepted && feature.accepts && feature.accepts(region, node) === false) { accepted = false; }
             });
 
@@ -3786,17 +3890,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * function's business. That is the whole point of it: the toolkit
          * underneath is named in one place, so replacing it is one function
          * and not thirty call sites.
+         *
+         * `lists` is an element or an array of them; `options.accepts`, when
+         * given, is asked (list, item) with elements.
          */
         function sortable(lists, options) {
-            if (!lists.length || !window.Sortable) { return; }
+            var Sortable = sortableLibrary();
+
+            lists = Array.isArray(lists) ? lists : (lists ? [lists] : []);
+            if (!lists.length || !Sortable) { return; }
 
             var wholeDrawer = settings.drag_handle === 'drawer';
             var cancel = dragCancelSelector();
             var soloGroup = 0;
 
-            lists.each(function() {
-                var list = this;
-
+            lists.forEach(function(list) {
                 // A list with no group sorts only within itself, which is what
                 // a tab strip wants: a name of its own, closed both ways
                 var group = options.group
@@ -3809,11 +3917,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 // a column would drop into the canvas, or into another editor
                 if (options.group && options.accepts) {
                     group.put = function(to, from, dragged) {
-                        return from.options.group.name === group.name && options.accepts($(to.el), $(dragged));
+                        return from.options.group.name === group.name && options.accepts(to.el, dragged);
                     };
                 }
 
-                sortables.push(window.Sortable.create(list, $.extend({
+                sortables.push(Sortable.create(list, Object.assign({
                     group: group,
                     draggable: options.draggable,
                     handle: wholeDrawer ? '.ge-tools-drawer' : '.ge-tools-drawer .ge-move',
@@ -3828,7 +3936,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                      * row nested three columns down and drag that.
                      */
                     filter: function(e, item) {
-                        if ($(e.target).closest(cancel, list).length) { return true; }
+                        if (dom.closest(e.target, cancel, list)) { return true; }
 
                         return !item || item.parentNode !== list;
                     },
@@ -3873,17 +3981,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function makeSortable() {
-            if (!window.Sortable) {
+            if (!sortableLibrary()) {
                 warnOnceHere('sortable_missing', t('error.sortable_missing'));
                 return;
             }
 
-            sortable(canvas.find('.row'), {
+            sortable(dom.all(canvas, '.row'), {
                 draggable: '.column',
                 group: 'column',
             });
 
-            sortable(canvas.add(canvas.find('.column')), {
+            sortable([canvas].concat(dom.all(canvas, '.column')), {
                 draggable: blockSelector(),
                 group: 'block',
                 accepts: acceptsBlock,
@@ -3896,7 +4004,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             // SortableJS for "direct children only", which the list is not.
             var regions = pluginHooks('regions');
             if (regions.length) {
-                sortable(canvas.find(regions.join(', ')), {
+                sortable(dom.all(canvas, regions.join(', ')), {
                     draggable: '>' + blockSelector(),
                     group: 'block',
                     accepts: acceptsBlock,
@@ -3914,12 +4022,12 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * always reported by the list that started the drag.
          */
         function sortStart(e) {
-            var node = $(e.item);
+            var node = e.item;
             var from = positionOf(node);
             var subject = moveSubject(node);
+            var move = { from: from, canceled: false };
 
-            node.data('ge-move-from', from);
-            node.removeData('ge-move-canceled');
+            moves.set(node, move);
 
             operate(function() {
                 var moving = emit('before-move', payloadFor(subject.kind, subject.node, {
@@ -3928,7 +4036,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     from: from,
                 }));
 
-                if (!moving) { node.data('ge-move-canceled', true); }
+                if (!moving) { move.canceled = true; }
             });
         }
 
@@ -3937,40 +4045,42 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * wrapper, so what moved is the content area inside it.
          */
         function moveSubject(item) {
-            var node = item.hasClass('ge-text-block') ? item.children('.ge-content') : item;
+            var node = dom.hasClass(item, 'ge-text-block') ? (dom.child(item, '.ge-content') || item) : item;
 
             return { kind: kindOf(node), node: node };
         }
 
         /** Put a node back where a refused drag found it. */
         function putBack(node, from) {
-            var siblings = from.parent.children().not('.ge-tools-drawer').not(node);
+            var siblings = dom.children(from.parent).filter(function(child) {
+                return child !== node && !dom.hasClass(child, 'ge-tools-drawer');
+            });
 
             if (!siblings.length || from.index >= siblings.length) {
-                node.appendTo(from.parent);
+                from.parent.appendChild(node);
             } else {
-                node.insertBefore(siblings.eq(from.index));
+                from.parent.insertBefore(node, siblings[from.index]);
             }
         }
 
         function sortEnd(e) {
-            var node = $(e.item);
-            var from = node.data('ge-move-from') || positionOf(node);
+            var node = e.item;
+            var move = moves.get(node);
+            var from = move ? move.from : positionOf(node);
 
-            node.removeData('ge-move-from');
+            moves.delete(node);
 
-            if (node.data('ge-move-canceled')) {
-                node.removeData('ge-move-canceled');
+            if (move && move.canceled) {
                 putBack(node, from);
                 return;
             }
 
             var to = positionOf(node);
-            if (to.parent[0] === from.parent[0] && to.index === from.index) {
+            if (to.parent === from.parent && to.index === from.index) {
                 return; // A drag that went nowhere is not a move
             }
 
-            var container = node.closest('[data-ge-container]');
+            var container = dom.closest(node, '[data-ge-container]');
             var definition = CONTAINERS[containerTypeOf(container)];
             if (definition && definition.afterPaneMove) {
                 definition.afterPaneMove(container, node, from);
@@ -3987,7 +4097,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     source: 'dragdrop',
                     from: from,
                     to: to,
-                    container: container.length ? container : undefined,
+                    container: container || undefined,
                 }));
             });
         }
@@ -4004,19 +4114,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function makeResizable() {
             if (!settings.resize.enabled) { return; }
 
-            canvas.find('.column').each(function() {
-                var col = $(this);
-                if (col.find('> .ge-resize-handle').length) { return; }
+            dom.all(canvas, '.column').forEach(function(col) {
+                if (dom.child(col, '.ge-resize-handle')) { return; }
 
-                $('<span class="ge-resize-size" />').appendTo(col.find('> .ge-tools-drawer'));
+                var drawer = dom.child(col, '.ge-tools-drawer');
+                if (drawer) { drawer.appendChild(dom.element('span', { 'class': 'ge-resize-size' })); }
 
-                $.each(resizeEdges(), function(_, edge) {
-                    $('<span class="ge-resize-handle" />')
-                        .addClass('ge-resize-' + edge)
-                        .attr('data-ge-edge', edge)
-                        .on('pointerdown', startResizeDrag)
-                        .appendTo(col)
-                    ;
+                resizeEdges().forEach(function(edge) {
+                    var handle = dom.element('span', {
+                        'class': 'ge-resize-handle ge-resize-' + edge,
+                        'data-ge-edge': edge,
+                    });
+                    handle.addEventListener('pointerdown', startResizeDrag);
+                    col.appendChild(handle);
                 });
             });
         }
@@ -4037,19 +4147,19 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * starts: nothing is written and the column does not move.
          */
         function startResizeDrag(e) {
-            var handle = $(e.currentTarget);
-            var col = handle.parent();
-            var west = handle.attr('data-ge-edge') === 'w';
+            var handle = e.currentTarget;
+            var col = handle.parentElement;
+            var west = handle.getAttribute('data-ge-edge') === 'w';
             var startX = e.pageX;
-            var startWidth = col.outerWidth();
+            var startWidth = dom.outerWidth(col);
 
             e.preventDefault();
 
             if (!resizeStart(col)) { return; }
 
-            col.addClass('ge-resizing');
-            if (e.pointerId !== undefined && handle[0].setPointerCapture) {
-                handle[0].setPointerCapture(e.pointerId);
+            dom.addClass(col, 'ge-resizing');
+            if (e.pointerId !== undefined && handle.setPointerCapture) {
+                handle.setPointerCapture(e.pointerId);
             }
 
             function widthAt(move) {
@@ -4059,23 +4169,25 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             }
 
             function onMove(move) {
-                col.css('width', widthAt(move) + 'px');
+                col.style.width = widthAt(move) + 'px';
                 resizeMove(col, widthAt(move));
             }
 
             function onUp(up) {
-                handle.off('pointermove', onMove).off('pointerup pointercancel', onUp);
-                col.removeClass('ge-resizing');
+                handle.removeEventListener('pointermove', onMove);
+                dom.off(handle, 'pointerup pointercancel', onUp);
+                dom.removeClass(col, 'ge-resizing');
                 resizeStop(col, widthAt(up));
             }
 
-            handle.on('pointermove', onMove).on('pointerup pointercancel', onUp);
+            handle.addEventListener('pointermove', onMove);
+            dom.on(handle, 'pointerup pointercancel', onUp);
         }
 
         function removeResizable() {
-            canvas.find('.ge-resize-handle').remove();
+            dom.all(canvas, '.ge-resize-handle').forEach(function(handle) { handle.remove(); });
 
-            canvas.find('.ge-resize-size').remove();
+            dom.all(canvas, '.ge-resize-size').forEach(function(readout) { readout.remove(); });
             stripPixelWidths(canvas);
         }
 
@@ -4086,13 +4198,14 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * divider between two columns looks like it should do.
          */
         function snapUnits(col, pixels) {
-            var units = Math.round(pixels / rowContentWidth(col.parent()) * MAX_COL_SIZE);
+            var units = Math.round(pixels / rowContentWidth(col.parentElement) * MAX_COL_SIZE);
             var next = balanceSibling(col);
             var nextSize = next ? currentSize(next) : null;
 
             // Measured when the drag started: the column is the width of the
             // pointer now, which is not what it was
-            var own = col.data('ge-resize-units');
+            var resize = resizes.get(col);
+            var own = resize ? resize.units : currentUnits(col);
 
             // With a sibling to balance against, the drag may take that
             // column's units but not its last one. Without one, the row is
@@ -4114,12 +4227,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function balanceSibling(col) {
             if (settings.resize.balance !== 'next') { return null; }
 
-            var next = col.nextAll('.column').first();
-            return next.length ? next : null;
+            return dom.nextAll(col, '.column')[0] || null;
         }
 
         function resizeReadout(col, text) {
-            col.find('> .ge-tools-drawer > .ge-resize-size').text(text);
+            var drawer = dom.child(col, '.ge-tools-drawer');
+            var readout = drawer ? dom.child(drawer, '.ge-resize-size') : null;
+            if (readout) { readout.textContent = text; }
         }
 
         function sizeLabel(units) {
@@ -4145,9 +4259,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (!allowed) { return false; }
 
-            col.data('ge-resize-from', from);
-            col.data('ge-resize-units', currentUnits(col));
-            resizeReadout(col, sizeLabel(col.data('ge-resize-units')));
+            var resize = { from: from, units: currentUnits(col) };
+            resizes.set(col, resize);
+            resizeReadout(col, sizeLabel(resize.units));
 
             return true;
         }
@@ -4157,44 +4271,40 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function resizeStop(col, width) {
-            var from = col.data('ge-resize-from');
-            var started = col.data('ge-resize-units');
+            var resize = resizes.get(col);
             var units = snapUnits(col, width);
 
-            col.removeData('ge-resize-from').removeData('ge-resize-units');
+            resizes.delete(col);
             resizeReadout(col, '');
             stripPixelWidths(col);
 
-            if (from === undefined) { return; }
+            if (!resize) { return; }
 
             // A drag of a couple of pixels lands on the size it started from,
             // and is not a resize - not even of an equal or auto column,
             // which it would otherwise turn into a number
-            if (units === started) { return; }
+            if (units === resize.units) { return; }
 
             var plan = planSize(col, units);
             if (!plan) { return; }
 
             operate(function() {
                 writeSize(col, plan);
-                balanceAfterResize(col, units - started);
+                balanceAfterResize(col, units - resize.units);
                 refreshUtilities(col);
 
                 emit('after-resize', payloadFor('column', col, withCleared({
                     source: 'dragdrop',
-                    from: from,
+                    from: resize.from,
                     to: plan.size,
                 }, plan.cleared)));
             });
         }
 
         /**
-         * Move the delta into the following column, so a full row stays full.
-         * It is part of the same gesture, so it is not announced separately.
-         */
-        /**
          * The column after takes what the resized one gave or took, unless it
-         * is equal or auto: those take what is left by themselves.
+         * is equal or auto: those take what is left by themselves. It is part
+         * of the same gesture, so it is not announced separately.
          */
         function balanceAfterResize(col, delta) {
             var next = balanceSibling(col);
@@ -4218,13 +4328,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * is none of the editor's business.
          */
         function removeSortable() {
-            $.each(sortables, function(_, instance) { instance.destroy(); });
+            sortables.forEach(function(sortableInstance) { sortableInstance.destroy(); });
 
             sortables = [];
         }
 
         function createRow() {
-            return $('<div class="row" />');
+            return dom.element('div', { 'class': 'row' });
         }
 
         /**
@@ -4234,6 +4344,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * detached, and placing it and calling reset() is the host's job
          * (spec 1.2).
          *
+         * The place is an element, or the first one a selector matches.
          * Returns the node, or null when a handler canceled the add. A call
          * made from inside an event handler is queued, and then returns the
          * node without knowing yet whether the add will be canceled.
@@ -4249,14 +4360,27 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (placement === null) { return node; }
 
-            var target = $(options[placement]);
+            var target = nodeFrom(options[placement]);
+            if (!target) {
+                warn(kind + ': ' + placement + ' matches no element; the ' + kind + ' is left detached');
+                return node;
+            }
+
             var parent = (placement === 'appendTo' || placement === 'prependTo')
                 ? target
-                : target.parent();
+                : target.parentElement;
 
             var add = function() {
                 return addNode(kind, node, function() {
-                    node[placement](options[placement]);
+                    if (placement === 'appendTo') {
+                        target.appendChild(node);
+                    } else if (placement === 'prependTo') {
+                        target.insertBefore(node, target.firstChild);
+                    } else if (placement === 'insertBefore') {
+                        target.parentNode.insertBefore(node, target);
+                    } else {
+                        dom.insertAfter(node, target);
+                    }
                 }, { parent: parent, source: options.source || 'api' });
             };
 
@@ -4283,7 +4407,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             if (layout && !Array.isArray(layout)) { row = rowFromLayoutValue(layout); }
 
             (Array.isArray(layout) ? layout : []).forEach(function(size) {
-                createColumn(size).appendTo(row);
+                row.appendChild(createColumn(size));
             });
 
             return place(row, 'row', options);
@@ -4296,9 +4420,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             options = options || {};
 
             // Going into a row with row-cols, no size is a size: the row's share
-            var into = $(options.appendTo || options.prependTo || []).first();
+            var into = nodeFrom(options.appendTo || options.prependTo || null);
 
-            if (size === undefined && into.length && rowColsSource(into, leadingTier())) {
+            if (size === undefined && into && rowColsSource(into, leadingTier())) {
                 size = null;
             } else if (!isUnits(size) && FLEX_SIZES.indexOf(size) === -1) {
                 warn('createColumn: no column size given, using ' + MAX_COL_SIZE);
@@ -4307,7 +4431,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             var column = createColumn(size, options.offset);
             if (options.content !== undefined) {
-                column.append(contentFor(options.content));
+                column.appendChild(contentFor(options.content));
             }
 
             return place(column, 'column', options);
@@ -4330,7 +4454,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** A pane appended to a container, through the add events. */
         function addPaneTo(container, type, options) {
-            container = $(container);
+            container = nodeFrom(container);
             options = options || {};
 
             var definition = CONTAINERS[containerTypeOf(container)];
@@ -4350,20 +4474,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Host markup wrapped as a grid-editor element (spec 4.5). What is
-         * inside stays the host's; grid-editor owns the wrapper only.
-         */
-
-        /**
-         * A shallow frozen copy of the settings for the instance handle, so a
-         * host can read what the editor is running with without changing it
+         * A shallow frozen copy of the settings for the instance, so a host
+         * can read what the editor is running with without changing it
          * behind the editor's back. Arrays are copied; the objects inside them
          * are the host's own and stay shared.
          */
         function settingsCopy() {
             var copy = {};
 
-            $.each(settings, function(key, value) {
+            Object.keys(settings).forEach(function(key) {
+                var value = settings[key];
                 copy[key] = Array.isArray(value) ? value.slice() : value;
             });
 
@@ -4377,7 +4497,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function createColumn(size, offset) {
             // Empty: what goes in it is the next decision, and the tools of
             // the column and the toolbar are where it is made
-            var column = $('<div class="column"/>');
+            var column = dom.element('div', { 'class': 'column' });
 
             // The tier being edited, or the base class in the all view
             var tier = tiersFor(curView)[0];
@@ -4390,18 +4510,24 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * Run custom content filter on init and deinit
+         * Run custom content filter on init and deinit. A filter is a
+         * function, or the name of one on window, and gets the canvas and
+         * whether this is init.
          */
         function runFilter(isInit) {
-            if (settings.custom_filter.length) {
-                $.each(settings.custom_filter, function(key, func) {
-                    if (typeof func == 'string') {
-                        func = window[func];
-                    }
+            if (!settings.custom_filter || !settings.custom_filter.length) { return; }
 
-                    func(canvas, isInit);
-                });
-            }
+            var filters = typeof settings.custom_filter === 'string' || typeof settings.custom_filter === 'function'
+                ? [settings.custom_filter]
+                : settings.custom_filter;
+
+            Array.prototype.forEach.call(filters, function(func) {
+                if (typeof func == 'string') {
+                    func = window[func];
+                }
+
+                func(canvas, isInit);
+            });
         }
 
         /**
@@ -4412,7 +4538,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function textCutter() {
             var cuts = ['.row', '[data-ge-container]'];
 
-            $.each(FEATURES, function(name, feature) {
+            Object.keys(FEATURES).forEach(function(name) {
+                var feature = FEATURES[name];
                 var cut = typeof feature.cuts === 'function' ? feature.cuts() : feature.cuts;
                 if (cut) { cuts.push(cut); }
             });
@@ -4438,17 +4565,16 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * content area its editor is open on is left for the next init.
          */
         function splitTexts(cutter) {
-            canvas.find('.column > .ge-content, .column > .ge-text-block > .ge-content').each(function() {
-                var area = $(this);
-                if (area.hasClass('ge-rte-active') || !area.children().filter(cutter).length) { return; }
+            dom.all(canvas, '.column > .ge-content, .column > .ge-text-block > .ge-content').forEach(function(area) {
+                if (dom.hasClass(area, 'ge-rte-active') || !dom.children(area, cutter).length) { return; }
 
-                var type = area.attr('data-ge-content-type');
-                var anchor = area.parent('.ge-text-block').length ? area.parent() : area;
+                var type = area.getAttribute('data-ge-content-type');
+                var anchor = dom.hasClass(area.parentElement, 'ge-text-block') ? area.parentElement : area;
                 var pieces = [];
                 var run = [];
 
-                $.each($.makeArray(area[0].childNodes), function(i, node) {
-                    if (node.nodeType === 1 && $(node).is(cutter)) {
+                Array.prototype.slice.call(area.childNodes).forEach(function(node) {
+                    if (node.nodeType === 1 && node.matches(cutter)) {
                         pieces.push({ text: run }, { block: node });
                         run = [];
                     } else {
@@ -4457,7 +4583,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                 });
                 pieces.push({ text: run });
 
-                $(area[0].childNodes).detach();
+                while (area.firstChild) { area.removeChild(area.firstChild); }
 
                 var kept = false;
                 var last = anchor;
@@ -4466,21 +4592,22 @@ $.fn.gridEditor = function( optionsOrMethod ) {
                     var placed;
 
                     if (piece.block) {
-                        placed = $(piece.block);
+                        placed = piece.block;
                     } else if (!hasContent(piece.text)) {
                         return;
                     } else if (kept) {
                         // Of the same type, or of none if it had none
-                        placed = createDefaultContentWrapper(type).append(piece.text);
+                        placed = createDefaultContentWrapper(type);
+                        piece.text.forEach(function(node) { placed.appendChild(node); });
                     } else {
                         // The content area itself, moved along if an
                         // element came before the first text
-                        area.append(piece.text);
+                        piece.text.forEach(function(node) { area.appendChild(node); });
                         placed = anchor;
                         kept = true;
                     }
 
-                    if (placed[0] !== last[0]) { placed.insertAfter(last); }
+                    if (placed !== last) { dom.insertAfter(placed, last); }
                     last = placed;
                 });
 
@@ -4499,26 +4626,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * Wrap column content in <div class="ge-content"> where neccesary
          */
         function wrapContent(cutter) {
-            canvas.find('.column').each(function() {
-                var col = $(this);
-                var contents = $();
+            dom.all(canvas, '.column').forEach(function(col) {
+                var contents = [];
 
-                col.children().each(function() {
-                    var child = $(this);
-
+                dom.children(col).forEach(function(child) {
                     // The editor's own furniture is not content and not a
                     // boundary either. The resize handle used to be treated as
                     // content and wrapped into a content area of its own on
                     // the next init.
-                    if (child.is('.ge-tools-drawer, .ge-resize-handle')) { return; }
+                    if (dom.is(child, '.ge-tools-drawer, .ge-resize-handle')) { return; }
 
                     // A container, or an element, sits in the column beside
                     // the content areas, not inside one, so it ends a run of
                     // loose content rather than joining it
-                    if (child.is('.ge-content, .ge-text-block') || child.is(cutter)) {
+                    if (dom.is(child, '.ge-content, .ge-text-block') || child.matches(cutter)) {
                         contents = doWrap(contents);
                     } else {
-                        contents = contents.add(child);
+                        contents.push(child);
                     }
                 });
 
@@ -4529,17 +4653,17 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         /**
          * Wrap a run of loose column content in a content area of no type -
          * the host's plain content - and hand back
-         * an empty set: the caller has to forget what it just wrapped, or the
+         * an empty run: the caller has to forget what it just wrapped, or the
          * next boundary wraps the same nodes again and leaves the first
          * wrapper behind, empty.
          */
         function doWrap(contents) {
             if (contents.length) {
-                var contentArea = createDefaultContentWrapper().insertAfter(contents.last());
-                contents.appendTo(contentArea);
+                var contentArea = dom.insertAfter(createDefaultContentWrapper(), contents[contents.length - 1]);
+                contents.forEach(function(node) { contentArea.appendChild(node); });
             }
 
-            return $();
+            return [];
         }
 
         /**
@@ -4547,10 +4671,11 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * content: a content area and nothing more.
          */
         function createDefaultContentWrapper(type) {
-            var contentArea = $('<div class="ge-content"/>');
+            var contentArea = dom.element('div', { 'class': 'ge-content' });
 
             if (type) {
-                contentArea.addClass('ge-content-type-' + type).attr('data-ge-content-type', type);
+                dom.addClass(contentArea, 'ge-content-type-' + type);
+                contentArea.setAttribute('data-ge-content-type', type);
             }
 
             return contentArea;
@@ -4575,15 +4700,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * -------------------------------------------------------------- */
 
         function wrapTexts() {
-            canvas.find('.column > .ge-content').each(function() {
-                $(this).wrap('<div class="ge-text-block" />');
+            dom.all(canvas, '.column > .ge-content').forEach(function(area) {
+                dom.wrap(area, dom.element('div', { 'class': 'ge-text-block' }));
             });
 
-            canvas.find('.ge-text-block').each(function() {
-                var textBlock = $(this);
-                if (textBlock.children('.ge-tools-drawer').length) { return; }
+            dom.all(canvas, '.ge-text-block').forEach(function(textBlock) {
+                if (dom.child(textBlock, '.ge-tools-drawer')) { return; }
 
-                var type = textBlock.children('.ge-content').attr('data-ge-content-type');
+                var area = dom.child(textBlock, '.ge-content');
+                var type = area ? area.getAttribute('data-ge-content-type') : null;
 
                 if (!type) {
                     createPlainControls(textBlock);
@@ -4595,28 +4720,28 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
         /** After the drawers are gone, so a wrapper holds its content area and nothing else. */
         function unwrapTexts() {
-            canvas.find('.ge-text-block').each(function() {
-                $(this).replaceWith($(this).contents());
+            dom.all(canvas, '.ge-text-block').forEach(function(textBlock) {
+                dom.unwrap(textBlock);
             });
         }
 
         /** The host's plain content: moved and deleted here, edited in the source. */
         function createPlainControls(textBlock) {
-            var block = textBlock.children('.ge-content');
-            var drawer = $('<div class="ge-tools-drawer ge-text-drawer ge-plain-drawer" />').prependTo(textBlock);
-            textBlock.addClass('ge-plain-block');
+            var block = dom.child(textBlock, '.ge-content');
+            var drawer = prependDrawer(textBlock, 'ge-tools-drawer ge-text-drawer ge-plain-drawer');
+            dom.addClass(textBlock, 'ge-plain-block');
 
             createMoveTool(drawer);
 
             // The tools a feature plugin gives plain content, which is not
             // every plugin's drawerTools: no gear, no utilities, no copy
-            $.each(FEATURES, function(name, feature) {
-                if (feature.plainTools) { feature.plainTools(drawer, block); }
+            Object.keys(FEATURES).forEach(function(name) {
+                if (FEATURES[name].plainTools) { FEATURES[name].plainTools(drawer, block); }
             });
 
             createTool(drawer, t('tool.delete_plain'), 'ge-delete-plain', 'bi bi-trash', function() {
                 deleteNode('plain', block, t('confirm.delete_plain'), function(removed) {
-                    textBlock.slideUp(function() {
+                    dom.slideUp(textBlock, function() {
                         textBlock.remove();
                         removed();
                     });
@@ -4629,15 +4754,15 @@ $.fn.gridEditor = function( optionsOrMethod ) {
          * and its drawer says why it cannot be edited.
          */
         function createOrphanControls(textBlock, type) {
-            var block = textBlock.children('.ge-content');
-            var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
+            var block = dom.child(textBlock, '.ge-content');
+            var drawer = prependDrawer(textBlock, 'ge-tools-drawer ge-text-drawer');
 
             createMoveTool(drawer);
             createTool(drawer, t('text.no_editor', { type: type }), 'ge-text-info ge-text-missing',
                 'bi bi-exclamation-triangle');
             createTool(drawer, t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
                 deleteNode('text', block, t('confirm.delete_text'), function(removed) {
-                    textBlock.slideUp(function() {
+                    dom.slideUp(textBlock, function() {
                         textBlock.remove();
                         removed();
                     });
@@ -4646,13 +4771,21 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         /**
-         * A detached content area holding `content`: a text of the first type
-         * offered, or the host's plain content when no editor is offered.
+         * A detached content area holding `content` - html, or a node - as a
+         * text of the first type offered, or the host's plain content when no
+         * editor is offered.
          */
         function contentFor(content) {
             var offers = textOffers();
+            var area = createDefaultContentWrapper(offers.length ? offers[0].type : null);
 
-            return createDefaultContentWrapper(offers.length ? offers[0].type : null).html(content);
+            if (content && content.nodeType) {
+                area.appendChild(content);
+            } else {
+                dom.setHtml(area, content);
+            }
+
+            return area;
         }
 
         /**
@@ -4664,9 +4797,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             curView = view;
 
             VIEW_KEYS.forEach(function(key) {
-                canvas.toggleClass('ge-layout-' + key, key === view);
+                dom.toggleClass(canvas, 'ge-layout-' + key, key === view);
             });
-            layoutDropdown.find('button').text(t(labelKeyFor(view)));
+            dom.one(layoutDropdown, 'button').textContent = t(labelKeyFor(view));
         }
 
         /**
@@ -4699,7 +4832,9 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
             if (key === from) { return; }
 
-            settingsScope().find('.ge-utilities').each(function() { renderUtilities($(this)); });
+            settingsScope().forEach(function(scope) {
+                dom.all(scope, '.ge-utilities').forEach(function(section) { renderUtilities(section); });
+            });
             refreshPreviews(canvas);
             plugins('onViewChange', key);
             emit('view-change', { canvas: canvas, breakpoint: key, from: from, to: key });
@@ -4708,22 +4843,33 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         function getView() {
             return curView;
         }
-        
+
+        /** A method a feature plugin contributes, or a warning that the plugin is not loaded. */
+        function featureMethod(name, plugin, file) {
+            return function() {
+                if (!featureMethods[name]) {
+                    warnOnceHere('plugin:' + plugin, name + ' needs the ' + plugin + ' plugin: ' +
+                        'include dist/plugins/grideditor.' + file + '.js after the editor');
+                    return null;
+                }
+
+                return featureMethods[name].apply(null, arguments);
+            };
+        }
+
         /**
-         * The instance handle, documented API as of 3.0: the methods the
-         * plugin dispatches, plus the settings and the canvas. A host holding
-         * this can call several methods without dispatching each one.
+         * The instance's own methods: the documented API. init and reset are
+         * deferred when a handler calls them, so an operation in flight
+         * finishes before the canvas is rebuilt. The ones that do something,
+         * rather than answer something, hand back the instance, to chain.
          */
-        var handle = {
+        var own = {
             getHtml: getHtml,
             getPlainHtml: getPlainHtml,
-            // init and reset are deferred when a handler calls them, so an
-            // operation in flight finishes before the canvas is rebuilt
             init: function() { defer(init); },
             reset: function() { defer(reset); },
             deinit: deinit,
             destroy: destroy,
-            remove: deprecatedRemove,
             changeView: changeView,
             getView: getView,
             createRow: apiCreateRow,
@@ -4737,24 +4883,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
 
                 return featureMethods.createText(type, options);
             },
-            createElement: function(content, options) {
-                if (!featureMethods.createElement) {
-                    warnOnceHere('plugin:elements', 'createElement needs the elements plugin: ' +
-                        'include dist/plugins/grideditor.elements.js after the editor');
-                    return null;
-                }
-
-                return featureMethods.createElement(content, options);
-            },
-            createSection: function(options) {
-                if (!featureMethods.createSection) {
-                    warnOnceHere('plugin:sections', 'createSection needs the sections plugin: ' +
-                        'include dist/plugins/grideditor.sections.js after the editor');
-                    return null;
-                }
-
-                return featureMethods.createSection(options);
-            },
+            createElement: featureMethod('createElement', 'elements', 'elements'),
+            createSection: featureMethod('createSection', 'sections', 'sections'),
             createContainer: apiCreateContainer,
             addTab: function(container, options) { return addPaneTo(container, 'tabs', options); },
             addAccordionItem: function(container, options) {
@@ -4763,42 +4893,45 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             setLocale: setLocale,
             getUtility: getUtility,
             setUtility: setUtility,
-            canvas: canvas,
-            settings: settingsCopy(),
         };
 
-        // Methods a later phase fills in: registered, so calling one gets a
-        // warning and null rather than silence.
-        $.each(METHODS, function(name, descriptor) {
-            if (!descriptor.unimplemented) { return; }
+        Object.keys(own).forEach(function(name) {
+            var value = !!(METHODS[name] && METHODS[name].value);
 
-            handle[name] = function() {
-                warnOnceHere(name, name + ' is registered but not implemented in this build yet');
-                return null;
+            instance[name] = function() {
+                if (destroyed) {
+                    warnOnceHere('destroyed:' + name, t('warning.destroyed', { method: name }));
+                    if (name === 'getHtml') { return canvas.innerHTML; }
+                    if (name === 'getPlainHtml') { return plainHtml(canvas.innerHTML); }
+                    return value ? null : instance;
+                }
+
+                var result = own[name].apply(instance, arguments);
+                return value ? result : instance;
             };
         });
 
-        baseElem.data('grideditor', handle);
+        instance.canvas = canvas;
+        instance.settings = settingsCopy();
+
+        instances.set(canvas, instance);
 
         loadPlugins();
         // Again, with what the plugins filled in: the text editors'
         // content_types when the host gave none
-        handle.settings = settingsCopy();
+        instance.settings = settingsCopy();
         setup();
         init();
 
-    });
-
-    return self;
-
-};
+        GridEditor._created.forEach(function(hook) { hook(instance); });
+}
 
 /**
- * 5.x's registry of text editors, removed in 6.0: still there to register
- * into, so a page written for 5.x does not throw, but what it holds is
- * ignored with a warning. The text editors are plugins since 6.0.
+ * What a module that builds on the editor - the jQuery adapter - is told:
+ * each editor as it is made. Not the plugin contract; a plugin is handed
+ * the editor through its factory.
  */
-$.fn.gridEditor.RTEs = {};
+GridEditor._created = [];
 
 /**
  * Container plugins: tabs, accordions, popups, and whatever a host writes.
@@ -4807,11 +4940,11 @@ $.fn.gridEditor.RTEs = {};
  * editor with the handle described in docs/plugins.md. Loading its file is
  * what makes the type available; the `plugins` setting narrows that list.
  *
- *   $.fn.gridEditor.containers.carousel = function(ge) {
+ *   GridEditor.containers.carousel = function(ge) {
  *       return { labelKey: ..., create: ..., mark: ..., unmark: ... };
  *   };
  */
-$.fn.gridEditor.containers = {};
+GridEditor.containers = {};
 
 /**
  * Feature plugins: a piece of the editor that is not a container type, in a
@@ -4820,7 +4953,7 @@ $.fn.gridEditor.containers = {};
  * the handle in docs/plugins.md - and the same `plugins` setting decides
  * which of the loaded ones are used.
  */
-$.fn.gridEditor.features = {};
+GridEditor.features = {};
 
 /**
  * Utility plugins: Bootstrap's responsive utility classes - order-md-2,
@@ -4828,14 +4961,35 @@ $.fn.gridEditor.features = {};
  * and the editor reads them, writes them, puts them in the settings panel and
  * previews them in each view. Same factory, same `plugins` setting.
  *
- *   $.fn.gridEditor.utilities.order = function(ge) {
+ *   GridEditor.utilities.order = function(ge) {
  *       return { families: [{ name: 'order', prefix: 'order', values: [...] }] };
  *   };
  */
-$.fn.gridEditor.utilities = {};
+GridEditor.utilities = {};
 
-/** Translator for the editor integrations, which get settings and no instance. */
-$.fn.gridEditor.t = translate;
+/**
+ * The text editors, by the content type each edits: what the text plugins
+ * (tinymce, ckeditor, summernote, a host's own) register, and the text
+ * feature, src/js/text/grideditor.text.js, reads.
+ */
+GridEditor.texts = {};
+
+/** Translator for the plugins, which get settings and no instance. */
+GridEditor.t = translate;
+
+/** getPlainHtml for html that is not on a canvas, for the jQuery adapter. Not the public API. */
+GridEditor._plainHtml = plainHtml;
+
+/**
+ * SortableJS and Bootstrap's javascript, for a page that imports them as
+ * modules and so has no window.Sortable or window.bootstrap. Looked up
+ * before the globals; only Bootstrap's Modal is used.
+ */
+GridEditor.Sortable = null;
+GridEditor.bootstrap = null;
+
+/** The version of the build, filled in by build/build.js. */
+GridEditor.version = typeof __GRIDEDITOR_VERSION__ === 'undefined' ? 'dev' : __GRIDEDITOR_VERSION__;
 
 /**
  * Locale registry: code -> { key: string }.
@@ -4848,7 +5002,7 @@ $.fn.gridEditor.t = translate;
  * Every key is listed in docs/locale-keys.md, which test/locales.js holds to
  * this catalogue in both directions.
  */
-$.fn.gridEditor.locales = {
+GridEditor.locales = {
     en: {
         'tool.move': 'Move',
         'tool.settings': 'Settings',
@@ -4918,10 +5072,16 @@ $.fn.gridEditor.locales = {
         'utility.varies': 'Changes at {breakpoints}; choosing here replaces that',
         'error.sortable_missing': 'SortableJS not available! Make sure you loaded the Sortable js file; dragging is off without it.',
         'warning.setting_removed': 'The {setting} setting was removed in 4.0. Use {replacement} instead.',
+        'warning.already_editing': 'This element already has an editor: that one is handed back, with the options it was made with.',
+        'warning.destroyed': '{method}() was called on an editor that has been destroyed, and does nothing.',
+        'warning.duplicate_build': 'grideditor.js was loaded twice: the first GridEditor is kept.',
+        'warning.plugin_6x': 'The "{name}" plugin is written for grid-editor 6 and is not loaded. Plugins register on GridEditor since 7.0: see UPGRADING.md.',
+        'warning.adapter_no_jquery': 'grideditor.jquery.js needs jQuery 4, and there is no jQuery on the page: the jQuery API is not there.',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
-        'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the ckeditor and jquery adapter js files.',
-        'error.summernote_missing': 'Summernote not available! Make sure you loaded the Summernote js file.',
+        'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the CKEditor js file.',
+        'error.summernote_missing': 'Summernote not available! Make sure you loaded jQuery and the Summernote js file.',
     },
 };
 
-})( jQuery );
+export { GridEditor };
+export default GridEditor;

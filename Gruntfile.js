@@ -1,128 +1,22 @@
 module.exports = function(grunt) {
 
-  grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-less');
-  grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-cssmin');
   grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-contrib-copy');
 
-  // The glob does not descend, so src/js/locales/*.js stays out of the main
-  // bundle and is built to dist/locales/ one file at a time instead. The text
-  // editors are plugins like the rest since 6.0: up to 5.x the bundle carried
-  // a copy of each.
-  var jsFiles = [
-    'src/js/jquery.grideditor.js',
-    'src/js/*.js',
-  ];
-
-  var localeFiles = [{
-    expand: true,
-    cwd: 'src/js/locales/',
-    src: ['*.js'],
-    dest: 'dist/locales/',
-  }];
-
-  // The text editors carry what every text shares, src/js/text/, at their
-  // top: a page loads the editor it uses and has text with it. That file is
-  // never published on its own.
-  var editors = ['tinymce', 'ckeditor', 'summernote'];
-  var editorFiles = {};
-  editors.forEach(function(editor) {
-    editorFiles['dist/plugins/grideditor.' + editor + '.js'] = [
-      'src/js/text/grideditor.text.js',
-      'src/js/plugins/grideditor.' + editor + '.js',
-    ];
-  });
-  var editorMinFiles = {};
-  Object.keys(editorFiles).forEach(function(dest) {
-    editorMinFiles[dest.replace(/\.js$/, '.min.js')] = editorFiles[dest];
+  // The scripts are ES modules built by build/build.js, which says what comes
+  // out of it; Grunt runs the stylesheets and calls it.
+  grunt.registerTask('scripts', 'Build the javascript into dist/', function() {
+    var done = this.async();
+    require('./build/build.js').main().then(function() { done(); }, function(error) {
+      grunt.log.error(error && error.stack || error);
+      done(false);
+    });
   });
 
-  // Container plugins, likewise: a page loads the ones it wants
-  var pluginFiles = [{
-    expand: true,
-    cwd: 'src/js/plugins/',
-    src: ['*.js'].concat(editors.map(function(editor) { return '!grideditor.' + editor + '.js'; })),
-    dest: 'dist/plugins/',
-  }];
-  
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
-    
-    concat: {
-      js: {
-        src: jsFiles,
-        dest: 'dist/jquery.grideditor.js',
-      },
 
-      editors: {
-        files: editorFiles,
-      },
-
-      // One file for a page that would rather load one: the editor with its
-      // drag library inside it. A page loads this or the pair, never both.
-      bundle: {
-        options: {
-          banner: '/*!\n' +
-            ' * grid-editor <%= pkg.version %> bundled with SortableJS.\n' +
-            ' *\n' +
-            ' * grid-editor: MIT, https://github.com/themarioga/grid-editor\n' +
-            ' * SortableJS: MIT, https://github.com/SortableJS/Sortable\n' +
-            ' */\n',
-        },
-        src: [
-          'node_modules/sortablejs/Sortable.min.js',
-          'dist/jquery.grideditor.min.js',
-        ],
-        dest: 'dist/jquery.grideditor.bundle.min.js',
-      },
-    },
-    
-    uglify: {
-      build: {
-        options: {
-          sourceMap: true,
-        },
-        src: jsFiles,
-        dest: 'dist/jquery.grideditor.min.js',
-      },
-      locales: {
-        options: {
-          sourceMap: true,
-        },
-        files: localeFiles.map(function(files) {
-          // extDot last, or grideditor.es.js would minify to grideditor.min.js
-          return Object.assign({}, files, { ext: '.min.js', extDot: 'last' });
-        }),
-      },
-      plugins: {
-        options: {
-          sourceMap: true,
-        },
-        files: pluginFiles.map(function(files) {
-          return Object.assign({}, files, { ext: '.min.js', extDot: 'last' });
-        }),
-      },
-      editors: {
-        options: {
-          sourceMap: true,
-        },
-        files: editorMinFiles,
-      },
-    },
-    
-    copy: {
-      // The readable file is what a page loads, next to the minified one
-      locales: {
-        files: localeFiles,
-      },
-      plugins: {
-        files: pluginFiles,
-      },
-    },
-    
     less: {
       development: {
         files: [{
@@ -149,25 +43,17 @@ module.exports = function(grunt) {
     },
     
     watch: {
+      scripts: {
+        files: ['src/js/**/*.js', 'build/*.js'],
+        tasks: ['scripts'],
+        options: {
+          spawn: false,
+          livereload: true,
+        },
+      },
       stylesheets: {
-        files: ['src/**/*', 'example/*'],
-        tasks: ['concat:js', 'uglify:build', 'less', 'cssmin', 'concat:bundle'],
-        options: {
-          spawn: false,
-          livereload: true,
-        },
-      },
-      plugins: {
-        files: ['src/js/plugins/*.js', 'src/js/text/*.js'],
-        tasks: ['copy:plugins', 'uglify:plugins', 'concat:editors', 'uglify:editors'],
-        options: {
-          spawn: false,
-          livereload: true,
-        },
-      },
-      locales: {
-        files: ['src/js/locales/*.js'],
-        tasks: ['copy:locales', 'uglify:locales'],
+        files: ['src/less/**/*', 'example/*'],
+        tasks: ['less', 'cssmin'],
         options: {
           spawn: false,
           livereload: true,
@@ -177,6 +63,6 @@ module.exports = function(grunt) {
     
   });
 
-  grunt.registerTask('default', ['concat:js', 'uglify', 'less', 'cssmin', 'copy', 'concat:editors', 'concat:bundle']);
+  grunt.registerTask('default', ['scripts', 'less', 'cssmin']);
 
 };

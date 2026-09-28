@@ -23,24 +23,28 @@ function canvasOf(columns) {
         return '<div class="' + classes.join(' ') + '"><div class="ge-content"><p>x</p></div></div>';
     }).join('');
 
-    return "jQuery('#myGrid').html('<div class=\"row\">" + markup + "</div>');";
+    return "document.querySelector('#myGrid').innerHTML = '<div class=\"row\">" + markup + "</div>';";
 }
 
 /** The size and offset classes on each column of the row, as [size, offset]. */
 var UNITS = `
     window.unitsOf = function(view) {
         const prefix = view === 'all' || view === 'xs' ? '' : view + '-';
-        return jQuery('#myGrid .column').map(function() {
-            const classes = jQuery(this).attr('class');
+        return Array.from(document.querySelectorAll('#myGrid .column')).map(function(column) {
+            const classes = column.getAttribute('class');
             const size = new RegExp('(?:^|\\\\s)col-' + prefix + '(\\\\d+)(?:\\\\s|$)').exec(classes);
             const offset = new RegExp('(?:^|\\\\s)offset-' + prefix + '(\\\\d+)(?:\\\\s|$)').exec(classes);
-            return [[size ? +size[1] : null, offset ? +offset[1] : 0]];
-        }).get();
+            return [size ? +size[1] : null, offset ? +offset[1] : 0];
+        });
     };
 `;
 
 function tool(name) {
-    return "jQuery('#myGrid .column').eq(0).find('> .ge-tools-drawer ." + name + "').trigger(";
+    // A real click, which the tools listen for; shift held when the event
+    // passed in says so
+    return "(function(tool, e) { tool.dispatchEvent(new MouseEvent('click', " +
+        "{ bubbles: true, cancelable: true, shiftKey: !!(e && e.shiftKey) })); })(" +
+        "document.querySelector('#myGrid .column').querySelector(':scope > .ge-tools-drawer ." + name + "'), ";
 }
 
 async function toolTests(t) {
@@ -48,12 +52,12 @@ async function toolTests(t) {
 
     var present = await page.eval(canvasOf([[6], [6]]) + `
         window.fixture.init();
-        const drawer = jQuery('#myGrid .column').first().find('> .ge-tools-drawer');
-        const icon = function(tool) { return drawer.find('.' + tool + ' i').attr('class'); };
+        const drawer = document.querySelector('#myGrid .column').querySelector(':scope > .ge-tools-drawer');
+        const icon = function(tool) { return drawer.querySelector('.' + tool + ' i').getAttribute('class'); };
 
         return {
-            tools: drawer.find('> a').map(function() { return jQuery(this).attr('class'); }).get(),
-            titles: drawer.find('.ge-increase-col-offset').attr('title'),
+            tools: Array.from(drawer.querySelectorAll(':scope > a')).map(function(a) { return a.getAttribute('class'); }),
+            titles: drawer.querySelector('.ge-increase-col-offset').getAttribute('title'),
             // Bootstrap names these after the side the text is indented from,
             // so the icon that points right is the one called -left
             increaseIcon: icon('ge-increase-col-offset'),
@@ -81,7 +85,7 @@ async function toolTests(t) {
         ${tool('ge-decrease-col-offset')}'click');
         steps.push(window.unitsOf('xs')[0]);
 
-        return { steps: steps, classes: jQuery('#myGrid .column').first().attr('class') };
+        return { steps: steps, classes: document.querySelector('#myGrid .column').getAttribute('class') };
     `);
     t.check('the indent tools step through valid_col_offsets one unit at a time',
         JSON.stringify(stepped.steps) === JSON.stringify([[4, 1], [4, 2], [4, 3], [4, 2]]),
@@ -136,7 +140,7 @@ async function budgetTests(t) {
 
     var maxed = await page.eval(UNITS + canvasOf([[3], [4]]) + `
         window.fixture.init({ default_view: 'xs' });
-        ${tool('ge-increase-col-width')}jQuery.Event('click', { shiftKey: true }));
+        ${tool('ge-increase-col-width')}{ shiftKey: true });
         return window.unitsOf('xs');
     `);
     t.check('hold shift for max grows into the row\\u2019s spare space only',
@@ -144,7 +148,7 @@ async function budgetTests(t) {
 
     var maxedWithOffsets = await page.eval(UNITS + canvasOf([[3, 2], [4]]) + `
         window.fixture.init({ default_view: 'xs' });
-        ${tool('ge-increase-col-width')}jQuery.Event('click', { shiftKey: true }));
+        ${tool('ge-increase-col-width')}{ shiftKey: true });
         return window.unitsOf('xs');
     `);
     t.check('the spare space counts the indents, not just the widths',
@@ -152,9 +156,9 @@ async function budgetTests(t) {
 
     var maxIndent = await page.eval(UNITS + canvasOf([[3], [4]]) + `
         window.fixture.init({ default_view: 'xs' });
-        ${tool('ge-increase-col-offset')}jQuery.Event('click', { shiftKey: true }));
+        ${tool('ge-increase-col-offset')}{ shiftKey: true });
         const maxed = window.unitsOf('xs');
-        ${tool('ge-decrease-col-offset')}jQuery.Event('click', { shiftKey: true }));
+        ${tool('ge-decrease-col-offset')}{ shiftKey: true });
         return { maxed: maxed, cleared: window.unitsOf('xs') };
     `);
     t.check('hold shift on the indent tools goes to the row\\u2019s edge and back to none',
@@ -175,7 +179,7 @@ async function viewTests(t) {
         return {
             md: window.unitsOf('md')[0],
             xs: window.unitsOf('xs')[0],
-            classes: jQuery('#myGrid .column').first().attr('class'),
+            classes: document.querySelector('#myGrid .column').getAttribute('class'),
         };
     `);
     t.check('an indent in a tier view writes that tier only',
@@ -184,12 +188,12 @@ async function viewTests(t) {
         perTier);
 
     var allView = await page.eval(UNITS + canvasOf([[6], [6]]) + `
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         ` + canvasOf([[6], [6]]) + `
         window.fixture.init({ default_view: 'all' });
         ${tool('ge-increase-col-offset')}'click');
         return {
-            offsets: jQuery('#myGrid .column').first().attr('class').split(/\\s+/)
+            offsets: document.querySelector('#myGrid .column').getAttribute('class').split(/\\s+/)
                 .filter(name => /^offset-/.test(name)).sort(),
         };
     `);
@@ -199,14 +203,14 @@ async function viewTests(t) {
         allView);
 
     var created = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         ge.changeView('lg');
         const column = ge.createColumn(4, { offset: 2 });
         ge.changeView('all');
         const everywhere = ge.createColumn(4, { offset: 2 });
         return {
-            column: column.attr('class'),
-            everywhere: everywhere.attr('class').split(/\\s+/).filter(name => /^offset-/.test(name)).length,
+            column: column.getAttribute('class'),
+            everywhere: everywhere.getAttribute('class').split(/\\s+/).filter(name => /^offset-/.test(name)).length,
         };
     `);
     t.check('createColumn takes an offset, for the view it is called in',
@@ -215,7 +219,7 @@ async function viewTests(t) {
         created);
 
     var announced = await page.eval(UNITS + canvasOf([[6], [6]]) + `
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         ` + canvasOf([[6], [6]]) + `
         window.log = [];
         window.fixture.init({
@@ -225,15 +229,17 @@ async function viewTests(t) {
                 after_indent: function(payload) { window.log.push(['after', payload.from, payload.to]); },
             },
         });
-        jQuery('#myGrid').on('grideditor:before-indent grideditor:after-indent', function(e, payload) {
-            window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.source]);
+        ['grideditor:before-indent', 'grideditor:after-indent'].forEach(function(name) {
+            document.querySelector('#myGrid').addEventListener(name, function(e) {
+                window.log.push([e.type.replace('grideditor:', ''), e.detail.kind, e.detail.source]);
+            });
         });
 
         ${tool('ge-increase-col-offset')}'click');
         const moved = window.log.slice();
 
         window.log = [];
-        jQuery('#myGrid').on('grideditor:before-indent', function(e) { e.preventDefault(); });
+        document.querySelector('#myGrid').addEventListener('grideditor:before-indent', function(e) { e.preventDefault(); });
         ${tool('ge-increase-col-offset')}'click');
 
         return { moved: moved, units: window.unitsOf('xs')[0], canceled: window.log, };

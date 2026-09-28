@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -16,7 +15,7 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
     <!-- One file per container type: load the ones this page offers -->
@@ -26,8 +25,8 @@
     <script src="../dist/plugins/grideditor.card.min.js"></script>
 
     <script>
-        $(function() {
-            $('#myGrid').gridEditor({
+        document.addEventListener('DOMContentLoaded', function() {
+            var editor = new GridEditor('#myGrid', {
                 new_row_layouts: [[12], [6,6]],
                 content_types: ['tinymce'],
 
@@ -47,12 +46,12 @@
                 accordion_tools: [],
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
             });
 
-            $('#authored').on('click', function() {
-                var html = $('#myGrid').gridEditor('getHtml');
+            document.getElementById('authored').addEventListener('click', function() {
+                var html = editor.getHtml();
                 var page = window.open('', '_blank');
 
                 // The output, in a page that loads Bootstrap and nothing else:

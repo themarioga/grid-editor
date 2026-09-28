@@ -6,7 +6,7 @@
  * classes. What it can ask the editor for is the handle its factory is called
  * with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.order.min.js"></script>
  *
  * Two arrows in each column's drawer move it one place earlier or later in
@@ -16,9 +16,10 @@
  * utilities.order.drawer: false leaves the arrows out, and the panel field is
  * the only control.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.order': 'Order',
     'utility.order_first': 'First',
     'utility.order_last': 'Last',
@@ -35,10 +36,11 @@ var RANK = { first: -1, last: 6 };
 /** A column that carries any class of the family, at any breakpoint. */
 var CLASS_PATTERN = /(?:^|\s)order-(?:(?:sm|md|lg|xl|xxl)-)?(?:first|last|[0-5])(?:\s|$)/;
 
-$.fn.gridEditor.utilities.order = function(ge) {
+GridEditor.utilities.order = function(ge) {
 
-    var options = $.extend({ drawer: true }, ge.settings.utilities.order);
+    var options = Object.assign({ drawer: true }, ge.settings.utilities.order);
     var warnedAboutDrag = false;
+    var listening = null; // The after-move listener, while editing
 
     function rank(value) {
         if (value === null) { return 0; }
@@ -55,9 +57,9 @@ $.fn.gridEditor.utilities.order = function(ge) {
 
     /** The columns of a row in the order a view shows them, given what each one's order is. */
     function visualOrder(columns, read) {
-        return columns.get()
+        return columns
             .map(function(element, index) {
-                return { element: element, index: index, rank: rank(read($(element))) };
+                return { element: element, index: index, rank: rank(read(element)) };
             })
             .sort(function(a, b) { return a.rank - b.rank || a.index - b.index; })
             .map(function(entry) { return entry.element; });
@@ -89,9 +91,9 @@ $.fn.gridEditor.utilities.order = function(ge) {
      */
     function move(col, direction) {
         var view = ge.view();
-        var columns = col.parent().children('.column');
+        var columns = dom.children(col.parentElement, '.column');
         var shown = visualOrder(columns, function(column) { return ge.getUtility(column, 'order', view); });
-        var from = shown.indexOf(col[0]);
+        var from = shown.indexOf(col);
         var to = from + direction;
 
         if (to < 0 || to >= shown.length) { return; }
@@ -99,7 +101,7 @@ $.fn.gridEditor.utilities.order = function(ge) {
         shown.splice(to, 0, shown.splice(from, 1)[0]);
 
         var values = null;
-        if (!sameOrder(shown, columns.get()) || !inheritsMarkupOrder(columns, view)) {
+        if (!sameOrder(shown, columns) || !inheritsMarkupOrder(columns, view)) {
             values = slots(shown.length);
 
             if (!values) {
@@ -111,7 +113,7 @@ $.fn.gridEditor.utilities.order = function(ge) {
 
         ge.operate(function() {
             shown.forEach(function(element, index) {
-                ge.setUtility($(element), 'order', values ? values[index] : null, { source: 'tool' });
+                ge.setUtility(element, 'order', values ? values[index] : null, { source: 'tool' });
             });
         });
     }
@@ -125,28 +127,27 @@ $.fn.gridEditor.utilities.order = function(ge) {
 
         return sameOrder(visualOrder(columns, function(column) {
             return ge.getUtility(column, 'order', below);
-        }), columns.get());
+        }), columns);
     }
 
     /** Whether a row's columns are ordered by class, rather than by the markup, in this view. */
     function ordered(row) {
-        return row.children('.column').get().some(function(element) {
-            return ge.getUtility($(element), 'order', ge.view()) !== null;
+        return dom.children(row, '.column').some(function(element) {
+            return ge.getUtility(element, 'order', ge.view()) !== null;
         });
     }
 
     /** The badge: a column ordered by class in this view says where. */
     function mark(scope) {
-        scope.find('.column').addBack('.column').each(function() {
-            var col = $(this);
-            var value = CLASS_PATTERN.test(col.attr('class') || '')
+        dom.selfAndAll(scope, '.column').forEach(function(col) {
+            var value = CLASS_PATTERN.test(col.getAttribute('class') || '')
                 ? ge.getUtility(col, 'order', ge.view())
                 : null;
 
             if (value === null) {
-                col.removeAttr('data-ge-order');
+                col.removeAttribute('data-ge-order');
             } else {
-                col.attr('data-ge-order', ge.t('badge.order', { value: label(value) }));
+                col.setAttribute('data-ge-order', ge.t('badge.order', { value: label(value) }));
             }
         });
     }
@@ -155,7 +156,8 @@ $.fn.gridEditor.utilities.order = function(ge) {
      * A column dropped in a row ordered by class lands where the markup puts
      * it, and shows up where its order does, which is worth saying once.
      */
-    function afterMove(e, payload) {
+    function afterMove(e) {
+        var payload = e.detail;
         if (warnedAboutDrag || payload.kind !== 'column' || !payload.to) { return; }
         if (!ordered(payload.to.parent)) { return; }
 
@@ -191,16 +193,17 @@ $.fn.gridEditor.utilities.order = function(ge) {
         // init runs again whenever a node is added, without a deinit
         // between, so the listener is replaced rather than stacked
         onInit: function() {
-            ge.canvas.off('grideditor:after-move.ge-order').on('grideditor:after-move.ge-order', afterMove);
+            if (listening) { ge.canvas.removeEventListener('grideditor:after-move', listening); }
+            listening = afterMove;
+            ge.canvas.addEventListener('grideditor:after-move', listening);
         },
 
         onRefresh: mark,
 
         onDeinit: function() {
-            ge.canvas.off('grideditor:after-move.ge-order');
-            ge.canvas.find('[data-ge-order]').removeAttr('data-ge-order');
+            if (listening) { ge.canvas.removeEventListener('grideditor:after-move', listening); }
+            listening = null;
+            dom.all(ge.canvas, '[data-ge-order]').forEach(function(col) { col.removeAttribute('data-ge-order'); });
         },
     };
 };
-
-})(jQuery);

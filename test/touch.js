@@ -18,8 +18,8 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 /** Two rows, each a single column, both tall enough to aim a finger at. */
 var TWO_ROWS = `
-    jQuery('#myGrid').gridEditor('destroy');
-    jQuery('#myGrid').html(
+    if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+    document.querySelector('#myGrid').innerHTML = (
         '<div class="row" id="first"><div class="column col-6" id="left">' +
         '<div class="ge-content"><p>The first row, with enough text in it to be worth aiming at.</p></div>' +
         '</div><div class="column col-6" id="right">' +
@@ -31,7 +31,7 @@ var TWO_ROWS = `
     );
 `;
 
-var ROWS = `jQuery('#myGrid').children('.row').map(function() { return this.id; }).get().join(',')`;
+var ROWS = `Array.from(document.querySelectorAll('#myGrid > .row')).map(function(row) { return row.id; }).join(',')`;
 
 async function sortTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
@@ -39,7 +39,8 @@ async function sortTests(t) {
     await page.eval(TWO_ROWS + `
         window.moves = [];
         window.fixture.init();
-        jQuery('#myGrid').on('grideditor:after-move', function(e, payload) {
+        document.querySelector('#myGrid').addEventListener('grideditor:after-move', function(e) {
+            const payload = e.detail;
             window.moves.push([payload.kind, payload.from.index, payload.to.index]);
         });
         return true;
@@ -62,7 +63,7 @@ async function sortTests(t) {
     // leaving the page rather than by failing it.
     await page.touchDragBy('#second > .ge-tools-drawer .ge-move', 40, 60, { hold: 0, steps: 3 });
     var early = await page.eval(`
-        return { rows: ${ROWS}, moves: window.moves.length, helpers: jQuery('.ge-drag-helper').length };
+        return { rows: ${ROWS}, moves: window.moves.length, helpers: document.querySelectorAll('.ge-drag-helper').length };
     `);
     t.check('a finger that moves before the touch delay does not drag anything',
         early.rows === 'second,first' && early.moves === 1 && early.helpers === 0, early);
@@ -73,20 +74,23 @@ async function resizeTests(t) {
 
     var unit = await page.eval(TWO_ROWS + `
         window.fixture.init();
-        return jQuery('#first').width() / 12;
+        // The content box, as jQuery's width() measured it
+        const row = document.querySelector('#first');
+        const style = getComputedStyle(row);
+        return (row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) / 12;
     `);
 
-    var sizes = `jQuery('#first .column').map(function() {
-        return (jQuery(this).attr('class').match(/col-(\\d+)\\b/) || [])[1];
-    }).get().join(',')`;
+    var sizes = `Array.from(document.querySelectorAll('#first .column')).map(function(column) {
+        return (column.getAttribute('class').match(/col-(\\d+)\\b/) || [])[1];
+    }).join(',')`;
 
     var before = await page.eval('return ' + sizes + ';');
     await page.touchDragBy('#left > .ge-resize-e', Math.round(unit * 2), 0);
     var after = await page.eval(`
         return {
             sizes: ${sizes},
-            inlineWidth: jQuery('#left')[0].style.width,
-            resizing: jQuery('.ge-resizing').length,
+            inlineWidth: document.querySelector('#left').style.width,
+            resizing: document.querySelectorAll('.ge-resizing').length,
         };
     `);
     t.check('a column is resized with a finger, and the pixels are thrown away on drop',
@@ -107,9 +111,9 @@ async function paletteTests(t) {
     var dropped = await page.eval(`
         return {
             rows: ${ROWS},
-            columnsOfNew: jQuery('#myGrid > .row').eq(1).children('.column').length,
-            markers: jQuery('.ge-drop-marker').length,
-            helpers: jQuery('.ge-toolbar-helper').length,
+            columnsOfNew: document.querySelectorAll('#myGrid > .row')[1].querySelectorAll(':scope > .column').length,
+            markers: document.querySelectorAll('.ge-drop-marker').length,
+            helpers: document.querySelectorAll('.ge-toolbar-helper').length,
         };
     `);
     t.check('a toolbar button is carried onto the canvas with a finger',

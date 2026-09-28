@@ -28,7 +28,7 @@ var TIERS = [
 
 /** A one-row canvas with one column, for measuring. */
 var ONE_COLUMN = `
-    jQuery('#myGrid').html('<div class="row"><div class="column"><div class="ge-content"><p>x</p></div></div></div>');
+    document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column"><div class="ge-content"><p>x</p></div></div></div>');
     window.fixture.init(arguments[0]);
     return true;
 `;
@@ -62,14 +62,14 @@ async function previewTests(t) {
     await page.eval(`window.fixture.init(); return true;`);
 
     var widths = await page.eval(`
-        const set = jQuery('#myGrid');
+        const set = document.querySelector('#myGrid');
         const seen = {};
         for (const view of ${JSON.stringify(VIEWS)}) {
-            set.gridEditor('changeView', view);
+            window.fixture.editor().changeView(view);
             await new Promise(resolve => setTimeout(resolve, 250));
             seen[view] = {
-                maxWidth: getComputedStyle(set[0]).maxWidth,
-                width: Math.round(set[0].getBoundingClientRect().width),
+                maxWidth: getComputedStyle(set).maxWidth,
+                width: Math.round(set.getBoundingClientRect().width),
             };
         }
         return seen;
@@ -96,20 +96,20 @@ async function effectiveClassTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     var measured = await page.eval(MEASURE + `
-        jQuery('#myGrid').html(
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row"><div class="column col-3 col-sm-4 col-md-5 col-lg-6 col-xl-7 col-xxl-8">' +
             '<div class="ge-content"><p>x</p></div></div></div>'
         );
         window.fixture.init();
 
-        const set = jQuery('#myGrid');
-        const column = jQuery('#myGrid .column').first();
+        const set = document.querySelector('#myGrid');
+        const column = document.querySelector('#myGrid .column');
         const seen = {};
 
         for (const view of ${JSON.stringify(VIEWS)}) {
-            set.gridEditor('changeView', view);
+            window.fixture.editor().changeView(view);
             await settle();
-            seen[view] = units(column[0], 'width');
+            seen[view] = units(column, 'width');
         }
 
         return seen;
@@ -124,8 +124,8 @@ async function effectiveClassTests(t) {
     // The tier classes cascade upward, as Bootstrap's do: a column that says
     // nothing about md is whatever the nearest smaller tier said
     var cascaded = await page.eval(MEASURE + `
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row">' +
             '<div class="column col-4"><div class="ge-content"><p>x</p></div></div>' +
             '<div class="column col-3 col-lg-6"><div class="ge-content"><p>x</p></div></div>' +
@@ -133,12 +133,12 @@ async function effectiveClassTests(t) {
         );
         window.fixture.init();
 
-        const set = jQuery('#myGrid');
-        const columns = jQuery('#myGrid .column');
+        const set = document.querySelector('#myGrid');
+        const columns = Array.from(document.querySelectorAll('#myGrid .column'));
         const seen = {};
 
         for (const view of ${JSON.stringify(VIEWS)}) {
-            set.gridEditor('changeView', view);
+            window.fixture.editor().changeView(view);
             await settle();
             seen[view] = [units(columns[0], 'width'), units(columns[1], 'width')];
         }
@@ -154,8 +154,8 @@ async function effectiveClassTests(t) {
     // What a browser really shows below the tier a column was sized for:
     // stacked, full width, and inside the canvas
     var unsizedTier = await page.eval(MEASURE + `
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row">' +
             '<div class="column col-lg-4"><div class="ge-content"><p>One, with enough text in it to be wider than a phone canvas if it were left to size itself.</p></div></div>' +
             '<div class="column col-lg-4"><div class="ge-content"><p>Two, likewise.</p></div></div>' +
@@ -164,19 +164,19 @@ async function effectiveClassTests(t) {
         );
         window.fixture.init();
 
-        const set = jQuery('#myGrid');
-        const columns = jQuery('#myGrid .column');
+        const set = document.querySelector('#myGrid');
+        const columns = Array.from(document.querySelectorAll('#myGrid .column'));
         const seen = {};
 
         for (const view of ['lg', 'sm', 'xs']) {
-            set.gridEditor('changeView', view);
+            window.fixture.editor().changeView(view);
             await settle();
 
-            const canvas = set[0].getBoundingClientRect();
+            const canvas = set.getBoundingClientRect();
             seen[view] = {
                 units: units(columns[0], 'width'),
-                overflowing: columns.filter(function() {
-                    return this.getBoundingClientRect().right > canvas.right + 1;
+                overflowing: columns.filter(function(column) {
+                    return column.getBoundingClientRect().right > canvas.right + 1;
                 }).length,
             };
         }
@@ -190,21 +190,21 @@ async function effectiveClassTests(t) {
         unsizedTier);
 
     var offsets = await page.eval(MEASURE + `
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row"><div class="column col-4 col-lg-4 offset-2 offset-lg-5">' +
             '<div class="ge-content"><p>x</p></div></div></div>'
         );
         window.fixture.init();
 
-        const set = jQuery('#myGrid');
-        const column = jQuery('#myGrid .column').first();
+        const set = document.querySelector('#myGrid');
+        const column = document.querySelector('#myGrid .column');
         const seen = {};
 
         for (const view of ['xs', 'lg']) {
-            set.gridEditor('changeView', view);
+            window.fixture.editor().changeView(view);
             await settle();
-            seen[view] = units(column[0], 'marginLeft');
+            seen[view] = units(column, 'marginLeft');
         }
 
         return seen;
@@ -220,15 +220,15 @@ async function writingTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     var perTier = await page.eval(`
-        jQuery('#myGrid').html('<div class="row"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>');
+        document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>');
         window.fixture.init({ default_view: 'md' });
 
-        const column = jQuery('#myGrid .column').first();
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+        const column = document.querySelector('#myGrid .column');
+        column.querySelector(':scope > .ge-tools-drawer .ge-decrease-col-width').click();
 
         return {
-            classes: column.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort(),
-            view: jQuery('#myGrid').gridEditor('getView'),
+            classes: column.getAttribute('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort(),
+            view: window.fixture.editor().getView(),
         };
     `);
     t.check('a size change in a tier view touches that tier only, reading the cascade for its starting point',
@@ -236,15 +236,15 @@ async function writingTests(t) {
         perTier);
 
     var allView = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html('<div class="row"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>');
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>');
         window.fixture.init({ default_view: 'all' });
 
-        const column = jQuery('#myGrid .column').first();
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+        const column = document.querySelector('#myGrid .column');
+        column.querySelector(':scope > .ge-tools-drawer .ge-decrease-col-width').click();
 
         return {
-            classes: column.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort(),
+            classes: column.getAttribute('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort(),
         };
     `);
     // 5.0: the all view writes the base class alone, as the utilities do
@@ -253,27 +253,27 @@ async function writingTests(t) {
         allView);
 
     var replaced = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html('<div class="row"><div class="column col-6 col-md-4 col-lg-8"><div class="ge-content"><p>x</p></div></div></div>');
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column col-6 col-md-4 col-lg-8"><div class="ge-content"><p>x</p></div></div></div>');
         window.fixture.init({ default_view: 'all' });
 
-        const column = jQuery('#myGrid .column').first();
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+        const column = document.querySelector('#myGrid .column');
+        column.querySelector(':scope > .ge-tools-drawer .ge-decrease-col-width').click();
 
-        return column.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort().join(' ');
+        return column.getAttribute('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort().join(' ');
     `);
     t.check('the all view starts from the widest tier, and its write replaces every breakpoint\'s size',
         replaced === 'col-7', replaced);
 
     var created = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         ge.changeView('lg');
         const inTier = ge.createColumn(4);
         ge.changeView('all');
         const inAll = ge.createColumn(4);
         return {
-            inTier: inTier.attr('class'),
-            inAll: inAll.attr('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort().join(' '),
+            inTier: inTier.getAttribute('class'),
+            inAll: inAll.getAttribute('class').split(/\\s+/).filter(name => /^col-/.test(name)).sort().join(' '),
         };
     `);
     t.check('createColumn writes the tiers the view covers',
@@ -282,8 +282,8 @@ async function writingTests(t) {
         created);
 
     var seeded = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row">' +
             '<div class="column col-lg-4"><div class="ge-content"><p>authored</p></div></div>' +
             '<div class="column"><div class="ge-content"><p>unsized</p></div></div>' +
@@ -291,10 +291,10 @@ async function writingTests(t) {
         );
         window.fixture.init();
 
-        const columns = jQuery('#myGrid .column');
+        const columns = Array.from(document.querySelectorAll('#myGrid .column'));
         return {
-            authored: columns.eq(0).attr('class'),
-            unsized: columns.eq(1).attr('class'),
+            authored: columns[0].getAttribute('class'),
+            unsized: columns[1].getAttribute('class'),
         };
     `);
     t.check('a column that has any sizing is left as authored, and one with none is seeded once',
@@ -320,15 +320,15 @@ async function backCompatTests(t) {
     `);
 
     var legacy = await page.eval(`
-        const set = jQuery('#myGrid');
+        const set = document.querySelector('#myGrid');
         const views = [0, 1, 2].map(function(index) {
-            set.gridEditor('changeView', index);
-            return set.gridEditor('getView');
+            window.fixture.editor().changeView(index);
+            return window.fixture.editor().getView();
         });
         return {
             views: views,
             warnings: window.warnings.filter(w => /changeView/.test(w)),
-            canvasClass: jQuery('#myGrid').attr('class').match(/ge-layout-\\w+/g),
+            canvasClass: document.querySelector('#myGrid').getAttribute('class').match(/ge-layout-\\w+/g),
         };
     `);
     t.check('the 2.x layout mode indexes still mean desktop, tablet and phone',
@@ -337,12 +337,12 @@ async function backCompatTests(t) {
         legacy);
 
     var limited = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
         window.fixture.init({ layout_modes: ['all', 'lg', 'xs'], default_view: 'lg' });
         return {
-            items: jQuery('.ge-layout-mode a').map(function() { return jQuery(this).attr('data-ge-view'); }).get(),
-            button: jQuery('.ge-layout-mode button').text(),
-            view: jQuery('#myGrid').gridEditor('getView'),
+            items: Array.from(document.querySelectorAll('.ge-layout-mode a')).map(function(a) { return a.getAttribute('data-ge-view'); }),
+            button: document.querySelector('.ge-layout-mode button').textContent,
+            view: window.fixture.editor().getView(),
         };
     `);
     t.check('layout_modes limits the dropdown and default_view picks the view it starts in',

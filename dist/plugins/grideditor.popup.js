@@ -1,143 +1,192 @@
-/**
- * Popups for grid-editor.
- *
- * A container plugin: load this file after the editor and the toolbar offers
- * a popup: a bootstrap modal and its trigger. What it can ask the editor for is the handle its factory is
- * called with, described in docs/plugins.md.
- *
- *   <script src="dist/jquery.grideditor.min.js"></script>
- *   <script src="dist/plugins/grideditor.popup.min.js"></script>
- */
-(function($) {
+(() => {
+  // src/js/register.js
+  var GridEditor = window.GridEditor;
+  if (!GridEditor || typeof GridEditor.get !== "function") {
+    throw new Error("grid-editor: load grideditor.js (or grideditor.bundle.min.js) before its plugins, its locales and grideditor.jquery.js");
+  }
 
-$.extend($.fn.gridEditor.locales.en, {
-    'container.add_popup': 'Popup',
-    'container.popup_title': 'Title',
-    'container.popup_trigger': 'Open',
-    'tool.toggle_popup': 'Fold this popup away while editing',
-});
+  // src/js/dom.js
+  function all(root, selector) {
+    return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
+  }
+  function parse(html) {
+    var template = document.createElement("template");
+    template.innerHTML = html;
+    return Array.prototype.slice.call(template.content.childNodes);
+  }
+  function create(html) {
+    var nodes = parse(html.trim());
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].nodeType === 1) {
+        return nodes[i];
+      }
+    }
+    return null;
+  }
+  function element(tag, attributes, text) {
+    var node = document.createElement(tag);
+    Object.keys(attributes || {}).forEach(function(name) {
+      var value = attributes[name];
+      if (value !== null && value !== void 0 && value !== false) {
+        node.setAttribute(name, value);
+      }
+    });
+    if (text !== void 0 && text !== null) {
+      node.textContent = text;
+    }
+    return node;
+  }
+  function addClass(node, names) {
+    split(names).forEach(function(name) {
+      node.classList.add(name);
+    });
+    return node;
+  }
+  function removeClass(node, names) {
+    split(names).forEach(function(name) {
+      node.classList.remove(name);
+    });
+    return node;
+  }
+  function toggleClass(node, names, state) {
+    split(names).forEach(function(name) {
+      if (state === void 0) {
+        node.classList.toggle(name);
+      } else {
+        node.classList.toggle(name, !!state);
+      }
+    });
+    return node;
+  }
+  function split(names) {
+    return String(names || "").split(/\s+/).filter(Boolean);
+  }
+  function dropEmptyClass(node) {
+    if (!node.getAttribute("class")) {
+      node.removeAttribute("class");
+    }
+    return node;
+  }
 
-$.fn.gridEditor.containers.popup = function(ge) {
-
+  // src/js/plugins/grideditor.popup.js
+  Object.assign(GridEditor.locales.en, {
+    "container.add_popup": "Popup",
+    "container.popup_title": "Title",
+    "container.popup_trigger": "Open",
+    "tool.toggle_popup": "Fold this popup away while editing"
+  });
+  GridEditor.containers.popup = function(ge) {
     function popupIdOf(container) {
-        return container.attr('data-ge-popup-id');
+      return container.getAttribute("data-ge-popup-id");
     }
-
+    function popupExists(id) {
+      return all(ge.canvas, "[data-ge-popup-id]").some(function(popup) {
+        return popupIdOf(popup) === id;
+      });
+    }
     function wirePopupTriggers() {
-        ge.canvas.find('[data-ge-popup-target]').each(function() {
-            var trigger = $(this).addClass('ge-popup-trigger');
-            var wanted = trigger.attr('data-ge-popup-target');
-
-            // Bootstrap's own attributes are written at getHtml time, not
-            // while editing, so a click here cannot open a real modal
-            trigger.removeAttr('data-bs-toggle').removeAttr('data-bs-target');
-
-            if (ge.canvas.find('[data-ge-popup-id="' + wanted + '"]').length) {
-                trigger.removeClass('ge-popup-orphan');
-                return;
-            }
-
-            var nearby = trigger.closest('.column').find('[data-ge-popup-id]');
-
-            if (nearby.length === 1) {
-                trigger.attr('data-ge-popup-target', popupIdOf(nearby)).removeClass('ge-popup-orphan');
-                return;
-            }
-
-            trigger.addClass('ge-popup-orphan');
-
-            ge.operate(function() {
-                ge.emit('popup-orphan', ge.payloadFor('popup', trigger, {
-                    parent: trigger.parent(),
-                    source: 'api',
-                    missing: wanted,
-                }));
-            });
+      all(ge.canvas, "[data-ge-popup-target]").forEach(function(trigger) {
+        addClass(trigger, "ge-popup-trigger");
+        var wanted = trigger.getAttribute("data-ge-popup-target");
+        trigger.removeAttribute("data-bs-toggle");
+        trigger.removeAttribute("data-bs-target");
+        if (popupExists(wanted)) {
+          removeClass(trigger, "ge-popup-orphan");
+          return;
+        }
+        var column = trigger.closest(".column");
+        var nearby = column ? all(column, "[data-ge-popup-id]") : [];
+        if (nearby.length === 1) {
+          trigger.setAttribute("data-ge-popup-target", popupIdOf(nearby[0]));
+          removeClass(trigger, "ge-popup-orphan");
+          return;
+        }
+        addClass(trigger, "ge-popup-orphan");
+        ge.operate(function() {
+          ge.emit("popup-orphan", ge.payloadFor("popup", trigger, {
+            parent: trigger.parentElement,
+            source: "api",
+            missing: wanted
+          }));
         });
+      });
     }
-
     function writePopupTriggerAttributes() {
-        ge.canvas.find('[data-ge-popup-target]').each(function() {
-            var trigger = $(this);
-            var wanted = trigger.attr('data-ge-popup-target');
-
-            // The warning marking is editing furniture, whether or not
-            // the trigger can be wired up
-            trigger.removeClass('ge-popup-orphan');
-            if (!trigger.attr('class')) { trigger.removeAttr('class'); }
-
-            if (!ge.canvas.find('[data-ge-popup-id="' + wanted + '"]').length) { return; }
-
-            trigger.attr('data-bs-toggle', 'modal').attr('data-bs-target', '#' + wanted);
-        });
+      all(ge.canvas, "[data-ge-popup-target]").forEach(function(trigger) {
+        var wanted = trigger.getAttribute("data-ge-popup-target");
+        removeClass(trigger, "ge-popup-orphan");
+        dropEmptyClass(trigger);
+        if (!popupExists(wanted)) {
+          return;
+        }
+        trigger.setAttribute("data-bs-toggle", "modal");
+        trigger.setAttribute("data-bs-target", "#" + wanted);
+      });
     }
-
     return {
-        labelKey: 'container.add_popup',
-        paneKind: 'popup',
-
-        // Triggers are markup the host owns, anywhere in the canvas, so they
-        // are looked at whenever the canvas is initialized rather than only
-        // when a popup is touched
-        onInit: wirePopupTriggers,
-        onDeinit: writePopupTriggerAttributes,
-
-        create: function(options) {
-            var id = ge.containerId('popup');
-            var container = $('<div />')
-                .attr('data-ge-container', 'popup')
-                .attr('data-ge-popup-id', id)
-            ;
-
-            if (options.trigger !== false) {
-                $('<button type="button" class="btn btn-primary ge-popup-trigger" />')
-                    .attr('data-ge-popup-target', id)
-                    .text(options.trigger_label || ge.t('container.popup_trigger'))
-                    .appendTo(container)
-                ;
-            }
-
-            var dialog = $('<div class="modal-dialog" />');
-            if (options.size) { dialog.addClass('modal-' + options.size); }
-
-            $('<div class="modal fade" tabindex="-1" aria-hidden="true" />')
-                .attr('id', id)
-                .append(dialog.append($('<div class="modal-content" />')
-                    .append($('<div class="modal-header" />')
-                        .append($('<h5 class="modal-title" />')
-                            .append($('<span class="ge-pane-label" />')
-                                .text(options.title || ge.t('container.popup_title'))))
-                        .append('<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>'))
-                    .append($('<div class="modal-body" />').append(ge.defaultRegion()))))
-                .appendTo(container)
-            ;
-
-            return container;
-        },
-
-        mark: function(container) {
-            // Nothing in a popup may reach Bootstrap while editing:
-            // the modal is rendered unfolded and static, and a real
-            // modal opening over it would be the editor fighting
-            // itself
-            ge.suspendToggles(container.find('[data-bs-dismiss]'));
-            ge.makeLabelEditable(ge.labelIn(container.find('.modal-title')));
-        },
-
-        unmark: function(container) {
-            ge.resumeToggles(container);
-            container.removeClass('ge-popup-collapsed');
-            ge.unwrapLabels(container);
-        },
-
-        /** A page of unfolded modals stays workable if they can be folded away. */
-        tools: function(drawer, container) {
-            ge.createTool(drawer, ge.t('tool.toggle_popup'), 'ge-toggle-popup', 'bi bi-chevron-bar-contract',
-                function() {
-                    container.toggleClass('ge-popup-collapsed');
-                });
-        },
+      labelKey: "container.add_popup",
+      paneKind: "popup",
+      // Triggers are markup the host owns, anywhere in the canvas, so they
+      // are looked at whenever the canvas is initialized rather than only
+      // when a popup is touched
+      onInit: wirePopupTriggers,
+      onDeinit: writePopupTriggerAttributes,
+      create: function(options) {
+        var id = ge.containerId("popup");
+        var container = element("div", { "data-ge-container": "popup", "data-ge-popup-id": id });
+        if (options.trigger !== false) {
+          container.appendChild(element("button", {
+            type: "button",
+            "class": "btn btn-primary ge-popup-trigger",
+            "data-ge-popup-target": id
+          }, options.trigger_label || ge.t("container.popup_trigger")));
+        }
+        var modal = container.appendChild(element("div", {
+          "class": "modal fade",
+          tabindex: "-1",
+          "aria-hidden": "true",
+          id
+        }));
+        var dialog = modal.appendChild(element("div", { "class": "modal-dialog" }));
+        if (options.size) {
+          addClass(dialog, "modal-" + options.size);
+        }
+        var content = dialog.appendChild(element("div", { "class": "modal-content" }));
+        var header = content.appendChild(element("div", { "class": "modal-header" }));
+        header.appendChild(element("h5", { "class": "modal-title" })).appendChild(element(
+          "span",
+          { "class": "ge-pane-label" },
+          options.title || ge.t("container.popup_title")
+        ));
+        header.appendChild(create('<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>'));
+        content.appendChild(element("div", { "class": "modal-body" })).appendChild(ge.defaultRegion());
+        return container;
+      },
+      mark: function(container) {
+        all(container, "[data-bs-dismiss]").forEach(function(dismiss) {
+          ge.suspendToggles(dismiss);
+        });
+        all(container, ".modal-title").forEach(function(title) {
+          ge.makeLabelEditable(ge.labelIn(title));
+        });
+      },
+      unmark: function(container) {
+        ge.resumeToggles(container);
+        removeClass(container, "ge-popup-collapsed");
+        ge.unwrapLabels(container);
+      },
+      /** A page of unfolded modals stays workable if they can be folded away. */
+      tools: function(drawer, container) {
+        ge.createTool(
+          drawer,
+          ge.t("tool.toggle_popup"),
+          "ge-toggle-popup",
+          "bi bi-chevron-bar-contract",
+          function() {
+            toggleClass(container, "ge-popup-collapsed");
+          }
+        );
+      }
     };
-};
-
-})(jQuery);
+  };
+})();

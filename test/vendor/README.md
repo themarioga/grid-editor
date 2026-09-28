@@ -16,6 +16,11 @@ new fixture at a CDN.
 The versions match the ones the example pages load, so a fixture and an example
 page run against the same libraries.
 
+jQuery is here for the one fixture that needs it, `test/fixtures/adapter.html`:
+the 6.x jQuery API, through `grideditor.jquery.js`. `grid.html`, which most
+suites run on, has no jQuery since 7.0, and `test/fixtures.js` holds it to
+that.
+
 To refresh them, change the version in `update.js`, then:
 
     npm run test:vendor

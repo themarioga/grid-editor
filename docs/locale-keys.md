@@ -295,6 +295,12 @@ all the same: the developer reading them is the one who chose the locale.
 | --- | --- | --- |
 | `error.sortable_missing` | SortableJS not available! … | Logged once when the drag library is not on the page |
 | `warning.setting_removed` | The {setting} setting was removed in 4.0. Use {replacement} instead. | Logged once per removed setting a host still passes |
+| `warning.already_editing` | This element already has an editor: … | An editor asked for on an element that has one; the one it has is handed back |
+| `warning.destroyed` | {method}() was called on an editor that has been destroyed, … | Logged once per method called on a destroyed editor |
+| `warning.duplicate_build` | grideditor.js was loaded twice: … | A second copy of the classic script, which keeps the first `GridEditor` |
+| `warning.plugin_6x` | The "{name}" plugin is written for grid-editor 6 … | `grideditor.jquery.js`: a plugin registered on `$.fn.gridEditor.*`, which is left out |
+| `warning.adapter_no_jquery` | grideditor.jquery.js needs jQuery 4, … | `grideditor.jquery.js` loaded on a page with no jQuery |
+| `warning.oninit_removed` | tinyMCE's oninit option was removed in 7.0 … | A `tinymce.config` that still has `oninit`; `init_instance_callback` is called |
 | `error.tinymce_missing` | tinyMCE not available! … | `content_types: ['tinymce']` with no tinyMCE loaded |
 | `error.ckeditor_missing` | CKEditor not available! … | `content_types: ['ckeditor']` with no CKEditor loaded |
 | `error.summernote_missing` | Summernote not available! … | `content_types: ['summernote']` with no Summernote loaded |

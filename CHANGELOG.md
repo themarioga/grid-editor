@@ -5,6 +5,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [7.0.0] - 2026-09-28
+grid-editor is plain DOM: no jQuery. See [UPGRADING.md](UPGRADING.md).
+
+### Added
+- `GridEditor`: `new GridEditor(target, options)`, `GridEditor.create` and
+  `GridEditor.get`. The methods are the instance's own, and the ones that do
+  something chain.
+- The module build: `dist/grideditor.esm.js`, and each plugin and locale as
+  a module that registers as it is imported. `package.json` has `module`,
+  `exports` and `types`.
+- `dist/grideditor.d.ts`: the public API's types.
+- `grideditor.jquery.js`, the adapter: the 6.x jQuery API, unchanged, for a
+  page that loads jQuery 4.
+- `GridEditor.Sortable` and `GridEditor.bootstrap`, for an app that imports
+  SortableJS and Bootstrap rather than loading them as globals.
+- `nodes` in `after-edit-html`'s payload: every element written.
+
+### Changed
+- Events are DOM events on the canvas, `CustomEvent`s with the payload as
+  their `detail`; they bubble. Payloads, `create*` results, the plugin handle
+  and every plugin hook give and take elements.
+- The classic scripts are `dist/grideditor.js`, `.min.js` and
+  `grideditor.bundle.min.js`; the `jquery.grideditor*` names are gone.
+- A `<script>` in html the editor writes is not run in the editor.
+- A listener that throws no longer stops the operation.
+- A second editor asked for on an element hands back the first, and warns.
+- Plugins register on `GridEditor.containers`, `.features`, `.utilities` and
+  `.texts`; the build is esbuild, from ES module sources.
+- `error.ckeditor_missing` no longer mentions a jQuery adapter, and
+  `error.summernote_missing` says summernote needs jQuery.
+
+### Removed
+- jQuery as a dependency. Only the summernote plugin uses it, since
+  summernote does.
+- `remove()`, the alias of `destroy()` deprecated since 3.1.
+- `$.fn.gridEditor.RTEs`, ignored since 6.0.
+- tinyMCE's `oninit` option, the name tinyMCE used before 6, kept until now: ignored, with a warning.
+
+### Fixed
+- `custom_filter` given as a function or an array of them runs.
+- `destroy()`, or `setLocale()`, with a Bootstrap modal open or on its way in
+  or out - the settings panel with `settings_panel: 'modal'`, or the delete
+  confirmation - threw from Bootstrap's transition and left the page's body
+  locked, with no scrolling. The modal is closed first now, and taken away
+  once Bootstrap has hidden it.
+
+
 ## [6.0.0] - 2026-09-28
 ### Removed
 - The *Add text* tool in each column's drawer, and its `tool.add_text` and

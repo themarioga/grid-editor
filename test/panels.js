@@ -15,26 +15,52 @@ var HELPERS = `
     console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
 
     window.startWith = function(overrides) {
-        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row" id="the-row"><div class="col-md-6" id="first"><p>First</p></div>' +
             '<div class="col-md-6" id="second"><p>Second</p></div></div>'
         );
         window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['textalign']) }, overrides || {}));
     };
 
+    /** A column's settings panel, wherever it is: in its drawer, or open outside the canvas. */
+    window.detailsOf = function(id) {
+        const home = document.querySelector('#' + id + ' > .ge-tools-drawer > .ge-details');
+        if (home) { return home; }
+        const node = document.getElementById(id);
+        return node && node.classList.contains('ge-settings-target')
+            ? document.querySelector('body > .ge-settings-panel .ge-settings-body > .ge-details')
+            : null;
+    };
+
+    /** Type into a field of a panel, as the user does. */
+    window.type = function(field, value) {
+        field.value = value;
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    /** Where a node's element is among its parent's element children. */
+    window.indexOf = function(node) {
+        return node ? Array.from(node.parentElement.children).indexOf(node) : -1;
+    };
+
+    window.gearOf = function(selector) { document.querySelector(selector).click(); };
+
     /** What is open, and where the first column's panel is. */
     window.state = function() {
-        const panel = jQuery('body > .ge-settings-panel').filter(function() {
-            return jQuery(this).is('.show') || jQuery(this).css('display') === 'block' && !jQuery(this).is('.modal');
+        const panel = Array.from(document.querySelectorAll('body > .ge-settings-panel')).filter(function(each) {
+            return each.classList.contains('show') ||
+                getComputedStyle(each).display === 'block' && !each.classList.contains('modal');
         });
-        const details = jQuery('#first').data('ge-details');
+        const details = window.detailsOf('first');
         return {
-            open: panel.map(function() { return this.className.match(/ge-settings-(offcanvas|popover|modal)/)[1]; }).get(),
-            title: panel.find('.ge-settings-title').text(),
-            detailsInPanel: details.closest('.ge-settings-panel').length === 1,
-            detailsHome: details.parent().is('#first > .ge-tools-drawer'),
-            target: jQuery('.ge-settings-target').map(function() { return this.id; }).get().join(','),
+            open: panel.map(function(each) { return each.className.match(/ge-settings-(offcanvas|popover|modal)/)[1]; }),
+            title: panel.map(function(each) {
+                return Array.from(each.querySelectorAll('.ge-settings-title')).map(function(title) { return title.textContent; }).join('');
+            }).join(''),
+            detailsInPanel: !!details && !!details.closest('.ge-settings-panel'),
+            detailsHome: !!details && details.parentElement.matches('#first > .ge-tools-drawer'),
+            target: Array.from(document.querySelectorAll('.ge-settings-target')).map(function(node) { return node.id; }).join(','),
         };
     };
     return true;
@@ -61,8 +87,7 @@ async function modeTests(t, mode) {
 
     var closed = await page.eval(`
         startWith(${mode === 'default' ? '{}' : JSON.stringify({ settings_panel: mode })});
-        const drawer = jQuery('#first > .ge-tools-drawer');
-        window.detailsIndex = drawer.children().index(jQuery('#first').data('ge-details'));
+        window.detailsIndex = indexOf(document.querySelector('#first > .ge-tools-drawer > .ge-details'));
         return state();
     `);
     var name = mode === 'default' ? 'offcanvas' : mode;
@@ -79,20 +104,22 @@ async function modeTests(t, mode) {
         opened);
 
     var edited = await page.eval(`
-        const details = jQuery('#first').data('ge-details');
-        details.find('.ge-id').val('renamed').trigger('change');
-        details.find('.ge-classes').val('my-app-class').trigger('change');
-        return { id: jQuery('#myGrid .column').first().attr('id'), classes: jQuery('#myGrid .column').first().attr('class') };
+        const details = window.detailsOf('first');
+        type(details.querySelector('.ge-id'), 'renamed');
+        type(details.querySelector('.ge-classes'), 'my-app-class');
+        const column = document.querySelector('#myGrid .column');
+        return { id: column.getAttribute('id'), classes: column.getAttribute('class') };
     `);
     t.check(label + ': its fields write to the node as in the drawer',
         edited.id === 'renamed' && /my-app-class/.test(edited.classes), edited);
-    await page.eval(`jQuery('#renamed').attr('id', 'first'); return true;`);
+    await page.eval(`document.querySelector('#renamed').setAttribute('id', 'first'); return true;`);
 
     var reviewed = await page.eval(`
-        const before = jQuery('#first').data('ge-details').find('.ge-utilities-toggle').text();
-        jQuery('#myGrid').gridEditor('changeView', 'md');
-        const after = jQuery('#first').data('ge-details').find('.ge-utilities-toggle').text();
-        jQuery('#myGrid').gridEditor('changeView', 'all');
+        const toggle = function() { return window.detailsOf('first').querySelector('.ge-utilities-toggle').textContent; };
+        const before = toggle();
+        window.fixture.editor().changeView('md');
+        const after = toggle();
+        window.fixture.editor().changeView('all');
         return { before: before, after: after };
     `);
     t.check(label + ': a view change reaches the fields while they are outside the canvas',
@@ -107,7 +134,7 @@ async function modeTests(t, mode) {
     }
     var switched = await page.eval(`
         const s = state();
-        s.secondIn = jQuery('#second').data('ge-details').closest('.ge-settings-panel').length === 1;
+        s.secondIn = !!window.detailsOf('second') && !!window.detailsOf('second').closest('.ge-settings-panel');
         return s;
     `);
     t.check(label + ': another gear puts the first panel back in its drawer and shows the second',
@@ -116,14 +143,14 @@ async function modeTests(t, mode) {
 
     // Closed the way each is closed
     if (mode === 'modal') {
-        await page.eval(`jQuery('body > .ge-settings-modal .modal-footer .ge-settings-close').trigger('click'); return true;`);
+        await page.eval(`document.querySelector('body > .ge-settings-modal .modal-footer .ge-settings-close').click(); return true;`);
     } else {
         await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return true;`);
     }
     await t.sleep(600);
     var shut = await page.eval(`
         const s = state();
-        s.index = jQuery('#first > .ge-tools-drawer').children().index(jQuery('#first').data('ge-details'));
+        s.index = indexOf(document.querySelector('#first > .ge-tools-drawer > .ge-details'));
         return s;
     `);
     t.check(label + ': closing puts the panel back where it was in its drawer, and unmarks the node',
@@ -132,7 +159,7 @@ async function modeTests(t, mode) {
 
     await clickGear(t, page, 'first', true);
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         return { html: /ge-settings|ge-details|ge-id/.test(html) };
     `);
     // A modal still fading in is closed once it has: Bootstrap would ignore
@@ -184,12 +211,19 @@ async function edgeTests(t) {
 
     var deleted = await page.eval(`
         startWith({ settings_panel: 'offcanvas', confirm_delete: false });
-        jQuery(${JSON.stringify(gear('first'))}).trigger('click');
+        gearOf(${JSON.stringify(gear('first'))});
         const open = state().open.join(',');
-        jQuery('#first > .ge-tools-drawer > .ge-delete-column').trigger('click');
+        document.querySelector('#first > .ge-tools-drawer > .ge-delete-column').click();
         return new Promise(function(resolve) {
             setTimeout(function() {
-                resolve({ open: open, after: jQuery('body > .ge-settings-panel.show').length, left: jQuery('body .ge-details').closest('.ge-settings-panel').length });
+                resolve({
+                    open: open,
+                    after: document.querySelectorAll('body > .ge-settings-panel.show').length,
+                    // The panels still holding a node's details, each counted once
+                    left: new Set(Array.from(document.querySelectorAll('body .ge-details'))
+                        .map(function(details) { return details.closest('.ge-settings-panel'); })
+                        .filter(Boolean)).size,
+                });
             }, 800);
         });
     `);
@@ -200,11 +234,13 @@ async function edgeTests(t) {
         const bootstrapWas = window.bootstrap;
         window.bootstrap = undefined;
         startWith({ settings_panel: 'modal' });
-        jQuery(${JSON.stringify(gear('first'))}).trigger('click');
-        const opened = { shown: jQuery('body > .ge-settings-modal').is('.show'), backdrop: jQuery('body > .ge-settings-backdrop').length };
-        jQuery('body > .ge-settings-backdrop').trigger('click');
-        const closed = { shown: jQuery('body > .ge-settings-modal').is('.show'), backdrop: jQuery('body > .ge-settings-backdrop').length, home: state().detailsHome };
-        jQuery('#myGrid').gridEditor('destroy');
+        gearOf(${JSON.stringify(gear('first'))});
+        const shown = function() { return !!document.querySelector('body > .ge-settings-modal.show'); };
+        const backdrops = function() { return document.querySelectorAll('body > .ge-settings-backdrop'); };
+        const opened = { shown: shown(), backdrop: backdrops().length };
+        backdrops().forEach(function(backdrop) { backdrop.click(); });
+        const closed = { shown: shown(), backdrop: backdrops().length, home: state().detailsHome };
+        window.fixture.editor().destroy();
         window.bootstrap = bootstrapWas;
         return { opened: opened, closed: closed };
     `);
@@ -215,7 +251,7 @@ async function edgeTests(t) {
     var wrong = await page.eval(`
         window.warnings = [];
         startWith({ settings_panel: 'sidebar' });
-        jQuery(${JSON.stringify(gear('first'))}).trigger('click');
+        gearOf(${JSON.stringify(gear('first'))});
         return { open: state().open, warned: window.warnings.some(function(w) { return /settings_panel "sidebar"/.test(w); }) };
     `);
     t.check('a settings_panel it does not know warns and opens the offcanvas',
@@ -231,20 +267,20 @@ async function edgeTests(t) {
     await page.waitFor(`window.spanishLoaded`, { label: 'the Spanish locale' });
 
     var relocalized = await page.eval(`
-        jQuery('#myGrid').gridEditor('setLocale', 'es');
-        jQuery(${JSON.stringify(gear('first'))}).trigger('click');
+        window.fixture.editor().setLocale('es');
+        gearOf(${JSON.stringify(gear('first'))});
         const s = state();
-        const panels = jQuery('body > .ge-settings-offcanvas').length;
-        jQuery('#myGrid').gridEditor('setLocale', 'en');
+        const panels = document.querySelectorAll('body > .ge-settings-offcanvas').length;
+        window.fixture.editor().setLocale('en');
         return { title: s.title, panels: panels };
     `);
     t.check('setLocale rebuilds the panels in the new language',
         relocalized.title === 'Ajustes: Columna' && relocalized.panels === 1, relocalized);
 
     var destroyed = await page.eval(`
-        jQuery(${JSON.stringify(gear('first'))}).trigger('click');
-        jQuery('#myGrid').gridEditor('destroy');
-        return { panels: jQuery('body > .ge-settings-panel').length };
+        gearOf(${JSON.stringify(gear('first'))});
+        window.fixture.editor().destroy();
+        return { panels: document.querySelectorAll('body > .ge-settings-panel').length };
     `);
     t.check('destroy takes the panels away', destroyed.panels === 0, destroyed);
 

@@ -1,6 +1,6 @@
 /**
  * Browser tests for text blocks and what the text editor plugins share: the
- * text feature every editor's file carries, its $.fn.gridEditor.texts
+ * text feature every editor's file carries, its GridEditor.texts
  * registry, and 5.x's $.fn.gridEditor.RTEs, which 6.0 removed.
  *
  * These run offline, on the fixture, with a stand-in for tinyMCE that has
@@ -25,10 +25,19 @@ var SETUP = `
 
     window.fakeTinymce = {
         started: 0,
+        open: new Map(), // content area -> the editor open on it
+        /** The editor open on a content area (an element), or null. */
+        editorFor: function(area) {
+            return window.fakeTinymce.open.get(area) || null;
+        },
         init: function(config) {
             window.fakeTinymce.started++;
             const editor = { removed: false, ui: { show: function() {} }, on: function() {}, focus: function() {},
-                remove: function() { editor.removed = true; } };
+                remove: function() {
+                    editor.removed = true;
+                    window.fakeTinymce.open.delete(config.target);
+                } };
+            window.fakeTinymce.open.set(config.target, editor);
             config.init_instance_callback.call(editor, editor);
         },
     };
@@ -37,8 +46,17 @@ var SETUP = `
     // Two texts of the first content type started with, as the editor saved
     // them: loose markup would be the host's plain content. With no content
     // types there is no type to give them, and they are plain.
+    window.q = function(selector) { return document.querySelector(selector); };
+    window.qa = function(selector) { return Array.from(document.querySelectorAll(selector)); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.firstArea = function() { return q('#myGrid .ge-content'); };
+    /** The element children of a node, but the editor's drawers and handles. */
+    window.blocksIn = function(node) {
+        return Array.from(node.children).filter(function(child) { return !child.matches('.ge-tools-drawer, .ge-resize-handle'); });
+    };
+
     window.restart = function(overrides) {
-        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
+        if (ge()) { ge().destroy(); }
         const settings = Object.assign({}, window.fixture.settings, { content_types: ['tinymce'] }, overrides || {});
         // content_types: undefined is the editor's own default, every editor loaded
         if (settings.content_types === undefined) { delete settings.content_types; }
@@ -46,11 +64,10 @@ var SETUP = `
         const text = function(html) {
             return type ? '<div class="ge-content ge-content-type-' + type + '" data-ge-content-type="' + type + '">' + html + '</div>' : html;
         };
-        jQuery('#myGrid').html(
+        q('#myGrid').innerHTML =
             '<div class="row"><div class="col-lg-6">' + text('<p>Left</p>') + '</div>' +
-            '<div class="col-lg-6">' + text('<p>Right</p>') + '</div></div>'
-        );
-        jQuery('#myGrid').gridEditor(settings);
+            '<div class="col-lg-6">' + text('<p>Right</p>') + '</div></div>';
+        GridEditor.create('#myGrid', settings);
     };
     return true;
 `;
@@ -63,14 +80,14 @@ async function bundleTests(t) {
     await page.eval(SETUP);
 
     var bundle = await page.eval(`
-        const source = await (await fetch('/dist/jquery.grideditor.js')).text();
+        const source = await (await fetch('/dist/grideditor.js')).text();
         restart();
-        jQuery('#myGrid .ge-content').eq(0).trigger('click');
+        firstArea().click();
         return {
             carries: /texts\\.(tinymce|ckeditor|summernote)\\s*=/.test(source),
-            marked: !!$.fn.gridEditor.texts.tinymce.bundled,
+            marked: !!GridEditor.texts.tinymce.bundled,
             started: window.fakeTinymce.started,
-            attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce'),
+            attached: !!window.fakeTinymce.editorFor(firstArea()),
             warned: (function() { ${BUNDLED} })(),
         };
     `);
@@ -79,8 +96,8 @@ async function bundleTests(t) {
 
     var filtered = await page.eval(`
         restart({ plugins: ['tabs'] });
-        jQuery('#myGrid .ge-content').eq(0).trigger('click');
-        return { attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce') };
+        firstArea().click();
+        return { attached: !!window.fakeTinymce.editorFor(firstArea()) };
     `);
     t.check('the plugins setting does not turn a text editor off: content_types chooses it',
         filtered.attached, filtered);
@@ -88,22 +105,22 @@ async function bundleTests(t) {
     var missing = await page.eval(`
         restart();
         window.tinymce = undefined;
-        const area = jQuery('#myGrid .ge-content').eq(0);
-        area.trigger('click');
+        const area = firstArea();
+        area.click();
         const without = {
-            active: area.hasClass('ge-rte-active'),
+            active: area.classList.contains('ge-rte-active'),
             error: window.errorsLogged.some(function(e) { return /tinyMCE not available/.test(e); }),
         };
         window.tinymce = window.fakeTinymce;
-        area.trigger('click');
-        return { without: without, laterAttached: !!area.data('ge-tinymce') };
+        area.click();
+        return { without: without, laterAttached: !!window.fakeTinymce.editorFor(area) };
     `);
     t.check('with no tinyMCE, a click says so and starts nothing; a later click, once it is there, does',
         !missing.without.active && missing.without.error && missing.laterAttached, missing);
 
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        return { clean: !/ge-rte-active|contenteditable|class="active/.test(html), detached: !jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce') };
+        const html = ge().getHtml();
+        return { clean: !/ge-rte-active|contenteditable|class="active/.test(html), detached: !window.fakeTinymce.editorFor(firstArea()) };
     `);
     t.check('getHtml stops the editor and leaves the content area clean', exported.clean && exported.detached, exported);
 
@@ -117,43 +134,46 @@ async function contractTests(t) {
 
     var own = await page.eval(`
         window.calls = [];
-        $.fn.gridEditor.texts.simple = function(ge) {
+        GridEditor.texts.simple = function(ge) {
             return {
                 initialContent: '<p>Write here</p>',
-                start: function(block) {
-                    window.calls.push('start');
-                    block.addClass('active');
-                    // An editor rewrites what it takes over, drawers and all
-                    block.find('.ge-tools-drawer').remove();
-                    ge.textReady(block);
+                start: function(blocks) {
+                    blocks.forEach(function(block) {
+                        window.calls.push('start');
+                        block.classList.add('active');
+                        // An editor rewrites what it takes over, drawers and all
+                        block.querySelectorAll('.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
+                        ge.textReady(block);
+                    });
                 },
-                stop: function(block) {
-                    if (block.hasClass('active')) { window.calls.push('stop'); }
-                    block.removeClass('active');
+                stop: function(blocks) {
+                    blocks.forEach(function(block) {
+                        if (block.classList.contains('active')) { window.calls.push('stop'); }
+                        block.classList.remove('active');
+                    });
                 },
             };
         };
         // A plugin that puts something of its own inside the text, and needs
         // telling when an editor has rewritten it
         window.readyFor = [];
-        $.fn.gridEditor.features.probe = function() {
-            return { onContentReady: function(area) { window.readyFor.push(area.attr('data-ge-content-type')); } };
+        GridEditor.features.probe = function() {
+            return { onContentReady: function(area) { window.readyFor.push(area.getAttribute('data-ge-content-type')); } };
         };
         restart({ content_types: ['simple'], plugins: window.fixture.plugins(['probe']) });
-        delete $.fn.gridEditor.features.probe;
+        delete GridEditor.features.probe;
 
-        const area = jQuery('#myGrid .ge-content').eq(0);
-        const ge = jQuery('#myGrid').data('grideditor');
-        area.trigger('click');
+        const area = firstArea();
+        area.click();
         const drawerBack = window.readyFor.join(',') === 'simple' ? 1 : 0;
 
-        const column = ge.createColumn(6, { appendTo: jQuery('#myGrid .row').first() });
-        const empty = column.children().not('.ge-tools-drawer, .ge-resize-handle').length;
-        const withContent = ge.createColumn(6, { content: '<p>Given</p>', appendTo: jQuery('#myGrid .row').first() })
-            .children('.ge-text-block').children('.ge-content');
-        const fresh = { empty: empty, type: withContent.attr('data-ge-content-type'), html: withContent.html() };
+        const column = ge().createColumn(6, { appendTo: q('#myGrid .row') });
+        const empty = blocksIn(column).length;
+        const withContent = ge().createColumn(6, { content: '<p>Given</p>', appendTo: q('#myGrid .row') })
+            .querySelector(':scope > .ge-text-block > .ge-content');
+        const fresh = { empty: empty, type: withContent.getAttribute('data-ge-content-type'), html: withContent.innerHTML };
 
-        jQuery('#myGrid').gridEditor('getHtml');
+        ge().getHtml();
         return { calls: window.calls.slice(), drawerBack: drawerBack, fresh: fresh, warnings: window.warnings.slice() };
     `);
     t.check('a text editor registered under texts is started on a click and stopped on deinit',
@@ -166,34 +186,12 @@ async function contractTests(t) {
         !own.warnings.some(function(w) { return /deprecated/.test(w); }), own.warnings);
 
     var legacy = await page.eval(`
-        window.warnings = [];
-        window.legacyCalls = [];
-        $.fn.gridEditor.RTEs.legacy = {
-            init: function() { window.legacyCalls.push('init'); },
-            deinit: function() { window.legacyCalls.push('deinit'); },
-            initialContent: '<p>Legacy</p>',
-        };
-        $.fn.gridEditor.RTEs.tinymce = { init: function() { window.legacyCalls.push('shadow'); }, deinit: function() {} };
-        restart({ content_types: ['legacy', 'tinymce'] });
-        const legacyArea = jQuery('#myGrid .ge-content').eq(0);
-        legacyArea.trigger('click');
-        const orphan = legacyArea.parent().find('> .ge-tools-drawer > .ge-text-missing').length;
-        jQuery('#myGrid').gridEditor('getHtml');
-        restart();
-        jQuery('#myGrid .ge-content').eq(0).trigger('click');
-        delete $.fn.gridEditor.RTEs.legacy;
-        delete $.fn.gridEditor.RTEs.tinymce;
-        return {
-            calls: window.legacyCalls.slice(),
-            orphan: orphan,
-            attached: !!jQuery('#myGrid .ge-content').eq(0).data('ge-tinymce'),
-            removed: window.warnings.filter(function(w) { return /RTEs was removed in 6\.0/.test(w); }).length,
-        };
+        // No jQuery on this page, so no $.fn.gridEditor.RTEs either; the
+        // adapter's side is test/adapter.js's
+        return { rtes: window.jQuery ? typeof window.jQuery.fn.gridEditor.RTEs : 'undefined', registry: typeof GridEditor.RTEs };
     `);
-    t.check('an integration registered under 5.x\'s RTEs is ignored: its texts are a type nobody edits',
-        legacy.calls.length === 0 && legacy.orphan === 1 && legacy.attached, legacy);
-    t.check('and each editor says once that RTEs was removed in 6.0',
-        legacy.removed === 2, legacy);
+    t.check('5.x\'s RTEs registry, deprecated since 6.0, is gone in 7.0',
+        legacy.rtes === 'undefined' && legacy.registry === 'undefined', legacy);
 
     var errors = page.errors();
     t.check('the contract tests logged no errors', errors.length === 0, errors.slice(0, 5));
@@ -204,22 +202,25 @@ async function contractTests(t) {
  * it opens by marking the content area and closes by unmarking it.
  */
 var SIMPLE_EDITOR = `
-    $.fn.gridEditor.texts.simple = function(ge) {
+    GridEditor.texts.simple = function(ge) {
         return {
             labelKey: 'text.simple_label',
             initialContent: '<p>Simple</p>',
-            start: function(block) { block.addClass('active'); ge.textReady(block); },
-            stop: function(block) { block.removeClass('active'); },
+            start: function(blocks) { blocks.forEach(function(block) { block.classList.add('active'); ge.textReady(block); }); },
+            stop: function(blocks) { blocks.forEach(function(block) { block.classList.remove('active'); }); },
         };
     };
-    $.fn.gridEditor.locales.en['text.simple_label'] = 'Simple';
+    GridEditor.locales.en['text.simple_label'] = 'Simple';
 
     window.events = [];
     window.listen = function() {
-        jQuery('#myGrid').on('grideditor:before-add grideditor:after-add grideditor:before-add-text grideditor:after-add-text ' +
-            'grideditor:before-delete grideditor:after-delete grideditor:before-move grideditor:after-move', function(e, payload) {
-            window.events.push({ type: e.type.replace('grideditor:', ''), kind: payload.kind, source: payload.source,
-                isContent: payload.node.is('.ge-content') });
+        ['before-add', 'after-add', 'before-add-text', 'after-add-text',
+            'before-delete', 'after-delete', 'before-move', 'after-move'].forEach(function(name) {
+            document.querySelector('#myGrid').addEventListener('grideditor:' + name, function(e) {
+                const payload = e.detail;
+                window.events.push({ type: e.type.replace('grideditor:', ''), kind: payload.kind, source: payload.source,
+                    isContent: payload.node.matches('.ge-content') });
+            });
         });
     };
     return true;
@@ -228,9 +229,9 @@ var SIMPLE_EDITOR = `
 /** The tools in a text block's drawer, by their first class. */
 var TOOLS = `
     window.toolsOf = function(block) {
-        return block.children('.ge-tools-drawer').children('a').map(function() {
-            return jQuery(this).attr('class').split(' ')[0];
-        }).get().join(',');
+        return Array.from(block.querySelectorAll(':scope > .ge-tools-drawer > a')).map(function(tool) {
+            return tool.getAttribute('class').split(' ')[0];
+        }).join(',');
     };
     return true;
 `;
@@ -243,16 +244,16 @@ async function blockTests(t) {
 
     var drawer = await page.eval(`
         restart({ confirm_delete: false });
-        const blocks = jQuery('#myGrid .column > .ge-text-block');
-        const first = blocks.first();
+        const blocks = qa('#myGrid .column > .ge-text-block');
+        const first = blocks[0];
         return {
             blocks: blocks.length,
-            areas: jQuery('#myGrid .ge-content').length,
-            everyWrapped: jQuery('#myGrid .ge-content').get().every(function(area) { return jQuery(area).parent().is('.ge-text-block'); }),
+            areas: qa('#myGrid .ge-content').length,
+            everyWrapped: qa('#myGrid .ge-content').every(function(area) { return area.parentElement.matches('.ge-text-block'); }),
             tools: toolsOf(first),
-            info: first.find('> .ge-tools-drawer > .ge-text-info').length,
-            editor: first.find('> .ge-tools-drawer .ge-details .ge-text-editor').text(),
-            drawerOutside: first.children('.ge-content').find('.ge-tools-drawer').length === 0,
+            info: first.querySelectorAll(':scope > .ge-tools-drawer > .ge-text-info').length,
+            editor: first.querySelector(':scope > .ge-tools-drawer .ge-details .ge-text-editor').textContent,
+            drawerOutside: first.querySelector(':scope > .ge-content').querySelectorAll('.ge-tools-drawer').length === 0,
         };
     `);
     t.check('each content area in a column is a text block while editing, its drawer beside it and not inside',
@@ -261,16 +262,18 @@ async function blockTests(t) {
         drawer.tools === 'ge-move,ge-settings,ge-delete-text' && drawer.info === 0 && drawer.editor === 'EditortinyMCE', drawer);
 
     var exported = await page.eval(`
-        const block = jQuery('#myGrid .ge-text-block').first();
-        block.find('> .ge-tools-drawer .ge-details .ge-id').val('intro').trigger('change');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const block = q('#myGrid .ge-text-block');
+        const id = block.querySelector(':scope > .ge-tools-drawer .ge-details .ge-id');
+        id.value = 'intro';
+        id.dispatchEvent(new Event('change', { bubbles: true }));
+        const html = ge().getHtml();
         const root = document.createElement('div');
         root.innerHTML = html;
         return {
             wrappers: /ge-text-block|ge-text-drawer/.test(html),
             direct: Array.from(root.querySelectorAll('.column > .ge-content')).length,
             id: root.querySelector('.ge-content').id,
-            rewrapped: jQuery('#myGrid .ge-text-block').length,
+            rewrapped: qa('#myGrid .ge-text-block').length,
         };
     `);
     t.check('getHtml has no text block: the content area is back in its column, with the id its panel gave it',
@@ -279,14 +282,15 @@ async function blockTests(t) {
     var added = await page.eval(`
         window.events = [];
         listen();
-        const column = jQuery('#myGrid .column').first();
-        jQuery('#myGrid').data('grideditor').createText({ appendTo: column });
-        const last = column.children().last();
+        const column = q('#myGrid .column');
+        ge().createText({ appendTo: column });
+        const last = column.lastElementChild;
+        const lastArea = last.querySelector(':scope > .ge-content');
         return {
-            tools: jQuery('#myGrid .column > .ge-tools-drawer > .ge-add-text').length,
-            last: last.is('.ge-text-block'),
-            html: last.children('.ge-content').html(),
-            type: last.children('.ge-content').attr('data-ge-content-type'),
+            tools: qa('#myGrid .column > .ge-tools-drawer > .ge-add-text').length,
+            last: last.matches('.ge-text-block'),
+            html: lastArea.innerHTML,
+            type: lastArea.getAttribute('data-ge-content-type'),
             events: window.events.map(function(e) { return e.type + ':' + e.kind + ':' + e.source + ':' + e.isContent; }),
         };
     `);
@@ -298,15 +302,15 @@ async function blockTests(t) {
 
     var deleted = await page.eval(`
         window.events = [];
-        const block = jQuery('#myGrid .ge-text-block').first();
-        const area = block.children('.ge-content');
-        area.trigger('click');
-        const editor = area.data('ge-tinymce');
-        block.find('> .ge-tools-drawer > .ge-delete-text').trigger('click');
+        const block = q('#myGrid .ge-text-block');
+        const area = block.querySelector(':scope > .ge-content');
+        area.click();
+        const editor = window.fakeTinymce.editorFor(area);
+        block.querySelector(':scope > .ge-tools-drawer > .ge-delete-text').click();
         return new Promise(function(resolve) {
             setTimeout(function() {
                 resolve({
-                    gone: !jQuery.contains(document, block[0]),
+                    gone: !document.contains(block),
                     stopped: !!editor && editor.removed,
                     events: window.events.map(function(e) { return e.type + ':' + e.kind + ':' + e.isContent; }),
                 });
@@ -317,11 +321,11 @@ async function blockTests(t) {
         deleted.gone && deleted.stopped && deleted.events.join(' ') === 'before-delete:text:true after-delete:text:true', deleted);
 
     var empty = await page.eval(`
-        const column = jQuery('#myGrid .column').first();
-        column.children('.ge-text-block').remove();
+        const column = q('#myGrid .column');
+        column.querySelectorAll(':scope > .ge-text-block').forEach(function(block) { block.remove(); });
         return {
-            children: column.children().not('.ge-tools-drawer, .ge-resize-handle').length,
-            room: getComputedStyle(column[0], '::after').minHeight,
+            children: blocksIn(column).length,
+            room: getComputedStyle(column, '::after').minHeight,
         };
     `);
     t.check('a column with nothing in it keeps room to drop a block into',
@@ -330,10 +334,10 @@ async function blockTests(t) {
     var none = await page.eval(`
         restart({ content_types: [] });
         return {
-            addText: jQuery('#myGrid .ge-add-text').length,
-            buttons: jQuery('.ge-mainControls .ge-add-text-button').length,
-            blocks: jQuery('#myGrid .ge-text-block').length,
-            info: jQuery('#myGrid .ge-text-info').length,
+            addText: qa('#myGrid .ge-add-text').length,
+            buttons: qa('.ge-mainControls .ge-add-text-button').length,
+            blocks: qa('#myGrid .ge-text-block').length,
+            info: qa('#myGrid .ge-text-info').length,
         };
     `);
     t.check('with no text editor offered there is no add text tool and no text button; plain content is still a block',
@@ -341,13 +345,14 @@ async function blockTests(t) {
 
     var missing = await page.eval(`
         restart();
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid .ge-content').first().attr('data-ge-content-type', 'ghost').removeClass('ge-content-type-tinymce');
+        ge().destroy();
+        firstArea().setAttribute('data-ge-content-type', 'ghost');
+        firstArea().classList.remove('ge-content-type-tinymce');
         window.fixture.init({ content_types: ['tinymce'] });
-        const area = jQuery('#myGrid .ge-content').first();
-        area.trigger('click');
-        const tool = area.parent().find('> .ge-tools-drawer > .ge-text-missing');
-        return { tool: tool.length, title: tool.attr('title'), active: area.hasClass('ge-rte-active') };
+        const area = firstArea();
+        area.click();
+        const tools = area.parentElement.querySelectorAll(':scope > .ge-tools-drawer > .ge-text-missing');
+        return { tool: tools.length, title: tools[0] && tools[0].getAttribute('title'), active: area.classList.contains('ge-rte-active') };
     `);
     t.check('a text whose editor is not loaded says so in its drawer, and a click starts nothing',
         missing.tool === 1 && /No text editor "ghost"/.test(missing.title) && !missing.active, missing);
@@ -363,14 +368,14 @@ async function choiceTests(t) {
 
     var one = await page.eval(`
         restart();
-        return jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get();
+        return qa('.ge-mainControls .ge-add-text-button').map(function(button) { return button.getAttribute('title'); });
     `);
     t.check('with one text editor offered, the toolbar has one Text button', one.join('|') === 'Text', one);
 
     var two = await page.eval(`
         restart({ content_types: ['tinymce', 'simple', 'nothing-loaded'] });
         return {
-            buttons: jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get(),
+            buttons: qa('.ge-mainControls .ge-add-text-button').map(function(button) { return button.getAttribute('title'); }),
         };
     `);
     t.check('with two, one button each, named after its editor; a type with no plugin is not offered',
@@ -379,14 +384,14 @@ async function choiceTests(t) {
     var clicked = await page.eval(`
         window.events = [];
         listen();
-        const before = jQuery('#myGrid').children('.row').length;
-        jQuery('.ge-mainControls .ge-add-text-button').last().trigger('click');
-        const row = jQuery('#myGrid').children('.row').last();
+        const before = qa('#myGrid > .row').length;
+        qa('.ge-mainControls .ge-add-text-button').pop().click();
+        const row = qa('#myGrid > .row').pop();
         return {
-            rows: jQuery('#myGrid').children('.row').length - before,
-            columns: row.children('.column').length,
-            type: row.find('.ge-content').attr('data-ge-content-type'),
-            blocks: row.find('.ge-content').length,
+            rows: qa('#myGrid > .row').length - before,
+            columns: row.querySelectorAll(':scope > .column').length,
+            type: row.querySelector('.ge-content').getAttribute('data-ge-content-type'),
+            blocks: row.querySelectorAll('.ge-content').length,
             events: window.events.filter(function(e) { return e.type === 'after-add-text'; }).map(function(e) { return e.kind + ':' + e.source; }),
         };
     `);
@@ -396,19 +401,18 @@ async function choiceTests(t) {
 
     var api = await page.eval(`
         window.warnings = [];
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
-        const detached = ge.createText();
-        const placed = ge.createText('simple', { content: '<p>From the API</p>', appendTo: column });
-        const unknown = ge.createText('nothing-loaded');
-        const viaMethod = jQuery('#myGrid').gridEditor('createText', { content: '<p>Method</p>' });
+        const column = q('#myGrid .column');
+        const detached = ge().createText();
+        const placed = ge().createText('simple', { content: '<p>From the API</p>', appendTo: column });
+        const unknown = ge().createText('nothing-loaded');
+        const viaMethod = GridEditor.get('#myGrid').createText({ content: '<p>Method</p>' });
         return {
-            detached: detached.is('.ge-content') && !detached.parent().length && detached.attr('data-ge-content-type') === 'tinymce',
-            detachedHtml: detached.html(),
-            placed: placed.parent().is('.ge-text-block') && placed.closest('.column')[0] === column[0] && placed.html() === '<p>From the API</p>',
+            detached: detached.matches('.ge-content') && !detached.parentElement && detached.getAttribute('data-ge-content-type') === 'tinymce',
+            detachedHtml: detached.innerHTML,
+            placed: placed.parentElement.matches('.ge-text-block') && placed.closest('.column') === column && placed.innerHTML === '<p>From the API</p>',
             unknown: unknown,
             warned: window.warnings.some(function(w) { return /createText: no text editor "nothing-loaded"/.test(w); }),
-            viaMethod: viaMethod && viaMethod.html(),
+            viaMethod: viaMethod && viaMethod.innerHTML,
         };
     `);
     t.check('createText makes a content area of the first editor, or the one named, detached or placed',
@@ -427,9 +431,9 @@ async function dragTests(t) {
 
     await page.eval(`
         restart({ toolbar_drag: true });
-        jQuery('#myGrid .column').eq(0).attr('id', 'left');
-        jQuery('#myGrid .column').eq(1).attr('id', 'right');
-        jQuery('#left > .ge-text-block').attr('id', 'moving');
+        qa('#myGrid .column')[0].id = 'left';
+        qa('#myGrid .column')[1].id = 'right';
+        q('#left > .ge-text-block').id = 'moving';
         window.events = [];
         listen();
         return true;
@@ -441,8 +445,8 @@ async function dragTests(t) {
     await page.drag('#moving > .ge-tools-drawer .ge-move', '#right', { yRatio: 0.9, steps: 16 });
     var moved = await page.eval(`
         return {
-            inRight: jQuery('#right').children('#moving').length,
-            left: jQuery('#left').children('.ge-text-block').length,
+            inRight: qa('#right > #moving').length,
+            left: qa('#left > .ge-text-block').length,
             events: window.events.filter(function(e) { return /move/.test(e.type); })
                 .map(function(e) { return e.type + ':' + e.kind + ':' + e.isContent; }),
         };
@@ -455,8 +459,8 @@ async function dragTests(t) {
     await page.drag('.ge-mainControls .ge-add-text-button', '#left', { yRatio: 0.9 });
     var dropped = await page.eval(`
         return {
-            inLeft: jQuery('#left').children('.ge-text-block').length,
-            rows: jQuery('#myGrid').children('.row').length,
+            inLeft: qa('#left > .ge-text-block').length,
+            rows: qa('#myGrid > .row').length,
             events: window.events.filter(function(e) { return e.type === 'after-add-text'; }).map(function(e) { return e.kind + ':' + e.source; }),
         };
     `);
@@ -478,11 +482,11 @@ async function loadingTests(t) {
 
     var all = await page.eval(`
         restart({ content_types: undefined });
-        const columns = jQuery('#myGrid .column');
+        const columns = qa('#myGrid .column');
         return {
-            buttons: jQuery('.ge-mainControls .ge-add-text-button').map(function() { return jQuery(this).attr('title'); }).get(),
-            addTextPerColumn: columns.get().map(function(col) { return jQuery(col).find('> .ge-tools-drawer > .ge-add-text').length; }),
-            features: Object.keys($.fn.gridEditor.features).filter(function(name) { return name === 'text'; }).length,
+            buttons: qa('.ge-mainControls .ge-add-text-button').map(function(button) { return button.getAttribute('title'); }),
+            addTextPerColumn: columns.map(function(col) { return col.querySelectorAll(':scope > .ge-tools-drawer > .ge-add-text').length; }),
+            features: Object.keys(GridEditor.features).filter(function(name) { return name === 'text'; }).length,
         };
     `);
     t.check('with no content_types, every editor loaded is offered, in the order the page loaded them',
@@ -492,22 +496,21 @@ async function loadingTests(t) {
 
     var none = await page.eval(`
         window.warnings = [];
-        const feature = $.fn.gridEditor.features.text;
-        delete $.fn.gridEditor.features.text;
+        const feature = GridEditor.features.text;
+        delete GridEditor.features.text;
         restart({ content_types: undefined });
-        const ge = jQuery('#myGrid').data('grideditor');
-        const first = ge.createText();
-        const second = ge.createText();
+        const first = ge().createText();
+        const second = ge().createText();
         const result = {
-            buttons: jQuery('.ge-mainControls .ge-add-text-button').length,
-            addText: jQuery('#myGrid .ge-add-text').length,
+            buttons: qa('.ge-mainControls .ge-add-text-button').length,
+            addText: qa('#myGrid .ge-add-text').length,
             first: first,
             second: second,
             warned: window.warnings.filter(function(w) { return /createText needs a text editor plugin/.test(w); }).length,
-            orphans: jQuery('#myGrid .ge-text-missing').length,
+            orphans: qa('#myGrid .ge-text-missing').length,
         };
-        jQuery('#myGrid').gridEditor('destroy');
-        $.fn.gridEditor.features.text = feature;
+        ge().destroy();
+        GridEditor.features.text = feature;
         return result;
     `);
     t.check('with no text editor loaded there is no Text button and no add text tool; createText warns once and makes nothing',
@@ -525,12 +528,11 @@ async function utilityTests(t) {
 
     var aligned = await page.eval(`
         restart({ plugins: window.fixture.plugins(['textalign']) });
-        const ge = jQuery('#myGrid').data('grideditor');
-        const area = jQuery('#myGrid .ge-content').first();
-        const field = area.parent().find('> .ge-tools-drawer .ge-utility[data-ge-family="text-align"]').length;
-        const written = ge.setUtility(area, 'text-align', 'center', 'all');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        return { field: field, written: written, classed: area.hasClass('text-center'), inHtml: /class="ge-content[^"]*text-center/.test(html) };
+        const area = firstArea();
+        const field = area.parentElement.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="text-align"]').length;
+        const written = ge().setUtility(area, 'text-align', 'center', 'all');
+        const html = ge().getHtml();
+        return { field: field, written: written, classed: area.classList.contains('text-center'), inHtml: /class="ge-content[^"]*text-center/.test(html) };
     `);
     t.check('a utility that applies to text has a field in the text\'s panel, and writes on the content area',
         aligned.field === 1 && aligned.written && aligned.classed && aligned.inHtml, aligned);
@@ -545,23 +547,23 @@ async function overlayTests(t) {
     await page.eval(SETUP);
 
     var STATE = `
-        const block = jQuery('#over');
-        const drawer = block.children('.ge-tools-drawer')[0];
+        const block = document.querySelector('#over');
+        const drawer = block.querySelector(':scope > .ge-tools-drawer');
         const style = getComputedStyle(drawer);
         return {
             visibility: style.visibility,
             opacity: parseFloat(style.opacity),
             position: style.position,
-            blockHeight: Math.round(block[0].getBoundingClientRect().height),
-            areaHeight: Math.round(block.children('.ge-content')[0].getBoundingClientRect().height),
-            spans: Math.round(drawer.getBoundingClientRect().width) === Math.round(block[0].getBoundingClientRect().width),
+            blockHeight: Math.round(block.getBoundingClientRect().height),
+            areaHeight: Math.round(block.querySelector(':scope > .ge-content').getBoundingClientRect().height),
+            spans: Math.round(drawer.getBoundingClientRect().width) === Math.round(block.getBoundingClientRect().width),
         };
     `;
 
     // The settings unfold in the drawer here, which is what makes it span
     await page.eval(`
         restart({ settings_panel: 'inline' });
-        jQuery('#myGrid .ge-text-block').first().attr('id', 'over');
+        q('#myGrid .ge-text-block').id = 'over';
         return true;
     `);
     await page.hover('.ge-mainControls');
@@ -576,7 +578,7 @@ async function overlayTests(t) {
     var over = await page.eval(STATE);
     t.check('the pointer over the text shows it', over.visibility === 'visible' && !over.spans, over);
 
-    await page.eval(`jQuery('#over > .ge-content').trigger('click'); return true;`);
+    await page.eval(`document.querySelector('#over > .ge-content').click(); return true;`);
     await page.hover('.ge-mainControls');
     await t.sleep(300);
     var editing = await page.eval(STATE);
@@ -594,10 +596,10 @@ async function overlayTests(t) {
     t.check('the pointer on the drawer itself brings it back whole', reaching.opacity === 1, reaching);
 
     await page.eval(`
-        jQuery('#myGrid').gridEditor('deinit');
-        jQuery('#myGrid').gridEditor('init');
-        jQuery('#myGrid .ge-text-block').first().attr('id', 'over');
-        jQuery('#over > .ge-tools-drawer > .ge-settings').trigger('click');
+        ge().deinit();
+        ge().init();
+        q('#myGrid .ge-text-block').id = 'over';
+        q('#over > .ge-tools-drawer > .ge-settings').click();
         return true;
     `);
     await t.sleep(300);
@@ -605,7 +607,7 @@ async function overlayTests(t) {
     t.check('and while its settings are open, across the text so the panel has room',
         settings.visibility === 'visible' && settings.spans, settings);
 
-    await page.eval(`jQuery('#over > .ge-content').trigger('click'); return true;`);
+    await page.eval(`document.querySelector('#over > .ge-content').click(); return true;`);
     await page.hover('.ge-mainControls');
     await t.sleep(300);
     var settingsWhileEditing = await page.eval(STATE);
@@ -664,9 +666,9 @@ async function drawerDragTests(t) {
     await page.eval(POINTS);
 
     var MARK = `
-        jQuery('#myGrid .column').eq(0).attr('id', 'left');
-        jQuery('#myGrid .column').eq(1).attr('id', 'right');
-        jQuery('#left > .ge-text-block').attr('id', 'moving');
+        qa('#myGrid .column')[0].id = 'left';
+        qa('#myGrid .column')[1].id = 'right';
+        q('#left > .ge-text-block').id = 'moving';
         return true;
     `;
 
@@ -696,7 +698,7 @@ async function drawerDragTests(t) {
     await t.sleep(200);
     points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer', 5, '#right');`);
     await dragBetween(page, points.from, points.to);
-    var byGrip = await page.eval(`return { inRight: jQuery('#right').children('#moving').length, move: jQuery('#moving > .ge-tools-drawer .ge-move').length };`);
+    var byGrip = await page.eval(`return { inRight: qa('#right > #moving').length, move: qa('#moving > .ge-tools-drawer .ge-move').length };`);
     t.check('with drag_handle drawer, a text drags by the grip at the start of its drawer',
         byGrip.inRight === 1 && byGrip.move === 0, byGrip);
 
@@ -705,7 +707,7 @@ async function drawerDragTests(t) {
     await t.sleep(200);
     points = await page.eval(`return pointsFor('#moving > .ge-tools-drawer > .ge-settings', undefined, '#right');`);
     await dragBetween(page, points.from, points.to);
-    var bySettings = await page.eval(`return { inRight: jQuery('#right').children('#moving').length };`);
+    var bySettings = await page.eval(`return { inRight: qa('#right > #moving').length };`);
     t.check('but not by a tool that does something', bySettings.inRight === 0, bySettings);
 
     var errors = page.errors();

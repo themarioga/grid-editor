@@ -13,7 +13,7 @@
  *   <script src="codemirror/mode/javascript/javascript.js"></script>
  *   <script src="codemirror/mode/css/css.js"></script>
  *   <script src="codemirror/mode/htmlmixed/htmlmixed.js"></script>
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.codemirror.min.js"></script>
  *
  * CodeMirror 5 rather than 6: 6 comes as ES modules only, for a bundler,
@@ -21,13 +21,14 @@
  * CodeMirror on the page the source view is the textarea, as before, and
  * the console says why.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'error.codemirror_missing': 'CodeMirror not available! Make sure you loaded the CodeMirror js file; the source is edited in a plain textarea without it.',
 });
 
-$.fn.gridEditor.features.codemirror = function(ge) {
+GridEditor.features.codemirror = function(ge) {
 
     var editor = null;
     var warned = false;
@@ -35,7 +36,7 @@ $.fn.gridEditor.features.codemirror = function(ge) {
     function options() {
         var own = (ge.settings.codemirror && ge.settings.codemirror.config) || {};
 
-        return $.extend({
+        return Object.assign({
             mode: 'htmlmixed',
             lineNumbers: true,
             lineWrapping: true,
@@ -56,10 +57,10 @@ $.fn.gridEditor.features.codemirror = function(ge) {
                 return;
             }
 
-            var height = textarea.height();
+            var height = dom.outerHeight(textarea);
 
-            editor = window.CodeMirror.fromTextArea(textarea[0], options());
-            $(editor.getWrapperElement()).addClass('ge-code-editor');
+            editor = window.CodeMirror.fromTextArea(textarea, options());
+            dom.addClass(editor.getWrapperElement(), 'ge-code-editor');
             editor.setSize(null, height);
             editor.focus();
         },
@@ -75,5 +76,3 @@ $.fn.gridEditor.features.codemirror = function(ge) {
         },
     };
 };
-
-})(jQuery);

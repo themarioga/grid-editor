@@ -1,3 +1,122 @@
+Upgrading from grid-editor `6.*` to `7.*`
+=========================================
+
+One change makes it a major: **grid-editor is plain DOM**. It does not need
+jQuery, its API is a `GridEditor` class, its events are DOM events, and what
+it hands out - to a page and to a plugin - are elements. Markup 6.x saved
+loads as it is, and `getHtml` and `getPlainHtml` give what 6.x gave for it.
+
+* __A page written for 6.x can keep its code.__ Load jQuery 4 and the adapter
+  after the editor, and the 7.x plugins after that:
+
+  ```html
+  <script src="jquery.min.js"></script>
+  <script src="grid-editor/dist/grideditor.min.js"></script>
+  <script src="grid-editor/dist/grideditor.jquery.min.js"></script>
+  <script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
+  ```
+
+  `$(el).gridEditor(...)`, `$(el).gridEditor('method', ...)`, jQuery listeners
+  on `grideditor:*` with `(event, payload)`, `$(el).data('grideditor')`, and
+  the callbacks, `custom_filter` and the host tools' handlers all work as they
+  did, with jQuery objects where 6.x had them. The adapter supports jQuery 4.
+
+* __Or move to the native API__, and drop jQuery:
+
+  | 6.x | 7.0 |
+  | --- | --- |
+  | `$('#g').gridEditor(options)` | `var ge = new GridEditor('#g', options)`, or `GridEditor.create('#g', options)` |
+  | `$('#g').gridEditor('getHtml')` | `ge.getHtml()`, and so for every method |
+  | `$('#g').data('grideditor')` | `GridEditor.get('#g')` |
+  | `$('#g').on('grideditor:after-move', function(e, payload) { … })` | `ge.canvas.addEventListener('grideditor:after-move', function(e) { var payload = e.detail; … })` |
+  | `payload.node.hasClass('locked')` | `payload.node.classList.contains('locked')`: the payload's nodes are elements |
+  | `createRow(...)` returns a jQuery object | returns the element, or `null` |
+  | `{ appendTo: $('#col') }` | `{ appendTo: document.querySelector('#col') }`, or `{ appendTo: '#col' }` |
+  | `custom_filter` gets `$(canvas)` | gets the canvas element |
+  | a host tool's handler gets a jQuery event | gets the DOM event, with `this` the tool |
+  | `$.fn.gridEditor.locales`, `$.fn.gridEditor.t` | `GridEditor.locales`, `GridEditor.t` |
+
+  The methods that do something - `init`, `reset`, `changeView`, `destroy`
+  and the rest - return the editor, to chain. A method called after
+  `destroy()` does nothing and warns once; `getHtml` still reads the element.
+
+* __The files are named for the editor, not for jQuery.__
+
+  | 6.x | 7.0 |
+  | --- | --- |
+  | `dist/jquery.grideditor.js`, `.min.js` | `dist/grideditor.js`, `.min.js` |
+  | `dist/jquery.grideditor.bundle.min.js` | `dist/grideditor.bundle.min.js` |
+  | — | `dist/grideditor.esm.js`, and `dist/plugins/*.esm.js`, `dist/locales/*.esm.js` |
+  | — | `dist/grideditor.jquery.js`, the adapter |
+  | — | `dist/grideditor.d.ts`, the public API's types |
+
+  The plugins and the locales keep their names. `package.json`'s `main` is
+  `dist/grideditor.js`, and `module`, `exports` and `types` point at the rest.
+
+* __In an app built with a bundler__, import it:
+
+  ```javascript
+  import GridEditor from '@themarioga/grid-editor';
+  import '@themarioga/grid-editor/plugins/tabs';   // registers as it is imported
+  import Sortable from 'sortablejs';
+  import * as bootstrap from 'bootstrap';
+
+  GridEditor.Sortable = Sortable;     // there is no window.Sortable in a module app
+  GridEditor.bootstrap = bootstrap;   // nor a window.bootstrap; only its Modal is used
+  ```
+
+  A page loads the classic script or the module build, never both: each is an
+  editor of its own, with its own plugins. Loaded twice, the classic script
+  keeps the first `GridEditor` and says so.
+
+* __Port a plugin written for 6.x.__ The adapter does not keep 6.x plugins
+  working: one registered on `$.fn.gridEditor.containers`, `.features`,
+  `.utilities` or `.texts` is named in a warning and left out. What changes:
+
+  - It registers on `GridEditor.containers`, `.features`, `.utilities` or
+    `.texts`, and adds its strings with `Object.assign(GridEditor.locales.en, …)`.
+    A classic script stops being `(function($) { … })(jQuery)`; loaded before
+    the editor, the shipped ones throw an error saying so.
+  - The handle gives and takes elements. `ge.canvas` is the canvas element;
+    `ge.createTool` returns the tool; `ge.detailsOf`, `ge.drawerOf` and
+    `ge.utilityField` return an element or `null` where 6.x gave an empty set;
+    `ge.toolbarItems` returns an array; `ge.labelIn` returns the label.
+  - Every hook is handed elements: `mark(container)`, `drawerTools(drawer,
+    node, kind)`, `accepts(region, node)`, `onContentReady(area)` and the rest.
+    What a hook makes - `create()`, `addPane()`, a toolbar item's `create()`,
+    a utility's `panel()` - it returns as an element, or `null`.
+  - A text editor's `start(contentAreas)` and `stop(contentAreas)` get an
+    array of content areas.
+  - The `sortable(lists, options)` a plugin's `onSortable` gets takes an
+    element or an array of them, and `options.accepts` is asked with elements.
+  - An event it listens for is a DOM event, the payload in `detail`.
+
+  The shipped plugins in `src/js/plugins/` are ported the same way, and
+  `grideditor.card.js` is still the shortest one to read.
+
+* __What is gone.__ The `remove()` method, 6.x's deprecated alias of
+  `destroy()`; 5.x's `$.fn.gridEditor.RTEs`; and tinyMCE's `oninit` option,
+  which is ignored with a warning - use `init_instance_callback`.
+
+* __What behaves differently.__
+  - A `<script>` in html the editor writes - the source view,
+    `source_textarea`, `createElement`, `createColumn`'s content, a paste - is
+    kept in the markup and does not run in the editor. 6.x wrote through
+    jQuery, which ran it.
+  - A listener that throws no longer stops the operation: the browser reports
+    the error, and the other listeners, the callbacks and the operation go on.
+  - An element that has an editor gets it back when a second one is asked
+    for, with its first options, and a warning. 6.x built a second editor
+    over the first.
+  - A jQuery listener on a page without the adapter gets the DOM event alone,
+    with the payload in `event.originalEvent.detail`.
+  - `custom_filter` given as a function, or as an array, runs: 6.x only ran a
+    function it could find by name.
+
+* __Summernote still needs jQuery__, for summernote itself: its page loads
+  jQuery and summernote as before, and does not need the adapter.
+
+
 Upgrading from grid-editor `5.*` to `6.*`
 =========================================
 

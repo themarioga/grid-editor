@@ -12,15 +12,15 @@ module.exports = {
     description: 'example/custom_editor.html, a text editor of the page\'s own',
     requiresNetwork: true,
     run: async function(t) {
-        var page = await t.page('/example/custom_editor.html', `jQuery('#myGrid').data('grideditor')`);
+        var page = await t.page('/example/custom_editor.html', `window.GridEditor && GridEditor.get('#myGrid')`);
 
         var before = await page.eval(`
             return {
-                shipped: !!$.fn.gridEditor.features.text,
-                plains: jQuery('#myGrid .ge-plain-block').length,
-                ours: jQuery('#myGrid [data-ge-content-type="simpletext"]').parent().children('.ge-tools-drawer').children('a')
-                    .map(function() { return jQuery(this).attr('class').split(' ')[0]; }).get().join(','),
-                button: jQuery('.ge-mainControls [data-ge-feature="simpletext"]').attr('title'),
+                shipped: !!GridEditor.features.text,
+                plains: document.querySelectorAll('#myGrid .ge-plain-block').length,
+                ours: Array.from(document.querySelector('#myGrid [data-ge-content-type="simpletext"]').parentElement
+                    .querySelectorAll(':scope > .ge-tools-drawer > a'), function(a) { return a.getAttribute('class').split(' ')[0]; }).join(','),
+                button: document.querySelector('.ge-mainControls [data-ge-feature="simpletext"]').getAttribute('title'),
             };
         `);
         t.check('with no shipped text editor, the page\'s own declares its type: plain content, and its texts with its drawer',
@@ -29,10 +29,9 @@ module.exports = {
         await page.click('#myGrid .ge-plain-block > .ge-content');
         await t.sleep(200);
         var edited = await page.eval(`
-            const area = jQuery('#myGrid .ge-content').first();
-            area.trigger('focus');
+            document.querySelector('#myGrid .ge-content').focus();
             document.execCommand('insertText', false, ' TYPED-HERE ');
-            const html = jQuery('#myGrid').gridEditor('getHtml');
+            const html = GridEditor.get('#myGrid').getHtml();
             const root = document.createElement('div');
             root.innerHTML = html;
             const first = root.querySelector('.ge-content');

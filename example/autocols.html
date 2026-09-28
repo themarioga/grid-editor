@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <!-- Grid editor CSS -->
@@ -17,12 +16,12 @@
     <!-- The editor, and the sections plugin: equal and auto sizes and
          columns per row are the editor's own, sections are a plugin -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.sections.min.js"></script>
 
     <script>
-        $(function() {
-            $('#myGrid').gridEditor({
+        document.addEventListener('DOMContentLoaded', function() {
+            var editor = new GridEditor('#myGrid', {
                 content_types: [],
 
                 // Sizes are numbers, 'equal' (col) or 'auto' (col-auto), and a
@@ -36,17 +35,18 @@
             });
 
             // A width chosen anywhere - tools, edge, panel - is a resize
-            $('#myGrid').on('grideditor:after-resize', function(e, payload) {
-                $('#last').text('width at ' + payload.breakpoint + ': ' +
+            document.getElementById('myGrid').addEventListener('grideditor:after-resize', function(e) {
+                var payload = e.detail;
+                document.getElementById('last').textContent = 'width at ' + payload.breakpoint + ': ' +
                     (payload.from === null ? 'from the row' : payload.from) + ' → ' +
                     (payload.to === null ? 'inherit' : payload.to) +
                     (payload.cleared && payload.cleared.length ? ' (took off ' + payload.cleared.map(function(entry) {
                         return entry.breakpoint;
-                    }).join(', ') + ')' : ''));
+                    }).join(', ') + ')' : '');
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
             });
         });
     </script>

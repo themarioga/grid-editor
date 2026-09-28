@@ -5,68 +5,85 @@
  * an accordion. What it can ask the editor for is the handle its factory is
  * called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.accordion.min.js"></script>
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'container.add_accordion': 'Accordion',
     'container.add_accordion_item': 'Add item',
     'container.accordion_label': 'Item {number}',
     'confirm.delete_accordion_item': 'Delete this item and everything in it?',
 });
 
-$.fn.gridEditor.containers.accordion = function(ge) {
+GridEditor.containers.accordion = function(ge) {
+
+    // The buttons whose clicks the editor answers itself, bound once each
+    var answered = new WeakSet();
+
+    function collapseOf(item) {
+        return dom.child(item, '.accordion-collapse');
+    }
 
     function staysOpen(container, ignore) {
-        var items = container.find('> .accordion > .accordion-item > .accordion-collapse');
+        var items = dom.all(container, ':scope > .accordion > .accordion-item > .accordion-collapse');
 
-        if (ignore) { items = items.not(ignore.find('> .accordion-collapse')); }
+        if (ignore) {
+            var ignored = collapseOf(ignore);
+            items = items.filter(function(collapse) { return collapse !== ignored; });
+        }
 
-        return items.length > 0 && !items.filter('[data-bs-parent]').length;
+        return items.length > 0 && !items.filter(function(collapse) {
+            return collapse.hasAttribute('data-bs-parent');
+        }).length;
     }
 
     function addAccordionItemTo(container, options) {
         options = options || {};
 
-        var accordion = container.find('> .accordion');
+        var accordion = dom.child(container, '.accordion');
         var id = ge.containerId('acc-item');
-        var number = accordion.children('.accordion-item').length + 1;
+        var number = dom.children(accordion, '.accordion-item').length + 1;
         var open = options.open === undefined ? number === 1 : !!options.open;
         var stayOpen = options.stay_open === undefined ? staysOpen(container) : !!options.stay_open;
 
-        var item = $('<div class="accordion-item ge-accordion-item" />').appendTo(accordion);
+        var item = accordion.appendChild(dom.element('div', { 'class': 'accordion-item ge-accordion-item' }));
 
-        $('<h2 class="accordion-header" />')
-            .append($('<button class="accordion-button" type="button" data-bs-toggle="collapse" />')
-                .attr('data-bs-target', '#' + id)
-                .attr('aria-expanded', open ? 'true' : 'false')
-                .toggleClass('collapsed', !open)
-                .append($('<span class="ge-pane-label" />')
-                    .text(options.label || ge.t('container.accordion_label', { number: number }))))
-            .appendTo(item)
-        ;
+        var header = item.appendChild(dom.element('h2', { 'class': 'accordion-header' }));
+        var button = header.appendChild(dom.element('button', {
+            'class': 'accordion-button',
+            type: 'button',
+            'data-bs-toggle': 'collapse',
+            'data-bs-target': '#' + id,
+            'aria-expanded': open ? 'true' : 'false',
+        }));
+        dom.toggleClass(button, 'collapsed', !open);
+        button.appendChild(dom.element('span', { 'class': 'ge-pane-label' },
+            options.label || ge.t('container.accordion_label', { number: number })));
 
-        var collapse = $('<div class="accordion-collapse collapse" />')
-            .attr('id', id)
-            .attr('data-ge-open', open ? 'true' : 'false')
-            .toggleClass('show', open)
-            .appendTo(item)
-        ;
+        var collapse = item.appendChild(dom.element('div', {
+            'class': 'accordion-collapse collapse',
+            id: id,
+            'data-ge-open': open ? 'true' : 'false',
+        }));
+        dom.toggleClass(collapse, 'show', open);
 
-        if (!stayOpen) { collapse.attr('data-bs-parent', '#' + accordion.attr('id')); }
+        if (!stayOpen) { collapse.setAttribute('data-bs-parent', '#' + accordion.getAttribute('id')); }
 
-        return $('<div class="accordion-body" />').append(ge.defaultRegion()).appendTo(collapse);
+        var body = collapse.appendChild(dom.element('div', { 'class': 'accordion-body' }));
+        body.appendChild(ge.defaultRegion());
+        return body;
     }
 
     function toggleAccordionItem(container, item) {
-        var collapse = item.find('> .accordion-collapse');
-        var opening = collapse.attr('data-ge-open') !== 'true';
+        var collapse = collapseOf(item);
+        var opening = collapse.getAttribute('data-ge-open') !== 'true';
 
         if (opening && !staysOpen(container)) {
-            container.find('> .accordion > .accordion-item').not(item).each(function() {
-                setAccordionItemOpen($(this), false);
+            dom.all(container, ':scope > .accordion > .accordion-item').forEach(function(other) {
+                if (other !== item) { setAccordionItemOpen(other, false); }
             });
         }
 
@@ -74,26 +91,29 @@ $.fn.gridEditor.containers.accordion = function(ge) {
     }
 
     function setAccordionItemOpen(item, open) {
-        item.find('> .accordion-collapse')
-            .attr('data-ge-open', open ? 'true' : 'false')
-            .toggleClass('show', open)
-        ;
-        item.find('> .accordion-header .accordion-button')
-            .toggleClass('collapsed', !open)
-            .attr('aria-expanded', open ? 'true' : 'false')
-        ;
+        var collapse = collapseOf(item);
+        if (collapse) {
+            collapse.setAttribute('data-ge-open', open ? 'true' : 'false');
+            dom.toggleClass(collapse, 'show', open);
+        }
+
+        dom.all(item, ':scope > .accordion-header .accordion-button').forEach(function(button) {
+            dom.toggleClass(button, 'collapsed', !open);
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
     }
 
     function reparentAccordionItem(container, item) {
         var accordion = item.closest('.accordion');
-        var collapse = item.find('> .accordion-collapse');
+        var collapse = collapseOf(item);
+        if (!collapse) { return; }
 
         // The item that just arrived still carries the parent it had
         // where it came from, so it is not asked what this accordion does
         if (staysOpen(container, item)) {
-            collapse.removeAttr('data-bs-parent');
+            collapse.removeAttribute('data-bs-parent');
         } else {
-            collapse.attr('data-bs-parent', '#' + accordion.attr('id'));
+            collapse.setAttribute('data-bs-parent', '#' + accordion.getAttribute('id'));
         }
     }
 
@@ -102,7 +122,7 @@ $.fn.gridEditor.containers.accordion = function(ge) {
 
         // Items sort within their accordion and into any other one
         onSortable: function(sortable) {
-            sortable(ge.canvas.find('.ge-container-accordion > .accordion'), {
+            sortable(dom.all(ge.canvas, '.ge-container-accordion > .accordion'), {
                 draggable: '.ge-accordion-item',
                 group: 'accordion',
             });
@@ -111,14 +131,11 @@ $.fn.gridEditor.containers.accordion = function(ge) {
         paneKind: 'accordion-item',
 
         create: function(options) {
-            var container = $('<div />').attr('data-ge-container', 'accordion');
+            var container = dom.element('div', { 'data-ge-container': 'accordion' });
             var labels = options.labels || [];
             var count = options.items || labels.length || 2;
 
-            $('<div class="accordion" />')
-                .attr('id', ge.containerId('accordion'))
-                .appendTo(container)
-            ;
+            container.appendChild(dom.element('div', { 'class': 'accordion', id: ge.containerId('accordion') }));
 
             for (var i = 0; i < count; i++) {
                 addAccordionItemTo(container, {
@@ -134,39 +151,42 @@ $.fn.gridEditor.containers.accordion = function(ge) {
         addPane: addAccordionItemTo,
 
         mark: function(container) {
-            container.find('> .accordion > .accordion-item').each(function() {
-                var item = $(this).addClass('ge-accordion-item');
-                var collapse = item.find('> .accordion-collapse');
+            dom.all(container, ':scope > .accordion > .accordion-item').forEach(function(item) {
+                dom.addClass(item, 'ge-accordion-item');
+                var collapse = collapseOf(item);
 
                 // What the author wanted, before Bootstrap's own
                 // toggles get a chance to change it while editing.
                 // Every item is shown while editing (the stylesheet
                 // does that), so this is the only record of it.
-                if (collapse.attr('data-ge-open') === undefined) {
-                    collapse.attr('data-ge-open', collapse.hasClass('show') ? 'true' : 'false');
+                if (collapse && !collapse.hasAttribute('data-ge-open')) {
+                    collapse.setAttribute('data-ge-open', dom.hasClass(collapse, 'show') ? 'true' : 'false');
                 }
 
-                var button = item.find('> .accordion-header .accordion-button');
+                var button = dom.one(item, ':scope > .accordion-header .accordion-button');
 
-                // Bootstrap's collapse stays out of it, and the editor
-                // answers the click itself
-                ge.suspendToggles(button);
-                ge.makeLabelEditable(ge.labelIn(button));
+                if (button) {
+                    // Bootstrap's collapse stays out of it, and the editor
+                    // answers the click itself
+                    ge.suspendToggles(button);
+                    ge.makeLabelEditable(ge.labelIn(button));
 
-                if (!button.data('ge-toggles')) {
-                    button.data('ge-toggles', true).on('click', function(e) {
-                        if (ge.labelIn(button).attr('contenteditable') === 'true') { return; }
+                    if (!answered.has(button)) {
+                        answered.add(button);
+                        button.addEventListener('click', function(e) {
+                            if (ge.labelIn(button).getAttribute('contenteditable') === 'true') { return; }
 
-                        e.preventDefault();
-                        toggleAccordionItem(container, item);
-                    });
+                            e.preventDefault();
+                            toggleAccordionItem(container, item);
+                        });
+                    }
                 }
 
-                if (item.find('> .ge-tools-drawer').length) { return; }
+                if (dom.child(item, '.ge-tools-drawer')) { return; }
 
                 ge.createPaneControls(item, 'accordion-item', ge.settings.accordion_tools,
                     ge.t('confirm.delete_accordion_item'), function(removed) {
-                        item.slideUp(200, removed);
+                        dom.slideUp(item, 200, removed);
                     });
             });
         },
@@ -174,13 +194,15 @@ $.fn.gridEditor.containers.accordion = function(ge) {
         unmark: function(container) {
             ge.resumeToggles(container);
 
-            // What the ge.canvas was showing is what the page ships
-            container.find('> .accordion > .accordion-item').each(function() {
-                setAccordionItemOpen($(this),
-                    $(this).find('> .accordion-collapse').attr('data-ge-open') === 'true');
+            // What the canvas was showing is what the page ships
+            dom.all(container, ':scope > .accordion > .accordion-item').forEach(function(item) {
+                var collapse = collapseOf(item);
+                setAccordionItemOpen(item, !!collapse && collapse.getAttribute('data-ge-open') === 'true');
             });
 
-            container.find('.ge-accordion-item').removeClass('ge-accordion-item');
+            dom.all(container, '.ge-accordion-item').forEach(function(item) {
+                dom.removeClass(item, 'ge-accordion-item');
+            });
             ge.unwrapLabels(container);
         },
 
@@ -189,5 +211,3 @@ $.fn.gridEditor.containers.accordion = function(ge) {
         },
     };
 };
-
-})(jQuery);

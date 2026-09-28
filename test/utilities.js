@@ -20,7 +20,7 @@ var PLUGIN = `
     const ORDER = { first: '-1', last: '6' };
     const JUSTIFY = { start: 'flex-start', center: 'center', end: 'flex-end' };
 
-    jQuery.fn.gridEditor.utilities.testing = function(ge) {
+    GridEditor.utilities.testing = function(ge) {
         return {
             families: [
                 {
@@ -53,7 +53,8 @@ var PLUGIN = `
     window.viewHooks = [];
     window.log = [];
     ['before-utility', 'after-utility', 'view-change'].forEach(function(name) {
-        jQuery('#myGrid').on('grideditor:' + name, function(e, payload) {
+        document.querySelector('#myGrid').addEventListener('grideditor:' + name, function(e) {
+            const payload = e.detail;
             window.log.push({
                 name: name,
                 kind: payload.kind,
@@ -72,23 +73,35 @@ var PLUGIN = `
         });
     });
 
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.col = function() { return jQuery('#myGrid .column').first(); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.col = function() { return document.querySelector('#myGrid .column'); };
     window.classes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) {
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) {
             return /^(order|justify-content)-/.test(name);
         }).sort().join(' ');
     };
     window.field = function(node, family) {
-        return node.children('.ge-tools-drawer').children('.ge-details')
-            .find('.ge-utility[data-ge-family="' + family + '"]');
+        return node.querySelector(':scope > .ge-tools-drawer > .ge-details .ge-utility[data-ge-family="' + family + '"]');
+    };
+    /** An attribute's value, or undefined when there is none. */
+    window.attrOf = function(node, name) {
+        return node.hasAttribute(name) ? node.getAttribute(name) : undefined;
+    };
+    window.change = function(select, value) {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    /** The data-ge-family of each field in a node's own drawer. */
+    window.familiesOf = function(node) {
+        return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility'))
+            .map(function(field) { return field.getAttribute('data-ge-family'); }).join(',');
     };
 `;
 
 /** A canvas of one row and two columns, the first carrying `classes`. */
 function canvasWith(classes) {
     return `
-        jQuery('#myGrid').html(
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row"><div class="column col-6 ${classes}"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
             '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>'
         );
@@ -139,7 +152,7 @@ async function cascadeTests(t, page) {
     var refused = await page.eval(`
         return {
             badValue: ge().setUtility(col(), 'order', 7),
-            wrongKind: ge().setUtility(jQuery('#myGrid .row').first(), 'order', 1),
+            wrongKind: ge().setUtility(document.querySelector('#myGrid .row'), 'order', 1),
             unknown: ge().setUtility(col(), 'nonsense', 1),
             unknownRead: ge().getUtility(col(), 'nonsense'),
             classes: classes(col()),
@@ -151,10 +164,10 @@ async function cascadeTests(t, page) {
         refused);
 
     var dispatched = await page.eval(`
-        const set = jQuery('#myGrid').gridEditor('setUtility', col(), 'order', 'first', 'sm');
+        const set = ge().setUtility('#myGrid .column', 'order', 'first', 'sm');
         return {
             set: set,
-            get: jQuery('#myGrid').gridEditor('getUtility', col(), 'order', 'md'),
+            get: ge().getUtility('#myGrid .column', 'order', 'md'),
             classes: classes(col()),
         };
     `);
@@ -180,13 +193,13 @@ async function eventTests(t, page) {
 
     var fromPanel = await page.eval(`
         window.log = [];
-        const select = field(col(), 'order').find('select');
-        select.val('2').trigger('change');
+        const select = field(col(), 'order').querySelector('select');
+        change(select, '2');
         const panelWrite = { classes: classes(col()), log: window.log.slice() };
 
         window.cancelNext = true;
-        select.val('3').trigger('change');
-        return { panelWrite: panelWrite, afterCancel: select.val(), classes: classes(col()) };
+        change(select, '3');
+        return { panelWrite: panelWrite, afterCancel: select.value, classes: classes(col()) };
     `);
     var panelEvent = fromPanel.panelWrite.log[1] || {};
     t.check('choosing in the panel writes the view\'s tier and reports source panel',
@@ -216,13 +229,14 @@ async function panelTests(t, page) {
         window.fixture.teardown();
         window.toolKinds = [];
         window.fixture.init();
-        const row = jQuery('#myGrid .row').first();
+        const row = document.querySelector('#myGrid .row');
+        const gear = col().querySelector(':scope > .ge-tools-drawer > .ge-settings');
         return {
-            columnFamilies: col().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
-            rowFamilies: row.find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
-            folded: !col().find('> .ge-tools-drawer .ge-utilities').hasClass('ge-open'),
+            columnFamilies: familiesOf(col()),
+            rowFamilies: familiesOf(row),
+            folded: !col().querySelector(':scope > .ge-tools-drawer .ge-utilities').classList.contains('ge-open'),
             toolKinds: window.toolKinds.slice().sort().join(','),
-            toolAfterGear: col().find('> .ge-tools-drawer > .ge-settings').next().hasClass('ge-testing-tool'),
+            toolAfterGear: !!gear.nextElementSibling && gear.nextElementSibling.classList.contains('ge-testing-tool'),
         };
     `);
     t.check('each node\'s panel offers the families that apply to its kind',
@@ -233,8 +247,8 @@ async function panelTests(t, page) {
         panels.toolKinds === 'column,column,row,text,text' && panels.toolAfterGear, panels);
 
     var unfolded = await page.eval(`
-        col().find('> .ge-tools-drawer .ge-utilities-toggle').trigger('click');
-        return jQuery('#myGrid .ge-utilities').map(function() { return jQuery(this).hasClass('ge-open'); }).get();
+        col().querySelector(':scope > .ge-tools-drawer .ge-utilities-toggle').click();
+        return Array.from(document.querySelectorAll('#myGrid .ge-utilities')).map(function(section) { return section.classList.contains('ge-open'); });
     `);
     t.check('unfolding one section unfolds them all',
         unfolded.length === 3 && unfolded.every(Boolean), unfolded);
@@ -242,13 +256,13 @@ async function panelTests(t, page) {
     var labels = await page.eval(canvasWith('order-1 order-md-3') + `
         window.fixture.teardown();
         window.fixture.init();
-        const select = function() { return field(col(), 'order').find('select'); };
+        const select = function() { return field(col(), 'order').querySelector('select'); };
         const read = function() {
             return {
-                toggle: col().find('> .ge-tools-drawer .ge-utilities-toggle').text(),
-                blank: select().find('option').first().text(),
-                value: select().val(),
-                note: field(col(), 'order').find('.ge-utility-note').text(),
+                toggle: col().querySelector(':scope > .ge-tools-drawer .ge-utilities-toggle').textContent,
+                blank: select().querySelector('option').textContent,
+                value: select().value,
+                note: field(col(), 'order').querySelector('.ge-utility-note').textContent,
             };
         };
         const all = read();
@@ -270,16 +284,16 @@ async function panelTests(t, page) {
         labels.xs.value === '1' && labels.xs.blank === 'Default', labels.xs);
 
     var typed = await page.eval(`
-        const input = col().find('> .ge-tools-drawer .ge-classes');
-        input.val(input.val().replace('order-1', 'order-2')).trigger('change');
-        return { value: field(col(), 'order').find('select').val(), classes: classes(col()) };
+        const input = col().querySelector(':scope > .ge-tools-drawer .ge-classes');
+        change(input, input.value.replace('order-1', 'order-2'));
+        return { value: field(col(), 'order').querySelector('select').value, classes: classes(col()) };
     `);
     t.check('typing a class in the classes field updates the field that reads it',
         typed.value === '2' && typed.classes === 'order-2 order-md-3', typed);
 
     var written = await page.eval(`
         ge().setUtility(col(), 'order', 'first');
-        return col().find('> .ge-tools-drawer .ge-classes').val();
+        return col().querySelector(':scope > .ge-tools-drawer .ge-classes').value;
     `);
     t.check('a utility written through the API shows in the classes field',
         /order-first/.test(written) && !/order-2/.test(written), written);
@@ -288,14 +302,14 @@ async function panelTests(t, page) {
 async function previewTests(t, page) {
     var preview = await page.eval(canvasWith('order-1 order-md-3') + `
         window.fixture.teardown();
-        jQuery('#myGrid .column').first().attr('style', 'color: red; order: 9');
+        document.querySelector('#myGrid .column').setAttribute('style', 'color: red; order: 9');
         window.fixture.init();
         const read = function() {
             return {
-                order: getComputedStyle(col()[0]).order,
-                priority: col()[0].style.getPropertyPriority('order'),
-                recorded: col().attr('data-ge-preview') !== undefined,
-                untouched: jQuery('#myGrid .column').eq(1).attr('style'),
+                order: getComputedStyle(col()).order,
+                priority: col().style.getPropertyPriority('order'),
+                recorded: col().hasAttribute('data-ge-preview'),
+                untouched: attrOf(document.querySelectorAll('#myGrid .column')[1], 'style'),
             };
         };
         const all = read();
@@ -307,7 +321,7 @@ async function previewTests(t, page) {
         const written = read();
         const html = ge().getHtml();
         ge().changeView('all');
-        return { all: all, xs: xs, md: md, written: written, html: html, afterAll: col().attr('style') };
+        return { all: all, xs: xs, md: md, written: written, html: html, afterAll: attrOf(col(), 'style') };
     `);
     // What the page shows there is Bootstrap's business: its !important
     // classes against the real viewport, over the host's inline order
@@ -329,7 +343,7 @@ async function previewTests(t, page) {
 async function nodeKindTests(t, page) {
     var kinds = await page.eval(`
         window.fixture.teardown();
-        jQuery('#myGrid').html(
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row"><div class="column col-12"><div class="ge-content">' +
                 '<p>text</p><div data-ge-element="box" class="order-2">element</div>' +
             '</div>' +
@@ -340,16 +354,16 @@ async function nodeKindTests(t, page) {
             '</div></div>'
         );
         window.fixture.init();
-        const element = jQuery('#myGrid .ge-element');
-        const card = jQuery('#myGrid [data-ge-container="card"]');
+        const element = document.querySelector('#myGrid .ge-element');
+        const card = document.querySelector('#myGrid [data-ge-container="card"]');
         window.log = [];
         ge().changeView('md');
         ge().setUtility(card, 'order', 'last');
         return {
-            elementField: field(element, 'order').find('select').val(),
-            cardField: field(card, 'order').find('select').val(),
+            elementField: field(element, 'order').querySelector('select').value,
+            cardField: field(card, 'order').querySelector('select').value,
             cardKind: (window.log[1] || {}).kind,
-            elementPreview: getComputedStyle(element[0]).order,
+            elementPreview: getComputedStyle(element).order,
             html: ge().getHtml(),
         };
     `);
@@ -368,12 +382,15 @@ async function nodeKindTests(t, page) {
 async function customPanelTests(t, page) {
     var custom = await page.eval(canvasWith('order-2') + `
         window.fixture.teardown();
-        jQuery.fn.gridEditor.utilities.custom = function(ge) {
+        GridEditor.utilities.custom = function(ge) {
             return {
                 families: [{ name: 'quiet', prefix: 'quiet', values: ['a'], appliesTo: ['column'], panel: false }],
                 panel: function(node, kind) {
                     if (kind !== 'row') { return null; }
-                    return jQuery('<div class="ge-custom" />').append(ge.utilityField(node, 'justify'));
+                    const own = document.createElement('div');
+                    own.className = 'ge-custom';
+                    own.appendChild(ge.utilityField(node, 'justify'));
+                    return own;
                 },
                 preview: function(node, kind, breakpoint) {
                     return kind === 'column' ? { 'outline-offset': breakpoint === 'md' ? '7px' : '3px' } : {};
@@ -381,16 +398,16 @@ async function customPanelTests(t, page) {
             };
         };
         window.fixture.init({ plugins: window.fixture.plugins(['testing', 'custom']) });
-        const row = jQuery('#myGrid .row').first();
+        const row = document.querySelector('#myGrid .row');
         const read = {
-            columnFamilies: col().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
-            rowFields: row.find('> .ge-tools-drawer .ge-utility').length,
-            customField: row.find('> .ge-tools-drawer .ge-custom .ge-utility[data-ge-family="justify"]').length,
-            allView: col()[0].style.outlineOffset,
+            columnFamilies: familiesOf(col()),
+            rowFields: row.querySelectorAll(':scope > .ge-tools-drawer .ge-utility').length,
+            customField: row.querySelectorAll(':scope > .ge-tools-drawer .ge-custom .ge-utility[data-ge-family="justify"]').length,
+            allView: col().style.outlineOffset,
         };
         ge().changeView('md');
-        read.md = col()[0].style.outlineOffset;
-        read.customValue = (ge().setUtility(row, 'justify', 'end'), row.find('> .ge-tools-drawer .ge-custom select').val());
+        read.md = col().style.outlineOffset;
+        read.customValue = (ge().setUtility(row, 'justify', 'end'), row.querySelector(':scope > .ge-tools-drawer .ge-custom select').value);
         return read;
     `);
     t.check('a family with panel false gets no field of its own',
@@ -404,13 +421,13 @@ async function customPanelTests(t, page) {
 async function bareStyleTests(t, page) {
     var read = await page.eval(canvasWith('order-1 order-md-3') + `
         let handle = null;
-        jQuery.fn.gridEditor.utilities.probe = function(ge) { handle = ge; return { families: [] }; };
+        GridEditor.utilities.probe = function(ge) { handle = ge; return { families: [] }; };
         window.fixture.teardown();
         window.fixture.init({ plugins: window.fixture.plugins(['testing', 'probe']) });
-        const before = col().attr('class');
+        const before = col().getAttribute('class');
         const bare = handle.bareStyle(col(), 'order', 'order');
         const unknown = handle.bareStyle(col(), 'nonsense', 'order');
-        return { bare: bare, unknown: unknown, before: before, after: col().attr('class') };
+        return { bare: bare, unknown: unknown, before: before, after: col().getAttribute('class') };
     `);
     t.check('bareStyle reads a property with the family\'s classes out of the way, and puts them back',
         read.bare === '0' && read.unknown === null && read.before === read.after && /order-md-3/.test(read.after),
@@ -422,8 +439,8 @@ async function pluginSettingTests(t, page) {
         window.fixture.teardown();
         window.fixture.init({ plugins: ['card'] });
         return {
-            fields: jQuery('#myGrid .ge-utility:not([data-ge-family="col"]):not([data-ge-family="row-cols"])').length,
-            tools: jQuery('#myGrid .ge-testing-tool').length,
+            fields: document.querySelectorAll('#myGrid .ge-utility:not([data-ge-family="col"]):not([data-ge-family="row-cols"])').length,
+            tools: document.querySelectorAll('#myGrid .ge-testing-tool').length,
             set: ge().setUtility(col(), 'order', 2),
             classes: classes(col()),
         };

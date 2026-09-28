@@ -8,7 +8,7 @@
  * What it can ask the editor for is the handle its factory is called with,
  * described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.clipboard.min.js"></script>
  *
  * What is copied is kept in localStorage, so it survives a reload and can be
@@ -18,9 +18,10 @@
  * A paste is an add like any other - before-add-* and after-add-*, with
  * `source: 'paste'` - so a host can turn one away.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'tool.copy': 'Copy',
     'tool.paste': 'Paste',
     'clipboard.paste_row': 'Paste row',
@@ -33,7 +34,6 @@ var VERSION = 1;
 
 /** Where nothing can be stored, what was copied lives here, for this page. */
 var memory = null;
-var editors = 0;
 
 /**
  * What each drawer takes when something is pasted into it, by the kind of the
@@ -83,18 +83,23 @@ function write(clip) {
         memory = clip;
     }
 
-    $(document).trigger(CHANGE);
+    announce();
+}
+
+/** Every editor on the page looks at the clipboard again. */
+function announce() {
+    document.dispatchEvent(new CustomEvent(CHANGE));
 }
 
 // Another tab copied something: every editor here looks again
-$(window).on('storage', function(e) {
-    if (e.originalEvent && e.originalEvent.key === STORAGE_ITEM) { $(document).trigger(CHANGE); }
+window.addEventListener('storage', function(e) {
+    if (e.key === STORAGE_ITEM) { announce(); }
 });
 
-$.fn.gridEditor.features.clipboard = function(ge) {
+GridEditor.features.clipboard = function(ge) {
 
-    var namespace = '.ge-clipboard-' + (++editors);
     var shown = null; // What the toolbar's paste buttons stand for
+    var listening = false; // Whether refresh is on the document's change event
 
     function used(name) {
         return !ge.settings.plugins || ge.settings.plugins.indexOf(name) !== -1;
@@ -103,10 +108,10 @@ $.fn.gridEditor.features.clipboard = function(ge) {
     /** A category this editor can take: the plugin that makes it is here. */
     function available(clip) {
         if (clip.category === 'container') {
-            return !!$.fn.gridEditor.containers[clip.kind] && used(clip.kind);
+            return !!GridEditor.containers[clip.kind] && used(clip.kind);
         }
-        if (clip.category === 'section') { return !!$.fn.gridEditor.features.sections && used('sections'); }
-        if (clip.category === 'element') { return !!$.fn.gridEditor.features.elements && used('elements'); }
+        if (clip.category === 'section') { return !!GridEditor.features.sections && used('sections'); }
+        if (clip.category === 'element') { return !!GridEditor.features.elements && used('elements'); }
 
         return true;
     }
@@ -116,7 +121,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
     }
 
     function categoryOf(kind) {
-        if ($.fn.gridEditor.containers[kind]) { return 'container'; }
+        if (GridEditor.containers[kind]) { return 'container'; }
 
         return ['row', 'column', 'section', 'text', 'element'].indexOf(kind) !== -1 ? kind : null;
     }
@@ -129,10 +134,15 @@ $.fn.gridEditor.features.clipboard = function(ge) {
 
         // The canvas came back with new drawers: the one to flash is the
         // node's new copy tool
-        var tool = ge.drawerOf(node).find('> .ge-copy');
-        tool.addClass('ge-copied').find('i').attr('class', 'bi bi-check2');
+        var tool = dom.child(ge.drawerOf(node), '.ge-copy');
+        if (!tool) { return; }
+
+        var icon = dom.one(tool, 'i');
+        dom.addClass(tool, 'ge-copied');
+        if (icon) { icon.setAttribute('class', 'bi bi-check2'); }
         setTimeout(function() {
-            tool.removeClass('ge-copied').find('i').attr('class', 'bi bi-copy');
+            dom.removeClass(tool, 'ge-copied');
+            if (icon) { icon.setAttribute('class', 'bi bi-copy'); }
         }, 1200);
     }
 
@@ -148,9 +158,12 @@ $.fn.gridEditor.features.clipboard = function(ge) {
      * them: two copies of a tab strip pointing at one set of panes is a tab
      * strip that opens the other copy's tabs. An id the page does not have
      * is kept, so pasting into another page changes nothing.
+     *
+     * Parsed the way innerHTML parses, so a <script> in what was copied is
+     * markup, pasted like the rest, and does not run in the editor.
      */
     function fresh(html) {
-        var node = $($.parseHTML(html.trim(), document, true)).first();
+        var node = dom.create(html);
         var renamed = {};
         var taken = function(id) {
             return !!document.getElementById(id) || Object.keys(renamed).some(function(old) {
@@ -158,8 +171,8 @@ $.fn.gridEditor.features.clipboard = function(ge) {
             });
         };
 
-        node.find('[id]').addBack('[id]').each(function() {
-            var id = this.id;
+        dom.selfAndAll(node, '[id]').forEach(function(element) {
+            var id = element.id;
             if (!document.getElementById(id)) { return; }
 
             var generated = GENERATED_ID.exec(id);
@@ -174,14 +187,12 @@ $.fn.gridEditor.features.clipboard = function(ge) {
             }
 
             renamed[id] = next;
-            this.id = next;
+            element.id = next;
         });
 
         if (!Object.keys(renamed).length) { return node; }
 
-        node.find('*').addBack().each(function() {
-            var element = this;
-
+        dom.selfAndAll(node, '*').forEach(function(element) {
             REFERENCES.forEach(function(name) {
                 var value = element.getAttribute(name);
                 if (value === null) { return; }
@@ -205,13 +216,13 @@ $.fn.gridEditor.features.clipboard = function(ge) {
     function refresh() {
         var clip = read();
 
-        ge.canvas.find('.ge-paste').each(function() {
-            $(this).toggle(fits(clip, $(this).attr('data-ge-paste').split(' ')));
+        dom.all(ge.canvas, '.ge-paste').forEach(function(tool) {
+            dom.toggle(tool, fits(clip, tool.getAttribute('data-ge-paste').split(' ')));
         });
 
-        ge.toolbarItems('clipboard').each(function() {
-            var item = TOOLBAR[parseInt($(this).attr('data-ge-item'), 10)];
-            $(this).toggle(fits(clip, [item.kind]));
+        ge.toolbarItems('clipboard').forEach(function(button) {
+            var item = TOOLBAR[parseInt(button.getAttribute('data-ge-item'), 10)];
+            dom.toggle(button, fits(clip, [item.kind]));
         });
 
         shown = clip;
@@ -221,7 +232,7 @@ $.fn.gridEditor.features.clipboard = function(ge) {
         { kind: 'row', labelKey: 'clipboard.paste_row' },
         { kind: 'section', labelKey: 'clipboard.paste_section' },
     ].map(function(item) {
-        return $.extend(item, {
+        return Object.assign(item, {
             iconClass: 'bi bi-clipboard-plus',
             // On the right, as an icon: pasting is not one of the things
             // the add buttons make
@@ -244,25 +255,26 @@ $.fn.gridEditor.features.clipboard = function(ge) {
             var categories = TARGETS[kind];
             if (!categories) { return; }
 
-            ge.createTool(drawer, ge.t('tool.paste'), 'ge-paste', 'bi bi-clipboard-plus', function() {
+            var tool = ge.createTool(drawer, ge.t('tool.paste'), 'ge-paste', 'bi bi-clipboard-plus', function() {
                 paste(node, categories);
             });
-            drawer.children('.ge-paste').last()
-                .attr('data-ge-paste', categories.join(' '))
-                .toggle(fits(read(), categories));
+            tool.setAttribute('data-ge-paste', categories.join(' '));
+            dom.toggle(tool, fits(read(), categories));
         },
 
         toolbar: TOOLBAR,
 
         onInit: function() {
             refresh();
-            $(document).off(CHANGE + namespace).on(CHANGE + namespace, refresh);
+            if (!listening) {
+                document.addEventListener(CHANGE, refresh);
+                listening = true;
+            }
         },
 
         onDeinit: function() {
-            $(document).off(CHANGE + namespace);
+            document.removeEventListener(CHANGE, refresh);
+            listening = false;
         },
     };
 };
-
-})(jQuery);

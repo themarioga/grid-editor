@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- JS dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -17,7 +16,7 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
 </head>
@@ -41,30 +40,30 @@
 </div>
 <script>
     const LOCAL_STORAGE_KEY = 'gridEditorLayout';
+    const grid = document.getElementById('myGrid');
+    let editor = null;
 
     function initEditor(initialContent = '') {
-        const $grid = $('#myGrid');
-        $grid.html(initialContent);
-        $grid.gridEditor({
+        grid.innerHTML = initialContent;
+        editor = new GridEditor(grid, {
             new_row_layouts: [[12], [6,6], [4,4,4]],
             content_types: ['tinymce']
         });
     }
 
     function autoSave() {
-        const html = $('#myGrid').gridEditor('getHtml');
-        localStorage.setItem(LOCAL_STORAGE_KEY, html);
+        localStorage.setItem(LOCAL_STORAGE_KEY, editor.getHtml());
     }
 
-    $(function () {
+    document.addEventListener('DOMContentLoaded', function () {
         // Restore the previous draft, falling back to whatever markup is in the page
         const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-        initEditor(saved || $('#myGrid').html());
+        initEditor(saved || grid.innerHTML);
 
         setInterval(autoSave, 5000);
 
-        $('#exportBtn').on('click', () => {
-            const html = $('#myGrid').gridEditor('getHtml');
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const html = editor.getHtml();
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -74,19 +73,19 @@
             URL.revokeObjectURL(url);
         });
 
-        $('#importInput').on('change', function (e) {
+        document.getElementById('importInput').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function (e) {
-                $('#myGrid').gridEditor('remove');
+                editor.destroy();
                 initEditor(e.target.result);
                 autoSave();
             };
             reader.readAsText(file);
         });
 
-        $('#resetBtn').on('click', function () {
+        document.getElementById('resetBtn').addEventListener('click', function () {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
             location.reload();
         });

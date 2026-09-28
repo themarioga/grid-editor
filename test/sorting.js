@@ -17,8 +17,8 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 /** A column holding two nested rows, which are the blocks being dragged. */
 var NESTED = `
-    jQuery('#myGrid').gridEditor('destroy');
-    jQuery('#myGrid').html(
+    if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+    document.querySelector('#myGrid').innerHTML = (
         '<div class="row"><div class="column col-12" id="outer">' +
         '<div class="row" id="one"><div class="column col-12" id="inner">' +
         '<div class="ge-content"><p>nested row one, tall enough to aim at</p></div>' +
@@ -31,9 +31,9 @@ var NESTED = `
 `;
 
 var CHILDREN = `
-    return jQuery('#outer').children().map(function() {
-        return this.id || this.className.split(' ')[0];
-    }).get().join(',');
+    return Array.from(document.querySelector('#outer').children).map(function(node) {
+        return node.id || node.className.split(' ')[0];
+    }).join(',');
 `;
 
 async function drawerTests(t) {
@@ -67,14 +67,14 @@ async function ownChildrenTests(t) {
     // rule that an item is a direct child of the list that moves it - without
     // it, grabbing a row three levels down would be the canvas's drag.
     var rule = await page.eval(`
-        const list = Sortable.get(jQuery('#myGrid')[0]);
+        const list = Sortable.get(document.querySelector('#myGrid'));
         const ask = function(node) {
             return list.options.filter.call(list, { target: node }, node, list);
         };
         return {
-            selectorMatchesNested: jQuery('#one').is(list.options.draggable),
-            nestedRowRefused: ask(jQuery('#one')[0]),
-            ownRowAccepted: ask(jQuery('#myGrid > .row')[0]),
+            selectorMatchesNested: document.querySelector('#one').matches(list.options.draggable),
+            nestedRowRefused: ask(document.querySelector('#one')),
+            ownRowAccepted: ask(document.querySelector('#myGrid > .row')),
         };
     `);
     t.check('a list moves its own children only, however deep the selector matches',
@@ -87,8 +87,8 @@ async function ownChildrenTests(t) {
     await page.drag('#two > .ge-tools-drawer .ge-move', '#one', { yRatio: 0.15 });
     var reordered = await page.eval(`
         return {
-            inColumn: jQuery('#outer').children('.row').map(function() { return this.id; }).get().join(','),
-            atCanvasLevel: jQuery('#myGrid').children('.row').length,
+            inColumn: Array.from(document.querySelectorAll('#outer > .row')).map(function(row) { return row.id; }).join(','),
+            atCanvasLevel: document.querySelectorAll('#myGrid > .row').length,
         };
     `);
     t.check('so a nested row reorders within its own column',
@@ -103,22 +103,22 @@ async function handleTests(t) {
     var before = await page.eval(NESTED + `
         window.fixture.init({ drag_handle: 'drawer', confirm_delete: false });
         return {
-            rows: jQuery('#outer').children('.row').length,
-            tools: jQuery('#two > .ge-tools-drawer > a').map(function() {
-                return jQuery(this).attr('class').split(' ')[0];
-            }).get(),
+            rows: document.querySelectorAll('#outer > .row').length,
+            tools: Array.from(document.querySelectorAll('#two > .ge-tools-drawer > a')).map(function(tool) {
+                return tool.getAttribute('class').split(' ')[0];
+            }),
         };
     `);
     await page.click('#two > .ge-tools-drawer .ge-delete-row');
     await cdp.sleep(400);
-    var deleted = await page.eval(`return jQuery('#outer').children('.row').map(function() { return this.id; }).get();`);
+    var deleted = await page.eval(`return Array.from(document.querySelectorAll('#outer > .row')).map(function(row) { return row.id; });`);
     t.check('a tool inside the handle is still a tool: clicking delete deletes',
         before.rows === 2 && before.tools.indexOf('ge-move') === -1 &&
         deleted.join(',') === 'one',
         { before: before, left: deleted });
 
     var dragsStill = await page.eval(`
-        return { handle: Sortable.get(jQuery('#outer')[0]).options.handle };
+        return { handle: Sortable.get(document.querySelector('#outer')).options.handle };
     `);
     t.check('and the whole drawer is what drags',
         dragsStill.handle === '.ge-tools-drawer', dragsStill);

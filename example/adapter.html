@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies: jQuery 4, which this page's own code is
+         written in, as a page for grid-editor 6 was -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript: the editor, then the jQuery API on top of
+         it, then the plugins - which are 7.0's, like the editor -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
+    <script src="../dist/grideditor.jquery.min.js"></script>
+    <script src="../dist/plugins/grideditor.tabs.min.js"></script>
+    <script src="../dist/plugins/grideditor.card.min.js"></script>
+
+    <script>
+        // Everything below is grid-editor 6 code, unchanged
+        $(function() {
+            $('#myGrid').gridEditor({
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                content_types: [],
+
+                // A callback gets the payload with jQuery objects in it
+                callbacks: {
+                    after_add_row: function(payload) {
+                        $('#last').text('A row was added, with ' +
+                            payload.node.children('.column').length + ' columns');
+                    },
+                },
+            });
+
+            // And so does a jQuery event listener, as its second argument
+            $('#myGrid').on('grideditor:before-delete', function(e, payload) {
+                if (payload.node.hasClass('locked')) {
+                    e.preventDefault();
+                    $('#last').text('That row is locked: it stays');
+                }
+            });
+
+            $('#output').on('click', function() {
+                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            });
+        });
+    </script>
+
+    <title>Grid Editor jQuery API example</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-8">
+                <h1 class="h4">The jQuery API</h1>
+                <p class="form-text">
+                    grid-editor needs no jQuery since 7.0. A page written for
+                    6.x loads jQuery 4 and <code>grideditor.jquery.js</code>
+                    after the editor, and its code runs as it did:
+                    <code>$('#myGrid').gridEditor(...)</code>, the methods by
+                    name, jQuery event listeners and callbacks with jQuery
+                    objects in their payloads. The plugins are 7.0's; a plugin
+                    written for 6.x is the one thing to port, as
+                    <code>UPGRADING.md</code> explains.
+                </p>
+                <p class="form-text">
+                    Add a row and the callback counts its columns. The first
+                    row carries a <code>locked</code> class, which the event
+                    listener reads to turn its delete away.
+                </p>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
+                <p class="form-text" id="last"></p>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="row locked">
+                <div class="col-lg-12">
+                    <h2 class="h5">A locked row</h2>
+                    <p>Its delete is canceled by the page's own jQuery listener.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <p>An ordinary column.</p>
+                </div>
+                <div class="col-lg-6">
+                    <p>And another.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

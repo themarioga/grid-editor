@@ -7,119 +7,120 @@
  * factory is called with, described in docs/plugins.md.
  *
  *   <script src="ckeditor/ckeditor.js"></script>
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.ckeditor.min.js"></script>
  *
  * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin. The built file starts with what
- * every text editor shares - text blocks, the Text button, createText,
- * making the host's plain content a text - from
- * src/js/text/grideditor.text.js, installed once however many editors a
- * page loads.
+ * loaded on its own, like every plugin. It imports what every text editor
+ * shares - text blocks, the Text button, createText, making the host's plain
+ * content a text - from src/js/text/grideditor.text.js, which the build puts
+ * in its classic script, installed once however many editors a page loads.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
+import '../text/grideditor.text.js';
 
-    $.extend($.fn.gridEditor.locales.en, {
-        'text.ckeditor': 'CKEditor',
-    });
+Object.assign(GridEditor.locales.en, {
+    'text.ckeditor': 'CKEditor',
+});
 
-    var INITIAL_CONTENT = '<p>Lorem initius... </p>';
+var INITIAL_CONTENT = '<p>Lorem initius... </p>';
 
-    $.fn.gridEditor.texts.ckeditor = function(ge) {
+// The instance each content area is edited with, as this file made it
+var instances = new WeakMap();
 
-        /**
-         * The instance editing this content area. Kept in jQuery data when it
-         * is made, and looked for among CKEditor's own as a fallback, since
-         * an instance made by another version of this file has no data.
-         */
-        function instanceOf(contentArea) {
-            var kept = contentArea.data('ge-ckeditor');
-            if (kept) { return kept; }
+GridEditor.texts.ckeditor = function(ge) {
 
-            var found = null;
-            $.each(window.CKEDITOR.instances, function(name, instance) {
-                if (instance.element && instance.element.$ === contentArea[0]) { found = instance; }
-            });
+    /**
+     * The instance editing this content area. Kept when it is made, and
+     * looked for among CKEditor's own as a fallback, since an instance made
+     * by another copy of this file is not in this one's record.
+     */
+    function instanceOf(contentArea) {
+        var kept = instances.get(contentArea);
+        if (kept) { return kept; }
 
-            return found;
-        }
+        var found = null;
+        Object.keys(window.CKEDITOR.instances).forEach(function(name) {
+            var instance = window.CKEDITOR.instances[name];
+            if (instance.element && instance.element.$ === contentArea) { found = instance; }
+        });
 
-        return {
-            labelKey: 'text.ckeditor',
-            initialContent: INITIAL_CONTENT,
-            missingKey: 'error.ckeditor_missing',
+        return found;
+    }
 
-            available: function() { return !!window.CKEDITOR; },
+    return {
+        labelKey: 'text.ckeditor',
+        initialContent: INITIAL_CONTENT,
+        missingKey: 'error.ckeditor_missing',
 
-            start: function(contentAreas) {
-                var settings = ge.settings;
+        available: function() { return !!window.CKEDITOR; },
 
-                contentAreas.each(function() {
-                    var contentArea = $(this);
-                    if (contentArea.hasClass('active')) { return; }
+        start: function(contentAreas) {
+            var settings = ge.settings;
 
-                    if (contentArea.html() == INITIAL_CONTENT) {
-                        // CKEditor kills this '&nbsp' creating a non usable box :/
-                        contentArea.html('&nbsp;');
-                    }
+            contentAreas.forEach(function(contentArea) {
+                if (dom.hasClass(contentArea, 'active')) { return; }
 
-                    // Add the .attr('contenteditable',''true') or CKEditor loads readonly
-                    contentArea.addClass('active').attr('contenteditable', 'true');
+                if (contentArea.innerHTML == INITIAL_CONTENT) {
+                    // CKEditor kills this '&nbsp' creating a non usable box :/
+                    contentArea.innerHTML = '&nbsp;';
+                }
 
-                    var configuration = $.extend(
-                        {},
-                        (settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {}),
-                        {
-                            // Focus editor on creation
-                            on: {
-                                instanceReady: function( evt ) {
-                                    // Call original instanceReady function, if one was passed in the config
-                                    var callback;
-                                    try {
-                                        callback = settings.ckeditor.config.on.instanceReady;
-                                    } catch (err) {
-                                        // No callback passed
-                                    }
-                                    if (callback) {
-                                        callback.call(this, evt);
-                                    }
+                // contenteditable="true", or CKEditor loads readonly
+                dom.addClass(contentArea, 'active');
+                contentArea.setAttribute('contenteditable', 'true');
 
-                                    // The editor owns what is inside the
-                                    // content area now, so the grid editor is
-                                    // told to put its own furniture back
-                                    ge.textReady(contentArea);
-
-                                    instance.focus();
+                var configuration = Object.assign(
+                    {},
+                    (settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {}),
+                    {
+                        // Focus editor on creation
+                        on: {
+                            instanceReady: function( evt ) {
+                                // Call original instanceReady function, if one was passed in the config
+                                var callback;
+                                try {
+                                    callback = settings.ckeditor.config.on.instanceReady;
+                                } catch (err) {
+                                    // No callback passed
                                 }
+                                if (callback) {
+                                    callback.call(this, evt);
+                                }
+
+                                // The editor owns what is inside the
+                                // content area now, so the grid editor is
+                                // told to put its own furniture back
+                                ge.textReady(contentArea);
+
+                                instance.focus();
                             }
                         }
-                    );
-                    var instance = window.CKEDITOR.inline(contentArea.get(0), configuration);
-                    contentArea.data('ge-ckeditor', instance);
+                    }
+                );
+                var instance = window.CKEDITOR.inline(contentArea, configuration);
+                instances.set(contentArea, instance);
+            });
+        },
+
+        stop: function(contentAreas) {
+            contentAreas.filter(function(contentArea) {
+                return dom.hasClass(contentArea, 'active');
+            }).forEach(function(contentArea) {
+                // This content area's instance, and no other: up to 5.x
+                // closing one content area destroyed every CKEditor on
+                // the page, other editors' and the host's own included
+                var instance = window.CKEDITOR ? instanceOf(contentArea) : null;
+                if (instance) { instance.destroy(); }
+                instances.delete(contentArea);
+
+                // Cleanup
+                dom.removeClass(contentArea, 'active cke_focus');
+                ['id', 'style', 'spellcheck', 'contenteditable'].forEach(function(name) {
+                    contentArea.removeAttribute(name);
                 });
-            },
-
-            stop: function(contentAreas) {
-                contentAreas.filter('.active').each(function() {
-                    var contentArea = $(this);
-
-                    // This content area's instance, and no other: up to 5.x
-                    // closing one content area destroyed every CKEditor on
-                    // the page, other editors' and the host's own included
-                    var instance = window.CKEDITOR ? instanceOf(contentArea) : null;
-                    if (instance) { instance.destroy(); }
-                    contentArea.removeData('ge-ckeditor');
-
-                    // Cleanup
-                    contentArea
-                        .removeClass('active cke_focus')
-                        .removeAttr('id')
-                        .removeAttr('style')
-                        .removeAttr('spellcheck')
-                        .removeAttr('contenteditable')
-                    ;
-                });
-            },
-        };
+            });
+        },
     };
-})(jQuery);
+};

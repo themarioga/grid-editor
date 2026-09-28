@@ -13,55 +13,62 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.col = function() { return jQuery('#myGrid .column').first(); };
-    window.row = function() { return jQuery('#myGrid .row').first(); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.col = function() { return document.querySelector('#myGrid .column'); };
+    window.row = function() { return document.querySelector('#myGrid .row'); };
     window.classes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) {
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) {
             return /^d-/.test(name);
         }).sort().join(' ');
     };
-    window.eye = function(node) { return node.children('.ge-tools-drawer').children('.ge-visibility-tool'); };
+    /** A node's eye: the visibility tool in its own drawer, or null. */
+    window.eye = function(node) {
+        const drawer = node && node.querySelector(':scope > .ge-tools-drawer');
+        return drawer ? drawer.querySelector(':scope > .ge-visibility-tool') : null;
+    };
     window.state = function(node) {
+        const tool = eye(node);
         return {
             classes: classes(node),
-            faded: node.hasClass('ge-hidden-in-view'),
-            badge: node.attr('data-ge-hidden-in') || '',
-            display: getComputedStyle(node[0]).display,
-            title: eye(node).attr('title'),
-            icon: eye(node).find('i').attr('class'),
+            faded: node.classList.contains('ge-hidden-in-view'),
+            badge: node.getAttribute('data-ge-hidden-in') || '',
+            display: getComputedStyle(node).display,
+            title: tool ? tool.getAttribute('title') : undefined,
+            icon: tool ? tool.querySelector('i').getAttribute('class') : undefined,
         };
     };
     window.start = function(rowClasses, colClasses, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML =
             '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
-            '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>'
-        );
-        window.fixture.init(jQuery.extend({ plugins: window.fixture.plugins(['visibility']) }, settings || {}));
+            '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>';
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['visibility']) }, settings || {}));
     };
 `;
 
 async function toolTests(t, page) {
     var tools = await page.eval(`
         start('', '');
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid .column').first().find('.ge-content').append('<div data-ge-element="box">box</div>');
-        jQuery('#myGrid .column').eq(1).append(
+        window.fixture.editor().destroy();
+        document.querySelector('#myGrid .column .ge-content').insertAdjacentHTML('beforeend', '<div data-ge-element="box">box</div>');
+        document.querySelectorAll('#myGrid .column')[1].insertAdjacentHTML('beforeend',
             '<div data-ge-container="tabs"><ul class="nav nav-tabs"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p1">One</button></li></ul>' +
             '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content" data-ge-content-type="tinymce"><p>in</p></div></div></div></div></div></div>'
         );
         window.fixture.init({ plugins: window.fixture.plugins(['visibility']) });
-        const has = function(selector) { return eye(jQuery(selector).first()).length; };
+        const has = function(selector) { return eye(document.querySelector(selector)) ? 1 : 0; };
+        const options = function(node) {
+            return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option'));
+        };
         return {
             row: has('#myGrid .row'),
             column: has('#myGrid .column'),
             element: has('#myGrid .ge-element'),
-            text: jQuery('#myGrid .ge-text-block').first().children('.ge-tools-drawer').children('.ge-visibility-tool').length,
+            text: document.querySelector('#myGrid .ge-text-block').querySelectorAll(':scope > .ge-tools-drawer > .ge-visibility-tool').length,
             container: has('#myGrid [data-ge-container]'),
-            pane: jQuery('#myGrid .ge-pane-drawer .ge-visibility-tool').length,
-            choices: col().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
-            rowChoices: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option').map(function() { return this.value; }).get().join(','),
+            pane: document.querySelectorAll('#myGrid .ge-pane-drawer .ge-visibility-tool').length,
+            choices: options(col()).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
+            rowChoices: options(row()).map(function(option) { return option.value; }).join(','),
         };
     `);
     t.check('rows, columns, texts, elements and containers get the eye; panes do not',
@@ -73,7 +80,7 @@ async function toolTests(t, page) {
 
     var off = await page.eval(`
         start('', '', { utilities: { visibility: { drawer: false } } });
-        return { eyes: jQuery('#myGrid .ge-visibility-tool').length, fields: jQuery('#myGrid .ge-utility[data-ge-family="visibility"]').length };
+        return { eyes: document.querySelectorAll('#myGrid .ge-visibility-tool').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="visibility"]').length };
     `);
     t.check('utilities.visibility.drawer false leaves the eye out and keeps the field',
         off.eyes === 0 && off.fields === 5, off);
@@ -83,9 +90,9 @@ async function breakpointTests(t, page) {
     var hide = await page.eval(`
         start('', '');
         ge().changeView('md');
-        eye(col()).trigger('click');
+        eye(col()).click();
         const hidden = state(col());
-        eye(col()).trigger('click');
+        eye(col()).click();
         return { hidden: hidden, shown: state(col()) };
     `);
     t.check('hiding in a breakpoint view writes that breakpoint\'s d-*-none',
@@ -100,15 +107,15 @@ async function breakpointTests(t, page) {
     var shownOver = await page.eval(`
         start('d-none', 'd-none');
         ge().changeView('md');
-        eye(col()).trigger('click');
-        eye(row()).trigger('click');
+        eye(col()).click();
+        eye(row()).click();
         const md = { col: state(col()), row: state(row()) };
         ge().changeView('lg');
         const lg = state(col());
-        eye(col()).trigger('click');
+        eye(col()).click();
         const lgHidden = state(col());
         ge().changeView('md');
-        eye(col()).trigger('click');
+        eye(col()).click();
         return { md: md, lg: lg, lgHidden: lgHidden, back: state(col()) };
     `);
     t.check('showing a node hidden below writes d-*-block, and d-*-flex on a row',
@@ -127,9 +134,9 @@ async function allViewTests(t, page) {
     var all = await page.eval(`
         start('', 'd-md-none');
         const partly = state(col());
-        eye(col()).trigger('click');
+        eye(col()).click();
         const everywhere = state(col());
-        eye(col()).trigger('click');
+        eye(col()).click();
         return { partly: partly, everywhere: everywhere, none: state(col()) };
     `);
     t.check('in the all view a node hidden at some breakpoints is shown, with a badge naming them',
@@ -151,7 +158,7 @@ async function markupTests(t, page) {
         const html = ge().getHtml();
         const after = state(col());
         window.fixture.teardown();
-        return { html: html, afterReinit: after, torndown: jQuery('#myGrid').html() };
+        return { html: html, afterReinit: after, torndown: document.querySelector('#myGrid').innerHTML };
     `);
     t.check('getHtml keeps the classes and none of the editing marks',
         /class="row d-lg-none"/.test(exported.html) && /d-none d-md-block/.test(exported.html) &&
@@ -169,7 +176,7 @@ async function markupTests(t, page) {
             document.head.appendChild(script);
         });
         start('', 'd-md-none', { locale: 'es' });
-        return { badge: col().attr('data-ge-hidden-in'), title: eye(col()).attr('title') };
+        return { badge: col().getAttribute('data-ge-hidden-in'), title: eye(col()).getAttribute('title') };
     `);
     t.check('the plugin\'s strings are translated',
         spanish.badge === 'Oculto en md, lg, xl, xxl' && spanish.title === 'Ocultar en esta vista', spanish);

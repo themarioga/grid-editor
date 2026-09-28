@@ -1,8 +1,8 @@
 ## Auto save and layout import/export
 
 The `example/autosave.html` demo shows how to add **auto save** and
-**import/export** on top of Grid Editor, using only the plugin's existing
-public API (`gridEditor('getHtml')` and `gridEditor('remove')`).
+**import/export** on top of Grid Editor, using only the editor's public API
+(`getHtml()` and `destroy()` on the `GridEditor` instance).
 
 ### Features
 

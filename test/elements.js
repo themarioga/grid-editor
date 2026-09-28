@@ -18,10 +18,17 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 /** A canvas whose one content area holds the markup given, as 5.x saved it. */
 function canvasOf(inner) {
-    return "jQuery('#myGrid').gridEditor('destroy');" +
-        'jQuery("#myGrid").html(\'<div class="row"><div class="column col-12">' +
-        '<div class="ge-content">' + inner + '</div></div></div>\');';
+    return HELPERS + "if (window.fixture.editor()) { window.fixture.editor().destroy(); }" +
+        'document.querySelector("#myGrid").innerHTML = \'<div class="row"><div class="column col-12">' +
+        '<div class="ge-content">' + inner + '</div></div></div>\';';
 }
+
+/** Small DOM helpers for the page scripts. */
+var HELPERS = `
+    var $$ = function(selector, root) { return Array.from((root || document).querySelectorAll(selector)); };
+    var kids = function(node, selector) { return Array.from(node.children).filter(function(c) { return !selector || c.matches(selector); }); };
+    var firstClass = function(node) { return node.getAttribute('class').split(' ')[0]; };
+`;
 
 var MARKED = '<p>Ordinary text</p>' +
     '<div data-ge-element="image" data-ge-label="Hero"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="></div>' +
@@ -29,21 +36,20 @@ var MARKED = '<p>Ordinary text</p>' +
 
 /** What the editor decided is an element, and what each one shows. */
 var ELEMENTS = `
-    return jQuery('#myGrid .ge-element').map(function() {
-        const element = jQuery(this);
-        return [{
-            type: element.attr('data-ge-element'),
-            label: element.attr('data-ge-label'),
-            tag: this.tagName.toLowerCase(),
-            editable: element.attr('contenteditable'),
-            inColumn: element.parent().is('.column'),
-            drawers: element.find('> .ge-tools-drawer').length,
-            info: element.find('> .ge-tools-drawer .ge-element-info').attr('title'),
-            tools: element.find('> .ge-tools-drawer > a').map(function() {
-                return jQuery(this).attr('class').split(' ')[0];
-            }).get().join(','),
-        }];
-    }).get();
+    return $$('#myGrid .ge-element').map(function(element) {
+        const drawer = kids(element, '.ge-tools-drawer')[0];
+        const info = drawer && drawer.querySelector('.ge-element-info');
+        return {
+            type: element.getAttribute('data-ge-element'),
+            label: element.getAttribute('data-ge-label'),
+            tag: element.tagName.toLowerCase(),
+            editable: element.getAttribute('contenteditable') === null ? undefined : element.getAttribute('contenteditable'),
+            inColumn: element.parentElement.matches('.column'),
+            drawers: kids(element, '.ge-tools-drawer').length,
+            info: info ? info.getAttribute('title') : undefined,
+            tools: drawer ? kids(drawer, 'a').map(firstClass).join(',') : '',
+        };
+    });
 `;
 
 async function detectionTests(t) {
@@ -65,7 +71,7 @@ async function detectionTests(t) {
 
     var auto = await page.eval(canvasOf(MARKED) + `
         window.fixture.init({ elements: { enabled: 'auto', selector: '[data-ge-element]', auto: true } });
-        window.texts = jQuery('#myGrid .ge-content').length;
+        window.texts = $$('#myGrid .ge-content').length;
         ` + ELEMENTS);
     var autoTexts = await page.eval(`return window.texts;`);
     t.check('elements.auto makes every loose node of a column an element, 5.x\'s content area children included',
@@ -78,9 +84,9 @@ async function detectionTests(t) {
     var off = await page.eval(canvasOf(MARKED) + `
         window.fixture.init({ elements: { enabled: false, selector: '[data-ge-element]', auto: true } });
         return {
-            elements: jQuery('#myGrid .ge-element').length,
-            drawers: jQuery('#myGrid .ge-content .ge-tools-drawer').length,
-            markupKeptInText: jQuery('#myGrid .ge-content [data-ge-element]').length,
+            elements: $$('#myGrid .ge-element').length,
+            drawers: $$('#myGrid .ge-content .ge-tools-drawer').length,
+            markupKeptInText: $$('#myGrid .ge-content [data-ge-element]').length,
         };
     `);
     t.check('elements.enabled false leaves the content area alone, marked nodes and all',
@@ -89,8 +95,8 @@ async function detectionTests(t) {
     var nothingMarked = await page.eval(canvasOf('<p>Just text</p>') + `
         window.fixture.init();
         return {
-            elements: jQuery('#myGrid .ge-element').length,
-            texts: jQuery('#myGrid .ge-content').length,
+            elements: $$('#myGrid .ge-element').length,
+            texts: $$('#myGrid .ge-content').length,
         };
     `);
     t.check('a page with nothing marked gets no element handling at all',
@@ -99,8 +105,8 @@ async function detectionTests(t) {
     var partial = await page.eval(canvasOf(MARKED) + `
         window.fixture.init({ elements: { auto: true } });
         return {
-            settings: jQuery('#myGrid').data('grideditor').settings.elements,
-            elements: jQuery('#myGrid .ge-element').length,
+            settings: window.fixture.editor().settings.elements,
+            elements: $$('#myGrid .ge-element').length,
         };
     `);
     t.check('naming one key of the elements setting keeps the defaults for the others',
@@ -118,11 +124,9 @@ async function detectionTests(t) {
                 on: { click: function() { window.clicked++; } },
             }],
         });
-        jQuery('#myGrid .ge-element .my-app-edit').trigger('click');
+        $$('#myGrid .ge-element .my-app-edit').forEach(function(tool) { tool.click(); });
         return {
-            tools: jQuery('#myGrid .ge-element > .ge-tools-drawer > a').map(function() {
-                return jQuery(this).attr('class').split(' ')[0];
-            }).get(),
+            tools: $$('#myGrid .ge-element > .ge-tools-drawer > a').map(firstClass),
             clicked: window.clicked,
         };
     `);
@@ -138,17 +142,20 @@ async function operationTests(t) {
     var deleted = await page.eval(canvasOf(MARKED) + `
         window.log = [];
         window.fixture.init({ confirm_delete: false });
-        jQuery('#myGrid').on('grideditor:before-delete grideditor:after-delete', function(e, payload) {
-            window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.parent.attr('class')]);
+        ['before-delete', 'after-delete'].forEach(function(name) {
+            document.querySelector('#myGrid').addEventListener('grideditor:' + name, function(e) {
+                const payload = e.detail;
+                window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.parent.getAttribute('class')]);
+            });
         });
-        jQuery('#myGrid .ge-element .ge-delete-element').trigger('click');
+        $$('#myGrid .ge-element .ge-delete-element').forEach(function(tool) { tool.click(); });
         return true;
     `);
     await cdp.sleep(600);
-    var afterDelete = await page.eval(`
+    var afterDelete = await page.eval(HELPERS + `
         return {
-            elements: jQuery('#myGrid .ge-element').length,
-            textKept: jQuery('#myGrid .ge-content').text().indexOf('Ordinary text') !== -1,
+            elements: $$('#myGrid .ge-element').length,
+            textKept: $$('#myGrid .ge-content').map(function(n) { return n.textContent; }).join('').indexOf('Ordinary text') !== -1,
             log: window.log,
         };
     `);
@@ -158,13 +165,13 @@ async function operationTests(t) {
         /(^|\s)column(\s|$)/.test(afterDelete.log[0][2]),
         afterDelete);
 
-    var created = await page.eval(`
+    var created = await page.eval(HELPERS + `
         const warnings = [];
         const warn = console.warn;
         console.warn = function(message) { warnings.push(message); warn.apply(console, arguments); };
 
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const ge = window.fixture.editor();
+        const column = document.querySelector('#myGrid .column');
         const element = ge.createElement('<span class="my-app-tag">Analytics tag</span>', {
             type: 'analytics-tag',
             label: 'Analytics',
@@ -172,19 +179,19 @@ async function operationTests(t) {
         });
 
         // 5.x put it into a content area's text; it goes beside it now
-        const contentArea = jQuery('#myGrid .ge-content').first();
+        const contentArea = document.querySelector('#myGrid .ge-content');
         const beside = ge.createElement('<p>Beside</p>', { type: 'beside', appendTo: contentArea });
         const besideAgain = ge.createElement('<p>Before</p>', { type: 'before', prependTo: contentArea });
         console.warn = warn;
 
         return {
-            marked: element.hasClass('ge-element'),
-            drawer: element.find('> .ge-tools-drawer').length,
-            editable: element.attr('contenteditable'),
-            info: element.find('.ge-element-info').attr('title'),
-            inPlace: element.parent()[0] === column[0] && column.children().last()[0] === element[0],
-            beside: beside.prev()[0] === contentArea.parent()[0] && beside.parent().is('.column'),
-            before: besideAgain.next()[0] === contentArea.parent()[0],
+            marked: element.classList.contains('ge-element'),
+            drawer: kids(element, '.ge-tools-drawer').length,
+            editable: element.getAttribute('contenteditable') === null ? undefined : element.getAttribute('contenteditable'),
+            info: element.querySelector('.ge-element-info').getAttribute('title'),
+            inPlace: element.parentElement === column && column.lastElementChild === element,
+            beside: beside.previousElementSibling === contentArea.parentElement && beside.parentElement.matches('.column'),
+            before: besideAgain.nextElementSibling === contentArea.parentElement,
             warned: warnings.filter(function(w) { return /an element is a block of the column since 6\.0/.test(w); }).length,
         };
     `);
@@ -196,7 +203,7 @@ async function operationTests(t) {
         created.beside && created.before && created.warned === 1, created);
 
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         return {
             html: html,
             drawer: /ge-tools-drawer/.test(html),
@@ -213,14 +220,14 @@ async function operationTests(t) {
         Object.assign({}, exported, { html: exported.html.slice(0, 200) }));
 
     var roundTrip = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        const before = jQuery('#myGrid .ge-element').length;
+        const html = window.fixture.editor().getHtml();
+        const before = document.querySelectorAll('#myGrid .ge-element').length;
 
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(html);
+        window.fixture.editor().destroy();
+        document.querySelector('#myGrid').innerHTML = html;
         window.fixture.init();
 
-        return { before: before, after: jQuery('#myGrid .ge-element').length };
+        return { before: before, after: document.querySelectorAll('#myGrid .ge-element').length };
     `);
     t.check('feeding that output back in finds the same elements',
         roundTrip.before === roundTrip.after && roundTrip.after === 3, roundTrip);
@@ -237,8 +244,8 @@ async function moveTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = (
             '<div class="row">' +
             '<div class="column col-6" id="left">' +
             '<div data-ge-element="one" id="first"><p>Element one, which is tall enough to drag onto.</p></div>' +
@@ -251,8 +258,9 @@ async function moveTests(t) {
         );
         window.moves = [];
         window.fixture.init();
-        jQuery('#myGrid').on('grideditor:after-move', function(e, payload) {
-            window.moves.push([payload.kind, payload.from.parent.attr('id'), payload.to.parent.attr('id'), payload.from.index, payload.to.index]);
+        document.querySelector('#myGrid').addEventListener('grideditor:after-move', function(e) {
+            const payload = e.detail;
+            window.moves.push([payload.kind, payload.from.parent.id, payload.to.parent.id, payload.from.index, payload.to.index]);
         });
         return true;
     `);
@@ -260,7 +268,7 @@ async function moveTests(t) {
     await page.drag('#second > .ge-tools-drawer .ge-move', '#first', { yRatio: 0.15 });
     var within = await page.eval(`
         return {
-            order: jQuery('#left > .ge-element').map(function() { return this.id; }).get().join(','),
+            order: Array.from(document.querySelectorAll('#left > .ge-element')).map(function(n) { return n.id; }).join(','),
             moves: window.moves,
         };
     `);
@@ -272,8 +280,8 @@ async function moveTests(t) {
     await page.drag('#third > .ge-tools-drawer .ge-move', '#first', { yRatio: 0.15 });
     var between = await page.eval(`
         return {
-            left: jQuery('#left > .ge-element').map(function() { return this.id; }).get().join(','),
-            right: jQuery('#right > .ge-element').length,
+            left: Array.from(document.querySelectorAll('#left > .ge-element')).map(function(n) { return n.id; }).join(','),
+            right: document.querySelectorAll('#right > .ge-element').length,
             moves: window.moves,
         };
     `);
@@ -285,11 +293,11 @@ async function moveTests(t) {
 
     // Asked the way SortableJS asks, as a drag goes over each list
     var refused = await page.eval(`
-        const canvas = Sortable.get(jQuery('#myGrid')[0]);
-        const column = Sortable.get(jQuery('#left')[0]);
-        const other = Sortable.get(jQuery('#right')[0]);
-        const element = jQuery('#first')[0];
-        const row = jQuery('#myGrid > .row')[0];
+        const canvas = Sortable.get(document.querySelector('#myGrid'));
+        const column = Sortable.get(document.querySelector('#left'));
+        const other = Sortable.get(document.querySelector('#right'));
+        const element = document.querySelector('#first');
+        const row = document.querySelector('#myGrid > .row');
         return {
             intoCanvas: !!canvas.options.group.checkPut(canvas, column, element),
             intoColumn: !!other.options.group.checkPut(other, column, element),

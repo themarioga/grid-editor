@@ -7,7 +7,7 @@ what turns the feature on. `grideditor.card.js` is the shortest of them, and
 the one to read first if you are about to write your own.
 
 ```html
-<script src="dist/jquery.grideditor.min.js"></script>
+<script src="dist/grideditor.min.js"></script>
 <script src="dist/plugins/grideditor.tabs.min.js"></script>
 <script src="dist/plugins/grideditor.popup.min.js"></script>
 <script src="dist/plugins/grideditor.card.min.js"></script>
@@ -15,11 +15,11 @@ the one to read first if you are about to write your own.
 ```
 
 There are three kinds. A **container plugin** builds a type of container — it
-registers under `$.fn.gridEditor.containers`, and the toolbar offers a button
+registers under `GridEditor.containers`, and the toolbar offers a button
 for it. A **utility plugin** declares families of Bootstrap's responsive
-utility classes — `$.fn.gridEditor.utilities` — and the editor edits them per
+utility classes — `GridEditor.utilities` — and the editor edits them per
 breakpoint. A **feature plugin** is anything else the editor can do —
-`$.fn.gridEditor.features`, hooks into the canvas, and may contribute methods.
+`GridEditor.features`, hooks into the canvas, and may contribute methods.
 All three are factories called once per editor with the same handle.
 
 Text is a feature plugin too. The core knows the grid and the host's *plain
@@ -50,14 +50,12 @@ A plugin registers a **factory** under the type it builds. The factory is
 called once per editor, with the handle below, and returns the definition:
 
 ```javascript
-(function($) {
-
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'container.add_carousel': 'Carousel',
     'container.carousel_label': 'Slide {number}',
 });
 
-$.fn.gridEditor.containers.carousel = function(ge) {
+GridEditor.containers.carousel = function(ge) {
 
     function addSlideTo(container, options) { … }
 
@@ -77,9 +75,27 @@ $.fn.gridEditor.containers.carousel = function(ge) {
         onDeinit: function() { … },                      // optional, per canvas deinit
     };
 };
-
-})(jQuery);
 ```
+
+That is a classic script, loaded after `grideditor.js`, with `GridEditor` on
+window. The same plugin as an ES module imports the editor and registers as
+it is imported, which is how the shipped plugins' modules work:
+
+```javascript
+import { GridEditor } from '@themarioga/grid-editor';
+
+GridEditor.containers.carousel = function(ge) { … };
+```
+
+A page or an app imports it for that side effect, after the editor:
+`import './carousel.js'`. Either way there is one registry per page, and the
+editors made after a plugin registered have it.
+
+Everything the editor hands a plugin, and everything a plugin hands back, is
+DOM: elements, and arrays of them where there may be several. Up to 6.x it was
+jQuery objects; a plugin written for 6.x is ported by taking that out, and
+[UPGRADING.md](../UPGRADING.md) says how. The shipped plugins are written in
+plain DOM, and a plugin of your own is free to use whatever it likes.
 
 - **`iconClass`**, when given, is the toolbar button's face: the icon alone,
   with the label as its title. Without one the button shows a plus and the
@@ -102,7 +118,9 @@ The handle
 
 Everything a plugin needs from the editor comes through the handle its factory
 is called with. It is the plugin contract: these names, and what they do, do
-not change without a major version.
+not change without a major version. 7.0 was one: every node it takes or gives
+is an element, and where 6.x gave a jQuery set that may hold several, an
+array.
 
 | | |
 | --- | --- |
@@ -112,10 +130,10 @@ not change without a major version.
 | `ge.warn(message)` | A console warning, prefixed like the editor's own |
 | `ge.containerId(type)` | A generated id, stable across a reset, for Bootstrap's toggles |
 | `ge.defaultRegion()` | A row with one full width column: what an empty pane starts as |
-| `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer |
-| `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one |
+| `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer, which it returns. `handlers` is a click handler or `{ eventName: handler }`; each gets the DOM event, with `this` the tool |
+| `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one; the tool, or null |
 | `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens. Returns the panel, to add fields to |
-| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover or modal `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer |
+| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover or modal `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
 | `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete |
@@ -132,15 +150,15 @@ not change without a major version.
 | `ge.breakpoints` | Every breakpoint key, smallest first |
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |
 | `ge.setUtility(node, family, value, options?)` | Write one through the events. `options` is a view key or `{ view, source }` |
-| `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel |
+| `ge.utilityField(node, family)` | A panel field for one family, for a plugin that builds its own panel; null for a family no plugin declares |
 | `ge.rowFromLayout(layout)` | A detached row from a layout: `[8, 4]`, `['auto', 'equal']` or `{ row_cols, columns }` |
-| `ge.drawerOf(node)` | A node's drawer: its first child, or for a content area the one beside it in its text block |
+| `ge.drawerOf(node)` | A node's drawer: its first child, or for a content area the one beside it in its text block; null when it has none |
 | `ge.textReady(block)` | A text editor has rewritten a content area: whatever the editor and its plugins put in there goes back in |
 | `ge.attachPicker(tool, open)` | Hold a tool, or rest the pointer on it, and `open` is called: how a tool offers a choice |
 | `ge.openPicker(anchor, choices, className?)` | The choice itself, as a strip under `anchor`: one button per `{ label, title, attributes, choose }` |
 | `ge.closePicker()` | Close it; true when one was open, which is also a click's answer |
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
-| `ge.toolbarItems(name)` | The toolbar buttons the feature plugin `name` declared, for showing and hiding them |
+| `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 
 The add, delete and move events for a container and its panes are fired by the
@@ -154,7 +172,7 @@ Feature plugins
 A feature plugin returns hooks rather than a container definition:
 
 ```javascript
-$.fn.gridEditor.features.elements = function(ge) {
+GridEditor.features.elements = function(ge) {
     return {
         methods: { createElement: … },   // added to the editor's own methods
         kindOf: function(node) { … },    // what an event calls this node
@@ -246,7 +264,7 @@ rather than remembering anything about it.
 
   ```javascript
   onSortable: function(sortable) {
-      sortable(ge.canvas.find('.ge-content'), {
+      sortable(Array.from(ge.canvas.querySelectorAll('.ge-content')), {
           draggable: '> .ge-element',   // which children move
           group: 'element',             // lists sharing a group connect
       });
@@ -316,7 +334,7 @@ A feature plugin that edits text declares its types, and that is all the
 core asks of it:
 
 ```javascript
-$.fn.gridEditor.features.mytext = function(ge) {
+GridEditor.features.mytext = function(ge) {
     return {
         textTypes: function() {
             return [{
@@ -361,8 +379,12 @@ off there.
 block's drawer, the *Text* buttons in the toolbar, `createText`, opening an
 editor on a click and closing it with
 the host's attributes put back, and `textTypes` - from
-`src/js/text/grideditor.text.js`, which the build puts at the top of each.
-However many a page loads, that is installed once.
+`src/js/text/grideditor.text.js`, which each of them imports, so its script
+carries it. However many a page loads, that is installed once.
+
+Each registers on `GridEditor.texts`, the text feature's own registry, with a
+factory whose `start(contentAreas)` and `stop(contentAreas)` get an array of
+content areas.
 
 The editors offered are `content_types`, every one loaded by default, in the
 order the page loaded them; the `plugins` setting does not choose them. A
@@ -379,9 +401,9 @@ editors.
 
 Up to 5.x an editor of a host's own registered under
 `$.fn.gridEditor.RTEs`, and in 5.x and the 6.0 betas under
-`$.fn.gridEditor.texts`. 6.0 removes the first - what is registered there is
-ignored, with a warning - and `texts` is the shipped editors' own registry,
-not a contract.
+`$.fn.gridEditor.texts`. 6.0 ignored the first, with a warning, and 7.0 has
+neither: `GridEditor.texts` is the shipped editors' own registry, not a
+contract.
 
 
 Utility plugins
@@ -393,7 +415,7 @@ ones spelled `{property}-{breakpoint}-{value}`, like `order-md-2` or
 and the editor reads, writes, previews and announces them:
 
 ```javascript
-$.fn.gridEditor.utilities.order = function(ge) {
+GridEditor.utilities.order = function(ge) {
     return {
         families: [{
             name: 'order',                 // what events and setUtility call it

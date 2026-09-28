@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Grid editor test fixture, jQuery API</title>
+
+    <!--
+        grid.html as a page written for grid-editor 6 has it: jQuery 4, the
+        editor, grideditor.jquery.js, and the editor driven through
+        $(el).gridEditor(). What test/adapter.js runs against.
+
+        Like grid.html, a grid editor with no rich text editor, on a page
+        whose dependencies all come from test/vendor so that a test run needs
+        no network. Do not point this page at a CDN.
+
+        The editor initializes on load with the settings in window.fixture,
+        unless the page is opened with ?init=manual, which leaves the canvas
+        untouched so a suite can initialize it itself.
+    -->
+
+    <link rel="stylesheet" href="../vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../dist/grideditor.css">
+
+    <script src="../vendor/jquery/jquery.min.js"></script>
+    <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../vendor/sortablejs/Sortable.min.js"></script>
+    <script src="../../dist/grideditor.js"></script>
+    <!-- The 6.x jQuery API -->
+    <script src="../../dist/grideditor.jquery.js"></script>
+
+    <!-- The plugins. Loading a file is what makes its feature available;
+         the fixture takes every one so a suite can use any. -->
+    <script src="../../dist/plugins/grideditor.tabs.js"></script>
+    <script src="../../dist/plugins/grideditor.accordion.js"></script>
+    <script src="../../dist/plugins/grideditor.popup.js"></script>
+    <script src="../../dist/plugins/grideditor.card.js"></script>
+    <script src="../../dist/plugins/grideditor.elements.js"></script>
+    <script src="../../dist/plugins/grideditor.visibility.js"></script>
+    <script src="../../dist/plugins/grideditor.order.js"></script>
+    <script src="../../dist/plugins/grideditor.alignment.js"></script>
+    <script src="../../dist/plugins/grideditor.gutters.js"></script>
+    <script src="../../dist/plugins/grideditor.spacing.js"></script>
+    <script src="../../dist/plugins/grideditor.textalign.js"></script>
+    <script src="../../dist/plugins/grideditor.float.js"></script>
+    <script src="../../dist/plugins/grideditor.sections.js"></script>
+    <script src="../../dist/plugins/grideditor.codemirror.js"></script>
+    <script src="../../dist/plugins/grideditor.codemirror-inline.js"></script>
+    <script src="../../dist/plugins/grideditor.clipboard.js"></script>
+    <!-- The text editors, whose libraries the fixture does not load: a suite
+         that needs one brings a stand-in, see test/texts.js -->
+    <script src="../../dist/plugins/grideditor.tinymce.js"></script>
+    <script src="../../dist/plugins/grideditor.ckeditor.js"></script>
+    <script src="../../dist/plugins/grideditor.summernote.js"></script>
+
+    <script>
+        window.fixture = {
+            grid: '#myGrid',
+
+            // No content_types: the content areas stay plain, so a suite can
+            // test the grid itself without an editor rewriting the DOM.
+            settings: {
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                content_types: [],
+                // Loaded is not used: the utility plugins add tools and
+                // fields to every drawer, which the suites about the grid do
+                // not expect. A suite about one names it on top of these.
+                plugins: ['tabs', 'accordion', 'popup', 'card', 'elements'],
+            },
+
+            /** The plugins setting with `names` on top of the fixture's own. */
+            plugins: function(names) {
+                return this.settings.plugins.concat(names);
+            },
+
+            /**
+             * Initialize the grid editor, with `overrides` on top of the
+             * defaults. A fresh one each time: an editor already on the grid
+             * is destroyed first, since asking for a second one hands back
+             * the first, options and all.
+             */
+            init: function(overrides) {
+                if ($(this.grid).data('grideditor')) { $(this.grid).gridEditor('destroy'); }
+                return $(this.grid).gridEditor($.extend({}, this.settings, overrides || {}));
+            },
+
+            /** Tear the editor down and hand back the markup it leaves behind. */
+            teardown: function() {
+                $(this.grid).gridEditor('destroy');
+                return $(this.grid).html();
+            },
+        };
+
+        $(function() {
+            if (new URLSearchParams(window.location.search).get('init') !== 'manual') {
+                window.fixture.init();
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <div id="myGrid">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1>Fixture heading</h1>
+                    <p>Fixture paragraph in a full width column.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <p>Fixture paragraph in the left column.</p>
+                </div>
+                <div class="col-lg-6">
+                    <p>Fixture paragraph in the right column.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

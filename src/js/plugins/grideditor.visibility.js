@@ -8,7 +8,7 @@
  * block). What it can ask the editor for is the handle its factory is called
  * with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.visibility.min.js"></script>
  *
  * A hidden node is never hidden from the editor, which would leave nothing to
@@ -18,9 +18,10 @@
  * utilities.visibility.drawer: false leaves the eye out of the drawers, and
  * the panel field is the only control.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.visibility': 'Visibility',
     'utility.visibility_hidden': 'Hidden',
     'utility.visibility_shown': 'Shown',
@@ -34,9 +35,9 @@ var CLASS_PATTERN = /(?:^|\s)d-(?:(?:sm|md|lg|xl|xxl)-)?(?:none|block|flex)(?:\s
 
 var NODES = '.row, .column, .ge-content, .ge-element, [data-ge-container]';
 
-$.fn.gridEditor.utilities.visibility = function(ge) {
+GridEditor.utilities.visibility = function(ge) {
 
-    var options = $.extend({ drawer: true }, ge.settings.utilities.visibility);
+    var options = Object.assign({ drawer: true }, ge.settings.utilities.visibility);
 
     /** What "shown" is written as on this kind of node. */
     function shown(kind) {
@@ -45,7 +46,7 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
 
     function applies(node, kind) {
         return kind === 'row' || kind === 'column' || kind === 'element' || kind === 'text' || kind === 'plain' ||
-            node.is('[data-ge-container]');
+            dom.is(node, '[data-ge-container]');
     }
 
     function hiddenAt(node, view) {
@@ -103,38 +104,38 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
      * and data-ge-hidden-in carries the badge text for the all view.
      */
     function mark(scope) {
-        scope.find(NODES).addBack(NODES).each(function() {
-            var node = $(this);
+        dom.selfAndAll(scope, NODES).forEach(function(node) {
             var kind = ge.kindOf(node);
-            var carries = applies(node, kind) && CLASS_PATTERN.test(node.attr('class') || '');
+            var carries = applies(node, kind) && CLASS_PATTERN.test(node.getAttribute('class') || '');
             var tiers = carries ? hiddenTiers(node) : [];
             var here = carries && hiddenHere(node);
             var partly = carries && ge.view() === 'all' && tiers.length > 0 && !here;
 
-            node.toggleClass('ge-visibility', carries).toggleClass('ge-hidden-in-view', here);
+            dom.toggleClass(node, 'ge-visibility', carries);
+            dom.toggleClass(node, 'ge-hidden-in-view', here);
 
             if (partly) {
-                node.attr('data-ge-hidden-in', ge.t('badge.hidden_in', { breakpoints: tiers.join(', ') }));
+                node.setAttribute('data-ge-hidden-in', ge.t('badge.hidden_in', { breakpoints: tiers.join(', ') }));
             } else {
-                node.removeAttr('data-ge-hidden-in');
+                node.removeAttribute('data-ge-hidden-in');
             }
 
-            node.children('.ge-tools-drawer').children('.ge-visibility-tool').each(function() {
-                $(this)
-                    .attr('title', here ? ge.t('tool.show_in_view') : ge.t('tool.hide_in_view'))
-                    .find('i').attr('class', here ? 'bi bi-eye-slash' : 'bi bi-eye');
+            dom.children(node, '.ge-tools-drawer').forEach(function(drawer) {
+                dom.children(drawer, '.ge-visibility-tool').forEach(function(tool) {
+                    tool.setAttribute('title', here ? ge.t('tool.show_in_view') : ge.t('tool.hide_in_view'));
+                    dom.all(tool, 'i').forEach(function(icon) {
+                        icon.setAttribute('class', here ? 'bi bi-eye-slash' : 'bi bi-eye');
+                    });
+                });
             });
         });
     }
 
     function unmark() {
-        ge.canvas.find('.ge-visibility, .ge-hidden-in-view, [data-ge-hidden-in]').each(function() {
-            var node = $(this)
-                .removeClass('ge-visibility ge-hidden-in-view')
-                .removeAttr('data-ge-hidden-in')
-            ;
-
-            if (!node.attr('class')) { node.removeAttr('class'); }
+        dom.all(ge.canvas, '.ge-visibility, .ge-hidden-in-view, [data-ge-hidden-in]').forEach(function(node) {
+            dom.removeClass(node, 'ge-visibility ge-hidden-in-view');
+            node.removeAttribute('data-ge-hidden-in');
+            dom.dropEmptyClass(node);
         });
     }
 
@@ -168,5 +169,3 @@ $.fn.gridEditor.utilities.visibility = function(ge) {
         onDeinit: unmark,
     };
 };
-
-})(jQuery);

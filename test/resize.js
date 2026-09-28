@@ -27,26 +27,23 @@ function canvasOf(columns, settings) {
         return '<div class="' + classes.join(' ') + '"><div class="ge-content"><p>x</p></div></div>';
     }).join('');
 
-    return "jQuery('#myGrid').gridEditor('destroy');" +
-        "jQuery('#myGrid').html('<div class=\"row\">" + markup + "</div>');" +
-        'window.fixture.init(' + JSON.stringify($.extend({ default_view: 'xs' }, settings)) + ');' +
+    return "if (window.fixture.editor()) { window.fixture.editor().destroy(); }" +
+        "document.querySelector('#myGrid').innerHTML = '<div class=\"row\">" + markup + "</div>';" +
+        'window.fixture.init(' + JSON.stringify(Object.assign({ default_view: 'xs' }, settings)) + ');' +
         'window.unit = (function() {' +
-        '    const row = jQuery("#myGrid .row")[0];' +
+        '    const row = document.querySelector("#myGrid .row");' +
         '    const style = getComputedStyle(row);' +
         '    return (row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) / 12;' +
         '})();' +
         'return window.unit;';
 }
 
-// Tiny stand-in so canvasOf can use $.extend on the node side
-var $ = { extend: Object.assign };
-
 /** The sizes of the row's columns, as written at the xs tier. */
 var SIZES = `
-    return jQuery('#myGrid .column').map(function() {
-        const match = /(?:^|\\s)col-(\\d+)(?:\\s|$)/.exec(jQuery(this).attr('class'));
+    return Array.from(document.querySelectorAll('#myGrid .column')).map(function(column) {
+        const match = /(?:^|\\s)col-(\\d+)(?:\\s|$)/.exec(column.getAttribute('class'));
         return match ? +match[1] : null;
-    }).get();
+    });
 `;
 
 async function snapTests(t) {
@@ -70,10 +67,10 @@ async function snapTests(t) {
         nudged.join(',') === '5,7', { sizes: nudged, log: nudgedLog });
 
     var clean = await page.eval(`
-        const column = jQuery('#myGrid .column').first();
+        const column = document.querySelector('#myGrid .column');
         return {
-            inlineWidth: column[0].style.width,
-            classes: column.attr('class'),
+            inlineWidth: column.style.width,
+            classes: column.getAttribute('class'),
         };
     `);
     t.check('the pixels are gone once the drag has landed',
@@ -99,7 +96,7 @@ async function balanceTests(t) {
     await page.dragBy(HANDLE, Math.round(budget * 4), 0);
     var stopped = await page.eval(SIZES + `;`);
     var offsets = await page.eval(`
-        return jQuery('#myGrid .column').first().attr('class');
+        return document.querySelector('#myGrid .column').getAttribute('class');
     `);
     t.check('the budget stops the drag instead of rewriting the offset',
         stopped[0] <= 8 && /(^|\s)offset-4(\s|$)/.test(offsets),
@@ -112,8 +109,10 @@ async function eventTests(t) {
 
     await page.eval(`
         window.resizeLog = [];
-        jQuery('#myGrid').on('grideditor:before-resize grideditor:after-resize', function(e, payload) {
-            window.resizeLog.push([e.type.replace('grideditor:', ''), payload.from, payload.to, payload.source]);
+        ['grideditor:before-resize', 'grideditor:after-resize'].forEach(function(name) {
+            document.querySelector('#myGrid').addEventListener(name, function(e) {
+                window.resizeLog.push([e.type.replace('grideditor:', ''), e.detail.from, e.detail.to, e.detail.source]);
+            });
         });
         return true;
     `);
@@ -137,8 +136,8 @@ async function eventTests(t) {
 
     var canceled = await page.eval(`
         window.resizeLog = [];
-        jQuery('#myGrid').on('grideditor:before-resize', function(e) { e.preventDefault(); });
-        window.beforeDrag = jQuery('#myGrid .column').first().attr('class');
+        document.querySelector('#myGrid').addEventListener('grideditor:before-resize', function(e) { e.preventDefault(); });
+        window.beforeDrag = document.querySelector('#myGrid .column').getAttribute('class');
         return true;
     `);
     await page.dragBy(HANDLE, Math.round(unit * 2), 0);
@@ -146,9 +145,9 @@ async function eventTests(t) {
         return {
             log: window.resizeLog,
             before: window.beforeDrag,
-            after: jQuery('#myGrid .column').first().attr('class'),
-            inlineWidth: jQuery('#myGrid .column').first()[0].style.width,
-            resizing: jQuery('.ge-resizing').length,
+            after: document.querySelector('#myGrid .column').getAttribute('class'),
+            inlineWidth: document.querySelector('#myGrid .column').style.width,
+            resizing: document.querySelectorAll('.ge-resizing').length,
         };
     `);
     t.check('a canceled before-resize stops the drag before it starts',
@@ -164,10 +163,10 @@ async function artifactTests(t) {
 
     var editing = await page.eval(`
         return {
-            handles: jQuery('#myGrid .ge-resize-handle').length,
-            columns: jQuery('#myGrid .column').length,
-            east: jQuery('#myGrid .ge-resize-e').length,
-            readouts: jQuery('#myGrid .ge-resize-size').length,
+            handles: document.querySelectorAll('#myGrid .ge-resize-handle').length,
+            columns: document.querySelectorAll('#myGrid .column').length,
+            east: document.querySelectorAll('#myGrid .ge-resize-e').length,
+            readouts: document.querySelectorAll('#myGrid .ge-resize-size').length,
         };
     `);
     t.check('every column has a handle on the edge the setting asked for',
@@ -180,20 +179,20 @@ async function artifactTests(t) {
     // captured pointer fires no compatibility mouse events.
     await page.eval(`
         window.readouts = [];
-        jQuery('#myGrid').on('pointermove', function() {
-            const text = jQuery('#myGrid .ge-resize-size').first().text();
+        document.querySelector('#myGrid').addEventListener('pointermove', function() {
+            const text = document.querySelector('#myGrid .ge-resize-size').textContent;
             if (text && window.readouts.indexOf(text) === -1) { window.readouts.push(text); }
         });
         return true;
     `);
     await page.dragBy(HANDLE, Math.round(unit * 2), 0);
-    var readouts = await page.eval(`return { seen: window.readouts, afterwards: jQuery('#myGrid .ge-resize-size').first().text() };`);
+    var readouts = await page.eval(`return { seen: window.readouts, afterwards: document.querySelector('#myGrid .ge-resize-size').textContent };`);
     t.check('the drawer shows the class the column would land on while dragging',
         readouts.seen.indexOf('col-8') !== -1 && readouts.afterwards === '',
         readouts);
 
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         return {
             html: html,
             pixels: /style=/i.test(html),
@@ -201,8 +200,8 @@ async function artifactTests(t) {
             readout: /ge-resize-size/.test(html),
             drawer: /ge-tools-drawer/.test(html),
             keptSize: /col-8/.test(html),
-            stillEditing: jQuery('#myGrid').hasClass('ge-editing'),
-            handlesAfterwards: jQuery('#myGrid .ge-resize-handle').length,
+            stillEditing: document.querySelector('#myGrid').classList.contains('ge-editing'),
+            handlesAfterwards: document.querySelectorAll('#myGrid .ge-resize-handle').length,
         };
     `);
     t.check('a drag-resized column exports as its class and nothing else',
@@ -229,30 +228,30 @@ async function gestureTests(t) {
     var unit = await page.eval(`
         window.fixture.init();
 
-        const columns = jQuery('#myGrid > .row').eq(1).children('.column');
-        columns.eq(0).attr('id', 'left');
-        columns.eq(1).attr('id', 'right');
+        const row = document.querySelectorAll('#myGrid > .row')[1];
+        const columns = row.querySelectorAll(':scope > .column');
+        columns[0].id = 'left';
+        columns[1].id = 'right';
 
         window.moves = 0;
         window.resizes = 0;
-        jQuery('#myGrid').on('grideditor:after-move', function() { window.moves++; });
-        jQuery('#myGrid').on('grideditor:after-resize', function() { window.resizes++; });
+        document.querySelector('#myGrid').addEventListener('grideditor:after-move', function() { window.moves++; });
+        document.querySelector('#myGrid').addEventListener('grideditor:after-resize', function() { window.resizes++; });
 
-        const row = columns.parent()[0];
         const style = getComputedStyle(row);
         return (row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) / 12;
     `);
 
     var order = `
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column')
-                .map(function() { return this.id; }).get().join(','),
+            order: Array.from(document.querySelectorAll('#myGrid > .row')[1].querySelectorAll(':scope > .column'))
+                .map(function(column) { return column.id; }).join(','),
             moves: window.moves,
             resizes: window.resizes,
             // The fixture's columns are col-lg-6, and a resize in the all view
             // writes the base class in their place
-            sizes: jQuery('#myGrid > .row').eq(1).children('.column')
-                .map(function() { return /(?:^|\\s)col-(?:lg-)?(\\d+)(?:\\s|$)/.exec(jQuery(this).attr('class'))[1]; }).get().join(','),
+            sizes: Array.from(document.querySelectorAll('#myGrid > .row')[1].querySelectorAll(':scope > .column'))
+                .map(function(column) { return /(?:^|\\s)col-(?:lg-)?(\\d+)(?:\\s|$)/.exec(column.getAttribute('class'))[1]; }).join(','),
         };
     `;
 

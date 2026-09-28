@@ -22,17 +22,17 @@ function canvasOf(sizes, settings) {
         return '<div class="column col-' + size + '"><div class="ge-content"><p>x</p></div></div>';
     }).join('');
 
-    return "jQuery('#myGrid').gridEditor('destroy');" +
-        "jQuery('#myGrid').html('<div class=\"row\">" + markup + "</div>');" +
+    return "if (window.fixture.editor()) { window.fixture.editor().destroy(); }" +
+        "document.querySelector('#myGrid').innerHTML = '<div class=\"row\">" + markup + "</div>';" +
         'window.fixture.init(' + JSON.stringify(Object.assign({ default_view: 'xs' }, settings)) + ');' +
         'return true;';
 }
 
 var SIZES = `
-    return jQuery('#myGrid .column').map(function() {
-        const match = /(?:^|\\s)col-(\\d+)(?:\\s|$)/.exec(jQuery(this).attr('class'));
+    return Array.from(document.querySelectorAll('#myGrid .column')).map(function(column) {
+        const match = /(?:^|\\s)col-(\\d+)(?:\\s|$)/.exec(column.getAttribute('class'));
         return match ? +match[1] : null;
-    }).get();
+    });
 `;
 
 var TOOL = '#myGrid > .row > .ge-tools-drawer .ge-add-column';
@@ -46,7 +46,7 @@ async function quickClickTests(t) {
     t.check('a click adds a full width column',
         added.join(',') === '6,12', added);
 
-    var pickerAfterClick = await page.eval(`return jQuery('.ge-size-picker').length;`);
+    var pickerAfterClick = await page.eval(`return document.querySelectorAll('.ge-size-picker').length;`);
     t.check('a click does not leave a picker behind', pickerAfterClick === 0, pickerAfterClick);
 
     await page.eval(canvasOf([6], { add_column: { size: 4 } }));
@@ -56,7 +56,7 @@ async function quickClickTests(t) {
         custom.join(',') === '6,4', custom);
 
     var settings = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         return ge.settings.add_column;
     `);
     t.check('naming one key of add_column keeps the others',
@@ -70,18 +70,21 @@ async function pickerTests(t) {
     // Hovering briefly is still just hovering
     await page.hover(TOOL);
     await sleep(250);
-    var tooSoon = await page.eval(`return jQuery('.ge-size-picker').length;`);
+    var tooSoon = await page.eval(`return document.querySelectorAll('.ge-size-picker').length;`);
     t.check('a hover shorter than the delay offers nothing', tooSoon === 0, tooSoon);
 
     await sleep(600);
     var offered = await page.eval(`
-        const picker = jQuery('.ge-size-picker');
+        const pickers = document.querySelectorAll('.ge-size-picker');
+        const picker = pickers[0];
+        const sizes = picker ? Array.from(picker.querySelectorAll('.ge-size')) : [];
         return {
-            open: picker.length,
-            insideTheTool: picker.closest('.ge-add-column').length === 1,
-            sizes: picker.find('.ge-size').map(function() { return jQuery(this).attr('data-ge-size'); }).get(),
-            tight: picker.find('.ge-size-tight').map(function() { return +jQuery(this).attr('data-ge-size'); }).get(),
-            titles: picker.find('.ge-size').first().attr('title'),
+            open: pickers.length,
+            insideTheTool: !!picker && !!picker.closest('.ge-add-column'),
+            sizes: sizes.map(function(size) { return size.getAttribute('data-ge-size'); }),
+            tight: sizes.filter(function(size) { return size.classList.contains('ge-size-tight'); })
+                .map(function(size) { return +size.getAttribute('data-ge-size'); }),
+            titles: sizes.length ? sizes[0].getAttribute('title') : undefined,
         };
     `);
     t.check('holding the tool offers every allowed size, under the tool itself',
@@ -94,14 +97,16 @@ async function pickerTests(t) {
 
     await page.click('.ge-size-picker .ge-size[data-ge-size="4"]');
     var chosen = await page.eval(SIZES);
-    var closed = await page.eval(`return jQuery('.ge-size-picker').length;`);
+    var closed = await page.eval(`return document.querySelectorAll('.ge-size-picker').length;`);
     t.check('choosing a size adds a column of that size and closes the picker',
         chosen.join(',') === '6,4' && closed === 0, { sizes: chosen, pickers: closed });
 
     var announced = await page.eval(`
         window.log = [];
-        jQuery('#myGrid').on('grideditor:before-add-column grideditor:after-add-column', function(e, payload) {
-            window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.source]);
+        ['grideditor:before-add-column', 'grideditor:after-add-column'].forEach(function(name) {
+            document.querySelector('#myGrid').addEventListener(name, function(e) {
+                window.log.push([e.type.replace('grideditor:', ''), e.detail.kind, e.detail.source]);
+            });
         });
         return true;
     `);
@@ -123,12 +128,12 @@ async function dismissTests(t) {
 
     await page.hover(TOOL);
     await sleep(800);
-    var open = await page.eval(`return jQuery('.ge-size-picker').length;`);
+    var open = await page.eval(`return document.querySelectorAll('.ge-size-picker').length;`);
 
     // Away from the tool, and the question is withdrawn
     await page.hover('#myGrid > .row > .ge-tools-drawer .ge-move');
     await sleep(700);
-    var afterLeaving = await page.eval(`return { pickers: jQuery('.ge-size-picker').length, columns: jQuery('#myGrid .column').length };`);
+    var afterLeaving = await page.eval(`return { pickers: document.querySelectorAll('.ge-size-picker').length, columns: document.querySelectorAll('#myGrid .column').length };`);
     t.check('moving away from the tool withdraws the offer, adding nothing',
         open === 1 && afterLeaving.pickers === 0 && afterLeaving.columns === 1,
         { open: open, afterLeaving: afterLeaving });
@@ -137,27 +142,27 @@ async function dismissTests(t) {
     await page.hover(TOOL);
     await sleep(800);
     await page.click(TOOL);
-    var afterToolClick = await page.eval(`return { pickers: jQuery('.ge-size-picker').length, columns: jQuery('#myGrid .column').length };`);
+    var afterToolClick = await page.eval(`return { pickers: document.querySelectorAll('.ge-size-picker').length, columns: document.querySelectorAll('#myGrid .column').length };`);
     t.check('clicking the tool while it is offering sizes closes it rather than adding one',
         afterToolClick.pickers === 0 && afterToolClick.columns === 1, afterToolClick);
 
     var disabled = await page.eval(canvasOf([6], { add_column: { picker: false } }));
     await page.hover(TOOL);
     await sleep(800);
-    var withoutPicker = await page.eval(`return jQuery('.ge-size-picker').length;`);
+    var withoutPicker = await page.eval(`return document.querySelectorAll('.ge-size-picker').length;`);
     t.check('add_column.picker false turns the gesture off', withoutPicker === 0, withoutPicker);
 
     await page.eval(canvasOf([6], { valid_col_sizes: [3, 6, 9, 12] }));
     await page.hover(TOOL);
     await sleep(800);
     var limited = await page.eval(`
-        return jQuery('.ge-size-picker .ge-size').map(function() { return +jQuery(this).attr('data-ge-size'); }).get();
+        return Array.from(document.querySelectorAll('.ge-size-picker .ge-size')).map(function(size) { return +size.getAttribute('data-ge-size'); });
     `);
     t.check('valid_col_sizes says which sizes are offered', limited.join(',') === '3,6,9,12', limited);
 
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        return { picker: /ge-size-picker/.test(html), pickersLeft: jQuery('.ge-size-picker').length };
+        const html = window.fixture.editor().getHtml();
+        return { picker: /ge-size-picker/.test(html), pickersLeft: document.querySelectorAll('.ge-size-picker').length };
     `);
     t.check('an open picker is editor furniture: gone from the output and from the canvas',
         !exported.picker && exported.pickersLeft === 0, exported);

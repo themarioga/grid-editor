@@ -1,29 +1,54 @@
 grid-editor events
 ==================
 
-Every operation grid-editor performs is announced, twice: as a jQuery event on
+Every operation grid-editor performs is announced, twice: as a DOM event on
 the canvas, and as a callback in the `callbacks` setting. The event is the
-primary mechanism — several listeners, namespacing, `off()` — and the callback
-is there for hosts that configure the plugin once, from generated or
-server-side code, and cannot easily bind.
+primary mechanism — several listeners, `removeEventListener`, a listener on
+an ancestor — and the callback is there for hosts that configure the editor
+once, from generated or server-side code, and cannot easily bind.
 
 ```javascript
-// as events
-$('#myGrid').on('grideditor:before-add-row', function(e, payload) {
-    if (payload.parent.hasClass('locked')) { e.preventDefault(); }
-});
-
-// as callbacks
-$('#myGrid').gridEditor({
+var ge = new GridEditor('#myGrid', {
+    // as callbacks
     callbacks: {
-        before_add_row: function(payload) { return !payload.parent.hasClass('locked'); },
+        before_add_row: function(payload) { return !payload.parent.classList.contains('locked'); },
         after_move: function(payload) { console.log(payload.from, payload.to); },
     },
+});
+
+// as events
+ge.canvas.addEventListener('grideditor:before-add-row', function(e) {
+    if (e.detail.parent.classList.contains('locked')) { e.preventDefault(); }
 });
 ```
 
 A callback's name is its event name with `grideditor:` dropped and the dashes
 turned into underscores: `before-add-row` → `before_add_row`.
+
+
+How an event is delivered
+-------------------------
+
+Each notification is a `CustomEvent` dispatched on the canvas, named
+`grideditor:<name>`, with the payload as its `detail`. It bubbles, so a
+listener on the document hears every editor on the page, and it is
+cancelable: `preventDefault()` on a `before-*` is what cancels it (see
+*Canceling* below). The events come in the order of *Ordering*, and every
+listener and every callback hears each notification, whatever the ones before
+it did.
+
+A listener that throws is the browser's to report, as any listener's error
+is: the other listeners, the callbacks and the operation go on. Up to 6.x an
+error thrown in a jQuery handler stopped the operation where it was.
+
+The payload's nodes are elements. Up to 6.x they were jQuery objects, and
+they still are for a page that loads `grideditor.jquery.js`: through the
+adapter, a jQuery listener - bound on the canvas or delegated from an
+ancestor - runs once per notification with `(event, payload)`, the payload's
+nodes wrapped, and `preventDefault()` on its event cancels as before. The
+`callbacks` a page passes to `$(el).gridEditor()` get jQuery objects too.
+Without the adapter, a jQuery listener is handed the DOM event alone, with
+the payload in `event.originalEvent.detail`.
 
 
 The catalogue
@@ -52,7 +77,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-convert` | — | yes | before the host's plain content is made a text, on a click, with the type chosen |
 | `grideditor:after-convert` | — | no | once the type is on it, before its editor has finished opening |
 | `grideditor:before-edit-html` | — | yes | with the codemirror-inline plugin, before a block's html is replaced with what was written; canceled, the editor stays open |
-| `grideditor:after-edit-html` | — | no | once it is, and the canvas is editing again; `node` is what was written, which may be several nodes or none |
+| `grideditor:after-edit-html` | — | no | once it is, and the canvas is editing again; `node` is the first element written, or null when only text was, and `nodes` every element written |
 | `grideditor:before-delete` | — | yes | before any node is removed, whatever its kind |
 | `grideditor:after-delete` | — | no | after removal completes, animation included |
 | `grideditor:before-move` | — | yes | on drag start (see *Canceling*) |
@@ -81,15 +106,16 @@ The payload
     kind: 'row',          // row | column | text | plain | element
                           // tabs | accordion | popup | tab | accordion-item
                           // section, with the sections plugin
-    node: jQuery,         // the node added, deleted, moved or resized
-    parent: jQuery,       // where it is going, or where it came from on a delete
-    canvas: jQuery,
+    node: Element,        // the node added, deleted, moved or resized
+    parent: Element,      // where it is going, or where it came from on a delete;
+                          // null for a node created detached, with no placement
+    canvas: Element,
     breakpoint: 'lg',     // the view at the time: a breakpoint key, or 'all'
     source: 'tool',       // tool | api | dragdrop | panel (a width chosen in the panel)
 
     // move only
-    from: { parent: jQuery, index: 2 },
-    to:   { parent: jQuery, index: 0 },
+    from: { parent: Element, index: 2 },
+    to:   { parent: Element, index: 0 },
 
     // resize and indent only: units, not pixels. A size can also be
     // 'equal' or 'auto', and null when the width field chose "inherit"
@@ -100,7 +126,7 @@ The payload
     ],
 
     // a pane inside a container
-    container: jQuery,
+    container: Element,
 
     // convert only
     from: 'plain',
@@ -199,9 +225,9 @@ from inside a handler are queued and run when the operation that called them
 has finished, rather than rebuilding the canvas underneath it:
 
 ```javascript
-$('#myGrid').on('grideditor:after-add-row', function(e, payload) {
+ge.canvas.addEventListener('grideditor:after-add-row', function(e) {
     // runs after this add has finished, not in the middle of it
-    $('#myGrid').gridEditor('createRow', [6, 6], { appendTo: payload.canvas });
+    ge.createRow([6, 6], { appendTo: e.detail.canvas });
 });
 ```
 

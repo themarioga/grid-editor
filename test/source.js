@@ -42,11 +42,16 @@ var SETUP = `
     };
 
     window.start = function(settings) {
-        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
-        jQuery('#myGrid').html('<div class="row"><div class="col-12"><p>Before</p></div></div>');
-        window.fixture.init(settings || {});
-        return jQuery('#myGrid').data('grideditor');
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML = '<div class="row"><div class="col-12"><p>Before</p></div></div>';
+        return window.fixture.init(settings || {});
     };
+
+    window.q = function(selector) { return document.querySelector(selector); };
+    window.count = function(selector) { return document.querySelectorAll(selector).length; };
+    window.shown = function(node) { return !!node && !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length); };
+    /** The toolbar's source button, clicked. */
+    window.source = function() { q('.gm-edit-mode').click(); };
     return true;
 `;
 
@@ -57,8 +62,8 @@ async function buttonTests(t) {
     var shown = await page.eval(`
         start();
         return {
-            byDefault: jQuery('.ge-mainControls .gm-edit-mode').length,
-            preview: jQuery('.ge-mainControls .gm-preview').length,
+            byDefault: count('.ge-mainControls .gm-edit-mode'),
+            preview: count('.ge-mainControls .gm-preview'),
         };
     `);
     t.check('the source button is in the toolbar by default', shown.byDefault === 1 && shown.preview === 1, shown);
@@ -66,8 +71,8 @@ async function buttonTests(t) {
     var hidden = await page.eval(`
         const ge = start({ edit_source: false });
         return {
-            button: jQuery('.ge-mainControls .gm-edit-mode').length,
-            preview: jQuery('.ge-mainControls .gm-preview').length,
+            button: count('.ge-mainControls .gm-edit-mode'),
+            preview: count('.ge-mainControls .gm-preview'),
             setting: ge.settings.edit_source,
         };
     `);
@@ -76,11 +81,11 @@ async function buttonTests(t) {
 
     var relocaled = await page.eval(`
         start();
-        jQuery('.gm-edit-mode').trigger('click');
-        jQuery('#myGrid').gridEditor('setLocale', 'en');
-        const state = { active: jQuery('.gm-edit-mode').hasClass('active'), canvasHidden: !jQuery('#myGrid').is(':visible') };
-        jQuery('.gm-edit-mode').trigger('click');
-        state.back = jQuery('#myGrid').is(':visible') && jQuery('#myGrid').hasClass('ge-editing');
+        source();
+        window.fixture.editor().setLocale('en');
+        const state = { active: q('.gm-edit-mode').classList.contains('active'), canvasHidden: !shown(q('#myGrid')) };
+        source();
+        state.back = shown(q('#myGrid')) && q('#myGrid').classList.contains('ge-editing');
         return state;
     `);
     t.check('the toolbar built again with the source open says it is open, and closes it',
@@ -97,7 +102,7 @@ async function codemirrorTests(t) {
     var opened = await page.eval(`
         window.CodeMirror = window.fakeCodeMirror;
         start({ plugins: window.fixture.plugins(['codemirror']), codemirror: { config: { theme: 'dark', lineNumbers: false } } });
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
         const editor = window.fakeCodeMirror.made[0];
         return {
             made: window.fakeCodeMirror.made.length,
@@ -106,8 +111,8 @@ async function codemirrorTests(t) {
             theme: editor && editor.options.theme,
             lineNumbers: editor && editor.options.lineNumbers,
             sized: !!editor && editor.size > 0,
-            wrapper: jQuery('.ge-code-editor').length,
-            textareaHidden: jQuery('.ge-html-output').css('display') === 'none',
+            wrapper: count('.ge-code-editor'),
+            textareaHidden: getComputedStyle(q('.ge-html-output')).display === 'none',
         };
     `);
     t.check('with the codemirror plugin the source opens in CodeMirror, holding the canvas\'s html, as tall as the textarea',
@@ -119,26 +124,26 @@ async function codemirrorTests(t) {
     var closed = await page.eval(`
         const editor = window.fakeCodeMirror.made[0];
         editor.setValue('<div class="row"><div class="col-12"><p>Written in CodeMirror</p></div></div>');
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
         return {
-            canvas: jQuery('#myGrid').text().indexOf('Written in CodeMirror') !== -1,
-            editing: jQuery('#myGrid').hasClass('ge-editing') && jQuery('#myGrid').is(':visible'),
-            gone: editor.gone === true && jQuery('.ge-code-editor').length === 0,
-            textareaHidden: jQuery('.ge-html-output').css('display') === 'none',
+            canvas: q('#myGrid').textContent.indexOf('Written in CodeMirror') !== -1,
+            editing: q('#myGrid').classList.contains('ge-editing') && shown(q('#myGrid')),
+            gone: editor.gone === true && count('.ge-code-editor') === 0,
+            textareaHidden: getComputedStyle(q('.ge-html-output')).display === 'none',
         };
     `);
     t.check('closing it makes the canvas of what was written in CodeMirror, and CodeMirror goes',
         closed.canvas && closed.editing && closed.gone && closed.textareaHidden, closed);
 
     var destroyed = await page.eval(`
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
         const editor = window.fakeCodeMirror.made[1];
         editor.setValue('<div class="row"><div class="col-12"><p>Kept on destroy</p></div></div>');
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         return {
-            kept: jQuery('#myGrid').text().indexOf('Kept on destroy') !== -1,
-            visible: jQuery('#myGrid').is(':visible'),
-            gone: jQuery('.ge-code-editor').length === 0 && jQuery('.ge-html-output').length === 0,
+            kept: q('#myGrid').textContent.indexOf('Kept on destroy') !== -1,
+            visible: shown(q('#myGrid')),
+            gone: count('.ge-code-editor') === 0 && count('.ge-html-output') === 0,
         };
     `);
     t.check('destroy with the source open leaves the canvas with what was being written, and no editor behind',
@@ -148,15 +153,15 @@ async function codemirrorTests(t) {
         window.CodeMirror = undefined;
         window.warnings = [];
         start({ plugins: window.fixture.plugins(['codemirror']) });
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
         const state = {
-            textarea: jQuery('.ge-html-output').is(':visible') && /Before/.test(jQuery('.ge-html-output').val()),
+            textarea: shown(q('.ge-html-output')) && /Before/.test(q('.ge-html-output').value),
             warned: window.warnings.filter(function(w) { return /CodeMirror not available/.test(w); }).length,
         };
-        jQuery('.gm-edit-mode').trigger('click');
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
+        source();
         state.warnedOnce = window.warnings.filter(function(w) { return /CodeMirror not available/.test(w); }).length;
-        jQuery('.gm-edit-mode').trigger('click');
+        source();
         return state;
     `);
     t.check('without CodeMirror the source is the textarea, as before, and the console says so once',

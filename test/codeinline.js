@@ -35,25 +35,49 @@ var SETUP = `
     };
     window.CodeMirror = window.fakeCodeMirror;
 
+    window.q = function(selector) { return document.querySelector(selector); };
+    window.qa = function(selector) { return Array.from(document.querySelectorAll(selector)); };
+    window.kids = function(node, selector) {
+        return node ? Array.from(node.children).filter(function(child) { return !selector || child.matches(selector); }) : [];
+    };
+    window.visible = function(node) { return !!node && !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length); };
+    /** Whether the element just before node matches the selector. */
+    window.afterOne = function(node, selector) {
+        return !!node && !!node.previousElementSibling && node.previousElementSibling.matches(selector);
+    };
+    window.press = function(selector) { qa(selector).forEach(function(node) { node.click(); }); };
+
     window.events = [];
+    window.listening = [];
+    window.listen = function(name, handler) {
+        q('#myGrid').addEventListener(name, handler);
+        window.listening.push([name, handler]);
+    };
     window.start = function(html, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
-        jQuery('#myGrid').html(html);
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        q('#myGrid').innerHTML = html;
         window.events = [];
         window.fakeCodeMirror.made = [];
-        jQuery('#myGrid').off('.test').on('grideditor:before-edit-html.test grideditor:after-edit-html.test', function(e, payload) {
-            window.events.push({ type: e.type.replace('grideditor:', ''), kind: payload.kind, source: payload.source,
-                from: payload.from, to: payload.to, node: payload.node.length });
+        window.listening.forEach(function(entry) { q('#myGrid').removeEventListener(entry[0], entry[1]); });
+        window.listening = [];
+        ['before-edit-html', 'after-edit-html'].forEach(function(name) {
+            listen('grideditor:' + name, function(e) {
+                const payload = e.detail;
+                window.events.push({ type: e.type.replace('grideditor:', ''), kind: payload.kind, source: payload.source,
+                    from: payload.from, to: payload.to, node: payload.nodes ? payload.nodes.length : (payload.node ? 1 : 0) });
+            });
         });
-        window.fixture.init(Object.assign({
+        return window.fixture.init(Object.assign({
             content_types: ['tinymce'],
             confirm_delete: false,
             plugins: window.fixture.plugins(['codemirror-inline', 'sections', 'clipboard', 'visibility']),
         }, settings || {}));
-        return jQuery('#myGrid').data('grideditor');
     };
 
-    window.hasTool = function(node) { return jQuery(node).children('.ge-tools-drawer').children('.ge-edit-html').length; };
+    window.hasTool = function(node) {
+        node = typeof node === 'string' ? q(node) : node;
+        return kids(kids(node, '.ge-tools-drawer')[0], '.ge-edit-html').length;
+    };
     return true;
 `;
 
@@ -80,11 +104,11 @@ async function toolTests(t) {
             section: hasTool('#section'),
             element: hasTool('#element'),
             container: hasTool('#myGrid [data-ge-container="tabs"]'),
-            text: hasTool(jQuery('#text').parent('.ge-text-block')),
-            plain: jQuery('#col > .ge-plain-block').children('.ge-tools-drawer').children('a').map(function() {
-                return jQuery(this).attr('class').split(' ')[0];
-            }).get().join(','),
-            panes: jQuery('#myGrid .ge-pane-drawer .ge-edit-html').length + jQuery('#myGrid .ge-tab .ge-edit-html').length,
+            text: hasTool(q('#text').parentElement.matches('.ge-text-block') ? q('#text').parentElement : null),
+            plain: qa('#col > .ge-plain-block > .ge-tools-drawer > a').map(function(tool) {
+                return tool.getAttribute('class').split(' ')[0];
+            }).join(','),
+            panes: qa('#myGrid .ge-pane-drawer .ge-edit-html').length + qa('#myGrid .ge-tab .ge-edit-html').length,
         };
     `);
     t.check('rows, columns, sections, elements, containers and texts have the </> tool; panes do not',
@@ -95,7 +119,7 @@ async function toolTests(t) {
 
     var without = await page.eval(`
         start(${JSON.stringify(CANVAS)}, { plugins: window.fixture.plugins(['sections']) });
-        return jQuery('#myGrid .ge-edit-html').length;
+        return qa('#myGrid .ge-edit-html').length;
     `);
     t.check('without the plugin there is no </> tool anywhere', without === 0, without);
 
@@ -109,16 +133,16 @@ async function editTests(t) {
 
     var opened = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        jQuery('#element > .ge-tools-drawer > .ge-edit-html').trigger('click');
+        press('#element > .ge-tools-drawer > .ge-edit-html');
         const editor = window.fakeCodeMirror.made[0];
-        const wrapper = jQuery('#myGrid .ge-code-inline');
+        const wrapper = q('#myGrid .ge-code-inline');
         return {
             made: window.fakeCodeMirror.made.length,
             value: editor && editor.value,
             mode: editor && editor.options.mode,
-            hidden: !jQuery('#element').is(':visible'),
-            where: wrapper.prev().is('#element'),
-            buttons: wrapper.find('.ge-code-apply, .ge-code-cancel').length,
+            hidden: !visible(q('#element')),
+            where: afterOne(wrapper, '#element'),
+            buttons: wrapper ? wrapper.querySelectorAll('.ge-code-apply, .ge-code-cancel').length : 0,
         };
     `);
     t.check('the </> tool opens the block\'s html - the block itself, as getHtml gives it - in CodeMirror where the block was',
@@ -126,12 +150,12 @@ async function editTests(t) {
         opened.mode === 'htmlmixed' && opened.hidden && opened.where && opened.buttons === 2, opened);
 
     var clean = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         const editor = window.fakeCodeMirror.made[0];
         return {
             marks: /ge-code-inline|ge-code-hidden|ge-code-editor/.test(html),
             element: /<blockquote data-ge-element="quote" id="element">Quote<\\/blockquote>/.test(html),
-            stillOpen: jQuery('#myGrid .ge-code-inline').prev().is('#element') && !jQuery('#element').is(':visible'),
+            stillOpen: afterOne(q('#myGrid .ge-code-inline'), '#element') && !visible(q('#element')),
             refreshed: editor.refreshed > 0,
             gone: !!editor.gone,
         };
@@ -142,13 +166,13 @@ async function editTests(t) {
     var applied = await page.eval(`
         const editor = window.fakeCodeMirror.made[0];
         editor.setValue('<blockquote data-ge-element="quote" id="element" class="changed">Changed</blockquote><p>And a paragraph</p>');
-        jQuery('#myGrid .ge-code-apply').trigger('click');
-        const element = jQuery('#element');
+        press('#myGrid .ge-code-apply');
+        const element = q('#element');
         return {
-            changed: element.hasClass('changed') && element.text().indexOf('Changed') !== -1,
-            marked: element.hasClass('ge-element') && element.children('.ge-tools-drawer').length === 1,
-            paragraph: jQuery('#col').text().indexOf('And a paragraph') !== -1,
-            closed: jQuery('#myGrid .ge-code-inline').length === 0 && !!editor.gone,
+            changed: element.classList.contains('changed') && element.textContent.indexOf('Changed') !== -1,
+            marked: element.classList.contains('ge-element') && kids(element, '.ge-tools-drawer').length === 1,
+            paragraph: q('#col').textContent.indexOf('And a paragraph') !== -1,
+            closed: qa('#myGrid .ge-code-inline').length === 0 && !!editor.gone,
             events: window.events.map(function(e) { return e.type + ':' + e.kind + ':' + e.source; }),
             to: window.events[0] && /Changed/.test(window.events[0].to) && /Quote/.test(window.events[0].from),
             afterNodes: window.events[1] && window.events[1].node,
@@ -162,13 +186,13 @@ async function editTests(t) {
 
     var canceled = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        jQuery('#myGrid').on('grideditor:before-edit-html.test', function(e) { e.preventDefault(); });
-        jQuery('#row > .ge-tools-drawer > .ge-edit-html').trigger('click');
+        listen('grideditor:before-edit-html', function(e) { e.preventDefault(); });
+        press('#row > .ge-tools-drawer > .ge-edit-html');
         window.fakeCodeMirror.made[0].setValue('<p>Nothing left</p>');
-        jQuery('#myGrid .ge-code-apply').trigger('click');
+        press('#myGrid .ge-code-apply');
         return {
-            row: jQuery('#row').length,
-            open: jQuery('#myGrid .ge-code-inline').length,
+            row: qa('#row').length,
+            open: qa('#myGrid .ge-code-inline').length,
             events: window.events.map(function(e) { return e.type; }),
         };
     `);
@@ -177,13 +201,13 @@ async function editTests(t) {
 
     var cancel = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        jQuery('#col > .ge-tools-drawer > .ge-edit-html').trigger('click');
+        press('#col > .ge-tools-drawer > .ge-edit-html');
         window.fakeCodeMirror.made[0].setValue('<p>Not kept</p>');
-        jQuery('#myGrid .ge-code-cancel').trigger('click');
+        press('#myGrid .ge-code-cancel');
         return {
-            visible: jQuery('#col').is(':visible'),
-            kept: jQuery('#col').text().indexOf('Not kept') === -1,
-            closed: jQuery('#myGrid .ge-code-inline').length === 0,
+            visible: visible(q('#col')),
+            kept: q('#col').textContent.indexOf('Not kept') === -1,
+            closed: qa('#myGrid .ge-code-inline').length === 0,
             events: window.events.length,
         };
     `);
@@ -192,18 +216,17 @@ async function editTests(t) {
 
     var plain = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        const block = jQuery('#col > .ge-plain-block');
-        block.children('.ge-tools-drawer').children('.ge-edit-html').trigger('click');
+        press('#col > .ge-plain-block > .ge-tools-drawer > .ge-edit-html');
         const editor = window.fakeCodeMirror.made[0];
         const value = editor.value;
-        const where = jQuery('#myGrid .ge-code-inline').prev().is('.ge-plain-block');
+        const where = afterOne(q('#myGrid .ge-code-inline'), '.ge-plain-block');
         editor.setValue('<div class="ge-content"><p>Plain, edited</p></div>');
-        jQuery('#myGrid .ge-code-apply').trigger('click');
-        const edited = jQuery('#col > .ge-plain-block').first();
+        press('#myGrid .ge-code-apply');
+        const edited = q('#col > .ge-plain-block');
         return {
             value: value,
             where: where,
-            edited: edited.children('.ge-content').text(),
+            edited: kids(edited, '.ge-content').map(function(area) { return area.textContent; }).join(''),
             kind: window.events[0] && window.events[0].kind,
         };
     `);
@@ -213,11 +236,11 @@ async function editTests(t) {
 
     var text = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        jQuery('#text').parent().children('.ge-tools-drawer').children('.ge-edit-html').trigger('click');
+        kids(kids(q('#text').parentElement, '.ge-tools-drawer')[0], '.ge-edit-html').forEach(function(tool) { tool.click(); });
         return {
             value: window.fakeCodeMirror.made[0].value,
-            hidden: !jQuery('#text').parent('.ge-text-block').is(':visible'),
-            where: jQuery('#myGrid .ge-code-inline').prev().is('.ge-text-block'),
+            hidden: !visible(q('#text').parentElement.matches('.ge-text-block') ? q('#text').parentElement : null),
+            where: afterOne(q('#myGrid .ge-code-inline'), '.ge-text-block'),
         };
     `);
     t.check('a text\'s html is its content area, typed; its text block is hidden behind the editor',
@@ -226,13 +249,14 @@ async function editTests(t) {
 
     var gone = await page.eval(`
         start(${JSON.stringify(CANVAS)});
-        jQuery('#element > .ge-tools-drawer > .ge-edit-html').trigger('click');
-        jQuery('#row > .ge-tools-drawer > .ge-edit-html').trigger('click');
+        press('#element > .ge-tools-drawer > .ge-edit-html');
+        press('#row > .ge-tools-drawer > .ge-edit-html');
         window.fakeCodeMirror.made[1].setValue('<div class="row" id="row"><div class="col-12"><p>Replaced</p></div></div>');
-        jQuery('#myGrid .ge-code-inline').last().find('.ge-code-apply').trigger('click');
+        const inline = qa('#myGrid .ge-code-inline');
+        inline[inline.length - 1].querySelectorAll('.ge-code-apply').forEach(function(button) { button.click(); });
         return {
-            replaced: jQuery('#row').text().indexOf('Replaced') !== -1,
-            editors: jQuery('#myGrid .ge-code-inline').length,
+            replaced: q('#row').textContent.indexOf('Replaced') !== -1,
+            editors: qa('#myGrid .ge-code-inline').length,
             innerGone: !!window.fakeCodeMirror.made[0].gone,
         };
     `);
@@ -242,12 +266,12 @@ async function editTests(t) {
     var bare = await page.eval(`
         window.CodeMirror = undefined;
         start(${JSON.stringify(CANVAS)});
-        jQuery('#element > .ge-tools-drawer > .ge-edit-html').trigger('click');
-        const textarea = jQuery('#myGrid .ge-code-inline > .ge-code-inline-source');
-        const state = { textarea: textarea.is(':visible'), value: textarea.val() };
-        textarea.val('<blockquote data-ge-element="quote" id="element">From the textarea</blockquote>');
-        jQuery('#myGrid .ge-code-apply').trigger('click');
-        state.applied = jQuery('#element').text().indexOf('From the textarea') !== -1;
+        press('#element > .ge-tools-drawer > .ge-edit-html');
+        const textarea = q('#myGrid .ge-code-inline > .ge-code-inline-source');
+        const state = { textarea: visible(textarea), value: textarea.value };
+        textarea.value = '<blockquote data-ge-element="quote" id="element">From the textarea</blockquote>';
+        press('#myGrid .ge-code-apply');
+        state.applied = q('#element').textContent.indexOf('From the textarea') !== -1;
         window.CodeMirror = window.fakeCodeMirror;
         return state;
     `);

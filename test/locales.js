@@ -88,7 +88,7 @@ function loadLocale(page, code) {
             script.onerror = () => reject(new Error('could not load the ` + code + ` locale'));
             document.head.appendChild(script);
         });
-        return Object.keys(jQuery.fn.gridEditor.locales);
+        return Object.keys(GridEditor.locales);
     `);
 }
 
@@ -102,14 +102,14 @@ var RENDERED_STRINGS = `
         if (value !== undefined && value !== null && value !== '') { strings.push({ where: where, value: value }); }
     };
 
-    jQuery('.ge-mainControls [title], #myGrid [title]').each(function() {
-        add(this.className || this.tagName.toLowerCase(), jQuery(this).attr('title'));
+    document.querySelectorAll('.ge-mainControls [title], #myGrid [title]').forEach(function(node) {
+        add(node.className || node.tagName.toLowerCase(), node.getAttribute('title'));
     });
-    jQuery('.ge-mainControls [placeholder], #myGrid [placeholder]').each(function() {
-        add('placeholder', jQuery(this).attr('placeholder'));
+    document.querySelectorAll('.ge-mainControls [placeholder], #myGrid [placeholder]').forEach(function(node) {
+        add('placeholder', node.getAttribute('placeholder'));
     });
-    jQuery('.ge-layout-mode button, .ge-layout-mode a').each(function() {
-        add('layout-mode', jQuery(this).text());
+    document.querySelectorAll('.ge-layout-mode button, .ge-layout-mode a').forEach(function(node) {
+        add('layout-mode', node.textContent);
     });
     return strings;
 `;
@@ -123,7 +123,7 @@ async function catalogueTests(t) {
     await loadLocale(page, 'es');
 
     var catalogues = await page.eval(`
-        const locales = jQuery.fn.gridEditor.locales;
+        const locales = GridEditor.locales;
         return {
             en: Object.keys(locales.en).sort(),
             es: Object.keys(locales.es).sort(),
@@ -170,16 +170,21 @@ async function lookupTests(t) {
             window.warnings.push(Array.prototype.join.call(arguments, ' '));
             original.apply(console, arguments);
         };
+        /** The title of the first element a selector matches. */
+        window.title = function(selector) {
+            const node = document.querySelector(selector);
+            return node ? node.getAttribute('title') : undefined;
+        };
         return true;
     `);
 
     var stub = await page.eval(`
-        jQuery.fn.gridEditor.locales.stub = { 'tool.move': 'STUB MOVE' };
+        GridEditor.locales.stub = { 'tool.move': 'STUB MOVE' };
         window.fixture.init({ locale: 'stub' });
         return {
-            move: jQuery('#myGrid .ge-move').first().attr('title'),
-            fallenBack: jQuery('#myGrid .ge-settings').first().attr('title'),
-            addRow: jQuery('.ge-addRowGroup a').first().attr('title'),
+            move: title('#myGrid .ge-move'),
+            fallenBack: title('#myGrid .ge-settings'),
+            addRow: title('.ge-addRowGroup a'),
         };
     `);
     t.check('a locale swaps the keys it has and falls back to English for the rest',
@@ -187,31 +192,31 @@ async function lookupTests(t) {
         stub);
 
     var overrides = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         window.fixture.init({
             locale: 'es',
             locale_strings: { 'tool.move': 'Arrastrar' },
         });
         return {
-            overridden: jQuery('#myGrid .ge-move').first().attr('title'),
-            fromLocale: jQuery('#myGrid .ge-settings').first().attr('title'),
+            overridden: title('#myGrid .ge-move'),
+            fromLocale: title('#myGrid .ge-settings'),
         };
     `);
     t.check('locale_strings wins over the locale file, which wins over English',
         overrides.overridden === 'Arrastrar' && overrides.fromLocale === 'Configuración', overrides);
 
     var missing = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        const english = jQuery.fn.gridEditor.locales.en;
+        window.fixture.editor().destroy();
+        const english = GridEditor.locales.en;
         const kept = english['tool.move'];
         delete english['tool.move'];
 
         window.fixture.init({ locale: 'es', locale_strings: {} });
-        const shown = jQuery('#myGrid .ge-move').first().attr('title');
+        const shown = title('#myGrid .ge-move');
 
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         window.fixture.init({ locale: 'en' });
-        const shownAgain = jQuery('#myGrid .ge-move').first().attr('title');
+        const shownAgain = title('#myGrid .ge-move');
 
         english['tool.move'] = kept;
         return {
@@ -226,11 +231,11 @@ async function lookupTests(t) {
         missing);
 
     var interpolation = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
+        window.fixture.editor().destroy();
         window.fixture.init({ locale: 'es', new_row_layouts: [[12], [6, 6], [9, 3]] });
         return {
-            titles: jQuery('.ge-addRowGroup a').map(function() { return jQuery(this).attr('title'); }).get(),
-            unfilled: jQuery('.ge-addRowGroup a').filter(function() { return /\\{/.test(jQuery(this).attr('title')); }).length,
+            titles: Array.from(document.querySelectorAll('.ge-addRowGroup a')).map(function(node) { return node.getAttribute('title'); }),
+            unfilled: Array.from(document.querySelectorAll('.ge-addRowGroup a')).filter(function(node) { return /\\{/.test(node.getAttribute('title')); }).length,
         };
     `);
     t.check('{name} placeholders are filled from the parameters',
@@ -251,34 +256,40 @@ async function spanishTests(t) {
     await loadLocale(page, 'es');
 
     var switched = await page.eval(`
+        const attribute = function(selector, name) {
+            const node = document.querySelector(selector);
+            return node ? node.getAttribute(name) : undefined;
+        };
+        const text = function(selector) { return document.querySelector(selector).textContent; };
+        const ge = function() { return window.fixture.editor(); };
         window.fixture.init({ locale: 'en' });
         const english = {
-            move: jQuery('#myGrid .ge-move').first().attr('title'),
-            view: jQuery('.ge-layout-mode button').text(),
-            addRow: jQuery('.ge-addRowGroup a').first().attr('title'),
-            source: jQuery('.gm-edit-mode').attr('title'),
-            placeholder: jQuery('#myGrid .ge-id').first().attr('placeholder'),
+            move: attribute('#myGrid .ge-move', 'title'),
+            view: text('.ge-layout-mode button'),
+            addRow: attribute('.ge-addRowGroup a', 'title'),
+            source: attribute('.gm-edit-mode', 'title'),
+            placeholder: attribute('#myGrid .ge-id', 'placeholder'),
         };
 
-        jQuery('#myGrid').gridEditor('setLocale', 'es');
+        window.fixture.editor().setLocale('es');
         const spanish = {
-            move: jQuery('#myGrid .ge-move').first().attr('title'),
-            view: jQuery('.ge-layout-mode button').text(),
-            addRow: jQuery('.ge-addRowGroup a').first().attr('title'),
-            source: jQuery('.gm-edit-mode').attr('title'),
-            placeholder: jQuery('#myGrid .ge-id').first().attr('placeholder'),
+            move: attribute('#myGrid .ge-move', 'title'),
+            view: text('.ge-layout-mode button'),
+            addRow: attribute('.ge-addRowGroup a', 'title'),
+            source: attribute('.gm-edit-mode', 'title'),
+            placeholder: attribute('#myGrid .ge-id', 'placeholder'),
         };
 
-        jQuery('#myGrid').gridEditor('setLocale', 'en');
+        window.fixture.editor().setLocale('en');
         return {
             english: english,
             spanish: spanish,
-            back: jQuery('#myGrid .ge-move').first().attr('title'),
-            controls: jQuery('.ge-mainControls').length,
-            view: jQuery('#myGrid').gridEditor('getView'),
+            back: attribute('#myGrid .ge-move', 'title'),
+            controls: document.querySelectorAll('.ge-mainControls').length,
+            view: ge().getView(),
             english_view: english.view,
-            editing: jQuery('#myGrid').hasClass('ge-editing'),
-            settings: jQuery('#myGrid').data('grideditor').settings.locale,
+            editing: document.querySelector('#myGrid').classList.contains('ge-editing'),
+            settings: ge().settings.locale,
         };
     `);
     t.check('setLocale re-renders the toolbar and the drawers, both ways',
@@ -294,10 +305,10 @@ async function spanishTests(t) {
     // The acceptance question: with the editor in Spanish, is any string in
     // the UI still showing its English value?
     var leftInEnglish = await page.eval(`
-        jQuery('#myGrid').gridEditor('setLocale', 'es');
-        jQuery('#myGrid .ge-settings').first().trigger('click'); // open a settings panel
+        window.fixture.editor().setLocale('es');
+        document.querySelector('#myGrid .ge-settings').click(); // open a settings panel
 
-        const locales = jQuery.fn.gridEditor.locales;
+        const locales = GridEditor.locales;
         const englishOnly = {};
         Object.keys(locales.en).forEach(function(key) {
             if (locales.es[key] !== locales.en[key]) { englishOnly[locales.en[key]] = key; }
@@ -320,24 +331,25 @@ async function spanishTests(t) {
     await page.click('.ge-layout-mode .dropdown-toggle');
     var fits = await page.eval(`
         const overflowing = [];
-        jQuery('.ge-mainControls button, .ge-layout-mode a, .ge-addRowGroup a').each(function() {
-            if (this.scrollWidth > this.clientWidth + 1) {
-                overflowing.push({ text: jQuery(this).text().trim(), scroll: this.scrollWidth, client: this.clientWidth });
+        document.querySelectorAll('.ge-mainControls button, .ge-layout-mode a, .ge-addRowGroup a').forEach(function(node) {
+            if (node.scrollWidth > node.clientWidth + 1) {
+                overflowing.push({ text: node.textContent.trim(), scroll: node.scrollWidth, client: node.clientWidth });
             }
         });
-        const menuOpen = jQuery('.ge-layout-mode .dropdown-menu').is(':visible');
-        const itemWidths = jQuery('.ge-layout-mode a').map(function() { return this.clientWidth; }).get();
+        const menu = document.querySelector('.ge-layout-mode .dropdown-menu');
+        const menuOpen = !!(menu.offsetWidth || menu.offsetHeight || menu.getClientRects().length);
+        const itemWidths = Array.from(document.querySelectorAll('.ge-layout-mode a')).map(function(node) { return node.clientWidth; });
 
         // The open menu hangs outside the toolbar by design, so close it
         // before asking whether the toolbar itself fits
-        jQuery('.ge-layout-mode .dropdown-toggle').trigger('click');
+        document.querySelector('.ge-layout-mode .dropdown-toggle').click();
         await new Promise(resolve => setTimeout(resolve, 300));
 
         return {
             overflowing: overflowing,
             menuOpen: menuOpen,
             itemWidths: itemWidths,
-            toolbarFits: jQuery('.ge-wrapper')[0].scrollWidth <= jQuery('.ge-wrapper')[0].clientWidth + 1,
+            toolbarFits: document.querySelector('.ge-wrapper').scrollWidth <= document.querySelector('.ge-wrapper').clientWidth + 1,
         };
     `);
     t.check('the Spanish strings fit the controls they are rendered in',

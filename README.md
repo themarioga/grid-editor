@@ -1,13 +1,11 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), written as a [jQuery](http://jquery.com/) plugin. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
 `@themarioga/grid-editor`.
-
-(Looking for the __bootstrap 3 support__? Use version 0 in the [bootstrap_3 branch](https://github.com/Friendly-Pixel/grid-editor/tree/bootstrap_3))
 
 It provides integration plugins for the following rich text editors to edit column content: TinyMCE, summernote and CKEditor.
 
@@ -39,13 +37,14 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
 | [example/autosave.html](example/autosave.html) | Saving the html as the user edits | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
+| [example/adapter.html](example/adapter.html) | A page written for 6.x, with jQuery, running unchanged through the adapter | [live](https://themarioga.github.io/grid-editor/example/adapter.html) |
 
 Installation
 ------------
 
-* __Dependencies:__ Grid Editor depends on jQuery, [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. 
-    * If you want to use the tinyMCE integration, include tinyMCE 6 as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor. The tinyMCE jQuery plugin is no longer needed, and no longer exists as of tinyMCE 6.
-    * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`.
+* __Dependencies:__ Grid Editor depends on [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. It does not need jQuery since 7.0.
+    * If you want to use the tinyMCE integration, include tinyMCE 6 as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor.
+    * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`. Summernote needs jQuery itself, so that page loads jQuery too; nothing else does.
     * If you want to use the CKEditor integration... you get the point: CKEditor and `dist/plugins/grideditor.ckeditor.min.js`.
     * Up to 5.x the main bundle carried a copy of the three; since 6.0 the plugin of the editor you use has to be loaded, as above. See [UPGRADING.md](UPGRADING.md).
 * From npm:
@@ -57,10 +56,10 @@ npm install @themarioga/grid-editor
 * Or [download the latest version of Grid Editor](https://github.com/themarioga/grid-editor/archive/master.zip) and include it in your page: 
 
 ```html
-<!-- Make sure jQuery, SortableJS, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
+<!-- Make sure SortableJS, bootstrap icons, and bootstrap 5 are included. TinyMCE is optional. -->
 <link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-<script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<script src="grid-editor/dist/grideditor.min.js"></script>
 <!-- The text editor you use, as a plugin -->
 <script src="grid-editor/dist/plugins/grideditor.tinymce.min.js"></script>
 ```
@@ -70,20 +69,64 @@ inside it &mdash; one or the other, never both:
 
 ```html
 <link rel="stylesheet" type="text/css" href="grid-editor/dist/grideditor.min.css" />
-<script src="grid-editor/dist/jquery.grideditor.bundle.min.js"></script>
+<script src="grid-editor/dist/grideditor.bundle.min.js"></script>
 ```
+
+### As an ES module
+
+An app built with a bundler - Angular, React, Vue, Vite - imports the editor
+and the plugins it wants. A plugin registers as it is imported:
+
+```javascript
+import GridEditor from '@themarioga/grid-editor';
+import '@themarioga/grid-editor/plugins/tabs';
+import '@themarioga/grid-editor/plugins/tinymce';
+import '@themarioga/grid-editor/locales/es';
+import '@themarioga/grid-editor/css';
+import Sortable from 'sortablejs';
+import * as bootstrap from 'bootstrap';
+
+// What a module app has as imports, not as window.Sortable and window.bootstrap
+GridEditor.Sortable = Sortable;
+GridEditor.bootstrap = bootstrap;
+
+const ge = new GridEditor(element, { content_types: ['tinymce'] });
+```
+
+The module build imports nothing itself. Without `GridEditor.Sortable` or a
+`window.Sortable`, dragging is off; without Bootstrap's javascript, a delete is
+confirmed with the browser's `confirm()` and the modal settings panel opens
+with a backdrop of the editor's own. Types for the public API come with the
+package (`dist/grideditor.d.ts`).
+
+Load the classic script *or* the module build on a page, never both.
+
+### A page written for 6.x
+
+A page that uses the jQuery API of 6.x - `$(el).gridEditor(...)`, jQuery
+events, jQuery objects in the payloads - keeps it by loading jQuery 4 and the
+adapter after the editor, and the 7.x plugins after that:
+
+```html
+<script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+<script src="grid-editor/dist/grideditor.min.js"></script>
+<script src="grid-editor/dist/grideditor.jquery.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
+```
+
+Plugins written for 6.x are not kept working: see [UPGRADING.md](UPGRADING.md).
 
 Usage
 -----
 ```javascript
-$('#myGrid').gridEditor({
+var ge = new GridEditor('#myGrid', {
     new_row_layouts: [[12], [6,6], [9,3]],
 });
 // Call this to get the result after the user has done some editing:
-var html = $('#myGrid').gridEditor('getHtml');
+var html = ge.getHtml();
 
 // Or, for a page that only publishes the result and never edits it again:
-var published = $('#myGrid').gridEditor('getPlainHtml');
+var published = ge.getPlainHtml();
 ```
 
 `getHtml` keeps a little of the editor's own marking: the `column` class, the
@@ -104,8 +147,16 @@ Methods
 -------
 
 ```javascript
-$('#myGrid').gridEditor('method', argument);
+var ge = new GridEditor('#myGrid', options);   // or GridEditor.create('#myGrid', options)
+ge.method(argument);
+
+GridEditor.get('#myGrid');   // the editor on an element, or null
 ```
+
+The element is an element or a selector, which takes the first element it
+matches; one that matches nothing throws a `TypeError`. An element has one
+editor at most: asked for a second, `new GridEditor` hands back the one it
+has, with the options it was made with, and warns once.
 
 | Method | Arguments | Returns | What it does |
 | --- | --- | --- | --- |
@@ -115,62 +166,64 @@ $('#myGrid').gridEditor('method', argument);
 | `deinit` | — | `this` | Strip the editing furniture, leave the markup |
 | `reset` | — | `this` | `deinit()` then `init()` |
 | `destroy` | — | `this` | Deinit, drop the controls, unbind, forget the instance |
-| `remove` | — | `this` | Deprecated alias of `destroy` |
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once, with one class |
 | `getView` | — | `String` | The view the editor is in |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
-| `createRow` | `layout?`, `options?` | `jQuery` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
-| `createColumn` | `size`, `options?` | `jQuery` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
-| `createSection` | `options?` | `jQuery` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
-| `createElement` | `content`, `options?` | `jQuery` | Host markup wrapped as an element. `options`: `type`, `label` |
-| `createText` | `type?`, `options?` | `jQuery` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded, or no text editor is |
-| `createContainer` | `type`, `options?` | `jQuery` | `'tabs'`, `'accordion'` or `'popup'` |
-| `addTab` | `container`, `options?` | `jQuery` | Appends a tab, returns its pane |
-| `addAccordionItem` | `container`, `options?` | `jQuery` | Appends an item, returns its body |
+| `createRow` | `layout?`, `options?` | `Element` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
+| `createColumn` | `size`, `options?` | `Element` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
+| `createSection` | `options?` | `Element` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
+| `createElement` | `content`, `options?` | `Element` | Host markup wrapped as an element. `options`: `type`, `label` |
+| `createText` | `type?`, `options?` | `Element` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded, or no text editor is |
+| `createContainer` | `type`, `options?` | `Element` | `'tabs'`, `'accordion'` or `'popup'` |
+| `addTab` | `container`, `options?` | `Element` | Appends a tab, returns its pane |
+| `addAccordionItem` | `container`, `options?` | `Element` | Appends an item, returns its body |
 | `getUtility` | `node`, `family`, `view?` | `String` | A utility plugin's value on a node in a view (the current one by default), or `null` |
 | `setUtility` | `node`, `family`, `value`, `view?` | `Boolean` | Write it through the events; `null` is inherit. `false` if canceled or nothing changed |
 
-A method called on an element with no editor on it is a no-op that returns the
-set, so host code does not have to check first. `getHtml` and `getPlainHtml`
-are the exception: they return the element's html either way, and
-`getPlainHtml` cleans it.
+The methods that do something hand back the editor, so they chain. After
+`destroy()` every method is a no-op that says so once, but for `getHtml` and
+`getPlainHtml`, which read the element as it is.
 
-The `create*` methods hand back the node they made rather than the jQuery set,
-because you need the node. It comes back **detached**: place it and call
-`reset()`, or pass a parent and let grid-editor do both.
+The `create*` methods hand back the element they made, or `null` when a handler
+canceled the add. It comes back **detached**: place it and call `reset()`, or
+pass a parent - an element or a selector - and let grid-editor do both.
 
 ```javascript
 // place it yourself
-var row = $('#myGrid').gridEditor('createRow', [8, 4]);
-row.appendTo('#myGrid');
-$('#myGrid').gridEditor('reset');
+var row = ge.createRow([8, 4]);
+document.querySelector('#myGrid').appendChild(row);
+ge.reset();
 
 // or say where it goes: appendTo, prependTo, insertAfter, insertBefore
-$('#myGrid').gridEditor('createRow', [8, 4], { appendTo: '#myGrid' });
+ge.createRow([8, 4], { appendTo: '#myGrid' });
 ```
 
-If you are calling several methods in a row, take the instance handle instead
-of dispatching each one. It exposes the same methods, plus the canvas and a
-read-only copy of the settings:
+Besides the methods, the editor has its canvas and a read-only copy of the
+settings:
 
 ```javascript
-var ge = $('#myGrid').data('grideditor');
 ge.createRow([12], { appendTo: ge.canvas });
-ge.changeView('lg');
+ge.settings.locale;   // 'en'
 ```
+
+A html string written into the canvas - through the source view,
+`source_textarea`, `createElement` or a paste - is parsed as `innerHTML`
+parses: a `<script>` in it is kept in the markup and does not run in the
+editor. Up to 6.x it did.
 
 Events
 ------
 
-Every operation is announced before and after it happens, as a jQuery event on
-the canvas and as a callback. A `before-*` can be canceled.
+Every operation is announced before and after it happens, as a DOM event on
+the canvas - a `CustomEvent` with the payload as its `detail` - and as a
+callback. A `before-*` can be canceled.
 
 ```javascript
-$('#myGrid').on('grideditor:before-delete', function(e, payload) {
-    if (payload.node.hasClass('locked')) { e.preventDefault(); }
+ge.canvas.addEventListener('grideditor:before-delete', function(e) {
+    if (e.detail.node.classList.contains('locked')) { e.preventDefault(); }
 });
 
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     callbacks: {
         after_move: function(payload) { console.log(payload.from, payload.to); },
     },
@@ -183,7 +236,7 @@ The full catalogue, the payload and what canceling each operation does is in
 Languages
 ---------
 
-The interface ships in English and Spanish. English is built into the plugin;
+The interface ships in English and Spanish. English is built into the editor;
 every other language is a file you load after it.
 
 | Code | Language | File |
@@ -192,9 +245,9 @@ every other language is a file you load after it.
 | `es` | Spanish | `dist/locales/grideditor.es.js` |
 
 ```html
-<script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<script src="grid-editor/dist/grideditor.min.js"></script>
 <script src="grid-editor/dist/locales/grideditor.es.js"></script>
-<script>$('#myGrid').gridEditor({ locale: 'es' });</script>
+<script>new GridEditor('#myGrid', { locale: 'es' });</script>
 ```
 
 Override single strings without a locale file with `locale_strings`, and switch
@@ -214,7 +267,7 @@ Options
 __`new_row_layouts`:__ Set the column layouts that appear in the "new row" buttons at the top of the editor. A size is a number of units, `'equal'` (Bootstrap's `col`, sharing what the row has left) or `'auto'` (`col-auto`, as wide as its content).
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     new_row_layouts: [[12], [6,6], [9,3], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
 });
 ```
@@ -260,7 +313,7 @@ buttons beside the two fields. Empty by default; the classes field covers the
 general case, and this is for the handful a host wants one click away.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     row_classes: [{ label: 'Dark', cssClass: 'my-app-dark' }],
 });
 ```
@@ -270,7 +323,7 @@ __`col_classes`:__ The same as `row_classes`, but for columns. `container_classe
 __`row_tools`:__ Add extra tool buttons to the row toolbar.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     row_tools: [{
         title: 'Set background image',
         iconClass: 'glyphicon-picture',
@@ -288,7 +341,7 @@ __`col_tools`:__ The same as row_tools, but for columns.
 __`drag_handle`:__ What a drag starts from. `'tool'`, the default, gives every drawer a move tool and only that tool drags. `'drawer'` makes the whole drawer the handle and drops the move tool, since it would then only say "drag from here". The tools inside a draggable drawer still answer to a click, and dragging from one starts no move.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     drag_handle: 'drawer',
 });
 ```
@@ -296,7 +349,7 @@ $('#myGrid').gridEditor({
 __`toolbar_drag`:__ Whether the toolbar's buttons are a palette: drag one onto the canvas and the row or container it stands for is created where you drop it, with a line showing where that is. `'auto'`, the default, turns it on when `drag_handle` is `'drawer'`, since that is the same idea applied to the toolbar; `true` and `false` decide it outright. Clicking a button still adds at the end either way.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     drag_handle: 'drawer',
     toolbar_drag: 'auto',
 });
@@ -306,7 +359,7 @@ __`custom_filter`:__ Allows the execution of a custom function before initializa
 Gives the `canvas` element and `isInit` (true/false) as parameter.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     'custom_filter': 'functionname',
 });
 
@@ -322,7 +375,7 @@ function functionname(canvas, isInit) {
 or
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     'custom_filter': function(canvas, isInit) {
         //...
     },
@@ -332,7 +385,7 @@ $('#myGrid').gridEditor({
 __`valid_col_sizes`:__ The column sizes the +/- buttons step through, and that the add column picker and the width field offer. Default `[1, 2, … 12, 'equal', 'auto']`; leave `'equal'` and `'auto'` out and they are not offered, though a column that has one still shows it.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     'valid_col_sizes': [2, 5, 8, 10],
 });
 ```
@@ -342,7 +395,7 @@ __`valid_col_offsets`:__ The same, for the indent buttons. Default `[0, 1, … 1
 __`add_column`:__ What the add column tool in a row's drawer does. A click adds a column of `size`; holding the tool for `delay` milliseconds — with the pointer or with a finger — offers the widths in `valid_col_sizes` instead, marking the ones that no longer fit the row. Defaults:
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     add_column: {
         size: 12,      // what a click adds
         picker: true,  // false turns the hold gesture off
@@ -354,9 +407,9 @@ $('#myGrid').gridEditor({
 __`callbacks`:__ A `before_*`/`after_*` function per operation, the same notifications as the events. Returning `false` from a `before_*` cancels it. See [docs/events.md](docs/events.md).
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     callbacks: {
-        before_delete: function(payload) { return !payload.node.hasClass('locked'); },
+        before_delete: function(payload) { return !payload.node.classList.contains('locked'); },
         after_add_row: function(payload) { console.log('row added', payload.node); },
     },
 });
@@ -374,7 +427,7 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
 
 ```javascript
-$('#myGrid').gridEditor({ settings_panel: 'popover' });
+new GridEditor('#myGrid', { settings_panel: 'popover' });
 ```
 
 __`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. The question is asked in a Bootstrap modal the editor builds outside your canvas, in the interface language; a page that loaded Bootstrap's css but not its javascript gets the browser's own confirm instead. Set it to `false` if you cancel `before-delete` and ask in your own way.
@@ -382,7 +435,7 @@ __`confirm_delete`:__ Whether to ask before deleting a row, column, element or c
 __`drag`:__ How a drag behaves, wherever the editor drags something. Named for the gesture rather than for the library underneath, so it survives a change of library. Every gesture works from a touchscreen, which is what `touch_delay` is for: a touch drag that started instantly would take the page's scrolling with it, so a finger has to rest for a moment before it moves anything. Setting `delay` makes both gestures wait that long.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     drag: {
         delay: 0,           // ms to hold before a drag starts
         touch_delay: 100,   // the same for touch, where 0 eats the page's scrolling
@@ -398,7 +451,7 @@ $('#myGrid').gridEditor({
 __`layout_modes`:__ Which views the toolbar dropdown offers. Default `['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl']`. Offer fewer to keep the feel of 2.x:
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     layout_modes: ['all', 'lg', 'sm', 'xs'],
 });
 ```
@@ -408,7 +461,7 @@ __`default_view`:__ The view the editor starts in. Default `'all'`, which writes
 __`resize`:__ Resizing a column by dragging its edge. Defaults:
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     resize: {
         enabled: true,
         handles: 'e',      // 'w' for a right to left page, 'e, w' for both
@@ -437,7 +490,7 @@ several (*Text (tinyMCE)*, *Text (CKEditor)*...). The button adds a row with
 the text in it, or, dragged into a column, puts the text where it is dropped.
 
 ```javascript
-$('#myGrid').gridEditor('createText', { content: '<p>Hello</p>', appendTo: '#myColumn' });
+ge.createText({ content: '<p>Hello</p>', appendTo: '#myColumn' });
 ```
 
 A text whose editor's plugin is not loaded is still a block, to move and
@@ -487,7 +540,7 @@ beside it instead, with a warning.
 __`elements`:__ Defaults:
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     elements: {
         enabled: 'auto',                 // on when the page has any; true or false to decide yourself
         selector: '[data-ge-element]',   // what counts as an element
@@ -534,14 +587,14 @@ replaces what the breakpoints said. While you edit, the canvas shows what the
 classes mean in the view you are in; `getHtml` returns only the classes.
 
 ```javascript
-$('#myGrid').gridEditor('setUtility', column, 'visibility', 'none', 'md');   // d-md-none
-$('#myGrid').gridEditor('getUtility', column, 'visibility', 'lg');           // 'none', inherited
+ge.setUtility(column, 'visibility', 'none', 'md');   // d-md-none
+ge.getUtility(column, 'visibility', 'lg');           // 'none', inherited
 ```
 
 __`utilities`:__ Options for each plugin, under its name.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     utilities: {
         visibility: { drawer: false },   // no eye in the drawers, the field only
         order: { drawer: false },        // no arrows in the column drawers
@@ -573,7 +626,7 @@ breakpoint. They are called sections, not containers, because a container is
 what the tabs, accordion, popup and card plugins make.
 
 ```javascript
-$('#myGrid').gridEditor('createSection', { width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
+ge.createSection({ width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
 ```
 
 __`sections`:__ `{ widths: ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'] }`, the widths the field offers.
@@ -633,7 +686,7 @@ Each type is a plugin, in a file of its own, and loading the file is what makes
 it available:
 
 ```html
-<script src="grid-editor/dist/jquery.grideditor.min.js"></script>
+<script src="grid-editor/dist/grideditor.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.accordion.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.popup.min.js"></script>
@@ -646,21 +699,21 @@ for the contract, and for writing one of your own.
 __`plugins`:__ Which of the loaded plugins to use, containers, features and utilities alike. Every one by default; name them to use fewer than the page loaded.
 
 ```javascript
-$('#myGrid').gridEditor({ plugins: ['tabs', 'elements'] });
+new GridEditor('#myGrid', { plugins: ['tabs', 'elements'] });
 ```
 
 __`container_tools`, `tab_tools`, `accordion_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
 
 ```javascript
-var tabs = $('#myGrid').gridEditor('createContainer', 'tabs', {
+var tabs = ge.createContainer('tabs', {
     tabs: 2,
     labels: ['Overview', 'Details'],
     appendTo: $('#myGrid .column').first(),
 });
-$('#myGrid').gridEditor('addTab', tabs, { label: 'Third', activate: true });
+ge.addTab(tabs, { label: 'Third', activate: true });
 
-$('#myGrid').gridEditor('createContainer', 'accordion', { items: 3, stay_open: true });
-$('#myGrid').gridEditor('createContainer', 'popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg' });
+ge.createContainer('accordion', { items: 3, stay_open: true });
+ge.createContainer('popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg' });
 ```
 
 An accordion opens and closes from its headers while editing, and what you
@@ -684,16 +737,16 @@ __`locale`:__ The code of a locale in `$.fn.gridEditor.locales`. Default `'en'`.
 __`locale_strings`:__ Overrides for individual keys, without a locale file.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     locale: 'es',
     locale_strings: { 'tool.move': 'Arrastrar' },
 });
 ```
 
-__`source_textarea`:__ Allows to set an already existing textarea as input for grid editor.
+__`source_textarea`:__ Allows to set an already existing textarea as input for grid editor: an element, or a selector.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     source_textarea: 'textarea.myTextarea',
 });
 ```
@@ -701,9 +754,8 @@ $('#myGrid').gridEditor({
 You will have write back the content to the textarea before saving, for example in this way:
 
 ```javascript
-$('form.myForm').on('submit', function() {
-    var html = $('#myGrid').gridEditor('getHtml');
-    $('textarea.myTextarea').val(html);
+document.querySelector('form.myForm').addEventListener('submit', function() {
+    document.querySelector('textarea.myTextarea').value = ge.getHtml();
 });
 ```
 
@@ -715,7 +767,7 @@ hand, and back again with what was written.
 __`edit_source`:__ Whether the toolbar has that button. Default value: `true`.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     edit_source: false,
 });
 ```
@@ -740,7 +792,7 @@ plugin's defaults: `mode: 'htmlmixed'`, `lineNumbers`, `lineWrapping`, a tab
 of 2.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     codemirror: { config: { theme: 'monokai' } },
 });
 ```
@@ -779,7 +831,7 @@ it is missing. Another editor is a plugin of your own:
 __`content_types`:__ Specify the RTEs to offer, in order. Valid values: any of `'tinymce'`, `'summernote'`, `'ckeditor'` whose plugin is loaded. Default value: every text editor loaded, in the order the page loaded them.
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     content_types: ['summernote'],
 });
 ```
@@ -789,7 +841,7 @@ See the [CKEditor documentation](http://docs.ckeditor.com/).
 Also check out the [ckeditor example](example/ckeditor.html).
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     ckeditor: {
         config: { language: 'fr' }
     }
@@ -801,7 +853,7 @@ See the [summernote documentation](http://summernote.org/deep-dive/).
 Also check out the [summernote example](example/summernote.html).
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     summernote: {
         config: { shortcuts: false }
     }
@@ -813,7 +865,7 @@ See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/6/).
 Also check out the [tinymce example](example/basic.html).
 
 ```javascript
-$('#myGrid').gridEditor({
+new GridEditor('#myGrid', {
     tinymce: {
         config: { paste_as_text: true }
     }

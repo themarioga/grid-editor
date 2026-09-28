@@ -15,24 +15,29 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.row = function() { return jQuery('#myGrid > .row').first(); };
-    window.cols = function() { return row().children('.column'); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.row = function() { return document.querySelector('#myGrid > .row'); };
+    window.cols = function() { return Array.from(row().querySelectorAll(':scope > .column')); };
+    window.last = function(list) { return list[list.length - 1]; };
+    window.choose = function(select, value) {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
     window.sizes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) { return /^col(-|$)/.test(name); }).sort().join(' ');
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) { return /^col(-|$)/.test(name); }).sort().join(' ');
     };
     window.twelfths = function() {
-        const style = getComputedStyle(row()[0]);
-        const content = row()[0].clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        return cols().map(function() { return Math.round(this.getBoundingClientRect().width / content * 12); }).get().join(',');
+        const style = getComputedStyle(row());
+        const content = row().clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        return cols().map(function(column) { return Math.round(column.getBoundingClientRect().width / content * 12); }).join(',');
     };
     /** Columns change width with a short transition; measure once it is over. */
     window.settle = function() { return new Promise(function(resolve) { setTimeout(resolve, 250); }); };
     window.start = function(rowClasses, columns, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row ' + rowClasses + '">' + columns.map(function(classes, index) {
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = '<div class="row ' + rowClasses + '">' + columns.map(function(classes, index) {
             return '<div id="c' + index + '" class="column ' + classes + '"><div class="ge-content"><p>' + index + '</p></div></div>';
-        }).join('') + '</div>');
+        }).join('') + '</div>';
         window.fixture.init(settings || {});
     };
 `;
@@ -40,15 +45,15 @@ var HELPERS = `
 async function fieldTests(t, page) {
     var field = await page.eval(`
         start('row-cols-2', ['', '']);
-        const select = row().find('> .ge-tools-drawer .ge-utility[data-ge-family="row-cols"] select');
-        const before = { value: select.val(), columns: cols().map(function() { return sizes(jQuery(this)); }).get().join('|') };
+        const select = row().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="row-cols"] select');
+        const before = { value: select.value, columns: cols().map(sizes).join('|') };
         ge().changeView('md');
-        select.val('3').trigger('change');
+        choose(select, '3');
         return {
-            label: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="row-cols"] .ge-utility-label').text(),
-            options: select.find('option').map(function() { return this.value; }).get().join(','),
+            label: row().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="row-cols"] .ge-utility-label').textContent,
+            options: Array.from(select.querySelectorAll('option')).map(function(option) { return option.value; }).join(','),
             before: before,
-            classes: row().attr('class'),
+            classes: row().getAttribute('class'),
         };
     `);
     t.check('a row\'s panel has a columns per row field, from 1 to 6 and auto',
@@ -61,23 +66,23 @@ async function fieldTests(t, page) {
     var off = await page.eval(`
         start('row-cols-3', ['', '', ''], { row_cols: false });
         return {
-            field: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="row-cols"]').length,
-            badge: row().attr('data-ge-row-cols'),
-            columns: cols().map(function() { return sizes(jQuery(this)); }).get().join('|'),
+            field: row().querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="row-cols"]').length,
+            badge: row().getAttribute('data-ge-row-cols'),
+            columns: cols().map(sizes).join('|'),
         };
     `);
     t.check('row_cols false takes the field and the badge away, and still leaves the row\'s columns alone',
-        off.field === 0 && off.badge === undefined && off.columns === '||', off);
+        off.field === 0 && off.badge === null && off.columns === '||', off);
 }
 
 async function previewTests(t, page) {
     var views = await page.eval(`
         start('row-cols-1 row-cols-md-3', ['', '', '']);
-        const read = async function(view) { ge().changeView(view); await settle(); return { widths: twelfths(), badge: row().attr('data-ge-row-cols') }; };
+        const read = async function(view) { ge().changeView(view); await settle(); return { widths: twelfths(), badge: row().getAttribute('data-ge-row-cols') }; };
         const xs = await read('xs');
         const md = await read('md');
         ge().changeView('all');
-        return { xs: xs, md: md, all: row().attr('data-ge-row-cols') };
+        return { xs: xs, md: md, all: row().getAttribute('data-ge-row-cols') };
     `);
     t.check('each breakpoint view shares the row out as its row-cols says, and the row says how',
         views.xs.widths === '12,12,12' && views.xs.badge === '1 per row' &&
@@ -88,10 +93,10 @@ async function previewTests(t, page) {
         start('row-cols-lg-4', ['', '', '', '']);
         ge().changeView('sm');
         await settle();
-        return { widths: twelfths(), badge: row().attr('data-ge-row-cols') };
+        return { widths: twelfths(), badge: row().getAttribute('data-ge-row-cols') };
     `);
     t.check('a wider breakpoint\'s row-cols does not show in a narrower view',
-        narrower.widths === '12,12,12,12' && narrower.badge === undefined, narrower);
+        narrower.widths === '12,12,12,12' && narrower.badge === null, narrower);
 
     var precedence = await page.eval(`
         start('row-cols-md-3', ['col-6', 'col-md-6', 'col-md', 'col-md-auto']);
@@ -120,12 +125,12 @@ async function editingTests(t, page) {
     var added = await page.eval(`
         start('row-cols-md-3', ['', '']);
         ge().changeView('md');
-        row().find('> .ge-tools-drawer .ge-add-column').trigger('click');
-        const inRow = sizes(cols().last());
+        row().querySelector(':scope > .ge-tools-drawer .ge-add-column').click();
+        const inRow = sizes(last(cols()));
         start('', ['col-6']);
         ge().changeView('md');
-        row().find('> .ge-tools-drawer .ge-add-column').trigger('click');
-        return { inRow: inRow, plain: sizes(cols().last()) };
+        row().querySelector(':scope > .ge-tools-drawer .ge-add-column').click();
+        return { inRow: inRow, plain: sizes(last(cols())) };
     `);
     t.check('a column added to a row with row-cols takes its share, with no size of its own',
         added.inRow === '' && added.plain === 'col-md-12', added);
@@ -133,15 +138,15 @@ async function editingTests(t, page) {
     var tool = await page.eval(`
         start('row-cols-md-3', ['', '', '']);
         ge().changeView('md');
-        const field = cols().first().find('> .ge-tools-drawer .ge-utility[data-ge-family="col"] select');
-        const blank = field.find('option').first().text();
+        const field = cols()[0].querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="col"] select');
+        const blank = field.querySelector('option').textContent;
         let from = 'none';
-        jQuery('#myGrid').one('grideditor:after-resize', function(e, payload) { from = payload.from; });
-        cols().first().find('> .ge-tools-drawer .ge-increase-col-width').trigger('click');
+        document.querySelector('#myGrid').addEventListener('grideditor:after-resize', function(e) { from = e.detail.from; }, { once: true });
+        cols()[0].querySelector(':scope > .ge-tools-drawer .ge-increase-col-width').click();
         await settle();
         return {
             blank: blank,
-            classes: cols().map(function() { return sizes(jQuery(this)); }).get().join('|'),
+            classes: cols().map(sizes).join('|'),
             from: from,
             widths: twelfths(),
         };
@@ -157,8 +162,8 @@ async function editingTests(t, page) {
         const created = ge().createRow({ row_cols: { xs: 1, md: 3 }, columns: 4 });
         return {
             into: sizes(into),
-            rowClasses: created.attr('class'),
-            columns: created.children('.column').map(function() { return sizes(jQuery(this)); }).get().join('|'),
+            rowClasses: created.getAttribute('class'),
+            columns: Array.from(created.querySelectorAll(':scope > .column')).map(sizes).join('|'),
         };
     `);
     t.check('createColumn with no size, into a row with row-cols, takes the row\'s share',
@@ -168,16 +173,17 @@ async function editingTests(t, page) {
 
     var toolbar = await page.eval(`
         start('', ['col-12'], { new_row_layouts: [[12], { row_cols: { xs: 1, md: 3 }, columns: 6 }] });
-        const button = jQuery('.ge-addRowGroup a').eq(1);
-        const icon = button.find('.ge-row-icon').children('.column').length;
-        button.trigger('click');
-        const added = jQuery('#myGrid > .row').last();
+        const button = document.querySelectorAll('.ge-addRowGroup a')[1];
+        const icon = button.querySelectorAll('.ge-row-icon > .column').length;
+        button.click();
+        const added = last(document.querySelectorAll('#myGrid > .row'));
+        const addedColumns = Array.from(added.querySelectorAll(':scope > .column'));
         return {
-            title: button.attr('title'),
+            title: button.getAttribute('title'),
             icon: icon,
-            rowClasses: added.attr('class').split(/\\s+/).filter(function(name) { return /^row-cols/.test(name); }).join(' '),
-            columns: added.children('.column').length,
-            sized: added.children('.column').filter(function() { return sizes(jQuery(this)) !== ''; }).length,
+            rowClasses: added.getAttribute('class').split(/\\s+/).filter(function(name) { return /^row-cols/.test(name); }).join(' '),
+            columns: addedColumns.length,
+            sized: addedColumns.filter(function(column) { return sizes(column) !== ''; }).length,
             html: ge().getHtml(),
         };
     `);

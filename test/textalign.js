@@ -13,13 +13,13 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.row = function() { return jQuery('#myGrid > .row').first(); };
-    window.col = function() { return row().children('.column').first(); };
-    window.align = function(node) { return getComputedStyle(node[0]).textAlign; };
+    window.ge = function() { return window.fixture.editor(); };
+    window.row = function() { return document.querySelector('#myGrid > .row'); };
+    window.col = function() { return row().querySelector(':scope > .column'); };
+    window.align = function(node) { return getComputedStyle(node).textAlign; };
     window.start = function(rowClasses, colClasses, colStyle) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row ' + rowClasses + '">' +
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row ' + rowClasses + '">' +
             '<div class="column col-6 ' + colClasses + '"' + (colStyle ? ' style="' + colStyle + '"' : '') + '>' +
             '<div class="ge-content"><p>a</p><div data-ge-element="box">box</div></div></div>' +
             '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>');
@@ -33,12 +33,12 @@ async function run(t) {
 
     var fields = await page.eval(`
         start('', '');
-        const field = function(node) { return node.find('> .ge-tools-drawer .ge-utility[data-ge-family="text-align"]'); };
+        const field = function(node) { return node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="text-align"]'); };
         return {
             row: field(row()).length,
             column: field(col()).length,
-            element: field(jQuery('#myGrid .ge-element')).length,
-            options: field(col()).find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
+            element: field(document.querySelector('#myGrid .ge-element')).length,
+            options: Array.from(field(col())[0].querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
         };
     `);
     t.check('rows, columns and elements get the text alignment field',
@@ -49,7 +49,7 @@ async function run(t) {
     var views = await page.eval(`
         start('', 'text-center text-lg-end');
         const read = function(view) { ge().changeView(view); return align(col()); };
-        return { xs: read('xs'), md: read('md'), lg: read('lg'), drawer: align(col().children('.ge-tools-drawer')) };
+        return { xs: read('xs'), md: read('md'), lg: read('lg'), drawer: align(col().querySelector(':scope > .ge-tools-drawer')) };
     `);
     t.check('each breakpoint view shows the alignment its classes give there',
         views.xs === 'center' && views.md === 'center' && views.lg === 'right', views);
@@ -59,7 +59,7 @@ async function run(t) {
     var inherited = await page.eval(`
         start('text-md-center', 'text-lg-end');
         const read = function(view) { ge().changeView(view); return { row: align(row()), col: align(col()) }; };
-        return { xs: read('xs'), md: read('md'), xl: read('xl'), classes: col().attr('class') };
+        return { xs: read('xs'), md: read('md'), xl: read('xl'), classes: col().getAttribute('class') };
     `);
     t.check('with no class applying, a node aligns as its parent does in that view',
         inherited.xs.row === 'start' && inherited.xs.col === 'start' &&

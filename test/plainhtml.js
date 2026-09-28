@@ -15,18 +15,16 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
  * container. Plus host markup whose names only look like the editor's.
  */
 var BUILD = `
-    jQuery('#myGrid').html(
+    document.querySelector('#myGrid').innerHTML =
         '<div class="row"><div class="col-12"><div class="ge-content">' +
             '<p class="column-note badge" data-gear="host" data-foo="bar">Host paragraph</p>' +
-        '</div></div></div>'
-    );
-    window.fixture.init();
-    const ge = jQuery('#myGrid').data('grideditor');
-    const column = jQuery('#myGrid .column').first();
+        '</div></div></div>';
+    const ge = window.fixture.init();
+    const column = document.querySelector('#myGrid .column');
 
-    ge.createElement('<blockquote>Quoted</blockquote>', { type: 'quote', label: 'Pull quote', appendTo: column.find('.ge-content') });
-    ge.createElement('<p>Ordered</p>', { type: 'callout', appendTo: column.find('.ge-content') })
-        .addClass('order-md-2');
+    ge.createElement('<blockquote>Quoted</blockquote>', { type: 'quote', label: 'Pull quote', appendTo: column.querySelector('.ge-content') });
+    ge.createElement('<p>Ordered</p>', { type: 'callout', appendTo: column.querySelector('.ge-content') })
+        .classList.add('order-md-2');
     ge.createContainer('tabs', { tabs: 2, labels: ['One', 'Two'], appendTo: column });
     ge.createContainer('accordion', { items: 2, appendTo: column });
     ge.createContainer('popup', { title: 'Terms', trigger_label: 'Read them', appendTo: column });
@@ -57,9 +55,9 @@ async function plainTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     var result = await page.eval(BUILD + DESCRIBE + `
-        const drawersBefore = jQuery('#myGrid .ge-tools-drawer').length;
-        const marked = jQuery('#myGrid').gridEditor('getHtml');
-        const plain = jQuery('#myGrid').gridEditor('getPlainHtml');
+        const drawersBefore = document.querySelectorAll('#myGrid .ge-tools-drawer').length;
+        const marked = ge.getHtml();
+        const plain = ge.getPlainHtml();
         const root = document.createElement('div');
         root.innerHTML = plain;
         const host = root.querySelector('p.badge');
@@ -73,8 +71,8 @@ async function plainTests(t) {
                 host.getAttribute('data-gear') === 'host' && host.getAttribute('data-foo') === 'bar',
             quoteUnwrapped: !!root.querySelector('.col-12 > blockquote'),
             orderedKept: !!root.querySelector('div.order-md-2 > p'),
-            editorBack: jQuery('#myGrid').hasClass('ge-editing') &&
-                jQuery('#myGrid .ge-tools-drawer').length === drawersBefore,
+            editorBack: document.querySelector('#myGrid').classList.contains('ge-editing') &&
+                document.querySelectorAll('#myGrid .ge-tools-drawer').length === drawersBefore,
         };
     `);
 
@@ -98,9 +96,9 @@ async function plainTests(t) {
     t.check('the editor goes back to editing afterwards', result.editorBack, result);
 
     var published = await page.eval(`
-        const plain = jQuery('#myGrid').gridEditor('getPlainHtml');
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(plain);
+        const plain = window.fixture.editor().getPlainHtml();
+        window.fixture.editor().destroy();
+        document.querySelector('#myGrid').innerHTML = plain;
 
         const second = document.querySelectorAll('#myGrid .nav-link')[1];
         bootstrap.Tab.getOrCreateInstance(second).show();
@@ -110,10 +108,16 @@ async function plainTests(t) {
     t.check('the plain markup still works with Bootstrap alone', published.tabShown, published);
 
     var noInstance = await page.eval(`
-        const plain = jQuery('<div><div class="row"><div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>Saved</p></div></div></div></div>');
-        return plain.gridEditor('getPlainHtml');
+        const saved = document.createElement('div');
+        saved.innerHTML = '<div class="row"><div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>Saved</p></div></div></div>';
+        document.body.appendChild(saved);
+        const editor = GridEditor.create(saved, { content_types: [] });
+        editor.destroy();
+        const plain = editor.getPlainHtml();
+        saved.remove();
+        return plain;
     `);
-    t.check('on an element with no editor it cleans the element\'s html',
+    t.check('on an editor that has been destroyed it cleans the element\'s html',
         noInstance === '<div class="row"><div class="col-6"><p>Saved</p></div></div>', noInstance);
 
     var errors = page.errors();
@@ -125,10 +129,10 @@ async function contentTypeTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     var html = await page.eval(`
-        window.fixture.init();
-        jQuery('#myGrid').data('grideditor').createRow([6, 6], { appendTo: jQuery('#myGrid') });
-        jQuery('#myGrid').gridEditor('reset');
-        return jQuery('#myGrid').gridEditor('getHtml');
+        const ge = window.fixture.init();
+        ge.createRow([6, 6], { appendTo: '#myGrid' });
+        ge.reset();
+        return ge.getHtml();
     `);
     t.check('with no content types, a content area names no type',
         html.indexOf('ge-content') !== -1 && html.indexOf('undefined') === -1 &&

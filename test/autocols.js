@@ -14,30 +14,41 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.cols = function() { return jQuery('#myGrid > .row').first().children('.column'); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.cols = function(row) {
+        row = row || document.querySelector('#myGrid > .row');
+        return Array.from(row.children).filter(function(child) { return child.classList.contains('column'); });
+    };
     window.sizes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) { return /^col(-|$)/.test(name); }).sort().join(' ');
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) { return /^col(-|$)/.test(name); }).sort().join(' ');
     };
     /** Each column's width as a share of its row, in twelfths, rounded. */
     window.twelfths = function() {
-        const row = jQuery('#myGrid > .row').first()[0];
+        const row = document.querySelector('#myGrid > .row');
         const style = getComputedStyle(row);
         const content = row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        return cols().map(function() { return Math.round(this.getBoundingClientRect().width / content * 12); }).get().join(',');
+        return cols().map(function(col) { return Math.round(col.getBoundingClientRect().width / content * 12); }).join(',');
     };
     /** Columns change width with a short transition; measure once it is over. */
     window.settle = function() { return new Promise(function(resolve) { setTimeout(resolve, 250); }); };
-    window.field = function(col) { return col.find('> .ge-tools-drawer .ge-utility[data-ge-family="col"] select'); };
+    window.field = function(col) { return col.querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="col"] select'); };
+    /** Choose a value in a select, as the user does. */
+    window.choose = function(select, value) {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
     window.log = [];
-    jQuery('#myGrid').on('grideditor:before-resize grideditor:after-resize', function(e, payload) {
-        window.log.push({ name: e.type, source: payload.source, from: payload.from, to: payload.to,
-            breakpoint: payload.breakpoint, cleared: payload.cleared });
-        if (e.type === 'grideditor:before-resize' && window.cancelNext) { window.cancelNext = false; e.preventDefault(); }
+    ['grideditor:before-resize', 'grideditor:after-resize'].forEach(function(name) {
+        document.querySelector('#myGrid').addEventListener(name, function(e) {
+            const payload = e.detail;
+            window.log.push({ name: e.type, source: payload.source, from: payload.from, to: payload.to,
+                breakpoint: payload.breakpoint, cleared: payload.cleared });
+            if (e.type === 'grideditor:before-resize' && window.cancelNext) { window.cancelNext = false; e.preventDefault(); }
+        });
     });
     window.start = function(columns, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row">' + columns.map(function(classes, index) {
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row">' + columns.map(function(classes, index) {
             return '<div id="c' + index + '" class="' + classes + '"><div class="ge-content"><p>' + classes + '</p></div></div>';
         }).join('') + '</div>');
         window.fixture.init(settings || {});
@@ -50,9 +61,9 @@ async function detectionTests(t, page) {
         start(['col', 'col-auto', 'col-6 col-md', 'col-12 col-lg-auto']);
         return {
             columns: cols().length,
-            drawers: cols().filter(function() { return jQuery(this).children('.ge-tools-drawer').length === 1; }).length,
-            sizes: cols().map(function() { return sizes(jQuery(this)); }).get(),
-            classesField: cols().first().find('> .ge-tools-drawer .ge-classes').val(),
+            drawers: cols().filter(function(col) { return col.querySelectorAll(':scope > .ge-tools-drawer').length === 1; }).length,
+            sizes: cols().map(sizes),
+            classesField: cols()[0].querySelector(':scope > .ge-tools-drawer .ge-classes').value,
         };
     `);
     t.check('a column with only col, or only col-auto, is a column',
@@ -64,7 +75,7 @@ async function detectionTests(t, page) {
 
     var read = await page.eval(`
         start(['col-4 col-md col-xl-auto']);
-        const col = cols().first();
+        const col = cols()[0];
         return ['all', 'xs', 'sm', 'md', 'lg', 'xl'].map(function(view) {
             return view + ':' + ge().getUtility(col, 'col', view);
         }).join(' ');
@@ -76,15 +87,15 @@ async function detectionTests(t, page) {
 async function fieldTests(t, page) {
     var field = await page.eval(`
         start(['col-4 col-md', 'col-8']);
-        const col = cols().first();
+        const col = cols()[0];
         ge().changeView('sm');
-        const sm = { value: field(col).val(), blank: field(col).find('option').first().text() };
+        const sm = { value: field(col).value, blank: field(col).querySelector('option').textContent };
         ge().changeView('md');
         return {
-            options: field(col).find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
+            options: Array.from(field(col).querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
             sm: sm,
-            md: field(col).val(),
-            label: col.find('> .ge-tools-drawer .ge-utility[data-ge-family="col"] .ge-utility-label').text(),
+            md: field(col).value,
+            label: col.querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="col"] .ge-utility-label').textContent,
         };
     `);
     t.check('a column\'s panel has a width field with every size, equal and auto',
@@ -95,13 +106,13 @@ async function fieldTests(t, page) {
         field.sm.value === '' && field.sm.blank === 'Inherit: 4 (from xs)' && field.md === 'equal', field);
 
     var written = await page.eval(`
-        const col = cols().first();
-        field(col).val('auto').trigger('change');
+        const col = cols()[0];
+        choose(field(col), 'auto');
         const auto = { classes: sizes(col), log: window.log.slice() };
         window.log = [];
         window.cancelNext = true;
-        field(col).val('3').trigger('change');
-        return { auto: auto, canceled: { classes: sizes(col), value: field(col).val(), log: window.log.slice() } };
+        choose(field(col), '3');
+        return { auto: auto, canceled: { classes: sizes(col), value: field(col).value, log: window.log.slice() } };
     `);
     var after = written.auto.log[1] || {};
     t.check('choosing in the width field is a resize: written for the view, announced as one',
@@ -116,8 +127,8 @@ async function fieldTests(t, page) {
 
     var everywhere = await page.eval(`
         start(['col-4 col-md-6 col-xl', 'col-8']);
-        const col = cols().first();
-        field(col).val('equal').trigger('change');
+        const col = cols()[0];
+        choose(field(col), 'equal');
         return { classes: sizes(col), cleared: (window.log[1] || {}).cleared };
     `);
     t.check('in the all view the field writes col alone and says what it took off',
@@ -148,9 +159,9 @@ async function previewTests(t, page) {
 async function toolTests(t, page) {
     var tools = await page.eval(`
         start(['col', 'col-6'], { default_view: 'xs' });
-        const col = cols().first();
+        const col = cols()[0];
         const before = twelfths();
-        col.find('> .ge-tools-drawer .ge-increase-col-width').trigger('click');
+        col.querySelector(':scope > .ge-tools-drawer .ge-increase-col-width').click();
         return { before: before, classes: sizes(col), to: (window.log[1] || {}).to, from: (window.log[1] || {}).from };
     `);
     t.check('a width tool turns an equal column into a number, starting from the width it has',
@@ -158,18 +169,18 @@ async function toolTests(t, page) {
 
     var drag = await page.eval(`
         start(['col-6', 'col'], { default_view: 'xs' });
-        const row = jQuery('#myGrid > .row').first()[0];
+        const row = document.querySelector('#myGrid > .row');
         const style = getComputedStyle(row);
         return (row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) / 12;
     `);
     await page.dragBy('#c0 > .ge-resize-e', Math.round(drag * 2), 0);
-    var balanced = await page.eval(`return { classes: cols().map(function() { return sizes(jQuery(this)); }).get(), widths: twelfths() };`);
+    var balanced = await page.eval(`return { classes: cols().map(sizes), widths: twelfths() };`);
     t.check('resizing next to an equal column leaves it to take what is left',
         balanced.classes.join('|') === 'col-8|col' && balanced.widths === '8,4', balanced);
 
     await page.eval(`start(['col', 'col-6'], { default_view: 'xs' });`);
     await page.dragBy('#c0 > .ge-resize-e', Math.round(drag * -2), 0);
-    var converted = await page.eval(`return sizes(cols().first());`);
+    var converted = await page.eval(`return sizes(cols()[0]);`);
     t.check('dragging the edge of an equal column turns it into a number',
         converted === 'col-4', converted);
 }
@@ -180,7 +191,7 @@ async function creationTests(t, page) {
         const row = ge().createRow(['auto', 'equal', 4]);
         const column = ge().createColumn('equal');
         return {
-            row: row.children('.column').map(function() { return sizes(jQuery(this)); }).get().join('|'),
+            row: cols(row).map(sizes).join('|'),
             column: sizes(column),
         };
     `);
@@ -189,12 +200,13 @@ async function creationTests(t, page) {
 
     var toolbar = await page.eval(`
         start(['col-12'], { new_row_layouts: [[12], ['auto', 'equal']] });
-        const button = jQuery('.ge-addRowGroup a').eq(1);
-        const icon = button.find('.ge-row-icon').children('.column').map(function() { return sizes(jQuery(this)); }).get().join('|');
-        button.trigger('click');
+        const button = document.querySelectorAll('.ge-addRowGroup a')[1];
+        const icon = cols(button.querySelector('.ge-row-icon')).map(sizes).join('|');
+        button.click();
+        const rows = document.querySelectorAll('#myGrid > .row');
         return {
             icon: icon,
-            added: jQuery('#myGrid > .row').last().children('.column').map(function() { return sizes(jQuery(this)); }).get().join('|'),
+            added: cols(rows[rows.length - 1]).map(sizes).join('|'),
         };
     `);
     t.check('a layout of equal and auto columns gets its toolbar button, and the button makes it',
@@ -208,7 +220,7 @@ async function creationTests(t, page) {
     var restricted = await page.eval(`
         start(['col-auto', 'col-12'], { valid_col_sizes: [4, 6, 8, 12] });
         return {
-            options: field(cols().first()).find('option').map(function() { return this.value; }).get().join(','),
+            options: Array.from(field(cols()[0]).querySelectorAll('option')).map(function(option) { return option.value; }).join(','),
         };
     `);
     t.check('without equal and auto in valid_col_sizes they are not offered, but a column that has one shows it',

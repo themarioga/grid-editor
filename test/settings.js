@@ -14,11 +14,21 @@ var cdp = require('./cdp');
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var CANVAS = `
-    jQuery('#myGrid').gridEditor('destroy');
-    jQuery('#myGrid').html(
+    if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+    document.querySelector('#myGrid').innerHTML =
         '<div class="row" id="the-row"><div class="column col-6 my-app-wide" id="the-column">' +
-        '<div class="ge-content"><p>x</p></div></div></div>'
-    );
+        '<div class="ge-content"><p>x</p></div></div></div>';
+`;
+
+/** Helpers for the page: typing in a field, and whether a node shows. */
+var HELPERS = `
+    window.type = function(field, value) {
+        field.value = value;
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    window.shown = function(node) { return !!node && !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length); };
+    window.idOf = function(node) { return node.hasAttribute('id') ? node.getAttribute('id') : undefined; };
+    return true;
 `;
 
 /** The panel of the first column. */
@@ -26,21 +36,22 @@ var PANEL = '#myGrid .column > .ge-tools-drawer .ge-details';
 
 async function panelTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(HELPERS);
 
     // Unfolded in the drawer, where these look for it: where else it can
     // open is test/panels.js
     var fields = await page.eval(CANVAS + `
         window.fixture.init({ default_view: 'xs', settings_panel: 'inline' });
 
-        const drawer = jQuery('#myGrid .column > .ge-tools-drawer');
-        const panel = drawer.find('.ge-details');
+        const drawer = document.querySelector('#myGrid .column > .ge-tools-drawer');
+        const panel = drawer.querySelector('.ge-details');
 
         return {
-            hiddenAtRest: !panel.is(':visible'),
-            id: panel.find('.ge-id').val(),
-            classes: panel.find('.ge-classes').val(),
-            placeholders: [panel.find('.ge-id').attr('placeholder'), panel.find('.ge-classes').attr('placeholder')],
-            presetButtons: panel.find('.btn-group a').length,
+            hiddenAtRest: !shown(panel),
+            id: panel.querySelector('.ge-id').value,
+            classes: panel.querySelector('.ge-classes').value,
+            placeholders: [panel.querySelector('.ge-id').getAttribute('placeholder'), panel.querySelector('.ge-classes').getAttribute('placeholder')],
+            presetButtons: panel.querySelectorAll('.btn-group a').length,
         };
     `);
     t.check('the panel shows the id and the host\\u2019s own classes, and nothing of the editor\\u2019s',
@@ -51,21 +62,21 @@ async function panelTests(t) {
         fields.presetButtons === 0, fields);
 
     var opened = await page.eval(`
-        jQuery('#myGrid .column > .ge-tools-drawer .ge-settings').trigger('click');
-        return jQuery('${PANEL}').is(':visible');
+        document.querySelector('#myGrid .column > .ge-tools-drawer .ge-settings').click();
+        return shown(document.querySelector('${PANEL}'));
     `);
     t.check('the gear opens the panel', opened === true, opened);
 
     var edited = await page.eval(`
-        const panel = jQuery('${PANEL}');
-        const column = jQuery('#myGrid .column').first();
+        const panel = document.querySelector('${PANEL}');
+        const column = document.querySelector('#myGrid .column');
 
-        panel.find('.ge-classes').val('my-app-wide my-app-dark').trigger('change');
-        panel.find('.ge-id').val('renamed').trigger('change');
+        type(panel.querySelector('.ge-classes'), 'my-app-wide my-app-dark');
+        type(panel.querySelector('.ge-id'), 'renamed');
 
         return {
-            id: column.attr('id'),
-            classes: column.attr('class'),
+            id: idOf(column),
+            classes: column.getAttribute('class'),
         };
     `);
     t.check('typing classes and an id puts them on the node, beside the grid classes',
@@ -75,12 +86,12 @@ async function panelTests(t) {
         edited);
 
     var removed = await page.eval(`
-        const panel = jQuery('${PANEL}');
-        const column = jQuery('#myGrid .column').first();
+        const panel = document.querySelector('${PANEL}');
+        const column = document.querySelector('#myGrid .column');
 
-        panel.find('.ge-classes').val('my-app-dark').trigger('change');
+        type(panel.querySelector('.ge-classes'), 'my-app-dark');
 
-        return { classes: column.attr('class'), width: column.width() > 0 };
+        return { classes: column.getAttribute('class'), width: column.getBoundingClientRect().width > 0 };
     `);
     t.check('a class taken out of the field is taken off the node, and the grid classes stay',
         !/my-app-wide/.test(removed.classes) && /my-app-dark/.test(removed.classes) &&
@@ -88,15 +99,15 @@ async function panelTests(t) {
         removed);
 
     var cleared = await page.eval(`
-        const panel = jQuery('${PANEL}');
-        const column = jQuery('#myGrid .column').first();
+        const panel = document.querySelector('${PANEL}');
+        const column = document.querySelector('#myGrid .column');
 
-        panel.find('.ge-classes').val('').trigger('change');
-        panel.find('.ge-id').val('').trigger('change');
+        type(panel.querySelector('.ge-classes'), '');
+        type(panel.querySelector('.ge-id'), '');
 
         return {
-            id: column.attr('id'),
-            classes: column.attr('class'),
+            id: idOf(column),
+            classes: column.getAttribute('class'),
         };
     `);
     t.check('emptying a field takes the id away rather than leaving an empty one',
@@ -105,12 +116,12 @@ async function panelTests(t) {
         cleared);
 
     var rows = await page.eval(`
-        const panel = jQuery('#myGrid > .row > .ge-tools-drawer .ge-details');
-        const row = jQuery('#myGrid > .row').first();
+        const panel = document.querySelector('#myGrid > .row > .ge-tools-drawer .ge-details');
+        const row = document.querySelector('#myGrid > .row');
 
-        panel.find('.ge-classes').val('my-app-row').trigger('change');
+        type(panel.querySelector('.ge-classes'), 'my-app-row');
 
-        return { id: panel.find('.ge-id').val(), classes: row.attr('class') };
+        return { id: panel.querySelector('.ge-id').value, classes: row.getAttribute('class') };
     `);
     t.check('a row has the same panel as a column',
         rows.id === 'the-row' && /my-app-row/.test(rows.classes) && /(^|\s)row(\s|$)/.test(rows.classes),
@@ -119,6 +130,7 @@ async function panelTests(t) {
 
 async function presetTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(HELPERS);
 
     var presets = await page.eval(CANVAS + `
         window.fixture.init({
@@ -126,15 +138,16 @@ async function presetTests(t) {
             col_classes: [{ label: 'Dark', cssClass: 'my-app-dark' }],
         });
 
-        const panel = jQuery('${PANEL}');
-        const column = jQuery('#myGrid .column').first();
+        const panel = document.querySelector('${PANEL}');
+        const column = document.querySelector('#myGrid .column');
+        const buttons = Array.from(panel.querySelectorAll('.btn-group a'));
 
-        panel.find('.btn-group a').trigger('click');
+        buttons.forEach(function(button) { button.click(); });
 
         return {
-            buttons: panel.find('.btn-group a').map(function() { return jQuery(this).text(); }).get(),
-            classes: column.attr('class'),
-            title: panel.find('.btn-group a').attr('title'),
+            buttons: buttons.map(function(button) { return button.textContent; }),
+            classes: column.getAttribute('class'),
+            title: buttons[0].getAttribute('title'),
         };
     `);
     t.check('a host that configures preset classes still gets its buttons',
@@ -143,7 +156,7 @@ async function presetTests(t) {
         presets);
 
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         return {
             html: html,
             keptClass: /my-app-dark/.test(html),
@@ -165,34 +178,34 @@ async function presetTests(t) {
  */
 async function everywhereTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(HELPERS);
 
     var made = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('#myGrid').innerHTML =
             '<div class="row"><div class="column col-12"><div class="ge-content">' +
             '<div data-ge-element="quote" class="my-app-quote"><p>An element</p></div>' +
-            '</div></div></div>'
-        );
-        window.fixture.init({ default_view: 'xs' });
+            '</div></div></div>';
+        const ge = window.fixture.init({ default_view: 'xs' });
 
-        const ge = jQuery('#myGrid').data('grideditor');
-        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: jQuery('#myGrid .column').first() });
-        const accordion = ge.createContainer('accordion', { items: 1, appendTo: jQuery('#myGrid .column').first() });
+        const column = document.querySelector('#myGrid .column');
+        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: column });
+        const accordion = ge.createContainer('accordion', { items: 1, appendTo: column });
 
         const panelOf = function(drawer) {
-            const panel = drawer.find('> .ge-details');
+            const panel = drawer.querySelector(':scope > .ge-details');
             return {
-                gear: drawer.find('> .ge-settings').length,
-                id: panel.find('.ge-id').length,
-                classes: panel.find('.ge-classes').val(),
+                gear: drawer.querySelectorAll(':scope > .ge-settings').length,
+                id: panel.querySelectorAll('.ge-id').length,
+                classes: panel.querySelector('.ge-classes').value,
             };
         };
 
         return {
-            container: panelOf(tabs.find('> .ge-tools-drawer')),
-            tab: panelOf(tabs.find('.ge-tab > .ge-tools-drawer')),
-            item: panelOf(accordion.find('.ge-accordion-item > .ge-tools-drawer')),
-            element: panelOf(jQuery('#myGrid .ge-element > .ge-tools-drawer')),
+            container: panelOf(tabs.querySelector(':scope > .ge-tools-drawer')),
+            tab: panelOf(tabs.querySelector('.ge-tab > .ge-tools-drawer')),
+            item: panelOf(accordion.querySelector('.ge-accordion-item > .ge-tools-drawer')),
+            element: panelOf(document.querySelector('#myGrid .ge-element > .ge-tools-drawer')),
         };
     `);
     t.check('a container, a tab, an accordion item and an element each have the panel',
@@ -202,21 +215,22 @@ async function everywhereTests(t) {
         made);
 
     var edited = await page.eval(`
-        const accordion = jQuery('#myGrid [data-ge-container="accordion"]');
-        const item = accordion.find('.ge-accordion-item').first();
-        const element = jQuery('#myGrid .ge-element').first();
+        const accordion = document.querySelector('#myGrid [data-ge-container="accordion"]');
+        const item = accordion.querySelector('.ge-accordion-item');
+        const element = document.querySelector('#myGrid .ge-element');
+        const field = function(node, name) { return node.querySelector(':scope > .ge-tools-drawer ' + name); };
 
-        accordion.find('> .ge-tools-drawer .ge-id').val('faq').trigger('change');
-        accordion.find('> .ge-tools-drawer .ge-classes').val('my-app-faq').trigger('change');
-        item.find('> .ge-tools-drawer .ge-id').val('faq-one').trigger('change');
-        element.find('> .ge-tools-drawer .ge-classes').val('my-app-quote my-app-pull').trigger('change');
+        type(field(accordion, '.ge-id'), 'faq');
+        type(field(accordion, '.ge-classes'), 'my-app-faq');
+        type(field(item, '.ge-id'), 'faq-one');
+        type(field(element, '.ge-classes'), 'my-app-quote my-app-pull');
 
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
 
         return {
-            accordion: accordion.attr('id') + '|' + accordion.attr('class'),
-            item: item.attr('id'),
-            element: element.attr('class'),
+            accordion: idOf(accordion) + '|' + accordion.getAttribute('class'),
+            item: idOf(item),
+            element: element.getAttribute('class'),
             inOutput: {
                 accordion: /id="faq"[^>]*my-app-faq|my-app-faq[^>]*id="faq"/.test(html),
                 item: /id="faq-one"/.test(html),
@@ -233,8 +247,8 @@ async function everywhereTests(t) {
         edited);
 
     var untouched = await page.eval(`
-        const element = jQuery('#myGrid .ge-element').first();
-        return { classes: element.attr('class'), marked: element.attr('data-ge-element') };
+        const element = document.querySelector('#myGrid .ge-element');
+        return { classes: element.getAttribute('class'), marked: element.getAttribute('data-ge-element') };
     `);
     t.check('the editor\u2019s own marking is not something the panel can lose',
         /ge-element/.test(untouched.classes) && untouched.marked === 'quote', untouched);

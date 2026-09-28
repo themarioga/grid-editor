@@ -6,13 +6,12 @@
     "Mario Gonzalez",
     "Epskampie <simon@frontwise.com>"
   ],
-  "description": "Visual javascript editor for the bootstrap grid system, written as a jQuery plugin.",
-  "main": "jquery.grideditor.js",
+  "description": "Visual javascript editor for the bootstrap grid system, in plain DOM: no jQuery needed.",
+  "main": "dist/grideditor.js",
   "keywords": [
     "bootstrap",
     "grid",
-    "editor",
-    "jquery"
+    "editor"
   ],
   "license": "MIT",
   "ignore": [

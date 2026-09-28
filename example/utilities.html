@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <!-- Grid editor CSS -->
@@ -17,7 +16,7 @@
     <!-- The editor, and the utility plugins. Each is a file of its own, and
          loading it is what puts its field in the settings panels. -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.visibility.min.js"></script>
     <script src="../dist/plugins/grideditor.order.min.js"></script>
     <script src="../dist/plugins/grideditor.alignment.min.js"></script>
@@ -29,9 +28,12 @@
     <script src="../dist/plugins/grideditor.float.min.js"></script>
 
     <script>
-        $(function() {
+        document.addEventListener('DOMContentLoaded', function() {
+            var grid = document.getElementById('myGrid');
+            var editor;
+
             function start(panel) {
-                $('#myGrid').gridEditor({
+                editor = new GridEditor(grid, {
                     new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
                     content_types: [],
 
@@ -44,24 +46,26 @@
                     settings_panel: panel,
                 });
             }
-            start($('#panel').val());
+            start(document.getElementById('panel').value);
 
             // The same canvas, started again with its settings elsewhere
-            $('#panel').on('change', function() {
-                var html = $('#myGrid').gridEditor('getHtml');
-                $('#myGrid').gridEditor('destroy').html(html);
+            document.getElementById('panel').addEventListener('change', function() {
+                var html = editor.getHtml();
+                editor.destroy();
+                grid.innerHTML = html;
                 start(this.value);
             });
 
             // Every change to a utility is announced, like any other operation
-            $('#myGrid').on('grideditor:after-utility', function(e, payload) {
-                $('#last').text(payload.family + ' at ' + payload.breakpoint + ': ' +
+            grid.addEventListener('grideditor:after-utility', function(e) {
+                var payload = e.detail;
+                document.getElementById('last').textContent = payload.family + ' at ' + payload.breakpoint + ': ' +
                     (payload.from === null ? 'default' : payload.from) + ' → ' +
-                    (payload.to === null ? 'inherit' : payload.to));
+                    (payload.to === null ? 'inherit' : payload.to);
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
             });
         });
     </script>

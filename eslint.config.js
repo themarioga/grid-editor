@@ -95,20 +95,21 @@ module.exports = [
         ignores: ['dist/**', 'node_modules/**', 'test/vendor/**'],
     },
     {
-        // The plugin sources: a browser script, not a module. Globals are not
-        // declared because `no-undef` is off, as it was in .eslintrc: the
-        // sources talk to whatever editor the host page loaded.
+        // The sources: ES modules, which build/build.js bundles into the
+        // classic scripts and the module builds. Globals are not declared
+        // because `no-undef` is off, as it was in .eslintrc: the sources talk
+        // to whatever editor the host page loaded.
         files: ['src/**/*.js'],
         languageOptions: {
             ecmaVersion: 2018,
-            sourceType: 'script',
+            sourceType: 'module',
         },
         rules: RULES,
     },
     {
         // The test harness and the build: node, and free to use newer syntax
         // than the plugin, since only node runs it.
-        files: ['test/**/*.js', 'Gruntfile.js', 'release.js', 'eslint.config.js'],
+        files: ['test/**/*.js', 'build/**/*.js', 'Gruntfile.js', 'release.js', 'eslint.config.js'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'commonjs',

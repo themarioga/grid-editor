@@ -13,24 +13,24 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.row = function() { return jQuery('#myGrid > .row').first(); };
-    window.col = function() { return row().children('.column').first(); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.row = function() { return document.querySelector('#myGrid > .row'); };
+    window.col = function() { return row().querySelector(':scope > .column'); };
     window.gutters = function() {
-        const style = getComputedStyle(row()[0]);
+        const style = getComputedStyle(row());
         return {
             x: style.getPropertyValue('--bs-gutter-x').trim(),
             y: style.getPropertyValue('--bs-gutter-y').trim(),
-            padding: getComputedStyle(col()[0]).paddingLeft,
-            marked: row().hasClass('ge-gutters'),
+            padding: getComputedStyle(col()).paddingLeft,
+            marked: row().classList.contains('ge-gutters'),
         };
     };
     window.classes = function() {
-        return (row().attr('class') || '').split(/\\s+/).filter(function(name) { return /^g[xy]?-/.test(name); }).sort().join(' ');
+        return (row().getAttribute('class') || '').split(/\\s+/).filter(function(name) { return /^g[xy]?-/.test(name); }).sort().join(' ');
     };
     window.start = function(rowClasses) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row ' + rowClasses + '">' +
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row ' + rowClasses + '">' +
             '<div class="column col-6"><div class="ge-content"><p>a</p></div></div>' +
             '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>');
         window.fixture.init({ plugins: window.fixture.plugins(['gutters']) });
@@ -44,9 +44,9 @@ async function run(t) {
     var plain = await page.eval(`
         start('');
         return {
-            fields: row().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
+            fields: Array.from(row().querySelectorAll(':scope > .ge-tools-drawer .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(','),
             // The width field is the core's, on every column
-            columnFields: col().find('> .ge-tools-drawer ' + '.ge-utility:not([data-ge-family="col"])').length,
+            columnFields: col().querySelectorAll(':scope > .ge-tools-drawer ' + '.ge-utility:not([data-ge-family="col"])').length,
             gutters: gutters(),
         };
     `);
@@ -58,14 +58,14 @@ async function run(t) {
     var perView = await page.eval(`
         start('g-2 g-md-5');
         const read = function(view) { ge().changeView(view); return gutters(); };
-        return { xs: read('xs'), md: read('md'), all: (ge().changeView('all'), row().attr('data-ge-preview')) };
+        return { xs: read('xs'), md: read('md'), all: (ge().changeView('all'), row().getAttribute('data-ge-preview')) };
     `);
     t.check('a breakpoint view shows that breakpoint\'s gutters, and the columns are padded by them',
         perView.xs.x === '.5rem' && perView.xs.y === '.5rem' && perView.xs.padding === '4px' && perView.xs.marked &&
         perView.md.x === '3rem' && perView.md.padding === '24px',
         perView);
     t.check('the all view leaves the gutters to Bootstrap',
-        perView.all === undefined, perView);
+        perView.all === null, perView);
 
     var settled = await page.eval(`
         start('g-3 gx-1 gy-md-1');
@@ -86,7 +86,9 @@ async function run(t) {
     var chosen = await page.eval(`
         start('gx-md-4 gy-md-2 gx-lg-1');
         ge().changeView('md');
-        row().find('> .ge-tools-drawer .ge-utility[data-ge-family="g"] select').val('3').trigger('change');
+        const select = row().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="g"] select');
+        select.value = '3';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
         const afterG = classes();
         const html = ge().getHtml();
         return { afterG: afterG, html: html };
@@ -99,8 +101,8 @@ async function run(t) {
         chosen.html.slice(0, 160));
 
     var scaled = await page.eval(`
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row g-2"><div class="column col-12"><div class="ge-content"><p>a</p></div></div></div>');
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = '<div class="row g-2"><div class="column col-12"><div class="ge-content"><p>a</p></div></div></div>';
         window.fixture.init({ plugins: window.fixture.plugins(['gutters']), default_view: 'sm',
             utilities: { gutters: { scale: ['0', '2px', '10px', '20px', '30px', '40px'] } } });
         return gutters().x;

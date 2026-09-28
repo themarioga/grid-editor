@@ -8,18 +8,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <!-- Grid editor CSS -->
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
 
     <script>
-        $(function() {
-            $('#myGrid').gridEditor({
+        document.addEventListener('DOMContentLoaded', function() {
+            var editor = new GridEditor('#myGrid', {
                 new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
                 content_types: [],
 
@@ -33,8 +32,8 @@
                 // layout_modes: ['all', 'lg', 'sm', 'xs'],
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
             });
         });
     </script>

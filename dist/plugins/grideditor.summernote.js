@@ -1,447 +1,513 @@
-/**
- * Text for grid-editor: what the text editor plugins share.
- *
- * Not a file a page loads. The build puts it at the top of each text editor
- * plugin - grideditor.tinymce.js, grideditor.ckeditor.js,
- * grideditor.summernote.js - and whichever of them loads first installs it:
- * a page with two editors has one of these.
- *
- * It is a feature plugin, `text`, that the `plugins` setting does not choose
- * (content_types does), and it is everything a text is to the editor: the
- * text block's drawer, the Text buttons in the toolbar, createText, opening
- * an editor on a click and closing it again with the host's attributes put
- * back, and making the host's plain content a text through the core's
- * `textTypes` hook.
- *
- * Each editor registers under $.fn.gridEditor.texts, which is this file's own
- * registry and not a contract: an editor of a host's own is a feature plugin
- * of its own, as example/custom_editor.html shows.
- */
-(function($) {
+(() => {
+  // src/js/register.js
+  var GridEditor = window.GridEditor;
+  if (!GridEditor || typeof GridEditor.get !== "function") {
+    throw new Error("grid-editor: load grideditor.js (or grideditor.bundle.min.js) before its plugins, its locales and grideditor.jquery.js");
+  }
 
-    if ($.fn.gridEditor.features.text) { return; }
-
-    $.extend($.fn.gridEditor.locales.en, {
-        'text.add': 'Text',
-        'text.add_type': 'Text ({editor})',
-        'panel.editor': 'Editor',
-        'panel.kind_text': 'Text',
+  // src/js/dom.js
+  function all(root, selector) {
+    return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
+  }
+  function children(node, selector) {
+    if (!node) {
+      return [];
+    }
+    return Array.prototype.filter.call(node.children, function(each) {
+      return !selector || each.matches(selector);
     });
-
-    /** The text editors, by the content type each edits. */
-    $.fn.gridEditor.texts = $.fn.gridEditor.texts || {};
-
-    /** What a text editor puts on a content area while it is open, whenever it likes. */
-    var EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
-    var EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
-
-    function attributesOf(element) {
-        var found = {};
-        $.each($.makeArray(element.attributes), function(i, attribute) {
-            found[attribute.name] = attribute.value;
-        });
-        return found;
+  }
+  function child(node, selector) {
+    return children(node, selector)[0] || null;
+  }
+  function closest(node, selector, stopAt) {
+    var found = node && node.nodeType === 1 ? node.closest(selector) : null;
+    if (found && stopAt && found !== stopAt && !stopAt.contains(found)) {
+      return null;
     }
-
-    function classesIn(value) {
-        return (value || '').split(/\s+/).filter(function(name) {
-            return name !== '' && !EDITOR_CLASS.test(name);
-        });
-    }
-
-    /** The host's markup, with what changed from `ready` to `open` played back onto it. */
-    function restoreAttributes(block, before, ready, open) {
-        var result = $.extend({}, before);
-
-        $.each($.extend({}, ready, open), function(name) {
-            if (name === 'class' || EDITOR_ATTRIBUTE.test(name) || ready[name] === open[name]) { return; }
-
-            if (open[name] === undefined) {
-                delete result[name];
-            } else {
-                result[name] = open[name];
-            }
-        });
-
-        var readyClasses = classesIn(ready['class']);
-        var openClasses = classesIn(open['class']);
-        var classes = classesIn(before['class']).filter(function(name) {
-            return openClasses.indexOf(name) !== -1 || readyClasses.indexOf(name) === -1;
-        });
-        openClasses.forEach(function(name) {
-            if (readyClasses.indexOf(name) === -1 && classes.indexOf(name) === -1) { classes.push(name); }
-        });
-
-        // In the host's order, class where it was: getHtml should not
-        // shuffle a node's attributes because it was edited
-        if (classes.length) { result['class'] = classes.join(' '); } else { delete result['class']; }
-
-        $.each(attributesOf(block[0]), function(name) { block.removeAttr(name); });
-        $.each(result, function(name, value) { block.attr(name, value); });
-    }
-
-    function textFeature(ge) {
-
-        var settings = ge.settings;
-        var TEXTS = {};
-        var warned = {};
-
-        $.each($.fn.gridEditor.texts, function(type, factory) {
-            TEXTS[type] = factory(ge);
-        });
-
-        // Every editor loaded, in the order the page loaded them, unless the
-        // host names the ones it wants
-        if (!Array.isArray(settings.content_types)) { settings.content_types = Object.keys(TEXTS); }
-        if (!Array.isArray(settings.text_tools)) { settings.text_tools = []; }
-        if (!Array.isArray(settings.text_classes)) { settings.text_classes = []; }
-
-        /** The text editors this editor offers, in content_types order: the ones loaded. */
-        function offeredTexts() {
-            return settings.content_types.filter(function(type) { return !!TEXTS[type]; });
-        }
-
-        /** What a text editor is called: its plugin's label, or its type. */
-        function textLabel(type) {
-            var text = TEXTS[type];
-            return text && text.labelKey ? ge.t(text.labelKey) : type;
-        }
-
-        /** A detached content area of `type`, holding `content` or the editor's initial content. */
-        function makeText(type, content) {
-            var text = TEXTS[type];
-
-            return $('<div class="ge-content" />')
-                .addClass('ge-content-type-' + type)
-                .attr('data-ge-content-type', type)
-                .html(content !== undefined ? content : (text && text.initialContent) || '');
-        }
-
-        /**
-         * createText(type?, options?): a content area of a text editor's,
-         * detached unless a placement is given. The type is the first one
-         * offered by default. `options.content` is its html.
-         */
-        function apiCreateText(type, options) {
-            if (type && typeof type === 'object') {
-                options = type;
-                type = undefined;
-            }
-            options = options || {};
-            type = type || offeredTexts()[0];
-
-            if (!type || !TEXTS[type]) {
-                if (!warned['createText:' + type]) {
-                    warned['createText:' + type] = true;
-                    ge.warn('createText: no text editor "' + type + '" is loaded; ' +
-                        'load its plugin and name it in content_types');
-                }
-                return null;
-            }
-
-            return ge.place(makeText(type, options.content), 'text', options);
-        }
-
-        /** Whether a content area is a text of one of the editors loaded here. */
-        function isOurs(block) {
-            return !!TEXTS[block.attr('data-ge-content-type')];
-        }
-
-        /** Open the editor on a text, once: until it is closed again. */
-        function startText(block) {
-            if (block.hasClass('ge-rte-active')) { return; }
-
-            // A content area nobody can see - a tab that is not the open one,
-            // a closed accordion item - has no geometry for an editor to lay
-            // its toolbar out against, and nothing anyone can type into
-            if (!block.is(':visible')) { return; }
-
-            // The attribute, not jQuery's cached copy of it: it is markup, and
-            // the drawer reads it the same way
-            var text = TEXTS[block.attr('data-ge-content-type')];
-            if (!text) { return; }
-
-            // Not marked active, so the next click tries again: the library
-            // may be loaded by then
-            if (text.available && !text.available()) {
-                if (text.missingKey) { console.error(ge.t(text.missingKey)); }
-                return;
-            }
-
-            block.data('ge-text-before', attributesOf(block[0])).removeData('ge-text-ready');
-            block.addClass('ge-rte-active');
-            text.start(block);
-        }
-
-        function onClick() {
-            startText($(this));
-        }
-
-        /**
-         * Close the text editor on one content area, and leave the content
-         * area's own attributes as the host left them.
-         *
-         * An editor adds attributes of its own while it is open, and takes
-         * them off again, more or less: CKEditor leaves aria-readonly behind.
-         * tinyMCE does worse, and puts back every attribute as it was when it
-         * opened, so an id, a class or a plugin's attribute given while it was
-         * open is lost. So the attributes are read three times - before the
-         * editor opens, once it has opened, and before it closes - and what
-         * changed between the second and the third, the host's doing, is
-         * played back onto the first, the host's markup. What the editor did
-         * is left out either way.
-         */
-        function closeText(block) {
-            var text = TEXTS[block.attr('data-ge-content-type')];
-            var before = block.data('ge-text-before');
-            var open = before ? attributesOf(block[0]) : null;
-
-            // Every content area is told, as in 5.x: one whose editor never
-            // started is the plugin's to ignore
-            if (text) { text.stop(block); }
-
-            // After stop, not before: an editor that restores the class
-            // attribute it snapshotted would put ge-rte-active back
-            block.removeClass('ge-rte-active');
-
-            if (before) {
-                restoreAttributes(block, before, block.data('ge-text-ready') || before, open);
-                block.removeData('ge-text-before').removeData('ge-text-ready');
-            }
-        }
-
-        function createTextControls(textBlock) {
-            var block = textBlock.children('.ge-content');
-            var type = block.attr('data-ge-content-type');
-            var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
-
-            ge.createMoveTool(drawer);
-
-            var details = ge.addSettingsTool(drawer, block, settings.text_classes);
-
-            // Which editor edits it, first in its settings: something to
-            // know about it, not something to do with it
-            $('<div class="ge-field ge-text-editor" />')
-                .append($('<span class="ge-field-label" />').text(ge.t('panel.editor')))
-                .append($('<span class="ge-field-value" />').text(textLabel(type)))
-                .prependTo(details.children('.ge-details-general'));
-
-            settings.text_tools.forEach(function(hostTool) {
-                ge.createTool(drawer, hostTool.title || '', hostTool.className || '',
-                    hostTool.iconClass || 'bi bi-wrench', hostTool.on);
-            });
-
-            ge.createTool(drawer, ge.t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
-                ge.deleteNode('text', block, ge.t('confirm.delete_text'), function(removed) {
-                    // Its editor lets go first: removed while open, it would
-                    // be left behind, attached to nothing
-                    closeText(block);
-                    textBlock.slideUp(function() {
-                        textBlock.remove();
-                        removed();
-                    });
-                });
-            });
-        }
-
-        /** A drawer for each text of ours in a text block that has none yet. */
-        function markTexts() {
-            ge.canvas.find('.ge-text-block').each(function() {
-                var textBlock = $(this);
-                if (textBlock.children('.ge-tools-drawer').length) { return; }
-                if (!isOurs(textBlock.children('.ge-content'))) { return; }
-
-                createTextControls(textBlock);
-            });
-        }
-
-        var texts = offeredTexts();
-
-        return {
-            methods: {
-                createText: apiCreateText,
-            },
-
-            /**
-             * The types this plugin edits, for the core: every editor loaded
-             * is the owner of its texts, and the ones offered are what the
-             * host's plain content can be made.
-             */
-            textTypes: function() {
-                var offered = offeredTexts();
-                var others = Object.keys(TEXTS).filter(function(type) { return offered.indexOf(type) === -1; });
-
-                return offered.concat(others).map(function(type) {
-                    var text = TEXTS[type];
-
-                    return {
-                        type: type,
-                        label: textLabel(type),
-                        offered: offered.indexOf(type) !== -1,
-                        available: text.available ? function() { return text.available(); } : null,
-                        missingKey: text.missingKey,
-                        edit: function(block) {
-                            var textBlock = block.parent('.ge-text-block');
-                            if (textBlock.length && !textBlock.children('.ge-tools-drawer').length) {
-                                createTextControls(textBlock);
-                            }
-
-                            startText(block);
-                        },
-                    };
-                });
-            },
-
-            // A text block of each editor offered. Like a container, it goes
-            // into a row of its own when clicked, or where it is dropped
-            toolbar: texts.map(function(type) {
-                return {
-                    label: function() {
-                        return texts.length > 1 ? ge.t('text.add_type', { editor: textLabel(type) }) : ge.t('text.add');
-                    },
-                    iconClass: TEXTS[type].iconClass,
-                    className: 'ge-add-text-button',
-                    kind: 'text',
-                    inColumn: true,
-                    create: function() { return makeText(type); },
-                };
-            }),
-
-            onInit: function() {
-                markTexts();
-
-                ge.canvas.off('click.ge-text').on('click.ge-text', '.ge-content', onClick);
-            },
-
-            // While the drawers and the text blocks are still there, as the
-            // editors left them
-            onBeforeDeinit: function() {
-                ge.canvas.find('.ge-content').each(function() {
-                    if (isOurs($(this))) { closeText($(this)); }
-                });
-            },
-
-            onDeinit: function() {
-                ge.canvas.off('click.ge-text');
-            },
-
-            // The first time only: an undo says ready again, and by then the
-            // host may have changed the content area itself
-            onContentReady: function(area) {
-                if (area.data('ge-text-before') && !area.data('ge-text-ready')) {
-                    area.data('ge-text-ready', attributesOf(area[0]));
-                }
-            },
-        };
-    }
-
-    // Whatever the plugins setting says: content_types chooses the editors
-    textFeature.always = true;
-
-    $.fn.gridEditor.features.text = textFeature;
-
-})(jQuery);
-
-/**
- * Summernote for grid-editor's content areas.
- *
- * A text editor plugin: load this file after the editor, and summernote
- * after or before it, and a text of the summernote type is edited with
- * summernote in air mode. What it can ask the editor for is the
- * handle its factory is called with, described in docs/plugins.md.
- *
- *   <script src="summernote/summernote-bs5.min.js"></script>
- *   <script src="dist/jquery.grideditor.min.js"></script>
- *   <script src="dist/plugins/grideditor.summernote.min.js"></script>
- *
- * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin. The built file starts with what
- * every text editor shares - text blocks, the Text button, createText,
- * making the host's plain content a text - from
- * src/js/text/grideditor.text.js, installed once however many editors a
- * page loads.
- */
-(function($) {
-
-    $.extend($.fn.gridEditor.locales.en, {
-        'text.summernote': 'Summernote',
+    return found;
+  }
+  function element(tag, attributes, text) {
+    var node = document.createElement(tag);
+    Object.keys(attributes || {}).forEach(function(name) {
+      var value = attributes[name];
+      if (value !== null && value !== void 0 && value !== false) {
+        node.setAttribute(name, value);
+      }
     });
-
-    var INITIAL_CONTENT = '<p>Lorem ipsum dolores</p>';
-
-    $.fn.gridEditor.texts.summernote = function(ge) {
-        return {
-            labelKey: 'text.summernote',
-            initialContent: INITIAL_CONTENT,
-            missingKey: 'error.summernote_missing',
-
-            available: function() { return !!$.fn.summernote; },
-
-            start: function(contentAreas) {
-                var settings = ge.settings;
-
-                // Summernote 0.9.1 calls $.now(), which jQuery 4 removed, and
-                // cannot open without it. Given back only where it is missing,
-                // and only once summernote is actually used.
-                if (!$.now) { $.now = Date.now; }
-
-                contentAreas.each(function() {
-                    var contentArea = $(this);
-                    if (contentArea.hasClass('active')) { return; }
-
-                    if (contentArea.html() == INITIAL_CONTENT) {
-                        contentArea.html('');
-                    }
-                    contentArea.addClass('active');
-
-                    var configuration = $.extend(
-                        true, // deep copy
-                        {},
-                        (settings.summernote && settings.summernote.config ? settings.summernote.config : {}),
-                        {
-                            tabsize: 2,
-                            airMode: true,
-                            // Focus editor on creation
-                            callbacks: {
-                                onInit: function() {
-
-                                    // Call original oninit function, if one was passed in the config
-                                    var callback;
-                                    try {
-                                        callback = settings.summernote.config.callbacks.onInit;
-                                    } catch (err) {
-                                        // No callback passed
-                                    }
-                                    if (callback) {
-                                        callback.call(this);
-                                    }
-
-                                    // The editor owns what is inside the
-                                    // content area now, so the grid editor is
-                                    // told to put its own furniture back
-                                    ge.textReady(contentArea);
-
-                                    contentArea.summernote('focus');
-                                }
-                            }
-                        }
-                    );
-                    contentArea.summernote(configuration);
-                });
-            },
-
-            stop: function(contentAreas) {
-                contentAreas.filter('.active').each(function() {
-                    var contentArea = $(this);
-                    contentArea.summernote('destroy');
-                    contentArea
-                        .removeClass('active')
-                        .removeAttr('id')
-                        .removeAttr('style')
-                        .removeAttr('spellcheck')
-                    ;
-                });
-            },
-        };
+    if (text !== void 0 && text !== null) {
+      node.textContent = text;
+    }
+    return node;
+  }
+  function setHtml(node, html) {
+    node.innerHTML = html === void 0 || html === null ? "" : String(html);
+    return node;
+  }
+  function addClass(node, names) {
+    split(names).forEach(function(name) {
+      node.classList.add(name);
+    });
+    return node;
+  }
+  function removeClass(node, names) {
+    split(names).forEach(function(name) {
+      node.classList.remove(name);
+    });
+    return node;
+  }
+  function hasClass(node, name) {
+    return !!node && node.nodeType === 1 && node.classList.contains(name);
+  }
+  function split(names) {
+    return String(names || "").split(/\s+/).filter(Boolean);
+  }
+  function hide(node) {
+    node.style.display = "none";
+    return node;
+  }
+  function visible(node) {
+    return !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
+  }
+  function delegate(root, types, selector, handler, options) {
+    var listener = function(event) {
+      var match = closest(event.target, selector, root);
+      if (match && root.contains(match)) {
+        return handler.call(match, event);
+      }
+      return void 0;
     };
-})(jQuery);
+    split(types).forEach(function(type) {
+      root.addEventListener(type, listener, options);
+    });
+    return listener;
+  }
+  var DEFAULT_DURATION = 400;
+  function animateAway(node, frames, duration, done) {
+    duration = duration === void 0 ? DEFAULT_DURATION : duration;
+    var finish = function() {
+      hide(node);
+      if (done) {
+        done();
+      }
+    };
+    if (!visible(node) || !node.animate || duration <= 0) {
+      window.setTimeout(finish, 0);
+      return;
+    }
+    var animation = node.animate(frames(getComputedStyle(node)), {
+      duration,
+      easing: "ease-in-out"
+    });
+    var called = false;
+    var once = function() {
+      if (called) {
+        return;
+      }
+      called = true;
+      finish();
+    };
+    animation.onfinish = once;
+    animation.oncancel = once;
+  }
+  function slideUp(node, duration, done) {
+    if (typeof duration === "function") {
+      done = duration;
+      duration = void 0;
+    }
+    node.style.overflow = "hidden";
+    animateAway(node, function(style) {
+      return [
+        {
+          height: style.height,
+          paddingTop: style.paddingTop,
+          paddingBottom: style.paddingBottom,
+          marginTop: style.marginTop,
+          marginBottom: style.marginBottom
+        },
+        { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "0px", marginBottom: "0px" }
+      ];
+    }, duration, function() {
+      node.style.removeProperty("overflow");
+      if (done) {
+        done();
+      }
+    });
+  }
+
+  // src/js/text/grideditor.text.js
+  if (!GridEditor.features.text) {
+    let attributesOf = function(element2) {
+      var found = {};
+      Array.prototype.slice.call(element2.attributes).forEach(function(attribute) {
+        found[attribute.name] = attribute.value;
+      });
+      return found;
+    }, classesIn = function(value) {
+      return (value || "").split(/\s+/).filter(function(name) {
+        return name !== "" && !EDITOR_CLASS.test(name);
+      });
+    }, restoreAttributes = function(block, before, ready, open) {
+      var result = Object.assign({}, before);
+      Object.keys(Object.assign({}, ready, open)).forEach(function(name) {
+        if (name === "class" || EDITOR_ATTRIBUTE.test(name) || ready[name] === open[name]) {
+          return;
+        }
+        if (open[name] === void 0) {
+          delete result[name];
+        } else {
+          result[name] = open[name];
+        }
+      });
+      var readyClasses = classesIn(ready["class"]);
+      var openClasses = classesIn(open["class"]);
+      var classes = classesIn(before["class"]).filter(function(name) {
+        return openClasses.indexOf(name) !== -1 || readyClasses.indexOf(name) === -1;
+      });
+      openClasses.forEach(function(name) {
+        if (readyClasses.indexOf(name) === -1 && classes.indexOf(name) === -1) {
+          classes.push(name);
+        }
+      });
+      if (classes.length) {
+        result["class"] = classes.join(" ");
+      } else {
+        delete result["class"];
+      }
+      Object.keys(attributesOf(block)).forEach(function(name) {
+        block.removeAttribute(name);
+      });
+      Object.keys(result).forEach(function(name) {
+        block.setAttribute(name, result[name]);
+      });
+    }, textFeature = function(ge) {
+      var settings = ge.settings;
+      var TEXTS = {};
+      var warned = {};
+      Object.keys(GridEditor.texts).forEach(function(type) {
+        TEXTS[type] = GridEditor.texts[type](ge);
+      });
+      if (!Array.isArray(settings.content_types)) {
+        settings.content_types = Object.keys(TEXTS);
+      }
+      if (!Array.isArray(settings.text_tools)) {
+        settings.text_tools = [];
+      }
+      if (!Array.isArray(settings.text_classes)) {
+        settings.text_classes = [];
+      }
+      function offeredTexts() {
+        return settings.content_types.filter(function(type) {
+          return !!TEXTS[type];
+        });
+      }
+      function textLabel(type) {
+        var text = TEXTS[type];
+        return text && text.labelKey ? ge.t(text.labelKey) : type;
+      }
+      function makeText(type, content) {
+        var text = TEXTS[type];
+        var block = element("div", {
+          "class": "ge-content ge-content-type-" + type,
+          "data-ge-content-type": type
+        });
+        if (content && content.nodeType) {
+          block.appendChild(content);
+        } else {
+          setHtml(block, content !== void 0 ? content : text && text.initialContent || "");
+        }
+        return block;
+      }
+      function apiCreateText(type, options) {
+        if (type && typeof type === "object") {
+          options = type;
+          type = void 0;
+        }
+        options = options || {};
+        type = type || offeredTexts()[0];
+        if (!type || !TEXTS[type]) {
+          if (!warned["createText:" + type]) {
+            warned["createText:" + type] = true;
+            ge.warn('createText: no text editor "' + type + '" is loaded; load its plugin and name it in content_types');
+          }
+          return null;
+        }
+        return ge.place(makeText(type, options.content), "text", options);
+      }
+      function isOurs(block) {
+        return !!TEXTS[block.getAttribute("data-ge-content-type")];
+      }
+      function startText(block) {
+        if (hasClass(block, "ge-rte-active")) {
+          return;
+        }
+        if (!visible(block)) {
+          return;
+        }
+        var text = TEXTS[block.getAttribute("data-ge-content-type")];
+        if (!text) {
+          return;
+        }
+        if (text.available && !text.available()) {
+          if (text.missingKey) {
+            console.error(ge.t(text.missingKey));
+          }
+          return;
+        }
+        readBefore.set(block, attributesOf(block));
+        readReady.delete(block);
+        addClass(block, "ge-rte-active");
+        text.start([block]);
+      }
+      function onClick() {
+        startText(this);
+      }
+      function closeText(block) {
+        var text = TEXTS[block.getAttribute("data-ge-content-type")];
+        var before = readBefore.get(block);
+        var open = before ? attributesOf(block) : null;
+        if (text) {
+          text.stop([block]);
+        }
+        removeClass(block, "ge-rte-active");
+        if (before) {
+          restoreAttributes(block, before, readReady.get(block) || before, open);
+          readBefore.delete(block);
+          readReady.delete(block);
+        }
+      }
+      function createTextControls(textBlock) {
+        var block = child(textBlock, ".ge-content");
+        var type = block.getAttribute("data-ge-content-type");
+        var drawer = element("div", { "class": "ge-tools-drawer ge-text-drawer" });
+        textBlock.insertBefore(drawer, textBlock.firstChild);
+        ge.createMoveTool(drawer);
+        var details = ge.addSettingsTool(drawer, block, settings.text_classes);
+        var general = child(details, ".ge-details-general");
+        var editor = element("div", { "class": "ge-field ge-text-editor" });
+        editor.appendChild(element("span", { "class": "ge-field-label" }, ge.t("panel.editor")));
+        editor.appendChild(element("span", { "class": "ge-field-value" }, textLabel(type)));
+        general.insertBefore(editor, general.firstChild);
+        settings.text_tools.forEach(function(hostTool) {
+          ge.createTool(
+            drawer,
+            hostTool.title || "",
+            hostTool.className || "",
+            hostTool.iconClass || "bi bi-wrench",
+            hostTool.on
+          );
+        });
+        ge.createTool(drawer, ge.t("tool.delete_text"), "ge-delete-text", "bi bi-trash", function() {
+          ge.deleteNode("text", block, ge.t("confirm.delete_text"), function(removed) {
+            closeText(block);
+            slideUp(textBlock, function() {
+              textBlock.remove();
+              removed();
+            });
+          });
+        });
+      }
+      function markTexts() {
+        all(ge.canvas, ".ge-text-block").forEach(function(textBlock) {
+          if (child(textBlock, ".ge-tools-drawer")) {
+            return;
+          }
+          var block = child(textBlock, ".ge-content");
+          if (!block || !isOurs(block)) {
+            return;
+          }
+          createTextControls(textBlock);
+        });
+      }
+      var texts = offeredTexts();
+      var clicks = null;
+      return {
+        methods: {
+          createText: apiCreateText
+        },
+        /**
+         * The types this plugin edits, for the core: every editor loaded
+         * is the owner of its texts, and the ones offered are what the
+         * host's plain content can be made.
+         */
+        textTypes: function() {
+          var offered = offeredTexts();
+          var others = Object.keys(TEXTS).filter(function(type) {
+            return offered.indexOf(type) === -1;
+          });
+          return offered.concat(others).map(function(type) {
+            var text = TEXTS[type];
+            return {
+              type,
+              label: textLabel(type),
+              offered: offered.indexOf(type) !== -1,
+              available: text.available ? function() {
+                return text.available();
+              } : null,
+              missingKey: text.missingKey,
+              edit: function(block) {
+                var textBlock = block.parentElement;
+                if (hasClass(textBlock, "ge-text-block") && !child(textBlock, ".ge-tools-drawer")) {
+                  createTextControls(textBlock);
+                }
+                startText(block);
+              }
+            };
+          });
+        },
+        // A text block of each editor offered. Like a container, it goes
+        // into a row of its own when clicked, or where it is dropped
+        toolbar: texts.map(function(type) {
+          return {
+            label: function() {
+              return texts.length > 1 ? ge.t("text.add_type", { editor: textLabel(type) }) : ge.t("text.add");
+            },
+            iconClass: TEXTS[type].iconClass,
+            className: "ge-add-text-button",
+            kind: "text",
+            inColumn: true,
+            create: function() {
+              return makeText(type);
+            }
+          };
+        }),
+        onInit: function() {
+          markTexts();
+          if (clicks) {
+            ge.canvas.removeEventListener("click", clicks);
+          }
+          clicks = delegate(ge.canvas, "click", ".ge-content", onClick);
+        },
+        // While the drawers and the text blocks are still there, as the
+        // editors left them
+        onBeforeDeinit: function() {
+          all(ge.canvas, ".ge-content").forEach(function(block) {
+            if (isOurs(block)) {
+              closeText(block);
+            }
+          });
+        },
+        onDeinit: function() {
+          if (clicks) {
+            ge.canvas.removeEventListener("click", clicks);
+          }
+          clicks = null;
+        },
+        // The first time only: an undo says ready again, and by then the
+        // host may have changed the content area itself
+        onContentReady: function(area) {
+          if (readBefore.has(area) && !readReady.has(area)) {
+            readReady.set(area, attributesOf(area));
+          }
+        }
+      };
+    };
+    Object.assign(GridEditor.locales.en, {
+      "text.add": "Text",
+      "text.add_type": "Text ({editor})",
+      "panel.editor": "Editor",
+      "panel.kind_text": "Text"
+    });
+    readBefore = /* @__PURE__ */ new WeakMap();
+    readReady = /* @__PURE__ */ new WeakMap();
+    EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
+    EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
+    textFeature.always = true;
+    GridEditor.features.text = textFeature;
+  }
+  var readBefore;
+  var readReady;
+  var EDITOR_CLASS;
+  var EDITOR_ATTRIBUTE;
+
+  // src/js/plugins/grideditor.summernote.js
+  Object.assign(GridEditor.locales.en, {
+    "text.summernote": "Summernote"
+  });
+  var INITIAL_CONTENT = "<p>Lorem ipsum dolores</p>";
+  function isPlainObject(value) {
+    return !!value && Object.prototype.toString.call(value) === "[object Object]";
+  }
+  function deepMerge(target) {
+    Array.prototype.slice.call(arguments, 1).forEach(function(source) {
+      Object.keys(source || {}).forEach(function(key) {
+        var value = source[key];
+        if (value === void 0 || value === target) {
+          return;
+        }
+        if (Array.isArray(value)) {
+          target[key] = deepMerge(Array.isArray(target[key]) ? target[key] : [], value);
+        } else if (isPlainObject(value)) {
+          target[key] = deepMerge(isPlainObject(target[key]) ? target[key] : {}, value);
+        } else {
+          target[key] = value;
+        }
+      });
+    });
+    return target;
+  }
+  GridEditor.texts.summernote = function(ge) {
+    return {
+      labelKey: "text.summernote",
+      initialContent: INITIAL_CONTENT,
+      missingKey: "error.summernote_missing",
+      available: function() {
+        return !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.summernote);
+      },
+      start: function(contentAreas) {
+        var settings = ge.settings;
+        var $ = window.jQuery;
+        if (!$.now) {
+          $.now = Date.now;
+        }
+        contentAreas.forEach(function(contentArea) {
+          if (hasClass(contentArea, "active")) {
+            return;
+          }
+          if (contentArea.innerHTML == INITIAL_CONTENT) {
+            contentArea.innerHTML = "";
+          }
+          addClass(contentArea, "active");
+          var configuration = deepMerge(
+            {},
+            settings.summernote && settings.summernote.config ? settings.summernote.config : {},
+            {
+              tabsize: 2,
+              airMode: true,
+              // Focus editor on creation
+              callbacks: {
+                onInit: function() {
+                  var callback;
+                  try {
+                    callback = settings.summernote.config.callbacks.onInit;
+                  } catch (err) {
+                  }
+                  if (callback) {
+                    callback.call(this);
+                  }
+                  ge.textReady(contentArea);
+                  $(contentArea).summernote("focus");
+                }
+              }
+            }
+          );
+          $(contentArea).summernote(configuration);
+        });
+      },
+      stop: function(contentAreas) {
+        var $ = window.jQuery;
+        contentAreas.filter(function(contentArea) {
+          return hasClass(contentArea, "active");
+        }).forEach(function(contentArea) {
+          if ($ && $.fn.summernote) {
+            $(contentArea).summernote("destroy");
+          }
+          removeClass(contentArea, "active");
+          ["id", "style", "spellcheck"].forEach(function(name) {
+            contentArea.removeAttribute(name);
+          });
+        });
+      }
+    };
+  };
+})();

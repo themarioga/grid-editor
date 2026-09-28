@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -16,21 +15,22 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
 
     <script>
-        $(function() {
-            var grid = $('#myGrid');
+        document.addEventListener('DOMContentLoaded', function() {
+            var grid = document.getElementById('myGrid');
+            var show = function(id, text) { document.getElementById(id).textContent = text.trim(); };
 
             // 1. The markup as the page wrote it, captured before the editor
             //    touches it
-            $('#before').text(grid.html().trim());
+            show('before', grid.innerHTML);
 
             // 2. The editor finds no .row in there, so it wraps everything
             //    into one row with a single full-width column
-            grid.gridEditor({
+            var editor = new GridEditor(grid, {
                 new_row_layouts: [[12], [6, 6], [9, 3], [3, 9]],
                 content_types: ['tinymce'],
             });
@@ -39,11 +39,11 @@
             //    the marking the editor needs to read it back
             // 4. What getPlainHtml hands back: the same, without that marking
             function showResult() {
-                $('#after').text(grid.gridEditor('getHtml').trim());
-                $('#plain').text(grid.gridEditor('getPlainHtml').trim());
+                show('after', editor.getHtml());
+                show('plain', editor.getPlainHtml());
             }
             showResult();
-            $('#refresh').on('click', showResult);
+            document.getElementById('refresh').addEventListener('click', showResult);
         });
     </script>
 

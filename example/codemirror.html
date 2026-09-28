@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -25,7 +24,7 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
     <!-- The source view in CodeMirror, a plugin of its own -->
     <script src="../dist/plugins/grideditor.codemirror.min.js"></script>
@@ -33,14 +32,17 @@
     <script src="../dist/plugins/grideditor.codemirror-inline.min.js"></script>
 
     <script>
-        $(function() {
-            function start() {
-                if ($('#myGrid').data('grideditor')) { $('#myGrid').gridEditor('destroy'); }
+        document.addEventListener('DOMContentLoaded', function() {
+            var checkbox = document.getElementById('editSource');
 
-                $('#myGrid').gridEditor({
+            function start() {
+                var running = GridEditor.get('#myGrid');
+                if (running) { running.destroy(); }
+
+                new GridEditor('#myGrid', {
                     new_row_layouts: [[12], [6, 6], [4, 4, 4]],
                     // false leaves the toolbar's source button out
-                    edit_source: $('#editSource').prop('checked'),
+                    edit_source: checkbox.checked,
                     // Anything CodeMirror.fromTextArea takes, over the
                     // plugin's own defaults
                     codemirror: {
@@ -49,7 +51,7 @@
                 });
             }
 
-            $('#editSource').on('change', start);
+            checkbox.addEventListener('change', start);
             start();
         });
     </script>

@@ -24,10 +24,26 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 var RECORDER = `
     window.log = [];
     window.payloads = {};
-    window.confirmDialog = function() { return jQuery('.ge-confirm'); };
-    window.dialogShown = function() { return jQuery('.ge-confirm').hasClass('show'); };
+    window.grid = () => document.getElementById('myGrid');
+    /** The element children of a node, those matching a selector. */
+    window.kids = (node, selector) => Array.from(node ? node.children : []).filter(child => !selector || child.matches(selector));
+    window.rows = () => kids(grid(), '.row');
+    window.columnsOf = row => kids(row, '.column');
+
+    /**
+     * A listener on the canvas, taken off again by restart(), as 6.x's
+     * $('#myGrid').off() took off every handler.
+     */
+    window.listeners = [];
+    window.listen = function(name, handler) {
+        grid().addEventListener('grideditor:' + name, handler);
+        window.listeners.push([name, handler]);
+    };
+
+    window.confirmDialog = function() { return document.querySelector('.ge-confirm'); };
+    window.dialogShown = function() { const modal = confirmDialog(); return !!modal && modal.classList.contains('show'); };
     window.answerDialog = function(answer) {
-        jQuery('.ge-confirm').find(answer ? '.ge-confirm-ok' : '.ge-confirm-cancel').trigger('click');
+        confirmDialog().querySelector(answer ? '.ge-confirm-ok' : '.ge-confirm-cancel').click();
     };
 
     window.EVENTS = [
@@ -44,15 +60,15 @@ var RECORDER = `
         const grid = document.getElementById('myGrid');
         const position = function(where) {
             if (!where) { return undefined; }
-            return { index: where.index, isCanvas: where.parent[0] === grid };
+            return { index: where.index, isCanvas: where.parent === grid };
         };
 
         return {
             kind: payload.kind,
-            node: payload.node.attr('class'),
-            nodeIsJquery: payload.node instanceof jQuery,
-            parentIsCanvas: payload.parent[0] === grid,
-            canvasIsGrid: payload.canvas[0] === grid,
+            node: payload.node.getAttribute('class'),
+            nodeIsElement: payload.node instanceof Element,
+            parentIsCanvas: payload.parent === grid,
+            canvasIsGrid: payload.canvas === grid,
             breakpoint: payload.breakpoint,
             source: payload.source,
             from: typeof payload.from === 'object' ? position(payload.from) : payload.from,
@@ -68,8 +84,8 @@ var RECORDER = `
 
     window.bindEvents = function() {
         window.EVENTS.forEach(function(name) {
-            jQuery('#myGrid').on('grideditor:' + name, function(e, payload) {
-                window.record('event:' + name, payload);
+            window.listen(name, function(e) {
+                window.record('event:' + name, e.detail);
             });
         });
     };
@@ -88,14 +104,15 @@ var RECORDER = `
     window.start = function(overrides) {
         window.log = [];
         window.payloads = {};
-        window.fixture.init(jQuery.extend({ callbacks: window.recordingCallbacks() }, overrides || {}));
+        const ge = window.fixture.init(Object.assign({ callbacks: window.recordingCallbacks() }, overrides || {}));
         window.bindEvents();
-        return jQuery('#myGrid').data('grideditor');
+        return ge;
     };
 
     window.restart = function(overrides) {
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').off();
+        window.fixture.editor().destroy();
+        window.listeners.forEach(function(entry) { grid().removeEventListener('grideditor:' + entry[0], entry[1]); });
+        window.listeners = [];
         return window.start(overrides);
     };
 
@@ -104,10 +121,10 @@ var RECORDER = `
 
 /** Ids on the two columns of the second row, so a drag has something to aim at. */
 var LABEL_COLUMNS = `
-    const columns = jQuery('#myGrid > .row').eq(1).children('.column');
-    columns.eq(0).attr('id', 'left');
-    columns.eq(1).attr('id', 'right');
-    return jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get();
+    const columns = columnsOf(rows()[1]);
+    columns[0].id = 'left';
+    columns[1].id = 'right';
+    return columnsOf(rows()[1]).map(column => column.id);
 `;
 
 async function recordingPage(t, overrides) {
@@ -125,23 +142,23 @@ async function reentrancyTests(t) {
     var page = await recordingPage(t);
 
     var deferredReset = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
 
         // A marker on an existing drawer: init() leaves drawers it already
         // made alone, so the marker only disappears if a reset ran
-        jQuery('#myGrid').on('grideditor:after-add-row', function() {
-            jQuery('#myGrid .ge-tools-drawer').first().attr('data-marker', 'yes');
+        listen('after-add-row', function() {
+            grid().querySelector('.ge-tools-drawer').setAttribute('data-marker', 'yes');
             ge.reset();
-            window.markerDuringHandler = jQuery('#myGrid [data-marker]').length;
+            window.markerDuringHandler = grid().querySelectorAll('[data-marker]').length;
         });
 
-        jQuery('.ge-addRowGroup a').eq(0).trigger('click');
+        document.querySelectorAll('.ge-addRowGroup a')[0].click();
 
         return {
             duringHandler: window.markerDuringHandler,
-            afterOperation: jQuery('#myGrid [data-marker]').length,
+            afterOperation: grid().querySelectorAll('[data-marker]').length,
             addEvents: window.log.filter(name => /add-row/.test(name)).length,
-            rows: jQuery('#myGrid > .row').length,
+            rows: rows().length,
         };
     `);
     t.check('a reset() from inside a handler runs after the operation, not during it',
@@ -151,22 +168,22 @@ async function reentrancyTests(t) {
 
     var deferredAdd = await page.eval(`
         const ge = window.restart();
-        const rowsBefore = jQuery('#myGrid > .row').length;
+        const rowsBefore = rows().length;
 
-        jQuery('#myGrid').on('grideditor:after-add-row', function(e, payload) {
-            if (payload.source === 'api') { return; }
+        listen('after-add-row', function(e) {
+            if (e.detail.source === 'api') { return; }
             window.log.push('handler:start');
             const row = ge.createRow([12], { appendTo: ge.canvas });
-            window.log.push('handler:returned ' + (row instanceof jQuery));
-            window.rowsSeenByHandler = jQuery('#myGrid > .row').length;
+            window.log.push('handler:returned ' + (row instanceof Element));
+            window.rowsSeenByHandler = rows().length;
         });
 
-        jQuery('.ge-addRowGroup a').eq(0).trigger('click');
+        document.querySelectorAll('.ge-addRowGroup a')[0].click();
 
         return {
             log: window.log.filter(name => /add-row|handler/.test(name)),
             addedWhenHandlerRan: window.rowsSeenByHandler - rowsBefore,
-            addedInTotal: jQuery('#myGrid > .row').length - rowsBefore,
+            addedInTotal: rows().length - rowsBefore,
         };
     `);
     t.check('a create* from inside a handler is queued and runs as its own operation',
@@ -192,13 +209,13 @@ async function orderingTests(t) {
     var page = await recordingPage(t);
 
     var added = await page.eval(`
-        jQuery('.ge-addRowGroup a').eq(1).trigger('click');
+        document.querySelectorAll('.ge-addRowGroup a')[1].click();
         return {
             log: window.log,
             before: window.payloads['event:before-add-row'],
             generic: window.payloads['event:before-add'],
             after: window.payloads['event:after-add-row'],
-            columns: jQuery('#myGrid > .row').last().children('.column').length,
+            columns: columnsOf(rows()[rows().length - 1]).length,
         };
     `);
     t.check('an operation fires the specific event, then the generic one, then the callbacks',
@@ -210,7 +227,7 @@ async function orderingTests(t) {
         ].join('|'),
         added.log);
     t.check('the payload carries the documented fields',
-        added.before.kind === 'row' && added.before.nodeIsJquery &&
+        added.before.kind === 'row' && added.before.nodeIsElement &&
         added.before.parentIsCanvas && added.before.canvasIsGrid &&
         added.before.breakpoint === 'all' && added.before.source === 'tool' &&
         added.before.keys === 'breakpoint,canvas,kind,node,parent,source' &&
@@ -221,16 +238,17 @@ async function orderingTests(t) {
 
     var nestedRow = await page.eval(`
         window.restart();
-        const column = jQuery('#myGrid .column').first();
+        const column = grid().querySelector('.column');
 
-        column.find('> .ge-tools-drawer .ge-add-row').trigger('click');
-        const row = column.find('> .row').last();
+        column.querySelector(':scope > .ge-tools-drawer .ge-add-row').click();
+        const nested = kids(column, '.row');
+        const row = nested[nested.length - 1];
 
         return {
-            rows: column.find('> .row').length,
-            columns: row.children('.column').length,
-            drawer: row.find('> .ge-tools-drawer').length,
-            canAddColumns: row.find('> .ge-tools-drawer .ge-add-column').length,
+            rows: nested.length,
+            columns: columnsOf(row).length,
+            drawer: kids(row, '.ge-tools-drawer').length,
+            canAddColumns: row.querySelectorAll(':scope > .ge-tools-drawer .ge-add-column').length,
             announced: window.log.filter(name => /add-row/.test(name)),
         };
     `);
@@ -241,17 +259,17 @@ async function orderingTests(t) {
 
     var toolsAndApi = await page.eval(`
         window.restart();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const rowBefore = jQuery('#myGrid > .row').first();
+        const ge = window.fixture.editor();
+        const rowBefore = rows()[0];
 
-        jQuery('#myGrid .ge-add-column').first().trigger('click');
+        grid().querySelector('.ge-add-column').click();
         const columnFromTool = window.payloads['event:after-add-column'];
 
         window.log = [];
         ge.createColumn(3, { appendTo: rowBefore });
         const columnFromApi = window.payloads['event:after-add-column'];
 
-        ge.createElement('<span>tag</span>', { type: 'analytics', appendTo: jQuery('#myGrid .ge-content').first() });
+        ge.createElement('<span>tag</span>', { type: 'analytics', appendTo: grid().querySelector('.ge-content') });
 
         return {
             columnFromTool: columnFromTool,
@@ -281,14 +299,14 @@ async function cancelTests(t) {
     var page = await recordingPage(t);
 
     var byEvent = await page.eval(`
-        const rows = () => jQuery('#myGrid > .row').length;
-        const before = rows();
+        const count = () => rows().length;
+        const before = count();
 
-        jQuery('#myGrid').on('grideditor:before-add-row', function(e) { e.preventDefault(); });
-        jQuery('.ge-addRowGroup a').eq(0).trigger('click');
+        listen('before-add-row', function(e) { e.preventDefault(); });
+        document.querySelectorAll('.ge-addRowGroup a')[0].click();
 
         return {
-            rowsUnchanged: rows() === before,
+            rowsUnchanged: count() === before,
             log: window.log,
         };
     `);
@@ -299,13 +317,13 @@ async function cancelTests(t) {
 
     var byGeneric = await page.eval(`
         window.restart();
-        const before = jQuery('#myGrid > .row').length;
+        const before = rows().length;
 
-        jQuery('#myGrid').on('grideditor:before-add', function(e) { e.preventDefault(); });
-        jQuery('.ge-addRowGroup a').eq(0).trigger('click');
+        listen('before-add', function(e) { e.preventDefault(); });
+        document.querySelectorAll('.ge-addRowGroup a')[0].click();
 
         return {
-            rowsUnchanged: jQuery('#myGrid > .row').length === before,
+            rowsUnchanged: rows().length === before,
             log: window.log,
         };
     `);
@@ -320,11 +338,11 @@ async function cancelTests(t) {
         };
         window.restart({ callbacks: callbacks });
 
-        const before = jQuery('#myGrid > .row').length;
-        jQuery('.ge-addRowGroup a').eq(0).trigger('click');
+        const before = rows().length;
+        document.querySelectorAll('.ge-addRowGroup a')[0].click();
 
         return {
-            rowsUnchanged: jQuery('#myGrid > .row').length === before,
+            rowsUnchanged: rows().length === before,
             log: window.log,
         };
     `);
@@ -333,14 +351,14 @@ async function cancelTests(t) {
 
     var canceledApi = await page.eval(`
         const ge = window.restart();
-        jQuery('#myGrid').on('grideditor:before-add-row', function(e) { e.preventDefault(); });
+        listen('before-add-row', function(e) { e.preventDefault(); });
 
-        const before = jQuery('#myGrid > .row').length;
+        const before = rows().length;
         const row = ge.createRow([12], { appendTo: ge.canvas });
 
         return {
             returned: row,
-            rowsUnchanged: jQuery('#myGrid > .row').length === before,
+            rowsUnchanged: rows().length === before,
         };
     `);
     t.check('a canceled create* returns null so the host can tell',
@@ -357,22 +375,22 @@ async function deleteTests(t) {
     var page = await recordingPage(t);
 
     var asked = await page.eval(`
-        const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        const before = rows().length;
+        rows()[0].querySelector(':scope > .ge-tools-drawer .ge-delete-row').click();
         return { before: before };
     `);
     await sleep(600);
     var dialog = await page.eval(`
-        const modal = jQuery('.ge-confirm');
+        const modal = confirmDialog();
         return {
-            shown: modal.hasClass('show'),
-            insideCanvas: jQuery('#myGrid .ge-confirm').length,
-            message: modal.find('.ge-confirm-message').text(),
-            title: modal.find('.modal-title').text(),
-            ok: modal.find('.ge-confirm-ok').text(),
-            cancel: modal.find('.ge-confirm-cancel').text(),
-            focused: document.activeElement === modal.find('.ge-confirm-ok')[0],
-            rowsStillThere: jQuery('#myGrid > .row').length,
+            shown: modal.classList.contains('show'),
+            insideCanvas: grid().querySelectorAll('.ge-confirm').length,
+            message: modal.querySelector('.ge-confirm-message').textContent,
+            title: modal.querySelector('.modal-title').textContent,
+            ok: modal.querySelector('.ge-confirm-ok').textContent,
+            cancel: modal.querySelector('.ge-confirm-cancel').textContent,
+            focused: document.activeElement === modal.querySelector('.ge-confirm-ok'),
+            rowsStillThere: rows().length,
             log: window.log,
         };
     `);
@@ -387,11 +405,11 @@ async function deleteTests(t) {
     await sleep(900);
     var afterDelete = await page.eval(`
         return {
-            rows: jQuery('#myGrid > .row').length,
-            dialogGone: !jQuery('.ge-confirm').hasClass('show') && jQuery('.modal-backdrop').length === 0,
+            rows: rows().length,
+            dialogGone: !dialogShown() && document.querySelectorAll('.modal-backdrop').length === 0,
             log: window.log,
             payload: window.payloads['event:after-delete'],
-            editing: jQuery('#myGrid').hasClass('ge-editing'),
+            editing: grid().classList.contains('ge-editing'),
         };
     `);
     t.check('saying yes removes the row and announces it once the animation has finished',
@@ -406,8 +424,8 @@ async function deleteTests(t) {
 
     var declining = await page.eval(`
         window.restart();
-        const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        const before = rows().length;
+        rows()[0].querySelector(':scope > .ge-tools-drawer .ge-delete-row').click();
         return { before: before };
     `);
     await sleep(600);
@@ -415,7 +433,7 @@ async function deleteTests(t) {
     await sleep(900);
     var declined = await page.eval(`
         return {
-            kept: jQuery('#myGrid > .row').length === ${'${declining.before}'},
+            kept: rows().length === ${'${declining.before}'},
             log: window.log,
         };
     `.replace('${declining.before}', String(declining.before)));
@@ -425,17 +443,17 @@ async function deleteTests(t) {
 
     var canceled = await page.eval(`
         window.restart();
-        jQuery('#myGrid').on('grideditor:before-delete', function(e) { e.preventDefault(); });
+        listen('before-delete', function(e) { e.preventDefault(); });
 
-        const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        const before = rows().length;
+        rows()[0].querySelector(':scope > .ge-tools-drawer .ge-delete-row').click();
         return { before: before };
     `);
     await sleep(600);
     var afterCancel = await page.eval(`
         return {
-            kept: jQuery('#myGrid > .row').length === ${'${canceled.before}'},
-            asked: jQuery('.ge-confirm').hasClass('show'),
+            kept: rows().length === ${'${canceled.before}'},
+            asked: dialogShown(),
             log: window.log,
         };
     `.replace('${canceled.before}', String(canceled.before)));
@@ -446,15 +464,14 @@ async function deleteTests(t) {
 
     var fresh = await recordingPage(t, { confirm_delete: false });
     var withoutConfirm = await fresh.eval(`
-        const columns = jQuery('#myGrid > .row').eq(1).children('.column').length;
-        jQuery('#myGrid > .row').eq(1).children('.column').first()
-            .find('> .ge-tools-drawer .ge-delete-column').trigger('click');
-        return { columns: columns, asked: jQuery('.ge-confirm').length };
+        const columns = columnsOf(rows()[1]).length;
+        columnsOf(rows()[1])[0].querySelector(':scope > .ge-tools-drawer .ge-delete-column').click();
+        return { columns: columns, asked: document.querySelectorAll('.ge-confirm').length };
     `);
     await sleep(900);
     var columnGone = await fresh.eval(`
         return {
-            columns: jQuery('#myGrid > .row').eq(1).children('.column').length,
+            columns: columnsOf(rows()[1]).length,
             payload: window.payloads['event:after-delete'],
         };
     `);
@@ -465,18 +482,19 @@ async function deleteTests(t) {
 
     // A page with Bootstrap's css but not its javascript still gets asked
     var native = await t.page(FIXTURE, `window.fixture`);
+    await native.eval(RECORDER);
     var nativeConfirm = await native.eval(`
         window.bootstrap = undefined;
         window.asked = [];
         window.confirm = function(message) { window.asked.push(message); return true; };
         window.fixture.init();
 
-        const before = jQuery('#myGrid > .row').length;
-        jQuery('#myGrid > .row').first().find('> .ge-tools-drawer .ge-delete-row').trigger('click');
+        const before = rows().length;
+        rows()[0].querySelector(':scope > .ge-tools-drawer .ge-delete-row').click();
         return { before: before, asked: window.asked };
     `);
     await sleep(900);
-    var nativeGone = await native.eval(`return { rows: jQuery('#myGrid > .row').length, dialogs: jQuery('.ge-confirm').length };`);
+    var nativeGone = await native.eval(`return { rows: rows().length, dialogs: document.querySelectorAll('.ge-confirm').length };`);
     t.check('without Bootstrap\u2019s javascript the question falls back to the browser',
         nativeConfirm.asked.length === 1 && nativeConfirm.asked[0] === 'Delete row?' &&
         nativeGone.rows === nativeConfirm.before - 1 && nativeGone.dialogs === 0,
@@ -494,19 +512,19 @@ async function resizeTests(t) {
     var page = await recordingPage(t);
 
     var resized = await page.eval(`
-        const column = jQuery('#myGrid > .row').eq(1).children('.column').first();
-        const before = column.attr('class');
+        const column = columnsOf(rows()[1])[0];
+        const before = column.getAttribute('class');
 
         // What the column looked like at the moment after-resize was
         // delivered, so the class cannot be written after the announcement
-        jQuery('#myGrid').on('grideditor:after-resize', function() {
-            window.classesWhenAnnounced = column.attr('class');
+        listen('after-resize', function() {
+            window.classesWhenAnnounced = column.getAttribute('class');
         });
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+        column.querySelector(':scope > .ge-tools-drawer .ge-decrease-col-width').click();
 
         return {
             before: before,
-            after: column.attr('class'),
+            after: column.getAttribute('class'),
             whenAnnounced: window.classesWhenAnnounced,
             log: window.log,
             payload: window.payloads['event:after-resize'],
@@ -528,14 +546,14 @@ async function resizeTests(t) {
 
     var canceled = await page.eval(`
         window.restart();
-        jQuery('#myGrid').on('grideditor:before-resize', function(e) { e.preventDefault(); });
+        listen('before-resize', function(e) { e.preventDefault(); });
 
-        const column = jQuery('#myGrid > .row').eq(1).children('.column').first();
-        const before = column.attr('class');
-        column.find('> .ge-tools-drawer .ge-decrease-col-width').trigger('click');
+        const column = columnsOf(rows()[1])[0];
+        const before = column.getAttribute('class');
+        column.querySelector(':scope > .ge-tools-drawer .ge-decrease-col-width').click();
 
         return {
-            unchanged: column.attr('class') === before,
+            unchanged: column.getAttribute('class') === before,
             log: window.log,
         };
     `);
@@ -544,20 +562,21 @@ async function resizeTests(t) {
 
     var noop = await page.eval(`
         window.restart();
-        const column = jQuery('#myGrid > .row').first().children('.column').first();
-        const widen = column.find('> .ge-tools-drawer .ge-increase-col-width');
+        const column = columnsOf(rows()[0])[0];
+        const widen = column.querySelector(':scope > .ge-tools-drawer .ge-increase-col-width');
+        const shiftClick = () => widen.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }));
 
         // The first one is a real change: the column was full width at lg and
         // unsized below it, and the all view writes the base class
-        widen.trigger(jQuery.Event('click', { shiftKey: true }));
+        shiftClick();
         const firstClick = window.log.slice();
         window.log = [];
 
         // The second one asks for exactly what is already there
-        widen.trigger(jQuery.Event('click', { shiftKey: true }));
+        shiftClick();
 
         return {
-            classes: column.attr('class'),
+            classes: column.getAttribute('class'),
             firstClick: firstClick,
             secondClick: window.log,
         };
@@ -585,7 +604,7 @@ async function moveTests(t) {
     await page.drag('#right > .ge-tools-drawer .ge-move', '#left', { yRatio: 0.15 });
     var moved = await page.eval(`
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get(),
+            order: columnsOf(rows()[1]).map(column => column.id),
             log: window.log,
             before: window.payloads['event:before-move'],
             after: window.payloads['event:after-move'],
@@ -604,7 +623,7 @@ async function moveTests(t) {
 
     await page.eval(`
         window.restart();
-        jQuery('#myGrid').on('grideditor:before-move', function(e) { e.preventDefault(); });
+        listen('before-move', function(e) { e.preventDefault(); });
         return true;
     `);
     await page.eval(LABEL_COLUMNS);
@@ -614,7 +633,7 @@ async function moveTests(t) {
     await page.drag('#right > .ge-tools-drawer .ge-move', '#left', { yRatio: 0.15 });
     var canceledMove = await page.eval(`
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get(),
+            order: columnsOf(rows()[1]).map(column => column.id),
             log: window.log,
         };
     `);
@@ -628,7 +647,7 @@ async function moveTests(t) {
     await page.drag('#left > .ge-tools-drawer .ge-move', '#left', { dx: 6, dy: 4, steps: 3 });
     var nowhere = await page.eval(`
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get(),
+            order: columnsOf(rows()[1]).map(column => column.id),
             log: window.log,
         };
     `);
@@ -650,9 +669,9 @@ async function dragHandleTests(t) {
 
     var byTool = await page.eval(`
         return {
-            moveTools: jQuery('#myGrid .ge-move').length,
-            drawers: jQuery('#myGrid .ge-tools-drawer').length,
-            canvasClass: /ge-drag-drawer/.test(jQuery('#myGrid').attr('class')),
+            moveTools: grid().querySelectorAll('.ge-move').length,
+            drawers: grid().querySelectorAll('.ge-tools-drawer').length,
+            canvasClass: /ge-drag-drawer/.test(grid().getAttribute('class')),
         };
     `);
     t.check('by default every drawer has a move tool to drag from',
@@ -662,18 +681,18 @@ async function dragHandleTests(t) {
     await page.eval(`
         window.restart({ drag_handle: 'drawer' });
 
-        const columns = jQuery('#myGrid > .row').eq(1).children('.column');
-        columns.eq(0).attr('id', 'left');
-        columns.eq(1).attr('id', 'right');
+        const columns = columnsOf(rows()[1]);
+        columns[0].id = 'left';
+        columns[1].id = 'right';
         return true;
     `);
 
     var byDrawer = await page.eval(`
         return {
-            moveTools: jQuery('#myGrid .ge-move').length,
-            drawers: jQuery('#myGrid .ge-tools-drawer').length,
-            canvasClass: /ge-drag-drawer/.test(jQuery('#myGrid').attr('class')),
-            cursor: getComputedStyle(jQuery('#myGrid .ge-tools-drawer')[0]).cursor,
+            moveTools: grid().querySelectorAll('.ge-move').length,
+            drawers: grid().querySelectorAll('.ge-tools-drawer').length,
+            canvasClass: /ge-drag-drawer/.test(grid().getAttribute('class')),
+            cursor: getComputedStyle(grid().querySelector('.ge-tools-drawer')).cursor,
         };
     `);
     t.check('drag_handle drawer takes the move tool away and says so on the canvas',
@@ -685,7 +704,7 @@ async function dragHandleTests(t) {
     await page.drag('#right > .ge-tools-drawer', '#left', { xRatio: 0.9, yRatio: 0.15 });
     var moved = await page.eval(`
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get().join(','),
+            order: columnsOf(rows()[1]).map(column => column.id).join(','),
             moves: window.log.filter(name => /move/.test(name)),
         };
     `);
@@ -697,9 +716,10 @@ async function dragHandleTests(t) {
     // A tool inside that drawer is still a tool: it clicks, and it does not drag
     var toolStillWorks = await page.eval(`
         window.log = [];
-        const before = jQuery('#left').find('> .row').length;
-        jQuery('#left').find('> .ge-tools-drawer .ge-add-row').trigger('click');
-        return { before: before, after: jQuery('#left').find('> .row').length };
+        const left = document.getElementById('left');
+        const before = kids(left, '.row').length;
+        left.querySelector(':scope > .ge-tools-drawer .ge-add-row').click();
+        return { before: before, after: kids(left, '.row').length };
     `);
     t.check('a tool in a draggable drawer still answers to a click',
         toolStillWorks.after === toolStillWorks.before + 1, toolStillWorks);
@@ -708,7 +728,7 @@ async function dragHandleTests(t) {
     await page.drag('#left > .ge-tools-drawer .ge-settings', '#right', { yRatio: 0.15 });
     var fromTool = await page.eval(`
         return {
-            order: jQuery('#myGrid > .row').eq(1).children('.column').map(function() { return this.id; }).get().join(','),
+            order: columnsOf(rows()[1]).map(column => column.id).join(','),
             moves: window.log.filter(name => /move/.test(name)),
         };
     `);

@@ -15,51 +15,95 @@ var cdp = require('./cdp');
 
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
+/**
+ * The page's helpers: the DOM in short, the editor, and one listener per
+ * event name, so a test that listens again replaces what the one before it
+ * listened with.
+ */
+var HELPERS = `
+    window.all = function(selector, root) { return Array.from((root || document).querySelectorAll(selector)); };
+    window.one = function(selector, root) { return (root || document).querySelector(selector); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.grid = function() { return document.querySelector('#myGrid'); };
+    window.visible = function(node) { return !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length); };
+    window.text = function(nodes) { return nodes.map(function(node) { return node.textContent; }).join(''); };
+    /** An attribute as a record of it: absent is undefined, as it is on the node side. */
+    window.attr = function(node, name) {
+        const value = node ? node.getAttribute(name) : null;
+        return value === null ? undefined : value;
+    };
+    /** Html parsed into a detached div, to look at. */
+    window.parse = function(html) {
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        return holder;
+    };
+
+    window.listening = {};
+    window.listen = function(names, handler) {
+        names.split(' ').forEach(function(name) {
+            if (window.listening[name]) { grid().removeEventListener(name, window.listening[name]); }
+            window.listening[name] = function(e) { handler(e, e.detail); };
+            grid().addEventListener(name, window.listening[name]);
+        });
+    };
+    window.unlisten = function(name) {
+        if (window.listening[name]) { grid().removeEventListener(name, window.listening[name]); }
+        delete window.listening[name];
+    };
+    return true;
+`;
+
+async function start(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(HELPERS);
+    return page;
+}
+
 /** An empty canvas with one column, ready for containers to be put in it. */
 var EMPTY_CANVAS = `
-    jQuery('#myGrid').gridEditor('destroy');
-    jQuery('#myGrid').html('<div class="row"><div class="column col-12"><div class="ge-content"><p>Before</p></div></div></div>');
+    if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+    grid().innerHTML = '<div class="row"><div class="column col-12"><div class="ge-content"><p>Before</p></div></div></div>';
 `;
 
 /** What the editor made of the canvas, structurally. */
 var SHAPE = `
     return {
-        containers: jQuery('#myGrid [data-ge-container]').map(function() {
-            return jQuery(this).attr('data-ge-container');
-        }).get(),
-        tabs: jQuery('#myGrid .ge-tab').length,
-        panes: jQuery('#myGrid .tab-pane').length,
-        items: jQuery('#myGrid .accordion-item').length,
-        popups: jQuery('#myGrid [data-ge-popup-id]').length,
-        regions: jQuery('#myGrid [data-ge-container] .column').length,
-        labels: jQuery('#myGrid .ge-pane-label').map(function() { return jQuery(this).text(); }).get(),
+        containers: all('#myGrid [data-ge-container]').map(function(node) {
+            return node.getAttribute('data-ge-container');
+        }),
+        tabs: all('#myGrid .ge-tab').length,
+        panes: all('#myGrid .tab-pane').length,
+        items: all('#myGrid .accordion-item').length,
+        popups: all('#myGrid [data-ge-popup-id]').length,
+        regions: all('#myGrid [data-ge-container] .column').length,
+        labels: all('#myGrid .ge-pane-label').map(function(label) { return label.textContent; }),
     };
 `;
 
 async function creationTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var made = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const column = one('#myGrid .column');
 
-        const tabs = ge.createContainer('tabs', { tabs: 3, labels: ['One', 'Two'], appendTo: column });
-        const accordion = ge.createContainer('accordion', { items: 2, stay_open: true, appendTo: column });
-        const popup = ge.createContainer('popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg', appendTo: column });
+        const tabs = ge().createContainer('tabs', { tabs: 3, labels: ['One', 'Two'], appendTo: column });
+        const accordion = ge().createContainer('accordion', { items: 2, stay_open: true, appendTo: column });
+        const popup = ge().createContainer('popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg', appendTo: column });
 
         return {
             shape: (function() { ${SHAPE} })(),
-            tabTargets: tabs.find('.nav-link').map(function() { return jQuery(this).attr('data-bs-target'); }).get(),
-            paneIds: tabs.find('.tab-pane').map(function() { return '#' + this.id; }).get(),
-            activeTabs: tabs.find('.nav-link.active').length,
-            stayOpen: accordion.find('.accordion-collapse[data-bs-parent]').length,
-            popupTitle: popup.find('.modal-title').text(),
-            popupTrigger: popup.find('.ge-popup-trigger').text(),
-            popupSize: popup.find('.modal-dialog').attr('class'),
-            popupTargets: popup.find('.ge-popup-trigger').attr('data-ge-popup-target') === popup.attr('data-ge-popup-id'),
-            idsUnique: new Set(jQuery('#myGrid [id]').map(function() { return this.id; }).get()).size ===
-                jQuery('#myGrid [id]').length,
+            tabTargets: all('.nav-link', tabs).map(function(link) { return link.getAttribute('data-bs-target'); }),
+            paneIds: all('.tab-pane', tabs).map(function(pane) { return '#' + pane.id; }),
+            activeTabs: all('.nav-link.active', tabs).length,
+            stayOpen: all('.accordion-collapse[data-bs-parent]', accordion).length,
+            popupTitle: text(all('.modal-title', popup)),
+            popupTrigger: text(all('.ge-popup-trigger', popup)),
+            popupSize: attr(one('.modal-dialog', popup), 'class'),
+            popupTargets: attr(one('.ge-popup-trigger', popup), 'data-ge-popup-target') === popup.getAttribute('data-ge-popup-id'),
+            idsUnique: new Set(all('#myGrid [id]').map(function(node) { return node.id; })).size ===
+                all('#myGrid [id]').length,
         };
     `);
     t.check('createContainer builds each type with its panes and its Bootstrap wiring',
@@ -81,16 +125,16 @@ async function creationTests(t) {
     var announced = await page.eval(EMPTY_CANVAS + `
         window.log = [];
         window.fixture.init();
-        jQuery('#myGrid').on('grideditor:before-add grideditor:after-add', function(e, payload) {
+        listen('grideditor:before-add grideditor:after-add', function(e, payload) {
             window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.source]);
         });
         window.specific = [];
-        jQuery('#myGrid').on('grideditor:before-add-container grideditor:after-add-container', function(e, payload) {
+        listen('grideditor:before-add-container grideditor:after-add-container', function(e, payload) {
             window.specific.push([e.type.replace('grideditor:', ''), payload.kind]);
         });
 
         ['tabs', 'accordion', 'popup'].forEach(function(type) {
-            jQuery('.ge-addContainerGroup a[data-ge-container-type="' + type + '"]').trigger('click');
+            all('.ge-addContainerGroup a[data-ge-container-type="' + type + '"]').forEach(function(button) { button.click(); });
         });
 
         return { log: window.log, specific: window.specific, shape: (function() { ${SHAPE} })() };
@@ -113,10 +157,10 @@ async function creationTests(t) {
 
     var loaded = await page.eval(`
         return {
-            registered: Object.keys(jQuery.fn.gridEditor.containers).sort(),
-            offered: jQuery('.ge-addContainerGroup a').map(function() {
-                return jQuery(this).attr('data-ge-container-type');
-            }).get().sort(),
+            registered: Object.keys(GridEditor.containers).sort(),
+            offered: all('.ge-addContainerGroup a').map(function(button) {
+                return button.getAttribute('data-ge-container-type');
+            }).sort(),
         };
     `);
     t.check('every container plugin the page loaded is offered by the toolbar',
@@ -127,10 +171,10 @@ async function creationTests(t) {
     var limited = await page.eval(EMPTY_CANVAS + `
         window.fixture.init({ plugins: ['tabs'] });
         return {
-            offered: jQuery('.ge-addContainerGroup a').map(function() {
-                return jQuery(this).attr('data-ge-container-type');
-            }).get(),
-            madeAnyway: jQuery('#myGrid').gridEditor('createContainer', 'accordion'),
+            offered: all('.ge-addContainerGroup a').map(function(button) {
+                return button.getAttribute('data-ge-container-type');
+            }),
+            madeAnyway: ge().createContainer('accordion'),
         };
     `);
     t.check('the plugins setting narrows that to the ones it names',
@@ -145,7 +189,7 @@ async function creationTests(t) {
         console.warn = original;
 
         return {
-            offered: jQuery('.ge-addContainerGroup a').length,
+            offered: all('.ge-addContainerGroup a').length,
             warnings: window.warnings.filter(w => /carousel/.test(w)),
         };
     `);
@@ -156,32 +200,31 @@ async function creationTests(t) {
 }
 
 async function paneTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var added = await page.eval(EMPTY_CANVAS + `
         window.log = [];
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
-        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: column });
-        const accordion = ge.createContainer('accordion', { items: 1, appendTo: column });
+        const column = one('#myGrid .column');
+        const tabs = ge().createContainer('tabs', { tabs: 1, appendTo: column });
+        const accordion = ge().createContainer('accordion', { items: 1, appendTo: column });
 
-        jQuery('#myGrid').on('grideditor:after-add', function(e, payload) {
-            window.log.push([payload.kind, payload.source, payload.container ? payload.container.attr('data-ge-container') : null]);
+        listen('grideditor:after-add', function(e, payload) {
+            window.log.push([payload.kind, payload.source, payload.container ? payload.container.getAttribute('data-ge-container') : null]);
         });
 
-        const pane = ge.addTab(tabs, { label: 'Second', activate: true });
-        const body = ge.addAccordionItem(accordion, { label: 'Second item' });
-        tabs.find('> .ge-tools-drawer .ge-add-pane').trigger('click');
+        const pane = ge().addTab(tabs, { label: 'Second', activate: true });
+        const body = ge().addAccordionItem(accordion, { label: 'Second item' });
+        all(':scope > .ge-tools-drawer .ge-add-pane', tabs).forEach(function(tool) { tool.click(); });
 
         return {
             log: window.log,
-            paneIsPane: pane.hasClass('tab-pane') && pane.hasClass('active'),
-            bodyIsBody: body.hasClass('accordion-body'),
-            tabs: tabs.find('.ge-tab').length,
-            panes: tabs.find('.tab-pane').length,
-            items: accordion.find('.accordion-item').length,
-            activeTabs: tabs.find('.nav-link.active').length,
+            paneIsPane: pane.classList.contains('tab-pane') && pane.classList.contains('active'),
+            bodyIsBody: body.classList.contains('accordion-body'),
+            tabs: all('.ge-tab', tabs).length,
+            panes: all('.tab-pane', tabs).length,
+            items: all('.accordion-item', accordion).length,
+            activeTabs: all('.nav-link.active', tabs).length,
         };
     `);
     t.check('addTab and addAccordionItem add a pane and hand it back',
@@ -197,28 +240,27 @@ async function paneTests(t) {
         added.log);
 
     var deleted = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
         window.fixture.init({ confirm_delete: false });
         window.deleteLog = [];
-        jQuery('#myGrid').on('grideditor:after-delete', function(e, payload) {
+        listen('grideditor:after-delete', function(e, payload) {
             window.deleteLog.push(payload.kind);
         });
 
-        const tabs = jQuery('#myGrid [data-ge-container="tabs"]');
-        const before = { tabs: tabs.find('.ge-tab').length, panes: tabs.find('.tab-pane').length };
+        const tabs = one('#myGrid [data-ge-container="tabs"]');
+        const before = { tabs: all('.ge-tab', tabs).length, panes: all('.tab-pane', tabs).length };
 
         // The active tab, so the pane that is showing goes with it
-        tabs.find('.ge-tab').first().find('.ge-delete-pane').trigger('click');
+        all('.ge-delete-pane', one('.ge-tab', tabs)).forEach(function(tool) { tool.click(); });
         return before;
     `);
     await cdp.sleep(700);
     var afterDelete = await page.eval(`
-        const tabs = jQuery('#myGrid [data-ge-container="tabs"]');
+        const tabs = one('#myGrid [data-ge-container="tabs"]');
         return {
-            tabs: tabs.find('.ge-tab').length,
-            panes: tabs.find('.tab-pane').length,
-            activeTabs: tabs.find('.nav-link.active').length,
-            activePanes: tabs.find('.tab-pane.active').length,
+            tabs: all('.ge-tab', tabs).length,
+            panes: all('.tab-pane', tabs).length,
+            activeTabs: all('.nav-link.active', tabs).length,
+            activePanes: all('.tab-pane.active', tabs).length,
             log: window.deleteLog,
         };
     `);
@@ -229,30 +271,33 @@ async function paneTests(t) {
         { before: deleted, after: afterDelete });
 
     var started = await page.eval(`
-        const tabs = jQuery('#myGrid [data-ge-container="tabs"]');
-        const label = tabs.find('.ge-tab').last().find('.ge-pane-label').attr('id', 'renaming');
+        const tabs = one('#myGrid [data-ge-container="tabs"]');
+        const strip = all('.ge-tab', tabs);
+        const label = one('.ge-pane-label', strip[strip.length - 1]);
+        label.setAttribute('id', 'renaming');
 
-        window.activeBefore = tabs.find('.nav-link.active').attr('data-bs-target');
-        label.trigger('dblclick');
+        window.activeBefore = attr(one('.nav-link.active', tabs), 'data-bs-target');
+        label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
 
-        return { editable: label.attr('contenteditable') };
+        return { editable: attr(label, 'contenteditable') };
     `);
 
     // A real click, because Bootstrap's toggle listens for one on the document
     await page.click('#renaming');
 
     var renamed = await page.eval(`
-        const tabs = jQuery('#myGrid [data-ge-container="tabs"]');
-        const label = jQuery('#renaming');
-        const activeDuring = tabs.find('.nav-link.active').attr('data-bs-target');
+        const tabs = one('#myGrid [data-ge-container="tabs"]');
+        const label = one('#renaming');
+        const activeDuring = attr(one('.nav-link.active', tabs), 'data-bs-target');
 
-        label.text('Renamed').trigger('blur');
+        label.textContent = 'Renamed';
+        label.blur();
 
         return {
             editable: started.editable,
             activeUnchanged: window.activeBefore === activeDuring,
-            text: label.text(),
-            afterBlur: label.attr('contenteditable'),
+            text: label.textContent,
+            afterBlur: attr(label, 'contenteditable'),
         };
     `.replace('started.editable', JSON.stringify(started.editable)));
     t.check('a tab label is renamed in place without the Bootstrap toggle firing',
@@ -269,21 +314,23 @@ async function paneTests(t) {
  * authored page starts in is chosen.
  */
 async function accordionStateTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var initial = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        window.accordion = ge.createContainer('accordion', {
+        window.accordion = ge().createContainer('accordion', {
             items: 3,
             labels: ['One', 'Two', 'Three'],
-            appendTo: jQuery('#myGrid .column').first(),
+            appendTo: one('#myGrid .column'),
         });
 
         window.state = function() {
-            return window.accordion.find('.accordion-collapse').map(function() {
-                return jQuery(this).attr('data-ge-open') + ':' + (jQuery(this).is(':visible') ? 'shown' : 'hidden');
-            }).get().join(',');
+            return all('.accordion-collapse', window.accordion).map(function(collapse) {
+                return collapse.getAttribute('data-ge-open') + ':' + (visible(collapse) ? 'shown' : 'hidden');
+            }).join(',');
+        };
+        window.header = function(index) {
+            return one('.accordion-button', all('.ge-accordion-item', window.accordion)[index]);
         };
 
         return window.state();
@@ -292,15 +339,15 @@ async function accordionStateTests(t) {
         initial === 'true:shown,false:hidden,false:hidden', initial);
 
     var opened = await page.eval(`
-        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
-        return { state: window.state(), collapsing: jQuery('.collapsing').length };
+        header(1).click();
+        return { state: window.state(), collapsing: all('.collapsing').length };
     `);
     t.check('clicking a header opens that item and closes the one that was open',
         opened.state === 'false:hidden,true:shown,false:hidden' && opened.collapsing === 0,
         opened);
 
     var closed = await page.eval(`
-        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
+        header(1).click();
         return window.state();
     `);
     t.check('clicking it again closes it, leaving the accordion with nothing open',
@@ -308,15 +355,14 @@ async function accordionStateTests(t) {
 
     var stayOpen = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        window.accordion = ge.createContainer('accordion', {
+        window.accordion = ge().createContainer('accordion', {
             items: 3,
             stay_open: true,
-            appendTo: jQuery('#myGrid .column').first(),
+            appendTo: one('#myGrid .column'),
         });
 
-        window.accordion.find('.ge-accordion-item').eq(1).find('.accordion-button').trigger('click');
-        window.accordion.find('.ge-accordion-item').eq(2).find('.accordion-button').trigger('click');
+        header(1).click();
+        header(2).click();
 
         return window.state();
     `);
@@ -324,17 +370,17 @@ async function accordionStateTests(t) {
         stayOpen === 'true:shown,true:shown,true:shown', stayOpen);
 
     var exported = await page.eval(`
-        window.accordion.find('.ge-accordion-item').eq(0).find('.accordion-button').trigger('click');
+        header(0).click();
 
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        const parsed = jQuery('<div>').html(html);
+        const html = ge().getHtml();
+        const parsed = parse(html);
 
         return {
             canvas: window.state(),
-            shown: parsed.find('.accordion-collapse.show').length,
-            hidden: parsed.find('.accordion-collapse:not(.show)').length,
-            expanded: parsed.find('.accordion-button:not(.collapsed)').length,
-            bootstrapToggles: parsed.find('[data-bs-toggle="collapse"]').length,
+            shown: all('.accordion-collapse.show', parsed).length,
+            hidden: all('.accordion-collapse:not(.show)', parsed).length,
+            expanded: all('.accordion-button:not(.collapsed)', parsed).length,
+            bootstrapToggles: all('[data-bs-toggle="collapse"]', parsed).length,
         };
     `);
     t.check('what is open on the canvas is what the authored page opens with',
@@ -345,16 +391,16 @@ async function accordionStateTests(t) {
 
     var duringEditing = await page.eval(`
         return {
-            suspended: jQuery('#myGrid [data-ge-bs-toggle="collapse"]').length,
-            live: jQuery('#myGrid [data-bs-toggle="collapse"]').length,
+            suspended: all('#myGrid [data-ge-bs-toggle="collapse"]').length,
+            live: all('#myGrid [data-bs-toggle="collapse"]').length,
             instances: window.bootstrap
-                ? jQuery('#myGrid .accordion-collapse').filter(function() {
-                    return !!bootstrap.Collapse.getInstance(this);
+                ? all('#myGrid .accordion-collapse').filter(function(collapse) {
+                    return !!bootstrap.Collapse.getInstance(collapse);
                 }).length
                 : null,
         };
     `);
-    t.check('Bootstrap\u2019s own collapse is never the thing doing it',
+    t.check('Bootstrap’s own collapse is never the thing doing it',
         duringEditing.suspended === 3 && duringEditing.live === 0 && duringEditing.instances === 0,
         duringEditing);
 
@@ -363,32 +409,36 @@ async function accordionStateTests(t) {
 }
 
 async function nestingTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var nested = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const column = one('#myGrid .column');
 
-        const accordion = ge.createContainer('accordion', { items: 1, appendTo: column });
-        const body = accordion.find('.accordion-body').first();
-        const tabs = ge.createContainer('tabs', { tabs: 2, appendTo: body });
+        const accordion = ge().createContainer('accordion', { items: 1, appendTo: column });
+        const body = one('.accordion-body', accordion);
+        const tabs = ge().createContainer('tabs', { tabs: 2, appendTo: body });
 
-        const pane = tabs.find('.tab-pane').first();
-        const row = ge.createRow([6, 6], { appendTo: pane });
-        const element = ge.createElement('<span>nested element</span>', {
+        const pane = one('.tab-pane', tabs);
+        const row = ge().createRow([6, 6], { appendTo: pane });
+        const element = ge().createElement('<span>nested element</span>', {
             type: 'nested',
             // A pane's region starts as an empty column since 6.0
-            appendTo: pane.find('.column').first(),
+            appendTo: one('.column', pane),
         });
 
+        let depth = 0;
+        for (let node = tabs.parentElement; node; node = node.parentElement) {
+            if (node.matches('[data-ge-container]')) { depth++; }
+        }
+
         return {
-            depth: tabs.parents('[data-ge-container]').length,
-            rowInPane: pane.find('> .row').length,
-            columnsInRow: row.find('> .column').length,
-            columnDrawers: row.find('> .column > .ge-tools-drawer').length,
-            elementMarked: element.hasClass('ge-element') && element.find('> .ge-tools-drawer').length === 1,
-            contentAreas: tabs.find('.ge-content').length,
+            depth: depth,
+            rowInPane: all(':scope > .row', pane).length,
+            columnsInRow: all(':scope > .column', row).length,
+            columnDrawers: all(':scope > .column > .ge-tools-drawer', row).length,
+            elementMarked: element.classList.contains('ge-element') && all(':scope > .ge-tools-drawer', element).length === 1,
+            contentAreas: all('.ge-content', tabs).length,
         };
     `);
     t.check('a pane is an ordinary region: rows, columns and elements nest in it',
@@ -398,17 +448,17 @@ async function nestingTests(t) {
 
     var roundTrip = await page.eval(`
         const before = (function() { ${SHAPE} })();
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = ge().getHtml();
 
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(html);
+        ge().destroy();
+        grid().innerHTML = html;
         window.fixture.init();
 
         return {
             before: before,
             after: (function() { ${SHAPE} })(),
             html: html,
-            nestedStillNested: jQuery('#myGrid .accordion-body [data-ge-container="tabs"]').length,
+            nestedStillNested: all('#myGrid .accordion-body [data-ge-container="tabs"]').length,
         };
     `);
     t.check('two levels of container round-trip through getHtml unchanged',
@@ -417,7 +467,7 @@ async function nestingTests(t) {
         { before: roundTrip.before, after: roundTrip.after, nested: roundTrip.nestedStillNested });
 
     var clean = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = ge().getHtml();
         return {
             drawers: /ge-tools-drawer/.test(html),
             containerClass: /class="[^"]*ge-container/.test(html),
@@ -443,19 +493,18 @@ async function nestingTests(t) {
 }
 
 async function moveTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
         window.moves = [];
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const column = one('#myGrid .column');
 
-        const tabs = ge.createContainer('tabs', { tabs: 2, labels: ['First', 'Second'], appendTo: column });
-        tabs.find('.ge-tab').eq(0).attr('id', 'tab-first');
-        tabs.find('.ge-tab').eq(1).attr('id', 'tab-second');
+        const tabs = ge().createContainer('tabs', { tabs: 2, labels: ['First', 'Second'], appendTo: column });
+        all('.ge-tab', tabs)[0].setAttribute('id', 'tab-first');
+        all('.ge-tab', tabs)[1].setAttribute('id', 'tab-second');
 
-        jQuery('#myGrid').on('grideditor:after-move', function(e, payload) {
+        listen('grideditor:after-move', function(e, payload) {
             window.moves.push([payload.kind, payload.from.index, payload.to.index]);
         });
         return true;
@@ -466,11 +515,11 @@ async function moveTests(t) {
     // the drag inserts, which is the width of the tab being dragged
     await page.drag('#tab-second > .ge-tools-drawer .ge-move', '#tab-first', { xRatio: 0.15, yRatio: 0.2 });
     var reordered = await page.eval(`
-        const tabs = jQuery('#myGrid [data-ge-container="tabs"]');
+        const tabs = one('#myGrid [data-ge-container="tabs"]');
         return {
-            strip: tabs.find('.ge-tab').map(function() { return jQuery(this).find('.ge-pane-label').text(); }).get(),
-            panesInOrder: tabs.find('.tab-pane').map(function() { return this.id; }).get().join(',') ===
-                tabs.find('.nav-link').map(function() { return jQuery(this).attr('data-bs-target').slice(1); }).get().join(','),
+            strip: all('.ge-tab', tabs).map(function(tab) { return text(all('.ge-pane-label', tab)); }),
+            panesInOrder: all('.tab-pane', tabs).map(function(pane) { return pane.id; }).join(',') ===
+                all('.nav-link', tabs).map(function(link) { return link.getAttribute('data-bs-target').slice(1); }).join(','),
             moves: window.moves,
         };
     `);
@@ -482,21 +531,20 @@ async function moveTests(t) {
     await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
         window.moves = [];
-        jQuery('#myGrid').off('grideditor:after-move');
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        unlisten('grideditor:after-move');
+        const column = one('#myGrid .column');
 
-        const left = ge.createContainer('accordion', { items: 2, labels: ['A1', 'A2'], appendTo: column });
-        const right = ge.createContainer('accordion', { items: 1, labels: ['B1'], stay_open: true, appendTo: column });
+        const left = ge().createContainer('accordion', { items: 2, labels: ['A1', 'A2'], appendTo: column });
+        const right = ge().createContainer('accordion', { items: 1, labels: ['B1'], stay_open: true, appendTo: column });
 
-        left.find('.accordion').attr('id', 'accordion-left');
-        left.find('.ge-accordion-item').eq(1).attr('id', 'item-a2');
-        right.find('.accordion').attr('id', 'accordion-right');
-        right.find('.ge-accordion-item').eq(0).attr('id', 'item-b1');
-        left.find('.accordion-collapse').attr('data-bs-parent', '#accordion-left');
+        one('.accordion', left).setAttribute('id', 'accordion-left');
+        all('.ge-accordion-item', left)[1].setAttribute('id', 'item-a2');
+        one('.accordion', right).setAttribute('id', 'accordion-right');
+        all('.ge-accordion-item', right)[0].setAttribute('id', 'item-b1');
+        all('.accordion-collapse', left).forEach(function(collapse) { collapse.setAttribute('data-bs-parent', '#accordion-left'); });
 
-        jQuery('#myGrid').on('grideditor:after-move', function(e, payload) {
-            window.moves.push([payload.kind, payload.container ? payload.container.attr('data-ge-container') : null]);
+        listen('grideditor:after-move', function(e, payload) {
+            window.moves.push([payload.kind, payload.container ? payload.container.getAttribute('data-ge-container') : null]);
         });
         return true;
     `);
@@ -504,9 +552,9 @@ async function moveTests(t) {
     await page.drag('#item-a2 > .ge-tools-drawer .ge-move', '#item-b1', { yRatio: 0.15 });
     var betweenAccordions = await page.eval(`
         return {
-            left: jQuery('#accordion-left > .accordion-item').length,
-            right: jQuery('#accordion-right > .accordion-item').length,
-            movedParent: jQuery('#item-a2 > .accordion-collapse').attr('data-bs-parent'),
+            left: all('#accordion-left > .accordion-item').length,
+            right: all('#accordion-right > .accordion-item').length,
+            movedParent: attr(one('#item-a2 > .accordion-collapse'), 'data-bs-parent'),
             moves: window.moves,
         };
     `);
@@ -520,28 +568,27 @@ async function moveTests(t) {
     // them. In 3.x its move tool was a handle for a list that did not accept
     // containers, so dragging one did nothing at all.
     var wholeContainer = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html('<div class="row"><div class="column col-12" id="home">' +
+        ge().destroy();
+        grid().innerHTML = '<div class="row"><div class="column col-12" id="home">' +
             '<div class="ge-content" id="text"><p>A block above the container, tall enough to aim at.</p></div>' +
-            '</div></div>');
+            '</div></div>';
         window.moves = [];
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const tabs = ge.createContainer('tabs', { tabs: 1, appendTo: jQuery('#home') });
-        tabs.attr('id', 'movable');
-        jQuery('#myGrid').off('grideditor:after-move').on('grideditor:after-move', function(e, payload) {
+        const tabs = ge().createContainer('tabs', { tabs: 1, appendTo: one('#home') });
+        tabs.setAttribute('id', 'movable');
+        listen('grideditor:after-move', function(e, payload) {
             window.moves.push([payload.kind, payload.from.index, payload.to.index]);
         });
-        return jQuery('#home').children().map(function() {
-            return this.id || this.className.split(' ')[0];
-        }).get().join(',');
+        return Array.from(one('#home').children).map(function(node) {
+            return node.id || node.className.split(' ')[0];
+        }).join(',');
     `);
     await page.drag('#movable > .ge-tools-drawer .ge-move', '#text', { yRatio: 0.2 });
     var moved = await page.eval(`
         return {
-            order: jQuery('#home').children().map(function() {
-                return this.id || this.className.split(' ')[0];
-            }).get().join(','),
+            order: Array.from(one('#home').children).map(function(node) {
+                return node.id || node.className.split(' ')[0];
+            }).join(','),
             moves: window.moves,
         };
     `);
@@ -557,40 +604,42 @@ async function moveTests(t) {
 }
 
 async function popupTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var editing = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const popup = ge.createContainer('popup', { appendTo: jQuery('#myGrid .column').first() });
-        window.popupId = popup.attr('data-ge-popup-id');
+        const popup = ge().createContainer('popup', { appendTo: one('#myGrid .column') });
+        window.popupId = popup.getAttribute('data-ge-popup-id');
 
-        const modal = popup.find('.modal');
+        const modal = one('.modal', popup);
         const before = {
-            visible: modal.is(':visible'),
-            position: getComputedStyle(modal[0]).position,
+            visible: visible(modal),
+            position: getComputedStyle(modal).position,
             // Bootstrap hides an unopened modal by opacity and shifts its
             // dialog, which the editor has to undo to render it in place
-            opacity: getComputedStyle(modal[0]).opacity,
-            transform: getComputedStyle(popup.find('.modal-dialog')[0]).transform,
+            opacity: getComputedStyle(modal).opacity,
+            transform: getComputedStyle(one('.modal-dialog', popup)).transform,
         };
 
-        popup.find('> .ge-tools-drawer .ge-toggle-popup').trigger('click');
-        const collapsed = modal.is(':visible');
-        popup.find('> .ge-tools-drawer .ge-toggle-popup').trigger('click');
+        const toggle = function() {
+            all(':scope > .ge-tools-drawer .ge-toggle-popup', popup).forEach(function(tool) { tool.click(); });
+        };
+        toggle();
+        const collapsed = visible(modal);
+        toggle();
 
         // A click on the trigger must not hand the modal to Bootstrap
-        popup.find('.ge-popup-trigger').trigger('click');
+        all('.ge-popup-trigger', popup).forEach(function(trigger) { trigger.click(); });
 
         return {
             before: before,
             collapsed: collapsed,
-            expanded: modal.is(':visible'),
-            bootstrapInstance: !!(window.bootstrap && bootstrap.Modal.getInstance(modal[0])),
-            backdrops: jQuery('.modal-backdrop').length,
-            bodyLocked: jQuery('body').hasClass('modal-open'),
-            triggerAttrs: popup.find('.ge-popup-trigger').attr('data-bs-toggle'),
-            region: popup.find('.modal-body .column').length,
+            expanded: visible(modal),
+            bootstrapInstance: !!(window.bootstrap && bootstrap.Modal.getInstance(modal)),
+            backdrops: all('.modal-backdrop').length,
+            bodyLocked: document.body.classList.contains('modal-open'),
+            triggerAttrs: attr(one('.ge-popup-trigger', popup), 'data-bs-toggle'),
+            region: all('.modal-body .column', popup).length,
         };
     `);
     t.check('a popup is edited unfolded in place, with Bootstrap never asked to open it',
@@ -603,32 +652,36 @@ async function popupTests(t) {
 
     // The authored page: Bootstrap's own JS, no grid editor
     var authored = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = ge().getHtml();
 
         // The editor's own copy carries the same ids, and Bootstrap looks up
         // its target by id, so the canvas is emptied before the authored copy
         // goes into the page
-        jQuery('#myGrid').gridEditor('destroy').empty();
-        jQuery('#authored').remove();
-        jQuery('<div id="authored" />').html(html).appendTo('body');
+        ge().destroy();
+        grid().innerHTML = '';
+        if (one('#authored')) { one('#authored').remove(); }
+        const holder = document.createElement('div');
+        holder.id = 'authored';
+        holder.innerHTML = html;
+        document.body.appendChild(holder);
 
-        const modal = jQuery('#authored .modal');
+        const modal = one('#authored .modal');
+        const trigger = one('#authored .ge-popup-trigger');
         return {
             html: html,
-            hiddenAtRest: !modal.is(':visible'),
-            trigger: jQuery('#authored .ge-popup-trigger').attr('data-bs-toggle') + ':' +
-                jQuery('#authored .ge-popup-trigger').attr('data-bs-target'),
-            targetsThePopup: jQuery('#authored .ge-popup-trigger').attr('data-bs-target') === '#' + window.popupId,
+            hiddenAtRest: !visible(modal),
+            trigger: attr(trigger, 'data-bs-toggle') + ':' + attr(trigger, 'data-bs-target'),
+            targetsThePopup: attr(trigger, 'data-bs-target') === '#' + window.popupId,
         };
     `);
     await page.click('#authored .ge-popup-trigger');
     await cdp.sleep(600);
     var opened = await page.eval(`
-        const modal = jQuery('#authored .modal');
+        const modal = one('#authored .modal');
         return {
-            shown: modal.hasClass('show') && modal.is(':visible'),
-            backdrop: jQuery('.modal-backdrop').length,
-            instance: !!bootstrap.Modal.getInstance(modal[0]),
+            shown: modal.classList.contains('show') && visible(modal),
+            backdrop: all('.modal-backdrop').length,
+            instance: !!bootstrap.Modal.getInstance(modal),
         };
     `);
     t.check('the exported markup is a modal Bootstrap opens from its trigger, with no editor help',
@@ -638,9 +691,9 @@ async function popupTests(t) {
         { authored: authored.trigger, opened: opened });
 
     await page.eval(`
-        const instance = bootstrap.Modal.getInstance(jQuery('#authored .modal')[0]);
+        const instance = bootstrap.Modal.getInstance(one('#authored .modal'));
         if (instance) { instance.hide(); }
-        jQuery('#authored').remove();
+        one('#authored').remove();
         return true;
     `);
     await cdp.sleep(500);
@@ -648,27 +701,30 @@ async function popupTests(t) {
     // A trigger the host wrote, somewhere else on the canvas
     var external = await page.eval(EMPTY_CANVAS + `
         window.orphans = [];
-        jQuery('#myGrid').on('grideditor:popup-orphan', function(e, payload) {
-            window.orphans.push([payload.missing, payload.node.text()]);
+        listen('grideditor:popup-orphan', function(e, payload) {
+            window.orphans.push([payload.missing, payload.node.textContent]);
         });
         window.fixture.init();
 
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
-        const popup = ge.createContainer('popup', { trigger: false, appendTo: column });
-        const id = popup.attr('data-ge-popup-id');
+        const column = one('#myGrid .column');
+        const popup = ge().createContainer('popup', { trigger: false, appendTo: column });
+        const id = popup.getAttribute('data-ge-popup-id');
 
-        jQuery('<a href="#" data-ge-popup-target="' + id + '">Read the terms</a>')
-            .appendTo(column.find('.ge-content').first());
-        ge.reset();
+        const link = document.createElement('a');
+        link.setAttribute('href', '#');
+        link.setAttribute('data-ge-popup-target', id);
+        link.textContent = 'Read the terms';
+        one('.ge-content', column).appendChild(link);
+        ge().reset();
 
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = ge().getHtml();
+        const hostTrigger = one('#myGrid [data-ge-popup-target]');
         return {
-            ownTrigger: popup.find('.ge-popup-trigger').length,
-            marked: jQuery('#myGrid [data-ge-popup-target]').hasClass('ge-popup-trigger'),
-            whileEditing: jQuery('#myGrid [data-ge-popup-target]').attr('data-bs-toggle'),
+            ownTrigger: all('.ge-popup-trigger', popup).length,
+            marked: hostTrigger.classList.contains('ge-popup-trigger'),
+            whileEditing: attr(hostTrigger, 'data-bs-toggle'),
             inOutput: /data-bs-toggle="modal"[^>]*data-bs-target="#' + '" | ''/.test(html) ||
-                jQuery('<div>').html(html).find('[data-ge-popup-target]').attr('data-bs-target') === '#' + id,
+                attr(one('[data-ge-popup-target]', parse(html)), 'data-bs-target') === '#' + id,
             orphans: window.orphans,
         };
     `);
@@ -680,32 +736,32 @@ async function popupTests(t) {
     var orphaned = await page.eval(`
         // Delete the popup the trigger points at, with another popup left in
         // the same column: unambiguous, so it is re-pointed
-        const column = jQuery('#myGrid .column').first();
-        const ge = jQuery('#myGrid').data('grideditor');
-        jQuery('#myGrid [data-ge-container="popup"]').remove();
-        const replacement = ge.createContainer('popup', { trigger: false, appendTo: column });
-        ge.reset();
+        const column = one('#myGrid .column');
+        const popups = function() { return all('#myGrid [data-ge-container="popup"]'); };
+        popups().forEach(function(popup) { popup.remove(); });
+        const replacement = ge().createContainer('popup', { trigger: false, appendTo: column });
+        ge().reset();
 
-        const repaired = jQuery('#myGrid [data-ge-popup-target]').attr('data-ge-popup-target') ===
-            replacement.attr('data-ge-popup-id');
+        const repaired = attr(one('#myGrid [data-ge-popup-target]'), 'data-ge-popup-target') ===
+            replacement.getAttribute('data-ge-popup-id');
         const repairedQuietly = window.orphans.length === 0;
 
         // Now remove every popup: nothing to re-point to
         window.orphans = [];
-        jQuery('#myGrid [data-ge-container="popup"]').remove();
-        ge.reset();
+        popups().forEach(function(popup) { popup.remove(); });
+        ge().reset();
 
-        const trigger = jQuery('#myGrid [data-ge-popup-target]');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const triggers = all('#myGrid [data-ge-popup-target]');
+        const html = ge().getHtml();
 
         return {
             repaired: repaired,
             repairedQuietly: repairedQuietly,
-            marked: trigger.hasClass('ge-popup-orphan'),
-            kept: trigger.length === 1 && trigger.text() === 'Read the terms',
+            marked: triggers.length > 0 && triggers[0].classList.contains('ge-popup-orphan'),
+            kept: triggers.length === 1 && triggers[0].textContent === 'Read the terms',
             orphans: window.orphans,
             inOutput: /ge-popup-orphan/.test(html),
-            attributesWithheld: jQuery('<div>').html(html).find('[data-ge-popup-target]').attr('data-bs-toggle'),
+            attributesWithheld: attr(one('[data-ge-popup-target]', parse(html)), 'data-bs-toggle'),
         };
     `);
     t.check('a stale trigger is re-pointed when that is unambiguous, and marked when it is not',
@@ -724,27 +780,26 @@ async function popupTests(t) {
  * minimum.
  */
 async function cardTests(t) {
-    var page = await t.page(FIXTURE, `window.fixture`);
+    var page = await start(t);
 
     var made = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const column = one('#myGrid .column');
 
-        const card = ge.createContainer('card', { title: 'Pricing', footer: 'Per month', appendTo: column });
-        const bare = ge.createContainer('card', { header: false, appendTo: column });
+        const card = ge().createContainer('card', { title: 'Pricing', footer: 'Per month', appendTo: column });
+        const bare = ge().createContainer('card', { header: false, appendTo: column });
 
         return {
             shape: (function() { ${SHAPE} })(),
-            header: card.find('.card-header').text(),
-            footer: card.find('.card-footer').text(),
-            regions: card.find('.card-body > .row > .column').length,
-            drawer: card.find('> .ge-tools-drawer > a').map(function() {
-                return jQuery(this).attr('class').split(' ')[0];
-            }).get().join(','),
-            bareHeaders: bare.find('.card-header').length,
-            bareFooters: bare.find('.card-footer').length,
-            bareTitle: bare.find('.card-body .column').length,
+            header: text(all('.card-header', card)),
+            footer: text(all('.card-footer', card)),
+            regions: all('.card-body > .row > .column', card).length,
+            drawer: all(':scope > .ge-tools-drawer > a', card).map(function(tool) {
+                return tool.getAttribute('class').split(' ')[0];
+            }).join(','),
+            bareHeaders: all('.card-header', bare).length,
+            bareFooters: all('.card-footer', bare).length,
+            bareTitle: all('.card-body .column', bare).length,
         };
     `);
     t.check('a card is a header, one region and an optional footer',
@@ -758,11 +813,12 @@ async function cardTests(t) {
 
     var fromToolbar = await page.eval(EMPTY_CANVAS + `
         window.fixture.init();
-        jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').trigger('click');
+        const buttons = function() { return all('.ge-addContainerGroup a[data-ge-container-type="card"]'); };
+        buttons().forEach(function(button) { button.click(); });
         return {
-            button: jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').text().trim(),
-            cards: jQuery('#myGrid [data-ge-container="card"]').length,
-            label: jQuery('#myGrid .card-header .ge-pane-label').text(),
+            button: text(buttons()).trim(),
+            cards: all('#myGrid [data-ge-container="card"]').length,
+            label: text(all('#myGrid .card-header .ge-pane-label')),
         };
     `);
     t.check('the toolbar offers a card, and the button makes one',
@@ -771,9 +827,9 @@ async function cardTests(t) {
         fromToolbar);
 
     var exported = await page.eval(`
-        jQuery('#myGrid .card-header .ge-pane-label').text('What it costs');
-        jQuery('#myGrid .card-body .column').first().append('<p>Inside the card</p>');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        all('#myGrid .card-header .ge-pane-label').forEach(function(label) { label.textContent = 'What it costs'; });
+        one('#myGrid .card-body .column').insertAdjacentHTML('beforeend', '<p>Inside the card</p>');
+        const html = ge().getHtml();
         return {
             html: html,
             furniture: /ge-tools-drawer|ge-pane-label|contenteditable/.test(html),
@@ -790,15 +846,15 @@ async function cardTests(t) {
         Object.assign({}, exported, { html: exported.html.slice(0, 200) }));
 
     var roundTrip = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(html);
+        const html = ge().getHtml();
+        ge().destroy();
+        grid().innerHTML = html;
         window.fixture.init();
         return {
-            cards: jQuery('#myGrid [data-ge-container="card"]').length,
-            label: jQuery('#myGrid .card-header .ge-pane-label').text(),
-            regions: jQuery('#myGrid .card-body .column').length,
-            content: jQuery('#myGrid .card-body').text().indexOf('Inside the card') !== -1,
+            cards: all('#myGrid [data-ge-container="card"]').length,
+            label: text(all('#myGrid .card-header .ge-pane-label')),
+            regions: all('#myGrid .card-body .column').length,
+            content: text(all('#myGrid .card-body')).indexOf('Inside the card') !== -1,
         };
     `);
     t.check('feeding that output back in finds the card, its title and its region',
@@ -808,15 +864,14 @@ async function cardTests(t) {
 
     var unloaded = await page.eval(EMPTY_CANVAS + `
         window.fixture.init({ plugins: ['tabs'] });
-        const before = jQuery('#myGrid').html();
-        jQuery('#myGrid .ge-content').first().after(
+        one('#myGrid .ge-content').insertAdjacentHTML('afterend',
             '<div data-ge-container="card"><div class="card"><div class="card-header">Kept</div>' +
             '<div class="card-body"><p>Kept too</p></div></div></div>');
-        jQuery('#myGrid').gridEditor('reset');
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        ge().reset();
+        const html = ge().getHtml();
         return {
-            button: jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]').length,
-            drawers: jQuery('#myGrid [data-ge-container="card"] > .ge-tools-drawer').length,
+            button: all('.ge-addContainerGroup a[data-ge-container-type="card"]').length,
+            drawers: all('#myGrid [data-ge-container="card"] > .ge-tools-drawer').length,
             kept: /Kept too/.test(html) && /data-ge-container="card"/.test(html),
         };
     `);

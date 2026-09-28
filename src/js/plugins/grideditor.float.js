@@ -8,16 +8,16 @@
  * editor for is the handle its factory is called with, described in
  * docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.elements.min.js"></script>
  *   <script src="dist/plugins/grideditor.float.min.js"></script>
  *
  * Elements only. A floated row or column stops being part of the grid, and a
  * container sits beside the content areas rather than in their text.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.float': 'Float',
     'utility.float_start': 'Start',
     'utility.float_end': 'End',
@@ -27,7 +27,7 @@ $.extend($.fn.gridEditor.locales.en, {
 /** Start and end are left and right: Bootstrap's css is left to right. */
 var CSS = { start: 'left', end: 'right', none: 'none' };
 
-$.fn.gridEditor.utilities.float = function(ge) {
+GridEditor.utilities.float = function(ge) {
 
     function label(value) {
         if (value === 'start') { return ge.t('utility.float_start'); }
@@ -52,5 +52,3 @@ $.fn.gridEditor.utilities.float = function(ge) {
         }],
     };
 };
-
-})(jQuery);

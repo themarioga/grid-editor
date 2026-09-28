@@ -6,7 +6,7 @@
  * each grouping rows at a width of its own. What it can ask the editor for is
  * the handle its factory is called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.sections.min.js"></script>
  *
  * Called sections, not containers, because a container is what the tabs,
@@ -16,9 +16,10 @@
  *
  * sections.widths narrows the widths the field offers.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'section.add': 'Section',
     'section.width': 'Width',
     'section.fixed': 'Fixed',
@@ -42,26 +43,26 @@ var WIDTHS = {
 
 var ORDER = ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'];
 
-$.fn.gridEditor.features.sections = function(ge) {
+GridEditor.features.sections = function(ge) {
 
-    var options = $.extend({ widths: ORDER }, ge.settings.sections);
+    var options = Object.assign({ widths: ORDER }, ge.settings.sections);
 
     function widthOf(section) {
         var found = null;
 
-        $.each(WIDTHS, function(width, className) {
-            if (!found && section.hasClass(className)) { found = width; }
+        Object.keys(WIDTHS).forEach(function(width) {
+            if (!found && dom.hasClass(section, WIDTHS[width])) { found = width; }
         });
 
         return found;
     }
 
     function isSection(node) {
-        return node.parent()[0] === ge.canvas[0] && widthOf(node) !== null;
+        return node.parentElement === ge.canvas && widthOf(node) !== null;
     }
 
     function sections() {
-        return ge.canvas.children().filter(function() { return isSection($(this)); });
+        return dom.children(ge.canvas).filter(isSection);
     }
 
     function label(width) {
@@ -90,11 +91,13 @@ $.fn.gridEditor.features.sections = function(ge) {
             });
 
             if (!ge.emit('before-utility', payload)) {
-                ge.detailsOf(section).find('.ge-section-width select').val(from);
+                var select = dom.one(ge.detailsOf(section), '.ge-section-width select');
+                if (select) { select.value = from; }
                 return false;
             }
 
-            section.removeClass(WIDTHS[from]).addClass(WIDTHS[width]);
+            dom.removeClass(section, WIDTHS[from]);
+            dom.addClass(section, WIDTHS[width]);
             ge.emit('after-utility', payload);
 
             return true;
@@ -102,31 +105,35 @@ $.fn.gridEditor.features.sections = function(ge) {
     }
 
     function widthField(section) {
-        var select = $('<select class="form-select form-select-sm" />');
+        var select = dom.element('select', { 'class': 'form-select form-select-sm' });
         var current = widthOf(section);
         var offered = options.widths.indexOf(current) === -1 ? options.widths.concat([current]) : options.widths;
 
         ORDER.forEach(function(width) {
             if (offered.indexOf(width) === -1) { return; }
-            $('<option />').attr('value', width).text(label(width)).appendTo(select);
+            select.appendChild(dom.element('option', { value: width }, label(width)));
         });
 
-        select.val(current).on('change', function() { setWidth(section, this.value, 'panel'); });
+        select.value = current;
+        select.addEventListener('change', function() { setWidth(section, this.value, 'panel'); });
 
-        return $('<label class="ge-utility ge-section-width" />')
-            .append($('<span class="ge-utility-label" />').text(ge.t('section.width')))
-            .append(select);
+        var field = dom.element('label', { 'class': 'ge-utility ge-section-width' });
+        field.appendChild(dom.element('span', { 'class': 'ge-utility-label' }, ge.t('section.width')));
+        field.appendChild(select);
+
+        return field;
     }
 
     function createControls(section) {
-        var drawer = $('<div class="ge-tools-drawer ge-section-drawer" />').prependTo(section);
+        var drawer = dom.element('div', { 'class': 'ge-tools-drawer ge-section-drawer' });
+        section.insertBefore(drawer, section.firstChild);
 
         ge.createMoveTool(drawer);
-        ge.addSettingsTool(drawer, section, ge.settings.section_classes || []).append(widthField(section));
+        ge.addSettingsTool(drawer, section, ge.settings.section_classes || []).appendChild(widthField(section));
 
         ge.createTool(drawer, ge.t('tool.delete_section'), 'ge-delete-section', 'bi bi-trash', function() {
             ge.deleteNode('section', section, ge.t('confirm.delete_section'), function(removed) {
-                section.slideUp(removed);
+                dom.slideUp(section, removed);
             });
         });
 
@@ -136,24 +143,26 @@ $.fn.gridEditor.features.sections = function(ge) {
     }
 
     function mark() {
-        sections().each(function() {
-            var section = $(this).addClass('ge-section');
-            if (!section.children('.ge-tools-drawer').length) { createControls(section); }
+        sections().forEach(function(section) {
+            dom.addClass(section, 'ge-section');
+            if (!dom.child(section, '.ge-tools-drawer')) { createControls(section); }
         });
     }
 
     function unmark() {
-        ge.canvas.children('.ge-section').removeClass('ge-section');
+        dom.children(ge.canvas, '.ge-section').forEach(function(section) {
+            dom.removeClass(section, 'ge-section');
+        });
     }
 
     /** createSection(options): a section, detached unless a placement is given. */
     function createSection(settings) {
         settings = settings || {};
 
-        var section = $('<div />').addClass(WIDTHS[settings.width] || WIDTHS.fixed);
+        var section = dom.element('div', { 'class': WIDTHS[settings.width] || WIDTHS.fixed });
 
         (settings.rows || [[12]]).forEach(function(layout) {
-            ge.rowFromLayout(layout).appendTo(section);
+            section.appendChild(ge.rowFromLayout(layout));
         });
 
         return ge.place(section, 'section', settings);
@@ -165,7 +174,7 @@ $.fn.gridEditor.features.sections = function(ge) {
         },
 
         kindOf: function(node) {
-            return node.hasClass('ge-section') ? 'section' : null;
+            return dom.hasClass(node, 'ge-section') ? 'section' : null;
         },
 
         // A section is a block the canvas moves, and a region rows move in
@@ -174,8 +183,8 @@ $.fn.gridEditor.features.sections = function(ge) {
 
         /** A section goes on the canvas and nowhere else, and holds rows and nothing else. */
         accepts: function(region, node) {
-            if (node.hasClass('ge-section') || isSectionMade(node)) { return region[0] === ge.canvas[0]; }
-            if (region.hasClass('ge-section')) { return node.hasClass('row'); }
+            if (dom.hasClass(node, 'ge-section') || isSectionMade(node)) { return region === ge.canvas; }
+            if (dom.hasClass(region, 'ge-section')) { return dom.hasClass(node, 'row'); }
 
             return true;
         },
@@ -192,8 +201,6 @@ $.fn.gridEditor.features.sections = function(ge) {
 
     /** A section the toolbar just made, before init has marked it. */
     function isSectionMade(node) {
-        return !node.parent().length && widthOf(node) !== null;
+        return !node.parentElement && widthOf(node) !== null;
     }
 };
-
-})(jQuery);

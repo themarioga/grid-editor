@@ -7,7 +7,7 @@
  * … classes. What it can ask the editor for is the handle its factory is
  * called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.spacing.min.js"></script>
  *
  * Fourteen families would be fourteen fields, so the panel has two, padding
@@ -17,9 +17,10 @@
  * utilities.spacing.scale is what 0 to 5 come to, for a page that changed
  * Bootstrap's $spacers.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.padding': 'Padding',
     'utility.margin': 'Margin',
     'utility.side_all': 'All sides',
@@ -63,18 +64,18 @@ function pattern(key) {
     return new RegExp('^' + key + '[xytbse]?-(?:(?:sm|md|lg|xl|xxl)-)?(?:[0-5]|auto)$');
 }
 
-$.fn.gridEditor.utilities.spacing = function(ge) {
+GridEditor.utilities.spacing = function(ge) {
 
-    var options = $.extend({ values: VALUES, scale: SCALE }, ge.settings.utilities.spacing);
+    var options = Object.assign({ values: VALUES, scale: SCALE }, ge.settings.utilities.spacing);
     var patterns = { p: pattern('p'), m: pattern('m') };
 
     function applies(node, kind) {
         return kind === 'row' || kind === 'column' || kind === 'element' ||
-            node.is('[data-ge-container]');
+            dom.is(node, '[data-ge-container]');
     }
 
     function classes(node) {
-        return (node.attr('class') || '').split(/\s+/);
+        return (node.getAttribute('class') || '').split(/\s+/);
     }
 
     function carries(node, key) {
@@ -106,16 +107,16 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
      * since that is the only way to ask the browser.
      */
     function without(node, key) {
-        var original = node.attr('class');
+        var original = node.getAttribute('class');
         var style;
         var bare = {};
 
-        node.attr('class', classes(node).filter(function(name) { return !patterns[key].test(name); }).join(' '));
-        style = getComputedStyle(node[0]);
+        node.setAttribute('class', classes(node).filter(function(name) { return !patterns[key].test(name); }).join(' '));
+        style = getComputedStyle(node);
         ['top', 'right', 'bottom', 'left'].forEach(function(side) {
             bare[side] = style.getPropertyValue(PROPERTIES[key] + '-' + side);
         });
-        node.attr('class', original);
+        if (original === null) { node.removeAttribute('class'); } else { node.setAttribute('class', original); }
 
         return bare;
     }
@@ -182,26 +183,25 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
 
     /** A padding or margin group: its name, the side, and the field of that side's family. */
     function group(node, key, labelText) {
-        var box = $('<div class="ge-spacing-group" />').attr('data-ge-spacing', key);
-        var side = $('<select class="ge-spacing-side form-select form-select-sm" />');
+        var box = dom.element('div', { 'class': 'ge-spacing-group', 'data-ge-spacing': key });
+        var side = dom.element('select', { 'class': 'ge-spacing-side form-select form-select-sm' });
 
-        $('<span class="ge-utility-label" />').text(labelText).appendTo(box);
+        box.appendChild(dom.element('span', { 'class': 'ge-utility-label' }, labelText));
 
         SIDES.forEach(function(value) {
-            $('<option />').attr('value', value).text(sideLabel(value)).appendTo(side);
+            side.appendChild(dom.element('option', { value: value }, sideLabel(value)));
         });
 
         var field = ge.utilityField(node, key + startingSide(node, key));
 
-        side.val(field.attr('data-ge-family').slice(1))
-            .on('change', function() {
-                var next = ge.utilityField(node, key + this.value);
-                field.replaceWith(next);
-                field = next;
-            })
-            .appendTo(box)
-        ;
-        field.appendTo(box);
+        side.value = field.getAttribute('data-ge-family').slice(1);
+        side.addEventListener('change', function() {
+            var next = ge.utilityField(node, key + this.value);
+            field.replaceWith(next);
+            field = next;
+        });
+        box.appendChild(side);
+        box.appendChild(field);
 
         return box;
     }
@@ -216,29 +216,29 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
      * about what that does to its gutter.
      */
     function mark(scope) {
-        scope.find(NODES).addBack(NODES).each(function() {
-            var node = $(this);
-            var drawer = node.children('.ge-tools-drawer');
+        dom.selfAndAll(scope, NODES).forEach(function(node) {
+            var drawer = dom.child(node, '.ge-tools-drawer');
 
-            if (!drawer.length || !applies(node, ge.kindOf(node))) { return; }
+            if (!drawer || !applies(node, ge.kindOf(node))) { return; }
 
             if (carries(node, 'p')) {
-                var style = getComputedStyle(node[0]);
+                var style = getComputedStyle(node);
 
-                drawer.css({
-                    marginTop: '-' + style.paddingTop,
-                    marginLeft: '-' + style.paddingLeft,
-                    marginRight: '-' + style.paddingRight,
+                dom.css(drawer, {
+                    'margin-top': '-' + style.paddingTop,
+                    'margin-left': '-' + style.paddingLeft,
+                    'margin-right': '-' + style.paddingRight,
                     width: 'calc(100% + ' + style.paddingLeft + ' + ' + style.paddingRight + ')',
                 });
             } else {
-                drawer.css({ marginTop: '', marginLeft: '', marginRight: '', width: '' });
+                dom.css(drawer, { 'margin-top': '', 'margin-left': '', 'margin-right': '', width: '' });
             }
 
-            if (node.hasClass('column')) {
-                drawer.find('.ge-spacing-gutter').toggle(classes(node).some(function(name) {
+            if (dom.hasClass(node, 'column')) {
+                var padded = classes(node).some(function(name) {
                     return /^p[xse]?-/.test(name) && patterns.p.test(name);
-                }));
+                });
+                dom.all(drawer, '.ge-spacing-gutter').forEach(function(note) { dom.toggle(note, padded); });
             }
         });
     }
@@ -268,13 +268,12 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
         panel: function(node, kind) {
             if (!applies(node, kind)) { return null; }
 
-            var box = $('<div class="ge-spacing" />')
-                .append(group(node, 'p', ge.t('utility.padding')))
-                .append(group(node, 'm', ge.t('utility.margin')))
-            ;
+            var box = dom.element('div', { 'class': 'ge-spacing' });
+            box.appendChild(group(node, 'p', ge.t('utility.padding')));
+            box.appendChild(group(node, 'm', ge.t('utility.margin')));
 
             if (kind === 'column') {
-                $('<small class="ge-spacing-gutter" />').text(ge.t('utility.spacing_gutter')).appendTo(box);
+                box.appendChild(dom.element('small', { 'class': 'ge-spacing-gutter' }, ge.t('utility.spacing_gutter')));
             }
 
             return box;
@@ -286,7 +285,7 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
             var styles = {};
 
             ['p', 'm'].forEach(function(key) {
-                if (carries(node, key)) { $.extend(styles, sides(node, key, breakpoint)); }
+                if (carries(node, key)) { Object.assign(styles, sides(node, key, breakpoint)); }
             });
 
             return styles;
@@ -295,5 +294,3 @@ $.fn.gridEditor.utilities.spacing = function(ge) {
         onRefresh: mark,
     };
 };
-
-})(jQuery);

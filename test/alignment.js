@@ -13,26 +13,27 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.row = function() { return jQuery('#myGrid > .row').first(); };
-    window.col = function() { return row().children('.column').first(); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.row = function() { return document.querySelector('#myGrid > .row'); };
+    window.col = function() { return row().querySelector(':scope > .column'); };
     window.families = function(node) {
-        return node.find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(',');
+        return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(',');
     };
     window.css = function() {
         return {
-            justify: getComputedStyle(row()[0]).justifyContent,
-            items: getComputedStyle(row()[0]).alignItems,
-            self: getComputedStyle(col()[0]).alignSelf,
+            justify: getComputedStyle(row()).justifyContent,
+            items: getComputedStyle(row()).alignItems,
+            self: getComputedStyle(col()).alignSelf,
         };
     };
     window.start = function(rowClasses, colClasses) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row ' + rowClasses + '">' +
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row ' + rowClasses + '">' +
             '<div class="column col-4 ' + colClasses + '"><div class="ge-content"><p>a</p></div></div>' +
             '<div class="column col-4"><div class="ge-content"><p>b</p><p>taller</p></div></div></div>');
         window.fixture.init({ plugins: window.fixture.plugins(['alignment']) });
     };
+    window.texts = function(nodes) { return Array.from(nodes).map(function(node) { return node.textContent; }).join(','); };
 `;
 
 async function run(t) {
@@ -44,8 +45,8 @@ async function run(t) {
         return {
             row: families(row()),
             column: families(col()),
-            labels: row().find('> .ge-tools-drawer .ge-utility-label').map(function() { return this.textContent; }).get().join(','),
-            justifyValues: row().find('> .ge-tools-drawer .ge-utility[data-ge-family="justify-content"] option').map(function() { return this.value; }).get().join(','),
+            labels: texts(row().querySelectorAll(':scope > .ge-tools-drawer .ge-utility-label')),
+            justifyValues: Array.from(row().querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="justify-content"] option')).map(function(option) { return option.value; }).join(','),
         };
     `);
     t.check('rows get justify-content and align-items, columns align-self',
@@ -70,8 +71,9 @@ async function run(t) {
     var written = await page.eval(`
         start('', '');
         ge().changeView('md');
-        const select = row().find('> .ge-tools-drawer .ge-utility[data-ge-family="justify-content"] select');
-        select.val('evenly').trigger('change');
+        const select = row().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="justify-content"] select');
+        select.value = 'evenly';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
         ge().setUtility(col(), 'align-self', 'center');
         const shown = css();
         const html = ge().getHtml();

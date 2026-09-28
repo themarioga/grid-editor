@@ -7,15 +7,15 @@
  * align-self-{breakpoint}-* classes. What it can ask the editor for is the
  * handle its factory is called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.alignment.min.js"></script>
  *
  * Fields only, in the settings panels: alignment is set now and then, not
  * clicked through, and a drawer is short of room.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.justify_content': 'Justify columns',
     'utility.align_items': 'Align columns',
     'utility.align_self': 'Align self',
@@ -40,7 +40,7 @@ var FLEX = {
  * wider breakpoint's class that is live in a wide window.
  */
 function family(definition) {
-    return $.extend({
+    return Object.assign({
         prefix: definition.name,
         preview: function(value) {
             var styles = {};
@@ -50,7 +50,7 @@ function family(definition) {
     }, definition);
 }
 
-$.fn.gridEditor.utilities.alignment = function() {
+GridEditor.utilities.alignment = function() {
     return {
         families: [
             family({
@@ -77,5 +77,3 @@ $.fn.gridEditor.utilities.alignment = function() {
         ],
     };
 };
-
-})(jQuery);

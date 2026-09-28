@@ -14,40 +14,45 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.row = function() { return jQuery('#myGrid > .row').first(); };
-    window.col = function() { return row().children('.column').first(); };
-    window.other = function() { return row().children('.column').eq(1); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.row = function() { return document.querySelector('#myGrid > .row'); };
+    window.col = function() { return row().querySelectorAll(':scope > .column')[0]; };
+    window.other = function() { return row().querySelectorAll(':scope > .column')[1]; };
     window.group = function(node, key) {
-        return node.find('> .ge-tools-drawer .ge-spacing-group[data-ge-spacing="' + key + '"]');
+        return node.querySelector(':scope > .ge-tools-drawer .ge-spacing-group[data-ge-spacing="' + key + '"]');
+    };
+    /** Pick a value in a select, as the user does. */
+    window.choose = function(select, value) {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
     };
     window.padding = function(node) {
-        const style = getComputedStyle(node[0]);
+        const style = getComputedStyle(node);
         return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].join(' ');
     };
     window.classes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) { return /^[pm][xytbse]?-/.test(name); }).sort().join(' ');
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) { return /^[pm][xytbse]?-/.test(name); }).sort().join(' ');
     };
     window.start = function(colClasses, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row">' +
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = '<div class="row">' +
             '<div class="column col-6 ' + colClasses + '"><div class="ge-content"><p>a</p><div data-ge-element="box">box</div></div></div>' +
-            '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>');
-        window.fixture.init(jQuery.extend({ plugins: window.fixture.plugins(['spacing']) }, settings || {}));
+            '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>';
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['spacing']) }, settings || {}));
     };
 `;
 
 async function panelTests(t, page) {
     var panel = await page.eval(`
         start('mx-md-auto');
-        const side = function(key) { return group(col(), key).children('.ge-spacing-side'); };
+        const side = function(key) { return group(col(), key).querySelector(':scope > .ge-spacing-side'); };
         return {
-            groups: col().find('> .ge-tools-drawer .ge-spacing-group').length,
-            fields: col().find('> .ge-tools-drawer .ge-utility').map(function() { return jQuery(this).attr('data-ge-family'); }).get().join(','),
-            sides: side('p').find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
-            startsOn: side('p').val() + '|' + side('m').val(),
-            elementGroups: jQuery('#myGrid .ge-element > .ge-tools-drawer .ge-spacing-group').length,
-            rowGroups: group(row(), 'p').length,
+            groups: col().querySelectorAll(':scope > .ge-tools-drawer .ge-spacing-group').length,
+            fields: Array.from(col().querySelectorAll(':scope > .ge-tools-drawer .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(','),
+            sides: Array.from(side('p').querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
+            startsOn: side('p').value + '|' + side('m').value,
+            elementGroups: document.querySelectorAll('#myGrid .ge-element > .ge-tools-drawer .ge-spacing-group').length,
+            rowGroups: group(row(), 'p') ? 1 : 0,
         };
     `);
     t.check('the panel has a padding and a margin group, not a field per family',
@@ -62,19 +67,19 @@ async function panelTests(t, page) {
     var chosen = await page.eval(`
         start('');
         ge().changeView('md');
-        group(col(), 'p').children('.ge-spacing-side').val('t').trigger('change');
-        const field = group(col(), 'p').find('.ge-utility');
-        const family = field.attr('data-ge-family');
-        field.find('select').val('4').trigger('change');
-        group(col(), 'm').find('.ge-utility select').val('auto').trigger('change');
-        return { family: family, classes: classes(col()), value: group(col(), 'p').find('.ge-utility select').val() };
+        choose(group(col(), 'p').querySelector(':scope > .ge-spacing-side'), 't');
+        const field = group(col(), 'p').querySelector('.ge-utility');
+        const family = field.getAttribute('data-ge-family');
+        choose(field.querySelector('select'), '4');
+        choose(group(col(), 'm').querySelector('.ge-utility select'), 'auto');
+        return { family: family, classes: classes(col()), value: group(col(), 'p').querySelector('.ge-utility select').value };
     `);
     t.check('choosing a side swaps in that side\'s field, which writes for the breakpoint',
         chosen.family === 'pt' && chosen.classes === 'm-md-auto pt-md-4' && chosen.value === '4', chosen);
 
     var narrowed = await page.eval(`
         start('', { utilities: { spacing: { values: ['0', '2'] } } });
-        const values = function(key) { return group(col(), key).find('.ge-utility option').map(function() { return this.value; }).get().join(','); };
+        const values = function(key) { return Array.from(group(col(), key).querySelectorAll('.ge-utility option')).map(function(option) { return option.value; }).join(','); };
         return { p: values('p'), m: values('m') };
     `);
     t.check('utilities.spacing.values narrows what is offered, and margin keeps auto',
@@ -82,11 +87,11 @@ async function panelTests(t, page) {
 
     var note = await page.eval(`
         start('px-2');
-        const shown = function(node) { return node.find('> .ge-tools-drawer .ge-spacing-gutter').css('display') !== 'none'; };
+        const shown = function(node) { return getComputedStyle(node.querySelector(':scope > .ge-tools-drawer .ge-spacing-gutter')).display !== 'none'; };
         return {
             padded: shown(col()),
             plain: shown(other()),
-            row: row().find('> .ge-tools-drawer .ge-spacing-gutter').length,
+            row: row().querySelectorAll(':scope > .ge-tools-drawer .ge-spacing-gutter').length,
         };
     `);
     t.check('a column padded at the sides is told that is its gutter; others are not',
@@ -117,7 +122,7 @@ async function previewTests(t, page) {
     var auto = await page.eval(`
         start('mx-auto');
         ge().changeView('sm');
-        const inline = col()[0].style.marginLeft + ' ' + col()[0].style.marginRight;
+        const inline = col().style.marginLeft + ' ' + col().style.marginRight;
         const html = ge().getHtml();
         return { inline: inline, html: html };
     `);
@@ -130,8 +135,8 @@ async function previewTests(t, page) {
         start('py-md-4 px-2');
         ge().changeView('md');
         const edge = function(node) {
-            const box = node[0].getBoundingClientRect();
-            const drawer = node.children('.ge-tools-drawer')[0].getBoundingClientRect();
+            const box = node.getBoundingClientRect();
+            const drawer = node.querySelector(':scope > .ge-tools-drawer').getBoundingClientRect();
             return [Math.round(drawer.top - box.top), Math.round(drawer.left - box.left), Math.round(box.right - drawer.right)].join(' ');
         };
         const padded = edge(col());

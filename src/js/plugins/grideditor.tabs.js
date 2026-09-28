@@ -5,43 +5,48 @@
  * a tabs container. What it can ask the editor for is the handle its factory is
  * called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.tabs.min.js"></script>
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'container.add_tabs': 'Tabs',
     'container.add_tab': 'Add tab',
     'container.tab_label': 'Tab {number}',
     'confirm.delete_tab': 'Delete this tab and everything in it?',
 });
 
-$.fn.gridEditor.containers.tabs = function(ge) {
+GridEditor.containers.tabs = function(ge) {
 
     function addTabTo(container, options) {
         options = options || {};
 
-        var strip = container.find('> .nav-tabs');
-        var content = container.find('> .tab-content');
+        var strip = dom.one(container, ':scope > .nav-tabs');
+        var content = dom.one(container, ':scope > .tab-content');
         var id = ge.containerId('tab');
-        var number = strip.children('.nav-item').length + 1;
+        var number = dom.children(strip, '.nav-item').length + 1;
 
-        $('<li class="nav-item ge-tab" role="presentation" />')
-            .append($('<button class="nav-link" type="button" role="tab" data-bs-toggle="tab" />')
-                .attr('data-bs-target', '#' + id)
-                .attr('aria-controls', id)
-                .append($('<span class="ge-pane-label" />')
-                    .text(options.label || ge.t('container.tab_label', { number: number })))
-            )
-            .appendTo(strip)
-        ;
+        var tab = strip.appendChild(dom.element('li', { 'class': 'nav-item ge-tab', role: 'presentation' }));
+        var button = tab.appendChild(dom.element('button', {
+            'class': 'nav-link',
+            type: 'button',
+            role: 'tab',
+            'data-bs-toggle': 'tab',
+            'data-bs-target': '#' + id,
+            'aria-controls': id,
+        }));
+        button.appendChild(dom.element('span', { 'class': 'ge-pane-label' },
+            options.label || ge.t('container.tab_label', { number: number })));
 
-        var pane = $('<div class="tab-pane fade" role="tabpanel" tabindex="0" />')
-            .attr('id', id)
-            .append(ge.defaultRegion())
-            .appendTo(content)
-        ;
+        var pane = content.appendChild(dom.element('div', {
+            'class': 'tab-pane fade',
+            role: 'tabpanel',
+            tabindex: '0',
+            id: id,
+        }));
+        pane.appendChild(ge.defaultRegion());
 
         if (options.activate || number === 1) { activatePane(container, pane); }
 
@@ -49,26 +54,26 @@ $.fn.gridEditor.containers.tabs = function(ge) {
     }
 
     function activatePane(container, pane) {
-        var id = pane.attr('id');
+        var id = pane.getAttribute('id');
 
-        container.find('> .tab-content > .tab-pane').removeClass('show active');
-        pane.addClass('show active');
+        dom.all(container, ':scope > .tab-content > .tab-pane').forEach(function(each) {
+            dom.removeClass(each, 'show active');
+        });
+        dom.addClass(pane, 'show active');
 
-        container.find('> .nav-tabs .nav-link').each(function() {
-            var button = $(this);
-            var active = button.attr('data-bs-target') === '#' + id;
+        dom.all(container, ':scope > .nav-tabs .nav-link').forEach(function(button) {
+            var active = button.getAttribute('data-bs-target') === '#' + id;
 
-            button.toggleClass('active', active).attr('aria-selected', active ? 'true' : 'false');
+            dom.toggleClass(button, 'active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
         });
     }
 
-    function tabOf(container, pane) {
-        return container.find('> .nav-tabs .nav-link[data-bs-target="#' + pane.attr('id') + '"]')
-            .closest('.nav-item');
-    }
-
     function paneOf(container, tab) {
-        return container.find(tab.find('.nav-link').attr('data-bs-target'));
+        var link = dom.one(tab, '.nav-link');
+        var target = link ? link.getAttribute('data-bs-target') : null;
+
+        return target ? dom.one(container, target) : null;
     }
 
     return {
@@ -77,7 +82,7 @@ $.fn.gridEditor.containers.tabs = function(ge) {
         // A tab strip sorts its own tabs, and the panes follow them. No
         // group: a tab belongs to the strip it was made in.
         onSortable: function(sortable) {
-            sortable(ge.canvas.find('.ge-container-tabs > .nav-tabs'), {
+            sortable(dom.all(ge.canvas, '.ge-container-tabs > .nav-tabs'), {
                 draggable: '.ge-tab',
             });
         },
@@ -85,12 +90,12 @@ $.fn.gridEditor.containers.tabs = function(ge) {
         paneKind: 'tab',
 
         create: function(options) {
-            var container = $('<div />').attr('data-ge-container', 'tabs');
+            var container = dom.element('div', { 'data-ge-container': 'tabs' });
             var labels = options.labels || [];
             var count = options.tabs || labels.length || 2;
 
-            $('<ul class="nav nav-tabs" role="tablist" />').appendTo(container);
-            $('<div class="tab-content" />').appendTo(container);
+            container.appendChild(dom.element('ul', { 'class': 'nav nav-tabs', role: 'tablist' }));
+            container.appendChild(dom.element('div', { 'class': 'tab-content' }));
 
             for (var i = 0; i < count; i++) {
                 addTabTo(container, { label: labels[i] });
@@ -102,27 +107,29 @@ $.fn.gridEditor.containers.tabs = function(ge) {
         addPane: addTabTo,
 
         mark: function(container) {
-            container.find('> .tab-content > .tab-pane').addClass('ge-tab-pane');
+            dom.all(container, ':scope > .tab-content > .tab-pane').forEach(function(pane) {
+                dom.addClass(pane, 'ge-tab-pane');
+            });
 
-            container.find('> .nav-tabs > .nav-item').each(function() {
-                var tab = $(this).addClass('ge-tab');
+            dom.all(container, ':scope > .nav-tabs > .nav-item').forEach(function(tab) {
+                dom.addClass(tab, 'ge-tab');
 
+                var link = dom.one(tab, '.nav-link');
+                if (link) { ge.makeLabelEditable(ge.labelIn(link)); }
 
-                ge.makeLabelEditable(ge.labelIn(tab.find('.nav-link')));
-
-                if (tab.find('> .ge-tools-drawer').length) { return; }
+                if (dom.child(tab, '.ge-tools-drawer')) { return; }
 
                 ge.createPaneControls(tab, 'tab', ge.settings.tab_tools, ge.t('confirm.delete_tab'),
                     function(removed) {
                         var pane = paneOf(container, tab);
-                        var wasActive = pane.hasClass('active');
+                        var wasActive = dom.hasClass(pane, 'active');
 
-                        tab.fadeOut(200, function() {
-                            pane.remove();
+                        dom.fadeOut(tab, 200, function() {
+                            if (pane) { pane.remove(); }
                             removed();
 
-                            var first = container.find('> .tab-content > .tab-pane').first();
-                            if (wasActive && first.length) { activatePane(container, first); }
+                            var first = dom.one(container, ':scope > .tab-content > .tab-pane');
+                            if (wasActive && first) { activatePane(container, first); }
                         });
                     });
             });
@@ -130,19 +137,20 @@ $.fn.gridEditor.containers.tabs = function(ge) {
 
         unmark: function(container) {
             ge.resumeToggles(container);
-            container.find('.ge-tab-pane').removeClass('ge-tab-pane');
+            dom.all(container, '.ge-tab-pane').forEach(function(pane) {
+                dom.removeClass(pane, 'ge-tab-pane');
+            });
             ge.unwrapLabels(container);
         },
 
         /** Panes read in tab order, whatever order they were dropped in. */
         afterPaneMove: function(container) {
-            var content = container.find('> .tab-content');
+            var content = dom.one(container, ':scope > .tab-content');
 
-            container.find('> .nav-tabs > .nav-item').each(function() {
-                content.append(paneOf(container, $(this)));
+            dom.all(container, ':scope > .nav-tabs > .nav-item').forEach(function(tab) {
+                var pane = paneOf(container, tab);
+                if (pane) { content.appendChild(pane); }
             });
         },
     };
 };
-
-})(jQuery);

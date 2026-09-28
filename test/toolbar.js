@@ -18,24 +18,30 @@ var FIXTURE = '/test/fixtures/grid.html?init=manual';
 /** Two rows to drop between, with the palette turned on. */
 function canvasWith(settings) {
     return `
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        const grid = document.querySelector('#myGrid');
+        grid.innerHTML =
             '<div class="row" id="first"><div class="column col-12"><div class="ge-content"><p>First row</p></div></div></div>' +
-            '<div class="row" id="second"><div class="column col-12"><div class="ge-content"><p>Second row</p></div></div></div>'
-        );
+            '<div class="row" id="second"><div class="column col-12"><div class="ge-content"><p>Second row</p></div></div></div>';
         window.log = [];
-        jQuery('#myGrid').off('grideditor:after-add grideditor:before-add');
+        (window.listening || []).forEach(function(entry) { grid.removeEventListener(entry[0], entry[1]); });
+        window.listening = [];
+        /** Listen on the canvas until the next canvasWith. */
+        window.listen = function(name, handler) {
+            grid.addEventListener(name, handler);
+            window.listening.push([name, handler]);
+        };
         window.fixture.init(${JSON.stringify(Object.assign({ default_view: 'xs', drag_handle: 'drawer' }, settings))});
-        jQuery('#myGrid').on('grideditor:after-add', function(e, payload) {
-            window.log.push([payload.kind, payload.source]);
+        listen('grideditor:after-add', function(e) {
+            window.log.push([e.detail.kind, e.detail.source]);
         });
     `;
 }
 
 var ROWS = `
-    return jQuery('#myGrid > .row').map(function() {
-        return this.id || 'new:' + jQuery(this).children('.column').length;
-    }).get().join(',');
+    return Array.from(document.querySelectorAll('#myGrid > .row')).map(function(row) {
+        return row.id || 'new:' + row.querySelectorAll(':scope > .column').length;
+    }).join(',');
 `;
 
 async function paletteTests(t) {
@@ -44,9 +50,9 @@ async function paletteTests(t) {
 
     var ready = await page.eval(`
         return {
-            draggable: jQuery('.ge-addRowGroup a').first().hasClass('ge-palette-button'),
-            containerButtons: jQuery('.ge-addContainerGroup a.ge-palette-button').length,
-            marked: jQuery('[data-ge-toolbar]').length,
+            draggable: document.querySelector('.ge-addRowGroup a').classList.contains('ge-palette-button'),
+            containerButtons: document.querySelectorAll('.ge-addContainerGroup a.ge-palette-button').length,
+            marked: document.querySelectorAll('[data-ge-toolbar]').length,
         };
     `);
     t.check('the toolbar buttons are draggable when the palette is on',
@@ -55,7 +61,7 @@ async function paletteTests(t) {
     // Between the two rows: the drawer of the second one is canvas level
     await page.drag('.ge-addRowGroup a[data-ge-layout="6,6"]', '#second > .ge-tools-drawer');
     var dropped = await page.eval(`
-        return { rows: (function() { ${ROWS} })(), log: window.log, buttons: jQuery('#myGrid [data-ge-toolbar]').length };
+        return { rows: (function() { ${ROWS} })(), log: window.log, buttons: document.querySelectorAll('#myGrid [data-ge-toolbar]').length };
     `);
     t.check('a row button dropped between two rows makes its row there, with its layout',
         dropped.rows === 'first,new:2,second' &&
@@ -69,7 +75,7 @@ async function paletteTests(t) {
     var nested = await page.eval(`
         return {
             rows: (function() { ${ROWS} })(),
-            nested: jQuery('#first .column > .row').length,
+            nested: document.querySelectorAll('#first .column > .row').length,
             log: window.log,
         };
     `);
@@ -82,11 +88,11 @@ async function paletteTests(t) {
     await page.eval(canvasWith() + 'return true;');
     await page.drag('[data-ge-container-type="accordion"]', '#second > .ge-tools-drawer');
     var container = await page.eval(`
-        const made = jQuery('#myGrid [data-ge-container]');
+        const made = document.querySelector('#myGrid [data-ge-container]');
         return {
             rows: (function() { ${ROWS} })(),
-            parent: made.parent().attr('class'),
-            grandparentIsRow: made.closest('.row').parent().attr('id'),
+            parent: made.parentElement.getAttribute('class'),
+            grandparentIsRow: made.closest('.row').parentElement.getAttribute('id'),
             log: window.log,
         };
     `);
@@ -100,11 +106,11 @@ async function paletteTests(t) {
     await page.eval(canvasWith() + 'return true;');
     await page.drag('[data-ge-container-type="tabs"]', '#first .ge-content', { yRatio: 0.5 });
     var inColumn = await page.eval(`
-        const made = jQuery('#myGrid [data-ge-container]');
+        const made = document.querySelector('#myGrid [data-ge-container]');
         return {
             rows: (function() { ${ROWS} })(),
-            parentIsColumn: made.parent().hasClass('column'),
-            panes: made.find('.tab-pane').length,
+            parentIsColumn: made.parentElement.classList.contains('column'),
+            panes: made.querySelectorAll('.tab-pane').length,
             log: window.log,
         };
     `);
@@ -143,12 +149,12 @@ async function markerTests(t) {
     }
 
     var midDrag = await page.eval(`
-        const marker = jQuery('.ge-drop-marker');
+        const markers = document.querySelectorAll('.ge-drop-marker');
         return {
-            marker: marker.length,
-            markerBefore: marker.next().attr('id'),
-            canvasOpen: jQuery('#myGrid').hasClass('ge-dropping'),
-            helperIgnoresThePointer: getComputedStyle(jQuery('.ge-toolbar-helper')[0]).pointerEvents,
+            marker: markers.length,
+            markerBefore: markers[0] && markers[0].nextElementSibling ? markers[0].nextElementSibling.getAttribute('id') : undefined,
+            canvasOpen: document.querySelector('#myGrid').classList.contains('ge-dropping'),
+            helperIgnoresThePointer: getComputedStyle(document.querySelector('.ge-toolbar-helper')).pointerEvents,
         };
     `);
     t.check('the canvas opens up mid drag and shows a marker where the block would land',
@@ -163,10 +169,10 @@ async function markerTests(t) {
 
     var afterDrop = await page.eval(`
         return {
-            markers: jQuery('.ge-drop-marker').length,
-            canvasOpen: jQuery('#myGrid').hasClass('ge-dropping'),
+            markers: document.querySelectorAll('.ge-drop-marker').length,
+            canvasOpen: document.querySelector('#myGrid').classList.contains('ge-dropping'),
             rows: (function() { ${ROWS} })(),
-            markerInOutput: /ge-drop-marker/.test(jQuery('#myGrid').gridEditor('getHtml')),
+            markerInOutput: /ge-drop-marker/.test(window.fixture.editor().getHtml()),
         };
     `);
     t.check('the marker is editor furniture: gone on drop, and never in the output',
@@ -175,15 +181,15 @@ async function markerTests(t) {
         afterDrop);
 
     await page.eval(canvasWith() + `
-        jQuery('#myGrid').on('grideditor:before-add', function(e) { e.preventDefault(); });
+        listen('grideditor:before-add', function(e) { e.preventDefault(); });
         return true;
     `);
     await page.drag('.ge-addRowGroup a[data-ge-layout="12"]', '#second > .ge-tools-drawer');
     var afterCancel = await page.eval(`
         return {
             rows: (function() { ${ROWS} })(),
-            buttons: jQuery('#myGrid [data-ge-toolbar]').length,
-            markers: jQuery('.ge-drop-marker').length,
+            buttons: document.querySelectorAll('#myGrid [data-ge-toolbar]').length,
+            markers: document.querySelectorAll('.ge-drop-marker').length,
         };
     `);
     t.check('a canceled add leaves nothing of the drag behind',
@@ -197,28 +203,28 @@ async function settingTests(t) {
     await page.eval(canvasWith({ drag_handle: 'tool' }) + 'return true;');
     var byDefault = await page.eval(`
         return {
-            draggable: jQuery('.ge-addRowGroup a.ge-palette-button').length,
-            clickStillAdds: (jQuery('.ge-addRowGroup a[data-ge-layout="12"]').trigger('click'),
-                jQuery('#myGrid > .row').length),
+            draggable: document.querySelectorAll('.ge-addRowGroup a.ge-palette-button').length,
+            clickStillAdds: (document.querySelector('.ge-addRowGroup a[data-ge-layout="12"]').click(),
+                document.querySelectorAll('#myGrid > .row').length),
         };
     `);
     t.check('with the default drag handle the toolbar is not a palette, and still clicks',
         byDefault.draggable === 0 && byDefault.clickStillAdds === 3, byDefault);
 
     await page.eval(canvasWith({ drag_handle: 'tool', toolbar_drag: true }) + 'return true;');
-    var forcedOn = await page.eval(`return jQuery('.ge-addRowGroup a.ge-palette-button').length;`);
+    var forcedOn = await page.eval(`return document.querySelectorAll('.ge-addRowGroup a.ge-palette-button').length;`);
     t.check('toolbar_drag true turns the palette on whatever the drag handle is',
         forcedOn === 3, forcedOn);
 
     await page.eval(canvasWith({ toolbar_drag: false }) + 'return true;');
-    var forcedOff = await page.eval(`return jQuery('.ge-addRowGroup a.ge-palette-button').length;`);
+    var forcedOff = await page.eval(`return document.querySelectorAll('.ge-addRowGroup a.ge-palette-button').length;`);
     t.check('toolbar_drag false turns it off whatever the drag handle is',
         forcedOff === 0, forcedOff);
 
     var clicksToo = await page.eval(canvasWith() + `
-        jQuery('.ge-addContainerGroup a[data-ge-container-type="popup"]').trigger('click');
+        document.querySelector('.ge-addContainerGroup a[data-ge-container-type="popup"]').click();
         return {
-            containers: jQuery('#myGrid [data-ge-container="popup"]').length,
+            containers: document.querySelectorAll('#myGrid [data-ge-container="popup"]').length,
             rows: (function() { ${ROWS} })(),
         };
     `);
@@ -234,43 +240,48 @@ async function iconTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
     var faces = await page.eval(`
-        var card = $.fn.gridEditor.containers.card;
-        $.fn.gridEditor.containers.card = function(ge) {
-            return $.extend(card(ge), { iconClass: 'bi bi-square' });
+        var card = GridEditor.containers.card;
+        GridEditor.containers.card = function(ge) {
+            return Object.assign(card(ge), { iconClass: 'bi bi-square' });
         };
-        $.fn.gridEditor.texts.simple = function() {
+        GridEditor.texts.simple = function() {
             return { labelKey: 'text.simple', iconClass: 'bi bi-fonts', start: function() {}, stop: function() {} };
         };
-        $.fn.gridEditor.features.stamp = function() {
+        const row = function() {
+            const made = document.createElement('div');
+            made.className = 'row';
+            return made;
+        };
+        GridEditor.features.stamp = function() {
             return { toolbar: [
-                { labelKey: 'stamp.add', kind: 'row', iconClass: 'bi bi-star', create: function() { return jQuery('<div class="row"></div>'); } },
-                { labelKey: 'stamp.plain', kind: 'row', create: function() { return jQuery('<div class="row"></div>'); } },
+                { labelKey: 'stamp.add', kind: 'row', iconClass: 'bi bi-star', create: function() { return row(); } },
+                { labelKey: 'stamp.plain', kind: 'row', create: function() { return row(); } },
             ] };
         };
-        $.extend($.fn.gridEditor.locales.en, { 'text.simple': 'Simple', 'stamp.add': 'Stamp', 'stamp.plain': 'Plain stamp' });
+        Object.assign(GridEditor.locales.en, { 'text.simple': 'Simple', 'stamp.add': 'Stamp', 'stamp.plain': 'Plain stamp' });
 
-        jQuery('#myGrid').gridEditor('destroy');
         window.fixture.init({ content_types: ['simple'], plugins: window.fixture.plugins(['stamp']) });
 
         function face(button) {
+            const icon = button.querySelector(':scope > i');
+            const span = button.querySelector(':scope > span');
             return {
-                title: button.attr('title'),
-                icon: button.children('i').attr('class'),
-                label: button.children('span').text(),
+                title: button.getAttribute('title'),
+                icon: icon ? icon.getAttribute('class') : undefined,
+                label: span ? span.textContent : '',
             };
         }
         var faces = {
-            card: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="card"]')),
-            tabs: face(jQuery('.ge-addContainerGroup a[data-ge-container-type="tabs"]')),
-            text: face(jQuery('.ge-addContainerGroup .ge-add-text-button')),
-            stamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="0"]')),
-            plainStamp: face(jQuery('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="1"]')),
+            card: face(document.querySelector('.ge-addContainerGroup a[data-ge-container-type="card"]')),
+            tabs: face(document.querySelector('.ge-addContainerGroup a[data-ge-container-type="tabs"]')),
+            text: face(document.querySelector('.ge-addContainerGroup .ge-add-text-button')),
+            stamp: face(document.querySelector('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="0"]')),
+            plainStamp: face(document.querySelector('.ge-add-feature[data-ge-feature="stamp"][data-ge-item="1"]')),
         };
 
-        $.fn.gridEditor.containers.card = card;
-        delete $.fn.gridEditor.texts.simple;
-        delete $.fn.gridEditor.features.stamp;
-        jQuery('#myGrid').gridEditor('destroy');
+        GridEditor.containers.card = card;
+        delete GridEditor.texts.simple;
+        delete GridEditor.features.stamp;
         window.fixture.init({});
         return faces;
     `);

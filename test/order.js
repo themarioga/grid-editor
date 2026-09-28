@@ -13,51 +13,51 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.cols = function() { return jQuery('#myGrid > .row').first().children('.column'); };
-    window.col = function(name) { return cols().filter('[data-name="' + name + '"]'); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.cols = function() { return Array.from(document.querySelector('#myGrid > .row').querySelectorAll(':scope > .column')); };
+    window.col = function(name) { return cols().filter(function(column) { return column.getAttribute('data-name') === name; })[0]; };
     window.classes = function(node) {
-        return (node.attr('class') || '').split(/\\s+/).filter(function(name) {
+        return (node.getAttribute('class') || '').split(/\\s+/).filter(function(name) {
             return /^order-/.test(name);
         }).sort().join(' ');
     };
     window.all = function() {
-        return cols().map(function() { return jQuery(this).attr('data-name') + ':' + classes(jQuery(this)); }).get().join(' ');
+        return cols().map(function(column) { return column.getAttribute('data-name') + ':' + classes(column); }).join(' ');
     };
     /** The names in the order the canvas shows them, by their computed order. */
     window.shown = function() {
-        return cols().get()
+        return cols()
             .map(function(element, index) { return { name: element.getAttribute('data-name'), order: +getComputedStyle(element).order, index: index }; })
             .sort(function(a, b) { return a.order - b.order || a.index - b.index; })
             .map(function(entry) { return entry.name; }).join(',');
     };
     window.click = function(name, which) {
-        col(name).find('> .ge-tools-drawer > .ge-order-' + which).trigger('click');
+        col(name).querySelectorAll(':scope > .ge-tools-drawer > .ge-order-' + which).forEach(function(tool) { tool.click(); });
     };
     window.start = function(classesByName, settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row">' + ['a', 'b', 'c'].map(function(name) {
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = '<div class="row">' + ['a', 'b', 'c'].map(function(name) {
             return '<div class="column col-4 ' + ((classesByName || {})[name] || '') + '" data-name="' + name + '">' +
                 '<div class="ge-content"><p>' + name + '</p></div></div>';
-        }).join('') + '</div>');
-        window.fixture.init(jQuery.extend({ plugins: window.fixture.plugins(['order']) }, settings || {}));
+        }).join('') + '</div>';
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['order']) }, settings || {}));
     };
     window.moves = [];
-    jQuery('#myGrid').on('grideditor:after-utility', function(e, payload) { window.moves.push(payload.source); });
+    document.querySelector('#myGrid').addEventListener('grideditor:after-utility', function(e) { window.moves.push(e.detail.source); });
 `;
 
 async function fieldTests(t, page) {
     var field = await page.eval(`
         start({ a: 'order-md-last' });
-        const select = col('a').find('> .ge-tools-drawer .ge-utility[data-ge-family="order"] select');
+        const select = col('a').querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="order"] select');
         ge().changeView('md');
         return {
-            options: select.find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
-            rowFields: jQuery('#myGrid .row').first().find('> .ge-tools-drawer .ge-utility[data-ge-family="order"]').length,
-            arrows: col('a').find('> .ge-tools-drawer > .ge-order-earlier, > .ge-tools-drawer > .ge-order-later').length,
-            value: select.val(),
+            options: Array.from(select.querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
+            rowFields: document.querySelector('#myGrid .row').querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="order"]').length,
+            arrows: col('a').querySelectorAll(':scope > .ge-tools-drawer > .ge-order-earlier, :scope > .ge-tools-drawer > .ge-order-later').length,
+            value: select.value,
             shown: shown(),
-            badge: col('a').attr('data-ge-order'),
+            badge: col('a').getAttribute('data-ge-order'),
         };
     `);
     t.check('columns get the order field and the arrows, rows do not',
@@ -69,7 +69,7 @@ async function fieldTests(t, page) {
 
     var off = await page.eval(`
         start({}, { utilities: { order: { drawer: false } } });
-        return { arrows: jQuery('#myGrid .ge-order-earlier, #myGrid .ge-order-later').length, fields: jQuery('#myGrid .ge-utility[data-ge-family="order"]').length };
+        return { arrows: document.querySelectorAll('#myGrid .ge-order-earlier, #myGrid .ge-order-later').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="order"]').length };
     `);
     t.check('utilities.order.drawer false leaves the arrows out and keeps the field',
         off.arrows === 0 && off.fields === 3, off);
@@ -129,9 +129,10 @@ async function markupTests(t, page) {
         window.warnings = [];
         const original = console.warn;
         console.warn = function(message) { window.warnings.push(message); original.apply(console, arguments); };
-        const payload = { kind: 'column', node: col('b'), to: { parent: jQuery('#myGrid .row').first(), index: 0 } };
-        jQuery('#myGrid').trigger('grideditor:after-move', [payload]);
-        jQuery('#myGrid').trigger('grideditor:after-move', [payload]);
+        const payload = { kind: 'column', node: col('b'), to: { parent: document.querySelector('#myGrid .row'), index: 0 } };
+        const moved = () => new CustomEvent('grideditor:after-move', { detail: payload, bubbles: true });
+        document.querySelector('#myGrid').dispatchEvent(moved());
+        document.querySelector('#myGrid').dispatchEvent(moved());
         console.warn = original;
         return window.warnings.filter(function(message) { return /order classes/.test(message); }).length;
     `);
@@ -140,7 +141,7 @@ async function markupTests(t, page) {
 
     var exported = await page.eval(`
         const html = ge().getHtml();
-        return { html: html, badgeBack: col('a').attr('data-ge-order') };
+        return { html: html, badgeBack: col('a').getAttribute('data-ge-order') };
     `);
     t.check('getHtml keeps the classes, and neither the preview nor the badge',
         /order-md-2/.test(exported.html) && !/data-ge-order|data-ge-preview|style=/.test(exported.html) &&

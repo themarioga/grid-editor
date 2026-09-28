@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <!-- Grid editor CSS -->
@@ -17,39 +16,47 @@
     <!-- The editor, and no text editor of the shipped ones: the one this page
          edits text with is written below -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
 
     <!-- A text editor of the page's own. It is a feature plugin like any
          other: the core knows nothing of text, and asks the plugins through
          textTypes which types there are. This one edits with the browser's
          own contenteditable. -->
     <script id="simpletext-plugin">
-        (function($) {
+        (function() {
 
-            $.extend($.fn.gridEditor.locales.en, {
+            Object.assign(GridEditor.locales.en, {
                 'simpletext.label': 'Simple text',
                 'simpletext.add': 'Simple text',
             });
 
             var TYPE = 'simpletext';
 
-            $.fn.gridEditor.features.simpletext = function(ge) {
+            GridEditor.features.simpletext = function(ge) {
 
                 /** A content area of this plugin's: its type is on it. */
                 function isOurs(area) {
-                    return area.attr('data-ge-content-type') === TYPE;
+                    return !!area && area.getAttribute('data-ge-content-type') === TYPE;
                 }
 
                 function start(area) {
-                    if (area.hasClass('ge-rte-active')) { return; }
+                    if (area.classList.contains('ge-rte-active')) { return; }
 
-                    area.addClass('ge-rte-active').attr('contenteditable', 'true').trigger('focus');
+                    area.classList.add('ge-rte-active');
+                    area.setAttribute('contenteditable', 'true');
+                    area.focus();
                 }
 
                 // Whatever start put on the content area comes off: what is
                 // left is what getHtml saves
                 function stop(area) {
-                    area.removeClass('ge-rte-active').removeAttr('contenteditable');
+                    area.classList.remove('ge-rte-active');
+                    area.removeAttribute('contenteditable');
+                }
+
+                /** The content area a text block holds. */
+                function areaOf(textBlock) {
+                    return textBlock.querySelector(':scope > .ge-content');
                 }
 
                 /**
@@ -58,23 +65,32 @@
                  * drawer of a type a plugin declares to that plugin.
                  */
                 function createDrawer(textBlock) {
-                    var area = textBlock.children('.ge-content');
-                    var drawer = $('<div class="ge-tools-drawer ge-text-drawer" />').prependTo(textBlock);
+                    var area = areaOf(textBlock);
+                    var drawer = document.createElement('div');
+                    drawer.className = 'ge-tools-drawer ge-text-drawer';
+                    textBlock.insertBefore(drawer, textBlock.firstChild);
 
                     ge.createMoveTool(drawer);
                     ge.createTool(drawer, ge.t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
                         ge.deleteNode('text', area, ge.t('confirm.delete_text'), function(removed) {
                             stop(area);
-                            textBlock.slideUp(function() {
+                            // Folded away, then gone
+                            var fold = textBlock.animate(
+                                [{ height: textBlock.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }],
+                                { duration: 400, easing: 'ease-in-out' }
+                            );
+                            textBlock.style.overflow = 'hidden';
+                            fold.onfinish = function() {
                                 textBlock.remove();
                                 removed();
-                            });
+                            };
                         });
                     });
                 }
 
-                function onClick() {
-                    if (isOurs($(this))) { start($(this)); }
+                function onClick(e) {
+                    var area = e.target.closest('.ge-content');
+                    if (area && ge.canvas.contains(area) && isOurs(area)) { start(area); }
                 }
 
                 return {
@@ -87,8 +103,9 @@
                             type: TYPE,
                             label: ge.t('simpletext.label'),
                             edit: function(area) {
-                                var textBlock = area.parent('.ge-text-block');
-                                if (textBlock.length && !textBlock.children('.ge-tools-drawer').length) {
+                                var textBlock = area.parentElement;
+                                if (textBlock.classList.contains('ge-text-block') &&
+                                        !textBlock.querySelector(':scope > .ge-tools-drawer')) {
                                     createDrawer(textBlock);
                                 }
 
@@ -105,47 +122,49 @@
                         kind: 'text',
                         inColumn: true,
                         create: function() {
-                            return $('<div class="ge-content" />')
-                                .addClass('ge-content-type-' + TYPE)
-                                .attr('data-ge-content-type', TYPE)
-                                .html('<p>Write here</p>');
+                            var area = document.createElement('div');
+                            area.className = 'ge-content ge-content-type-' + TYPE;
+                            area.setAttribute('data-ge-content-type', TYPE);
+                            area.innerHTML = '<p>Write here</p>';
+                            return area;
                         },
                     }],
 
                     onInit: function() {
-                        ge.canvas.find('.ge-text-block').each(function() {
-                            var textBlock = $(this);
-                            if (textBlock.children('.ge-tools-drawer').length) { return; }
-                            if (isOurs(textBlock.children('.ge-content'))) { createDrawer(textBlock); }
+                        ge.canvas.querySelectorAll('.ge-text-block').forEach(function(textBlock) {
+                            if (textBlock.querySelector(':scope > .ge-tools-drawer')) { return; }
+                            if (isOurs(areaOf(textBlock))) { createDrawer(textBlock); }
                         });
 
-                        ge.canvas.off('click.simpletext').on('click.simpletext', '.ge-content', onClick);
+                        // One listener, however many times the canvas is initialized
+                        ge.canvas.removeEventListener('click', onClick);
+                        ge.canvas.addEventListener('click', onClick);
                     },
 
                     // Before the drawers and the text blocks come off
                     onBeforeDeinit: function() {
-                        ge.canvas.find('.ge-content').each(function() {
-                            if (isOurs($(this))) { stop($(this)); }
+                        ge.canvas.querySelectorAll('.ge-content').forEach(function(area) {
+                            if (isOurs(area)) { stop(area); }
                         });
                     },
 
                     onDeinit: function() {
-                        ge.canvas.off('click.simpletext');
+                        ge.canvas.removeEventListener('click', onClick);
                     },
                 };
             };
 
-        })(jQuery);
+        })();
     </script>
 
     <script>
-        $(function() {
-            $('#myGrid').gridEditor({
+        document.addEventListener('DOMContentLoaded', function() {
+            var editor = new GridEditor('#myGrid', {
                 new_row_layouts: [[12], [6, 6], [4, 4, 4]],
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
             });
         });
     </script>

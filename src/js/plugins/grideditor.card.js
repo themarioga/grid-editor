@@ -6,18 +6,24 @@
  * the editor for is the handle its factory is called with, described in
  * docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.card.min.js"></script>
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'container.add_card': 'Card',
     'container.card_title': 'Card title',
     'container.card_footer': 'Card footer',
 });
 
-$.fn.gridEditor.containers.card = function(ge) {
+GridEditor.containers.card = function(ge) {
+
+    /** A header's or a footer's text, editable in place, when the card has one. */
+    function editable(part) {
+        if (part) { ge.makeLabelEditable(ge.labelIn(part)); }
+    }
 
     return {
         labelKey: 'container.add_card',
@@ -29,34 +35,30 @@ $.fn.gridEditor.containers.card = function(ge) {
          * exactly one region and nests like any other container.
          */
         create: function(options) {
-            var card = $('<div class="card" />');
+            var card = dom.element('div', { 'class': 'card' });
 
             if (options.header !== false) {
-                $('<div class="card-header" />')
-                    .append($('<span class="ge-pane-label" />')
-                        .text(options.title || ge.t('container.card_title')))
-                    .appendTo(card)
-                ;
+                var header = card.appendChild(dom.element('div', { 'class': 'card-header' }));
+                header.appendChild(dom.element('span', { 'class': 'ge-pane-label' },
+                    options.title || ge.t('container.card_title')));
             }
 
-            $('<div class="card-body" />').append(ge.defaultRegion()).appendTo(card);
+            card.appendChild(dom.element('div', { 'class': 'card-body' })).appendChild(ge.defaultRegion());
 
             if (options.footer) {
-                $('<div class="card-footer text-body-secondary" />')
-                    .append($('<span class="ge-pane-label" />')
-                        .text(typeof options.footer === 'string'
-                            ? options.footer
-                            : ge.t('container.card_footer')))
-                    .appendTo(card)
-                ;
+                var footer = card.appendChild(dom.element('div', { 'class': 'card-footer text-body-secondary' }));
+                footer.appendChild(dom.element('span', { 'class': 'ge-pane-label' },
+                    typeof options.footer === 'string' ? options.footer : ge.t('container.card_footer')));
             }
 
-            return $('<div />').attr('data-ge-container', 'card').append(card);
+            var container = dom.element('div', { 'data-ge-container': 'card' });
+            container.appendChild(card);
+            return container;
         },
 
         mark: function(container) {
-            ge.makeLabelEditable(ge.labelIn(container.find('> .card > .card-header')));
-            ge.makeLabelEditable(ge.labelIn(container.find('> .card > .card-footer')));
+            editable(dom.one(container, ':scope > .card > .card-header'));
+            editable(dom.one(container, ':scope > .card > .card-footer'));
         },
 
         unmark: function(container) {
@@ -64,5 +66,3 @@ $.fn.gridEditor.containers.card = function(ge) {
         },
     };
 };
-
-})(jQuery);

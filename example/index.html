@@ -25,10 +25,16 @@
             Since 4.0 every gesture works with a finger as well as with a
             mouse &mdash; sorting, resizing a column, dragging a button off the
             toolbar &mdash; so these are worth opening on a phone. The editor
-            needs jQuery, <a href="https://sortablejs.github.io/Sortable/">SortableJS</a>
+            needs <a href="https://sortablejs.github.io/Sortable/">SortableJS</a>
             and Bootstrap 5; the first demo loads
-            <code>jquery.grideditor.bundle.min.js</code> instead, which is the
+            <code>grideditor.bundle.min.js</code> instead, which is the
             editor and SortableJS in one file.
+        </p>
+        <p class="text-body-secondary">
+            New in 7.0: no jQuery. The editor is <code>new GridEditor(element)</code>,
+            as a script or an ES module, and a page written for 6.x keeps
+            working with jQuery and <code>grideditor.jquery.js</code> &mdash; see
+            <a href="adapter.html">The jQuery API</a>.
         </p>
         <p class="text-body-secondary">
             New in 5.0: equal and auto columns, columns per row, and sections
@@ -171,6 +177,14 @@
                     <code class="text-body-secondary">autosave.html</code>
                 </div>
                 <span class="text-body-secondary">Saving the html as the user edits, through the editor&rsquo;s events</span>
+            </a>
+
+            <a class="list-group-item list-group-item-action" href="adapter.html">
+                <div class="d-flex justify-content-between">
+                    <strong>The jQuery API</strong>
+                    <code class="text-body-secondary">adapter.html</code>
+                </div>
+                <span class="text-body-secondary">A page written for grid-editor 6, running unchanged through grideditor.jquery.js</span>
             </a>
 
         </div>

@@ -6,16 +6,17 @@
  * beside the texts, instead of rich text. What it can ask the editor for is
  * the handle its factory is called with, described in docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.elements.min.js"></script>
  *
  * Up to 5.x an element lived inside a content area, among the text. Markup
  * saved that way still loads: the editor takes each element out of the text
  * it sits in, which is what `cuts` is for.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'tool.delete_element': 'Remove element',
     'tool.element_info': 'Element: {name}',
     'confirm.delete_element': 'Delete element?',
@@ -24,47 +25,49 @@ $.extend($.fn.gridEditor.locales.en, {
 /** A column's children that are something else than an element, whatever elements.auto says. */
 var NOT_ELEMENTS = '.row, .ge-content, .ge-text-block, [data-ge-container], .ge-tools-drawer, .ge-resize-handle';
 
-$.fn.gridEditor.features.elements = function(ge) {
+GridEditor.features.elements = function(ge) {
 
     var warnedIntoText = false;
 
     function elementsEnabled() {
         if (ge.settings.elements.enabled !== 'auto') { return !!ge.settings.elements.enabled; }
 
-        return ge.settings.elements.auto || ge.canvas.find(ge.settings.elements.selector).length > 0;
+        return ge.settings.elements.auto || !!ge.canvas.querySelector(ge.settings.elements.selector);
     }
 
     /** Whether a child of a column is an element. */
     function isElement(node) {
         return ge.settings.elements.auto
-            ? !node.is(NOT_ELEMENTS)
-            : node.is(ge.settings.elements.selector);
+            ? !node.matches(NOT_ELEMENTS)
+            : node.matches(ge.settings.elements.selector);
     }
 
     function markElements() {
         if (!elementsEnabled()) { return; }
 
-        ge.canvas.find('.column').children().each(function() {
-            var element = $(this);
-            if (!element.hasClass('ge-element') && !isElement(element)) { return; }
+        dom.all(ge.canvas, '.column').forEach(function(column) {
+            dom.children(column).forEach(function(element) {
+                if (!dom.hasClass(element, 'ge-element') && !isElement(element)) { return; }
 
-            element.addClass('ge-element');
-            if (!element.find('> .ge-tools-drawer').length) { createElementControls(element); }
+                dom.addClass(element, 'ge-element');
+                if (!dom.child(element, '.ge-tools-drawer')) { createElementControls(element); }
+            });
         });
     }
 
     function unmarkElements() {
-        ge.canvas.find('.ge-element').each(function() {
-            var element = $(this).removeClass('ge-element');
+        dom.all(ge.canvas, '.ge-element').forEach(function(element) {
+            dom.removeClass(element, 'ge-element');
 
             // A host element that had no class of its own should not come
             // back from getHtml carrying an empty one
-            if (!element.attr('class')) { element.removeAttr('class'); }
+            dom.dropEmptyClass(element);
         });
     }
 
     function createElementControls(element) {
-        var drawer = $('<div class="ge-tools-drawer ge-element-drawer" />').prependTo(element);
+        var drawer = dom.element('div', { 'class': 'ge-tools-drawer ge-element-drawer' });
+        element.insertBefore(drawer, element.firstChild);
 
         ge.createMoveTool(drawer);
         ge.createTool(drawer, ge.t('tool.element_info', { name: elementName(element) }),
@@ -78,18 +81,18 @@ $.fn.gridEditor.features.elements = function(ge) {
 
         ge.createTool(drawer, ge.t('tool.delete_element'), 'ge-delete-element', 'bi bi-trash', function() {
             ge.deleteNode('element', element, ge.t('confirm.delete_element'), function(removed) {
-                element.animate({ opacity: 'hide', height: 'hide' }, 300, removed);
+                dom.shrinkAway(element, 300, removed);
             });
         });
     }
 
     function elementName(element) {
-        var type = element.attr('data-ge-element');
-        var label = element.attr('data-ge-label');
+        var type = element.getAttribute('data-ge-element');
+        var label = element.getAttribute('data-ge-label');
 
         if (label && type) { return label + ' (' + type + ')'; }
 
-        return label || type || element[0].tagName.toLowerCase();
+        return label || type || element.tagName.toLowerCase();
     }
 
     /**
@@ -99,11 +102,11 @@ $.fn.gridEditor.features.elements = function(ge) {
      * prependTo - with a word to the host.
      */
     function placementBesideText(options) {
-        var placed = $.extend({}, options);
+        var placed = Object.assign({}, options);
 
         [['appendTo', 'insertAfter'], ['prependTo', 'insertBefore']].forEach(function(pair) {
-            var target = options[pair[0]] !== undefined ? $(options[pair[0]]) : null;
-            if (!target || !target.is('.ge-content')) { return; }
+            var target = options[pair[0]] !== undefined ? nodeFrom(options[pair[0]]) : null;
+            if (!target || !target.matches('.ge-content')) { return; }
 
             if (!warnedIntoText) {
                 warnedIntoText = true;
@@ -112,21 +115,44 @@ $.fn.gridEditor.features.elements = function(ge) {
             }
 
             delete placed[pair[0]];
-            placed[pair[1]] = target.parent('.ge-text-block').length ? target.parent() : target;
+            placed[pair[1]] = dom.hasClass(target.parentElement, 'ge-text-block') ? target.parentElement : target;
         });
 
         return placed;
     }
 
+    /** A place a caller named: an element, or the first one a selector matches. */
+    function nodeFrom(node) {
+        if (typeof node === 'string') { return document.querySelector(node); }
+        return node && node.nodeType === 1 ? node : null;
+    }
+
+    /**
+     * What the element holds: html, which is parsed as innerHTML parses so
+     * no <script> in it runs, or a node, or a list of nodes.
+     */
+    function fill(element, content) {
+        if (content === undefined || content === null) { return; }
+
+        if (typeof content === 'string') {
+            dom.parse(content).forEach(function(node) { element.appendChild(node); });
+        } else if (content.nodeType) {
+            element.appendChild(content);
+        } else if (typeof content.length === 'number') {
+            Array.prototype.slice.call(content).forEach(function(node) { element.appendChild(node); });
+        }
+    }
+
     function apiCreateElement(content, options) {
         options = options || {};
 
-        var element = $('<div class="ge-element" />')
-            .attr('data-ge-element', options.type || 'element')
-            .append(content)
-        ;
+        var element = dom.element('div', {
+            'class': 'ge-element',
+            'data-ge-element': options.type || 'element',
+        });
+        fill(element, content);
         if (options.label !== undefined) {
-            element.attr('data-ge-label', options.label);
+            element.setAttribute('data-ge-label', options.label);
         }
 
         return ge.place(element, 'element', placementBesideText(options));
@@ -139,7 +165,7 @@ $.fn.gridEditor.features.elements = function(ge) {
 
         /** A node this plugin marked is an element, whatever else it is. */
         kindOf: function(node) {
-            return node.hasClass('ge-element') ? 'element' : null;
+            return dom.hasClass(node, 'ge-element') ? 'element' : null;
         },
 
         /**
@@ -156,7 +182,7 @@ $.fn.gridEditor.features.elements = function(ge) {
         // containers - and only the columns
         blocks: '.ge-element',
         accepts: function(region, node) {
-            if (node.hasClass('ge-element')) { return region.is('.column'); }
+            if (dom.hasClass(node, 'ge-element')) { return dom.is(region, '.column'); }
 
             return true;
         },
@@ -165,5 +191,3 @@ $.fn.gridEditor.features.elements = function(ge) {
         onDeinit: unmarkElements,
     };
 };
-
-})(jQuery);

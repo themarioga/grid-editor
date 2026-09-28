@@ -14,33 +14,43 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
+    window.ge = function() { return window.fixture.editor(); };
+    window.grid = function() { return document.querySelector('#myGrid'); };
+    window.kids = function(node, selector) {
+        return Array.from(node.children).filter(function(child) { return !selector || child.matches(selector); });
+    };
+    window.choose = function(select, value) {
+        select.value = value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
     window.topLevel = function() {
-        return jQuery('#myGrid').children().not('.ge-tools-drawer').map(function() {
-            return this.id || this.className.split(' ')[0];
-        }).get().join(',');
+        return kids(grid()).filter(function(child) { return !child.matches('.ge-tools-drawer'); }).map(function(child) {
+            return child.id || child.className.split(' ')[0];
+        }).join(',');
     };
     window.inside = function(id) {
-        return jQuery('#' + id).children('.row').map(function() { return this.id; }).get().join(',');
+        return kids(document.getElementById(id), '.row').map(function(row) { return row.id; }).join(',');
     };
     window.log = [];
-    jQuery('#myGrid').on('grideditor:before-add grideditor:after-add grideditor:after-delete grideditor:after-move grideditor:before-utility grideditor:after-utility', function(e, payload) {
-        // A move's from and to carry jQuery sets, which do not travel back to the test
-        const plain = function(value) { return value && typeof value === 'object' ? value.index : value; };
-        window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.family, plain(payload.from), plain(payload.to)]);
-        if (e.type === 'grideditor:before-utility' && window.cancelNext) { window.cancelNext = false; e.preventDefault(); }
+    ['before-add', 'after-add', 'after-delete', 'after-move', 'before-utility', 'after-utility'].forEach(function(name) {
+        grid().addEventListener('grideditor:' + name, function(e) {
+            const payload = e.detail;
+            // A move's from and to carry elements, which do not travel back to the test
+            const plain = function(value) { return value && typeof value === 'object' ? value.index : value; };
+            window.log.push([e.type.replace('grideditor:', ''), payload.kind, payload.family, plain(payload.from), plain(payload.to)]);
+            if (e.type === 'grideditor:before-utility' && window.cancelNext) { window.cancelNext = false; e.preventDefault(); }
+        });
     });
     const row = function(id, text) {
         return '<div class="row" id="' + id + '"><div class="column col-12" id="' + id + 'c"><div class="ge-content"><p>' + text + '</p></div></div></div>';
     };
     window.start = function(settings) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html(
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        grid().innerHTML =
             row('r0', 'A row on the canvas, tall enough to aim at') +
             '<div class="container" id="s1">' + row('r1', 'A row in the section, tall enough to aim at') + '</div>' +
-            row('r2', 'Another row on the canvas, also tall enough')
-        );
-        window.fixture.init(jQuery.extend({ plugins: window.fixture.plugins(['sections']), confirm_delete: false }, settings || {}));
+            row('r2', 'Another row on the canvas, also tall enough');
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['sections']), confirm_delete: false }, settings || {}));
         window.log = [];
     };
 `;
@@ -48,15 +58,16 @@ var HELPERS = `
 async function controlTests(t, page) {
     var marked = await page.eval(`
         start();
-        jQuery('#r2c .ge-content').append('<div class="container" id="nested">not a section</div>');
+        document.querySelector('#r2c .ge-content').insertAdjacentHTML('beforeend', '<div class="container" id="nested">not a section</div>');
         ge().reset();
-        const s = jQuery('#s1');
+        const s = document.getElementById('s1');
+        const nested = document.getElementById('nested');
         return {
-            section: s.hasClass('ge-section'),
-            tools: s.find('> .ge-tools-drawer > a').map(function() { return jQuery(this).attr('class').split(' ')[0]; }).get().join(','),
-            nested: jQuery('#nested').hasClass('ge-section') || jQuery('#nested').children('.ge-tools-drawer').length > 0,
-            button: jQuery('.ge-mainControls .ge-add-feature').text(),
-            widths: s.find('> .ge-tools-drawer .ge-section-width option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
+            section: s.classList.contains('ge-section'),
+            tools: Array.from(s.querySelectorAll(':scope > .ge-tools-drawer > a')).map(function(tool) { return tool.getAttribute('class').split(' ')[0]; }).join(','),
+            nested: nested.classList.contains('ge-section') || kids(nested, '.ge-tools-drawer').length > 0,
+            button: Array.from(document.querySelectorAll('.ge-mainControls .ge-add-feature')).map(function(button) { return button.textContent; }).join(''),
+            widths: Array.from(s.querySelectorAll(':scope > .ge-tools-drawer .ge-section-width option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
         };
     `);
     t.check('a container on the canvas is a section, with move, settings, delete and add row, in the order rows and columns use',
@@ -69,13 +80,13 @@ async function controlTests(t, page) {
         marked);
 
     var width = await page.eval(`
-        const select = jQuery('#s1 > .ge-tools-drawer .ge-section-width select');
-        select.val('fluid').trigger('change');
-        const fluid = { classes: jQuery('#s1').attr('class'), log: window.log.slice() };
+        const select = document.querySelector('#s1 > .ge-tools-drawer .ge-section-width select');
+        choose(select, 'fluid');
+        const fluid = { classes: document.getElementById('s1').getAttribute('class'), log: window.log.slice() };
         window.log = [];
         window.cancelNext = true;
-        select.val('md').trigger('change');
-        return { fluid: fluid, canceled: { classes: jQuery('#s1').attr('class'), value: select.val(), log: window.log } };
+        choose(select, 'md');
+        return { fluid: fluid, canceled: { classes: document.getElementById('s1').getAttribute('class'), value: select.value, log: window.log } };
     `);
     t.check('the width field swaps the container class, announced as a utility change',
         /container-fluid/.test(width.fluid.classes) && !/(^|\s)container(\s|$)/.test(width.fluid.classes) &&
@@ -87,26 +98,27 @@ async function controlTests(t, page) {
 
     var narrowed = await page.eval(`
         start({ sections: { widths: ['fixed', 'fluid'] } });
-        return jQuery('#s1 > .ge-tools-drawer .ge-section-width option').map(function() { return this.value; }).get().join(',');
+        return Array.from(document.querySelectorAll('#s1 > .ge-tools-drawer .ge-section-width option')).map(function(option) { return option.value; }).join(',');
     `);
     t.check('sections.widths narrows the widths offered',
         narrowed === 'fixed,fluid', narrowed);
 
     var edited = await page.eval(`
         start();
-        jQuery('#s1 > .ge-tools-drawer .ge-add-row').trigger('click');
-        const rows = jQuery('#s1').children('.row').length;
+        document.querySelector('#s1 > .ge-tools-drawer .ge-add-row').click();
+        const rows = kids(document.getElementById('s1'), '.row').length;
         const addLog = window.log.slice();
         window.log = [];
-        jQuery('.ge-mainControls .ge-add-feature').trigger('click');
-        const added = jQuery('#myGrid').children('.ge-section').last();
-        const toolbar = { classes: added.attr('class'), rows: added.children('.row').length, last: added.is(jQuery('#myGrid').children().last()), log: window.log.slice() };
+        document.querySelectorAll('.ge-mainControls .ge-add-feature').forEach(function(button) { button.click(); });
+        const sections = kids(grid(), '.ge-section');
+        const added = sections[sections.length - 1];
+        const toolbar = { classes: added.getAttribute('class'), rows: kids(added, '.row').length, last: added === grid().lastElementChild, log: window.log.slice() };
         window.log = [];
-        jQuery('#s1 > .ge-tools-drawer .ge-delete-section').trigger('click');
+        document.querySelector('#s1 > .ge-tools-drawer .ge-delete-section').click();
         return { rows: rows, addLog: addLog, toolbar: toolbar };
     `);
     await t.sleep(700);
-    var deleted = await page.eval(`return { gone: jQuery('#s1').length === 0, log: window.log };`);
+    var deleted = await page.eval(`return { gone: !document.getElementById('s1'), log: window.log };`);
     t.check('the add row tool adds a row to the section',
         edited.rows === 2 && edited.addLog.some(function(entry) { return entry[0] === 'after-add' && entry[1] === 'row'; }),
         edited);
@@ -147,7 +159,7 @@ async function dragTests(t, page) {
         moved.top === 's1,r1,r0' && moved.log.length === 1 && moved.log[0][0] === 'after-move', moved);
 
     await page.drag('#s1 > .ge-tools-drawer .ge-move', '#r0c', { yRatio: 0.9 });
-    var refused = await page.eval(`return { top: topLevel(), inColumn: jQuery('#r0c').children('.ge-section').length };`);
+    var refused = await page.eval(`return { top: topLevel(), inColumn: kids(document.getElementById('r0c'), '.ge-section').length };`);
     t.check('a section is not dropped into a column',
         refused.inColumn === 0 && /s1/.test(refused.top), refused);
 
@@ -157,16 +169,15 @@ async function dragTests(t, page) {
     await page.drag('.ge-mainControls .ge-add-feature', '#r2 > .ge-tools-drawer');
     var between = await page.eval(`return topLevel();`);
     await page.drag('.ge-mainControls .ge-add-feature', '#r0c .ge-content', { yRatio: 0.5 });
-    var column = await page.eval(`return { top: topLevel(), inColumn: jQuery('#r0c').find('.ge-section, .container').length };`);
+    var column = await page.eval(`return { top: topLevel(), inColumn: document.querySelectorAll('#r0c .ge-section, #r0c .container').length };`);
     t.check('the section button dropped on the canvas makes a section there',
         between === 'r0,s1,container,r2', between);
     t.check('dropped in a column, it makes the section on the canvas, just after the block it was dropped in',
         column.top === 'r0,container,s1,container,r2' && column.inColumn === 0, column);
 
     var rule = await page.eval(`
-        const list = Sortable.get(jQuery('#s1')[0]);
-        const put = list.options.group.checkPut;
-        return { section: !!list, groupsWithCanvas: list.options.group.name === Sortable.get(jQuery('#myGrid')[0]).options.group.name };
+        const list = Sortable.get(document.getElementById('s1'));
+        return { section: !!list, groupsWithCanvas: list.options.group.name === Sortable.get(grid()).options.group.name };
     `);
     t.check('a section is a list in the canvas\'s group, so rows move between them',
         rule.section && rule.groupsWithCanvas, rule);
@@ -175,12 +186,12 @@ async function dragTests(t, page) {
 async function previewTests(t, page) {
     var widths = await page.eval(`
         start();
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').append('<div class="container-lg" id="s2"></div><div class="container-fluid" id="s3"></div>');
+        ge().destroy();
+        grid().insertAdjacentHTML('beforeend', '<div class="container-lg" id="s2"></div><div class="container-fluid" id="s3"></div>');
         window.fixture.init({ plugins: window.fixture.plugins(['sections']) });
         const read = function(view) {
             ge().changeView(view);
-            return ['s1', 's2', 's3'].map(function(id) { return getComputedStyle(jQuery('#' + id)[0]).maxWidth; }).join(' ');
+            return ['s1', 's2', 's3'].map(function(id) { return getComputedStyle(document.getElementById(id)).maxWidth; }).join(' ');
         };
         return { xs: read('xs'), md: read('md'), lg: read('lg'), xxl: read('xxl') };
     `);
@@ -191,11 +202,11 @@ async function previewTests(t, page) {
 
     var created = await page.eval(`
         start();
-        const section = jQuery('#myGrid').gridEditor('createSection', { width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
+        const section = ge().createSection({ width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
         return {
-            classes: section.attr('class'),
-            columns: section.find('> .row > .column').map(function() { return jQuery(this).attr('class'); }).get().join('|'),
-            placed: section.parent()[0] === jQuery('#myGrid')[0],
+            classes: section.getAttribute('class'),
+            columns: Array.from(section.querySelectorAll(':scope > .row > .column')).map(function(column) { return column.getAttribute('class'); }).join('|'),
+            placed: section.parentElement === grid(),
             html: ge().getHtml(),
         };
     `);
@@ -208,15 +219,15 @@ async function previewTests(t, page) {
 
     var off = await page.eval(`
         window.fixture.teardown();
-        jQuery('#myGrid').html('<div class="container" id="s1"><div class="row"><div class="column col-12"><div class="ge-content"><p>x</p></div></div></div></div>');
+        grid().innerHTML = '<div class="container" id="s1"><div class="row"><div class="column col-12"><div class="ge-content"><p>x</p></div></div></div></div>';
         window.warnings = [];
         const original = console.warn;
         console.warn = function(message) { window.warnings.push(message); original.apply(console, arguments); };
         window.fixture.init();
-        const made = jQuery('#myGrid').gridEditor('createSection', {});
+        const made = ge().createSection({});
         console.warn = original;
         return {
-            drawer: jQuery('#s1').children('.ge-tools-drawer').length,
+            drawer: kids(document.getElementById('s1'), '.ge-tools-drawer').length,
             made: made,
             warned: window.warnings.some(function(message) { return /sections plugin/.test(message); }),
         };

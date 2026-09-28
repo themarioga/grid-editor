@@ -9,13 +9,13 @@
 var FIXTURE = '/test/fixtures/grid.html?init=manual';
 
 var HELPERS = `
-    window.ge = function() { return jQuery('#myGrid').data('grideditor'); };
-    window.col = function() { return jQuery('#myGrid .column').first(); };
-    window.element = function() { return jQuery('#myGrid .ge-element').first(); };
-    window.floating = function() { return getComputedStyle(element()[0]).float; };
+    window.ge = function() { return window.fixture.editor(); };
+    window.col = function() { return document.querySelector('#myGrid .column'); };
+    window.element = function() { return document.querySelector('#myGrid .ge-element'); };
+    window.floating = function() { return getComputedStyle(element()).float; };
     window.start = function(elementClasses, elementStyle) {
-        if (jQuery('#myGrid').data('grideditor')) { window.fixture.teardown(); }
-        jQuery('#myGrid').html('<div class="row"><div class="column col-12"><div class="ge-content">' +
+        if (window.fixture.editor()) { window.fixture.teardown(); }
+        document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column col-12"><div class="ge-content">' +
             '<div data-ge-element="aside" class="' + elementClasses + '"' + (elementStyle ? ' style="' + elementStyle + '"' : '') + '>aside</div>' +
             '<p>Text that flows round the element.</p></div></div></div>');
         window.fixture.init({ plugins: window.fixture.plugins(['float']) });
@@ -28,12 +28,12 @@ async function run(t) {
 
     var fields = await page.eval(`
         start('');
-        const field = function(node) { return node.find('> .ge-tools-drawer .ge-utility[data-ge-family="float"]'); };
+        const field = function(node) { return node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="float"]'); };
         return {
             element: field(element()).length,
             column: field(col()).length,
-            row: field(jQuery('#myGrid .row').first()).length,
-            options: field(element()).find('option').map(function() { return this.value + '=' + this.textContent; }).get().join(','),
+            row: field(document.querySelector('#myGrid .row')).length,
+            options: Array.from(field(element())[0].querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
             onColumn: ge().setUtility(col(), 'float', 'end'),
         };
     `);
@@ -47,7 +47,7 @@ async function run(t) {
     var views = await page.eval(`
         start('float-md-end');
         const read = function(view) { ge().changeView(view); return floating(); };
-        return { xs: read('xs'), md: read('md'), xxl: read('xxl'), all: (ge().changeView('all'), element().attr('data-ge-preview')) };
+        return { xs: read('xs'), md: read('md'), xxl: read('xxl'), all: (ge().changeView('all'), element().getAttribute('data-ge-preview') ?? undefined) };
     `);
     t.check('each breakpoint view shows how the element floats there',
         views.xs === 'none' && views.md === 'right' && views.xxl === 'right', views);

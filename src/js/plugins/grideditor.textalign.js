@@ -7,15 +7,15 @@
  * editor for is the handle its factory is called with, described in
  * docs/plugins.md.
  *
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.textalign.min.js"></script>
  *
  * The class aligns everything inside the node that does not align itself: a
  * paragraph the rich text editor gave its own text-align keeps it.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'utility.text_align': 'Text alignment',
     'utility.text_start': 'Start',
     'utility.text_center': 'Center',
@@ -25,7 +25,7 @@ $.extend($.fn.gridEditor.locales.en, {
 /** Start and end are left and right: Bootstrap's css is left to right. */
 var CSS = { start: 'left', center: 'center', end: 'right' };
 
-$.fn.gridEditor.utilities.textalign = function(ge) {
+GridEditor.utilities.textalign = function(ge) {
 
     function label(value) {
         if (value === 'start') { return ge.t('utility.text_start'); }
@@ -56,5 +56,3 @@ $.fn.gridEditor.utilities.textalign = function(ge) {
         }],
     };
 };
-
-})(jQuery);

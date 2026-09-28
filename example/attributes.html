@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -16,7 +15,7 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
     <script src="../dist/plugins/grideditor.card.min.js"></script>
@@ -34,9 +33,9 @@
     <!-- A plugin of this page's own: a drawer tool that opens a modal, and
          what the user chooses there saved as an attribute on the node. -->
     <script id="animation-plugin">
-        (function($) {
+        (function() {
 
-            $.extend($.fn.gridEditor.locales.en, {
+            Object.assign(GridEditor.locales.en, {
                 'animation.tool': 'Animation',
                 'animation.title': 'Animate on scroll',
                 'animation.effect': 'Effect',
@@ -56,49 +55,67 @@
             var ATTRIBUTE = 'data-animation';
             var EFFECTS = ['fade', 'slide', 'zoom'];
 
-            $.fn.gridEditor.features.animation = function(ge) {
+            GridEditor.features.animation = function(ge) {
 
                 var modal = null;
 
                 function read(node) {
                     try {
-                        return JSON.parse(node.attr(ATTRIBUTE) || 'null');
+                        return JSON.parse(node.getAttribute(ATTRIBUTE) || 'null');
                     } catch (error) {
                         return null;
                     }
                 }
 
                 /**
-                 * A plain attr() on any node: an element is never inside a
-                 * text editor since 6.0, and a text's own attributes, given
+                 * A plain setAttribute on any node: an element is never inside
+                 * a text editor since 6.0, and a text's own attributes, given
                  * while its editor is open, are kept by grid-editor when the
                  * editor closes.
                  */
                 function write(node, value) {
                     if (value) {
-                        node.attr(ATTRIBUTE, JSON.stringify(value));
+                        node.setAttribute(ATTRIBUTE, JSON.stringify(value));
                     } else {
-                        node.removeAttr(ATTRIBUTE);
+                        node.removeAttribute(ATTRIBUTE);
                     }
+                }
+
+                function make(tag, className, text) {
+                    var node = document.createElement(tag);
+                    if (className) { node.className = className; }
+                    if (text !== undefined) { node.textContent = text; }
+                    return node;
                 }
 
                 /** Built once, outside the canvas, so it is never part of getHtml. */
                 function dialog() {
                     if (modal) { return modal; }
 
-                    var effects = $('<select class="form-select" name="effect" />')
-                        .append($('<option value="" />').text(ge.t('animation.none')));
+                    var effects = make('select', 'form-select');
+                    effects.name = 'effect';
+                    var none = make('option', null, ge.t('animation.none'));
+                    none.value = '';
+                    effects.appendChild(none);
                     EFFECTS.forEach(function(effect) {
-                        effects.append($('<option />').val(effect).text(ge.t('animation.' + effect)));
+                        var option = make('option', null, ge.t('animation.' + effect));
+                        option.value = effect;
+                        effects.appendChild(option);
                     });
 
                     var field = function(label, input) {
-                        return $('<div class="mb-3" />')
-                            .append($('<label class="form-label" />').text(ge.t(label)))
-                            .append(input);
+                        var wrapper = make('div', 'mb-3');
+                        wrapper.appendChild(make('label', 'form-label', ge.t(label)));
+                        if (typeof input === 'string') {
+                            wrapper.insertAdjacentHTML('beforeend', input);
+                        } else {
+                            wrapper.appendChild(input);
+                        }
+                        return wrapper;
                     };
 
-                    modal = $(
+                    var holder = document.createElement('div');
+                    holder.innerHTML =
                         '<div class="modal fade my-animation-modal" tabindex="-1" aria-hidden="true">' +
                             '<div class="modal-dialog modal-dialog-centered"><form class="modal-content">' +
                                 '<div class="modal-header">' +
@@ -111,46 +128,52 @@
                                     '<button type="submit" class="btn btn-primary"></button>' +
                                 '</div>' +
                             '</form></div>' +
-                        '</div>'
-                    ).appendTo('body');
+                        '</div>';
+                    modal = document.body.appendChild(holder.firstChild);
 
-                    modal.find('.modal-title').text(ge.t('animation.title'));
-                    modal.find('.modal-footer .btn-secondary').text(ge.t('animation.cancel'));
-                    modal.find('.modal-footer .btn-primary').text(ge.t('animation.save'));
-                    modal.find('.modal-body')
-                        .append(field('animation.effect', effects))
-                        .append(field('animation.duration', '<input class="form-control" type="number" name="duration" min="0" step="100">'))
-                        .append(field('animation.delay', '<input class="form-control" type="number" name="delay" min="0" step="100">'))
-                        .append($('<div class="form-check" />')
-                            .append('<input class="form-check-input" type="checkbox" name="once" id="my-animation-once">')
-                            .append($('<label class="form-check-label" for="my-animation-once" />').text(ge.t('animation.once'))));
+                    modal.querySelector('.modal-title').textContent = ge.t('animation.title');
+                    modal.querySelector('.modal-footer .btn-secondary').textContent = ge.t('animation.cancel');
+                    modal.querySelector('.modal-footer .btn-primary').textContent = ge.t('animation.save');
+
+                    var once = make('div', 'form-check');
+                    once.innerHTML = '<input class="form-check-input" type="checkbox" name="once" id="my-animation-once">';
+                    var onceLabel = make('label', 'form-check-label', ge.t('animation.once'));
+                    onceLabel.setAttribute('for', 'my-animation-once');
+                    once.appendChild(onceLabel);
+
+                    var body = modal.querySelector('.modal-body');
+                    body.appendChild(field('animation.effect', effects));
+                    body.appendChild(field('animation.duration', '<input class="form-control" type="number" name="duration" min="0" step="100">'));
+                    body.appendChild(field('animation.delay', '<input class="form-control" type="number" name="delay" min="0" step="100">'));
+                    body.appendChild(once);
 
                     return modal;
                 }
 
                 function open(node, kind, tool) {
-                    var form = dialog().find('form');
+                    var form = dialog().querySelector('form');
                     var current = read(node) || {};
 
-                    form.find('[name=effect]').val(current.effect || '');
-                    form.find('[name=duration]').val(current.duration || 600);
-                    form.find('[name=delay]').val(current.delay || 0);
-                    form.find('[name=once]').prop('checked', current.once !== false);
+                    form.elements.effect.value = current.effect || '';
+                    form.elements.duration.value = current.duration || 600;
+                    form.elements.delay.value = current.delay || 0;
+                    form.elements.once.checked = current.once !== false;
 
-                    form.off('submit').on('submit', function(e) {
+                    // One handler at a time: this node's, until the next open
+                    form.onsubmit = function(e) {
                         e.preventDefault();
 
-                        var effect = form.find('[name=effect]').val();
+                        var effect = form.elements.effect.value;
                         var value = effect ? {
                             effect: effect,
-                            duration: parseInt(form.find('[name=duration]').val(), 10) || 0,
-                            delay: parseInt(form.find('[name=delay]').val(), 10) || 0,
-                            once: form.find('[name=once]').prop('checked'),
+                            duration: parseInt(form.elements.duration.value, 10) || 0,
+                            delay: parseInt(form.elements.delay.value, 10) || 0,
+                            once: form.elements.once.checked,
                         } : null;
 
                         var from = read(node);
                         write(node, value);
-                        tool.toggleClass('my-animation-set', !!value);
+                        tool.classList.toggle('my-animation-set', !!value);
 
                         // Announced like the editor's own changes, for a host
                         // that listens: grideditor:animation-change
@@ -158,10 +181,10 @@
                             source: 'tool', from: from, to: value,
                         }));
 
-                        window.bootstrap.Modal.getInstance(modal[0]).hide();
-                    });
+                        window.bootstrap.Modal.getInstance(modal).hide();
+                    };
 
-                    window.bootstrap.Modal.getOrCreateInstance(modal[0]).show();
+                    window.bootstrap.Modal.getOrCreateInstance(modal).show();
                 }
 
                 return {
@@ -169,46 +192,47 @@
                     // a row, a column, an element, a container's type, a pane
                     drawerTools: function(drawer, node, kind) {
                         var animated = ['row', 'column', 'section', 'text', 'element'].indexOf(kind) !== -1 ||
-                            !!$.fn.gridEditor.containers[kind];
+                            !!GridEditor.containers[kind];
                         if (!animated) { return; }
 
-                        ge.createTool(drawer, ge.t('animation.tool'), 'my-animation-tool', 'bi bi-magic', function() {
+                        var tool = ge.createTool(drawer, ge.t('animation.tool'), 'my-animation-tool', 'bi bi-magic', function() {
                             open(node, kind, tool);
                         });
 
                         // Drawers are built again on every init, so the tool
                         // reads the node rather than remembering anything
-                        var tool = drawer.children('.my-animation-tool').last()
-                            .toggleClass('my-animation-set', !!read(node));
+                        tool.classList.toggle('my-animation-set', !!read(node));
                     },
                 };
             };
 
-        })(jQuery);
+        })();
     </script>
 
     <script>
-        $(function() {
-            $('#animation-source').text($('#animation-plugin').text().trim().replace(/^ {8}/gm, ''));
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('animation-source').textContent =
+                document.getElementById('animation-plugin').textContent.trim().replace(/^ {8}/gm, '');
 
-            $('#myGrid').gridEditor({
+            var editor = new GridEditor('#myGrid', {
                 new_row_layouts: [[12], [6, 6], [4, 4, 4]],
                 content_types: ['tinymce'],
             });
 
-            $('#myGrid').on('grideditor:animation-change', function(e, payload) {
-                $('#log').text('The ' + payload.kind + ' now animates: ' +
-                    (payload.to ? payload.to.effect : 'no'));
+            document.getElementById('myGrid').addEventListener('grideditor:animation-change', function(e) {
+                var payload = e.detail;
+                document.getElementById('log').textContent = 'The ' + payload.kind + ' now animates: ' +
+                    (payload.to ? payload.to.effect : 'no');
             });
 
-            $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getPlainHtml'));
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getPlainHtml();
             });
 
             // The published page: the plain html, and a few lines of the
             // host's own that read data-animation. Nothing of grid-editor.
-            $('#published').on('click', function() {
-                var html = $('#myGrid').gridEditor('getPlainHtml');
+            document.getElementById('published').addEventListener('click', function() {
+                var html = editor.getPlainHtml();
                 var page = window.open('', '_blank');
 
                 page.document.write(
@@ -227,7 +251,7 @@
                         'Scroll down: each node animates as it comes into view' +
                     '</div>' +
                     '<div class="container">' + html + '</div>' +
-                    '<script>' + $('#runtime').text() + '<\/script>' +
+                    '<script>' + document.getElementById('runtime').textContent + '<\/script>' +
                     '</body></html>'
                 );
                 page.document.close();
@@ -280,7 +304,7 @@
                     text, from its drawer, while you are typing: the attribute
                     is kept when the editor closes, although tinyMCE puts back
                     the attributes it found when it opened. The plugin does
-                    nothing special for that - a plain <code>attr()</code> -
+                    nothing special for that - a plain <code>setAttribute()</code> -
                     and nothing special for the quote either, which is an
                     element: a block beside the texts, never inside one.
                 </p>

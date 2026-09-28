@@ -1,6 +1,7 @@
 /**
- * Browser tests for the public API: the method dispatch, the instance handle
- * and the methods spec section 1 documents.
+ * Browser tests for the public API: the GridEditor instance, its methods and
+ * what each returns. The 6.x dispatch over jQuery sets is the jQuery
+ * adapter's, and test/adapter.js holds it to 6.x.
  *
  * These run on the offline fixture rather than on an example page, because
  * what is under test is the plugin's own surface and not a rich text editor.
@@ -31,47 +32,50 @@ var CAPTURE_WARNINGS = `
 
 /** What the canvas looks like, structurally, for round-trip comparison. */
 var STRUCTURE = `
+    const grid = document.getElementById('myGrid');
     return {
-        rows: jQuery('#myGrid .row').length,
-        columns: jQuery('#myGrid .column').length,
-        contentAreas: jQuery('#myGrid .ge-content').length,
-        classes: jQuery('#myGrid .column').map(function() {
-            return jQuery(this).attr('class').split(/\\s+/).filter(c => /^col-/.test(c)).sort().join(' ');
-        }).get(),
-        text: jQuery('#myGrid').text().replace(/\\s+/g, ' ').trim(),
+        rows: grid.querySelectorAll('.row').length,
+        columns: grid.querySelectorAll('.column').length,
+        contentAreas: grid.querySelectorAll('.ge-content').length,
+        classes: Array.from(grid.querySelectorAll('.column')).map(function(column) {
+            return column.getAttribute('class').split(/\\s+/).filter(c => /^col-/.test(c)).sort().join(' ');
+        }),
+        text: grid.textContent.replace(/\\s+/g, ' ').trim(),
     };
 `;
 
+var READY = `window.fixture && window.fixture.editor()`;
+
 /**
- * The dispatch rules: what a method returns, and what happens when there is
- * no editor on the element.
+ * What the instance is: its methods, its settings, what each method returns,
+ * and what there is when an element has no editor.
  */
 async function dispatchTests(t) {
-    var page = await t.page(FIXTURE, `jQuery('#myGrid').data('grideditor')`);
+    var page = await t.page(FIXTURE, READY);
     await page.eval(CAPTURE_WARNINGS);
 
     var handle = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
-        const names = ['getHtml', 'getPlainHtml', 'init', 'deinit', 'reset', 'destroy', 'remove', 'changeView',
+        const ge = window.fixture.editor();
+        const names = ['getHtml', 'getPlainHtml', 'init', 'deinit', 'reset', 'destroy', 'changeView',
             'getView', 'createRow', 'createColumn', 'createElement', 'createContainer',
             'addTab', 'addAccordionItem', 'setLocale'];
         return {
             missing: names.filter(name => typeof ge[name] !== 'function'),
-            canvasIsTheElement: ge.canvas[0] === document.getElementById('myGrid'),
+            canvasIsTheElement: ge.canvas === document.getElementById('myGrid'),
             settingsFrozen: Object.isFrozen(ge.settings),
-            settingsCopied: ge.settings.new_row_layouts !== jQuery('#myGrid').data('grideditor').settings.new_row_layouts
+            settingsCopied: ge.settings.new_row_layouts !== GridEditor.get('#myGrid').settings.new_row_layouts
                 ? 'handle rebuilt' : 'same object',
             contentTypes: ge.settings.content_types,
             layouts: ge.settings.new_row_layouts.length,
         };
     `);
-    t.check('the instance handle exposes every method plus settings and canvas',
+    t.check('the instance exposes every method plus settings and canvas',
         handle.missing.length === 0 && handle.canvasIsTheElement && handle.settingsFrozen,
         handle);
 
     var writeAttempt = await page.eval(`
         'use strict';
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         let threw = false;
         try { ge.settings.content_types = ['tinymce']; } catch (error) { threw = true; }
         return { threw: threw, unchanged: ge.settings.content_types.length === 0 };
@@ -79,18 +83,18 @@ async function dispatchTests(t) {
     t.check('the settings copy cannot be written through', writeAttempt.unchanged, writeAttempt);
 
     var returns = await page.eval(`
-        const set = jQuery('#myGrid');
+        const ge = window.fixture.editor();
         return {
-            html: typeof set.gridEditor('getHtml'),
-            view: set.gridEditor('getView'),
-            viewAfterChange: (set.gridEditor('changeView', 'md'), set.gridEditor('getView')),
-            init: set.gridEditor('init') === set,
-            deinit: set.gridEditor('deinit') === set,
-            reset: set.gridEditor('reset') === set,
-            changeView: set.gridEditor('changeView', 'lg') === set,
-            createRow: set.gridEditor('createRow', [6, 6]) instanceof jQuery,
-            createColumn: set.gridEditor('createColumn', 6) instanceof jQuery,
-            createElement: set.gridEditor('createElement', '<span>x</span>') instanceof jQuery,
+            html: typeof ge.getHtml(),
+            view: ge.getView(),
+            viewAfterChange: (ge.changeView('md'), ge.getView()),
+            init: ge.init() === ge,
+            deinit: ge.deinit() === ge,
+            reset: ge.reset() === ge,
+            changeView: ge.changeView('lg') === ge,
+            createRow: ge.createRow([6, 6]) instanceof Element,
+            createColumn: ge.createColumn(6) instanceof Element,
+            createElement: ge.createElement('<span>x</span>') instanceof Element,
         };
     `);
     t.check('each method returns what the spec says it returns',
@@ -101,50 +105,27 @@ async function dispatchTests(t) {
         returns);
 
     var noInstance = await page.eval(`
-        const plain = jQuery('<div id="plain"><p>plain markup</p></div>').appendTo('body');
+        const plain = document.createElement('div');
+        plain.id = 'plain';
+        plain.innerHTML = '<p>plain markup</p>';
+        document.body.appendChild(plain);
         return {
-            html: plain.gridEditor('getHtml'),
-            reset: plain.gridEditor('reset') === plain,
-            destroy: plain.gridEditor('destroy') === plain,
-            createRow: plain.gridEditor('createRow', [12]),
-            getView: plain.gridEditor('getView'),
-            untouched: plain.attr('class') === undefined && plain.find('.ge-tools-drawer').length === 0,
+            instance: GridEditor.get(plain),
+            bySelector: GridEditor.get('#plain'),
+            nothing: GridEditor.get('#no-such-element'),
+            untouched: plain.getAttribute('class') === null && plain.querySelectorAll('.ge-tools-drawer').length === 0,
         };
     `);
-    t.check('a method on an element with no editor is a no-op, except getHtml',
-        noInstance.html === '<p>plain markup</p>' && noInstance.reset && noInstance.destroy &&
-        noInstance.createRow === null && noInstance.getView === null && noInstance.untouched,
+    t.check('an element with no editor has none to hand back, and is left alone',
+        noInstance.instance === null && noInstance.bySelector === null && noInstance.nothing === null &&
+        noInstance.untouched,
         noInstance);
 
-    var empty = await page.eval(`
-        const nothing = jQuery('#no-such-element');
-        return {
-            length: nothing.length,
-            reset: nothing.gridEditor('reset') === nothing,
-            html: nothing.gridEditor('getHtml'),
-        };
-    `);
-    t.check('a method on an empty set does nothing and still chains',
-        empty.length === 0 && empty.reset && empty.html === null, empty);
-
-    var unknown = await page.eval(`
-        const set = jQuery('#myGrid');
-        const chained = set.gridEditor('noSuchMethod') === set &&
-            set.gridEditor('noSuchMethod') === set &&
-            set.gridEditor('noSuchMethod') === set;
-        return {
-            chained: chained,
-            warnings: window.warnings.filter(w => w.indexOf('noSuchMethod') !== -1),
-        };
-    `);
-    t.check('an unknown method warns once and chains',
-        unknown.chained && unknown.warnings.length === 1, unknown);
-
     var wrongArguments = await page.eval(`
-        const set = jQuery('#myGrid');
+        const ge = window.fixture.editor();
         return {
-            unknownType: set.gridEditor('createContainer', 'carousel'),
-            wrongContainer: set.gridEditor('addTab', jQuery('#myGrid .row').first()),
+            unknownType: ge.createContainer('carousel'),
+            wrongContainer: ge.addTab(document.querySelector('#myGrid .row')),
             warnings: window.warnings.filter(w => /container/.test(w)),
         };
     `);
@@ -162,20 +143,26 @@ async function dispatchTests(t) {
  * asked, and the canvas reset around the placement.
  */
 async function createTests(t) {
-    var page = await t.page(FIXTURE, `jQuery('#myGrid').data('grideditor')`);
+    var page = await t.page(FIXTURE, READY);
     await page.eval(CAPTURE_WARNINGS);
+    await page.eval(`
+        window.own = function(node, selector) {
+            return Array.from(node.children).filter(child => child.matches(selector));
+        };
+        return true;
+    `);
 
     var detached = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
-        const before = jQuery('#myGrid > .row').length;
+        const ge = window.fixture.editor();
+        const before = own(ge.canvas, '.row').length;
         const row = ge.createRow([8, 4]);
         return {
-            detached: row.parent().length === 0,
-            rowsOnCanvas: jQuery('#myGrid > .row').length === before,
-            columns: row.children().length,
-            classes: row.children().map(function() { return jQuery(this).attr('class'); }).get(),
-            drawers: row.find('.ge-tools-drawer').length,
-            contentAreas: row.find('.ge-content').length,
+            detached: row.parentNode === null,
+            rowsOnCanvas: own(ge.canvas, '.row').length === before,
+            columns: row.children.length,
+            classes: Array.from(row.children).map(child => child.getAttribute('class')),
+            drawers: row.querySelectorAll('.ge-tools-drawer').length,
+            contentAreas: row.querySelectorAll('.ge-content').length,
         };
     `);
     t.check('createRow returns a detached row with its columns, empty, and no drawers',
@@ -185,16 +172,17 @@ async function createTests(t) {
         detached);
 
     var placedByHost = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         const row = ge.createRow([12]);
-        row.appendTo(ge.canvas);
-        const beforeReset = row.find('> .ge-tools-drawer').length;
+        ge.canvas.appendChild(row);
+        const beforeReset = own(row, '.ge-tools-drawer').length;
         ge.reset();
+        const rows = own(ge.canvas, '.row');
         return {
             beforeReset: beforeReset,
-            afterReset: row.find('> .ge-tools-drawer').length,
-            columnClass: row.find('> div.column').length,
-            lastRowIsOurs: jQuery('#myGrid > .row').last()[0] === row[0],
+            afterReset: own(row, '.ge-tools-drawer').length,
+            columnClass: own(row, 'div.column').length,
+            lastRowIsOurs: rows[rows.length - 1] === row,
         };
     `);
     t.check('a row the host places itself gets its controls from reset()',
@@ -203,21 +191,21 @@ async function createTests(t) {
         placedByHost);
 
     var placements = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
-        const first = jQuery('#myGrid > .row').first();
+        const ge = window.fixture.editor();
+        const first = own(ge.canvas, '.row')[0];
         const appended = ge.createRow([6, 6], { appendTo: ge.canvas });
         const prepended = ge.createRow([12], { prependTo: ge.canvas });
         const after = ge.createRow([12], { insertAfter: first });
         const before = ge.createRow([12], { insertBefore: first });
-        const rows = jQuery('#myGrid > .row').get();
+        const rows = own(ge.canvas, '.row');
         return {
-            appendedLast: rows[rows.length - 1] === appended[0],
-            prependedFirst: rows[0] === prepended[0],
-            afterFirst: rows.indexOf(after[0]) === rows.indexOf(first[0]) + 1,
-            beforeFirst: rows.indexOf(before[0]) === rows.indexOf(first[0]) - 1,
+            appendedLast: rows[rows.length - 1] === appended,
+            prependedFirst: rows[0] === prepended,
+            afterFirst: rows.indexOf(after) === rows.indexOf(first) + 1,
+            beforeFirst: rows.indexOf(before) === rows.indexOf(first) - 1,
             drawers: [appended, prepended, after, before]
-                .map(row => row.find('> .ge-tools-drawer').length),
-            columnsMarked: appended.find('> div.column').length,
+                .map(row => own(row, '.ge-tools-drawer').length),
+            columnsMarked: own(appended, 'div.column').length,
         };
     `);
     t.check('appendTo, prependTo, insertAfter and insertBefore place the node and reset',
@@ -227,21 +215,23 @@ async function createTests(t) {
         placements);
 
     var column = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         const column = ge.createColumn(4, { content: '<p>column content</p>' });
         const blank = ge.createColumn(4, { content: '' });
-        const sized = ge.createColumn(3, { appendTo: jQuery('#myGrid > .row').first() });
+        const sized = ge.createColumn(3, { appendTo: own(ge.canvas, '.row')[0] });
+        const area = column.querySelector('.ge-content');
+        const blankArea = own(blank, '.ge-content');
         return {
-            detached: column.parent().length === 0,
-            classes: column.attr('class'),
-            content: column.find('.ge-content').html(),
+            detached: column.parentNode === null,
+            classes: column.getAttribute('class'),
+            content: area.innerHTML,
             // The fixture offers no text editor: what it is given is plain
-            type: column.find('.ge-content').attr('data-ge-content-type') || null,
-            blank: blank.children('.ge-content').length === 1 && blank.children('.ge-content').html() === '' &&
-                !blank.children('.ge-content').attr('data-ge-content-type'),
-            placedClasses: sized.attr('class'),
-            placedDrawer: sized.find('> .ge-tools-drawer').length,
-            placedEmpty: sized.children().not('.ge-tools-drawer, .ge-resize-handle').length,
+            type: area.getAttribute('data-ge-content-type') || null,
+            blank: blankArea.length === 1 && blankArea[0].innerHTML === '' &&
+                !blankArea[0].getAttribute('data-ge-content-type'),
+            placedClasses: sized.getAttribute('class'),
+            placedDrawer: own(sized, '.ge-tools-drawer').length,
+            placedEmpty: Array.from(sized.children).filter(c => !c.matches('.ge-tools-drawer, .ge-resize-handle')).length,
         };
     `);
     t.check('createColumn writes the column classes and takes content, as plain content with no editor offered',
@@ -251,13 +241,14 @@ async function createTests(t) {
         column);
 
     var offered = await page.eval(`
-        jQuery('#myGrid').gridEditor('destroy');
-        window.fixture.init({ content_types: ['tinymce', 'ckeditor'] });
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.init({ content_types: ['tinymce', 'ckeditor'] });
         const column = ge.createColumn(6, { content: '<p>C</p>' });
-        const area = column.children('.ge-content');
-        const result = { type: area.attr('data-ge-content-type'), classed: area.hasClass('ge-content-type-tinymce'), html: area.html() };
-        jQuery('#myGrid').gridEditor('destroy');
+        const area = own(column, '.ge-content')[0];
+        const result = {
+            type: area.getAttribute('data-ge-content-type'),
+            classed: area.classList.contains('ge-content-type-tinymce'),
+            html: area.innerHTML,
+        };
         window.fixture.init();
         return result;
     `);
@@ -265,10 +256,10 @@ async function createTests(t) {
         offered.type === 'tinymce' && offered.classed && offered.html === '<p>C</p>', offered);
 
     var noSize = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         const column = ge.createColumn();
         return {
-            classes: column.attr('class'),
+            classes: column.getAttribute('class'),
             warnings: window.warnings.filter(w => /createColumn/.test(w)),
         };
     `);
@@ -276,11 +267,11 @@ async function createTests(t) {
         /(^|\s)col-12(\s|$)/.test(noSize.classes) && noSize.warnings.length === 1, noSize);
 
     var badLayout = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
+        const ge = window.fixture.editor();
         const row = ge.createRow(12);
         return {
-            columns: row.children().length,
-            isRow: row.hasClass('row'),
+            columns: row.children.length,
+            isRow: row.classList.contains('row'),
             warnings: window.warnings.filter(w => /createRow/.test(w)),
         };
     `);
@@ -288,27 +279,27 @@ async function createTests(t) {
         badLayout.columns === 0 && badLayout.isRow && badLayout.warnings.length === 1, badLayout);
 
     var element = await page.eval(`
-        const ge = jQuery('#myGrid').data('grideditor');
-        const column = jQuery('#myGrid .column').first();
+        const ge = window.fixture.editor();
+        const column = document.querySelector('#myGrid .column');
         const element = ge.createElement('<span class="my-app-tag">Analytics tag</span>', {
             type: 'analytics-tag',
             label: 'Analytics',
             appendTo: column,
         });
         const plain = ge.createElement('<span>no type</span>');
+        const tag = element.querySelectorAll('.my-app-tag');
         return {
-            placed: element.parent()[0] === column[0],
-            type: element.attr('data-ge-element'),
-            label: element.attr('data-ge-label'),
-            cssClass: element.attr('class'),
+            placed: element.parentNode === column,
+            type: element.getAttribute('data-ge-element'),
+            label: element.getAttribute('data-ge-label'),
+            cssClass: element.getAttribute('class'),
             // The element carries its drawer now that it is on the canvas,
             // so what matters is that the host's own markup is still in there
-            keptHostMarkup: element.find('.my-app-tag').length === 1 &&
-                element.find('.my-app-tag').text() === 'Analytics tag',
-            plainDetached: plain.parent().length === 0,
-            plainType: plain.attr('data-ge-element'),
-            plainLabel: plain.attr('data-ge-label'),
-            canvasStillEditing: jQuery('#myGrid').hasClass('ge-editing'),
+            keptHostMarkup: tag.length === 1 && tag[0].textContent === 'Analytics tag',
+            plainDetached: plain.parentNode === null,
+            plainType: plain.getAttribute('data-ge-element'),
+            plainLabel: plain.getAttribute('data-ge-label'),
+            canvasStillEditing: ge.canvas.classList.contains('ge-editing'),
         };
     `);
     t.check('createElement wraps host markup, marks it and places it',
@@ -316,7 +307,7 @@ async function createTests(t) {
         element.cssClass === 'ge-element' &&
         element.keptHostMarkup &&
         element.plainDetached && element.plainType === 'element' &&
-        element.plainLabel === undefined && element.canvasStillEditing,
+        element.plainLabel === null && element.canvasStillEditing,
         element);
 
     var errors = page.errors();
@@ -327,18 +318,18 @@ async function createTests(t) {
  * changeView and getView over the layout modes this build has.
  */
 async function viewTests(t) {
-    var page = await t.page(FIXTURE, `jQuery('#myGrid').data('grideditor')`);
+    var page = await t.page(FIXTURE, READY);
     await page.eval(CAPTURE_WARNINGS);
 
     var byKey = await page.eval(`
-        const set = jQuery('#myGrid');
+        const ge = window.fixture.editor();
         const seen = {};
         ['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'].forEach(function(key) {
-            set.gridEditor('changeView', key);
+            ge.changeView(key);
             seen[key] = {
-                view: set.gridEditor('getView'),
-                canvasClass: jQuery('#myGrid').attr('class').match(/ge-layout-\\w+/g),
-                dropdown: jQuery('.ge-layout-mode button').text(),
+                view: ge.getView(),
+                canvasClass: ge.canvas.getAttribute('class').match(/ge-layout-\\w+/g),
+                dropdown: document.querySelector('.ge-layout-mode button').textContent,
             };
         });
         return seen;
@@ -354,12 +345,13 @@ async function viewTests(t) {
         byKey);
 
     var dropdownDriven = await page.eval(`
-        jQuery('#myGrid').gridEditor('changeView', 'lg');
-        jQuery('.ge-layout-mode a[data-ge-view="sm"]').trigger('click');
+        const ge = window.fixture.editor();
+        ge.changeView('lg');
+        document.querySelector('.ge-layout-mode a[data-ge-view="sm"]').click();
         return {
-            view: jQuery('#myGrid').gridEditor('getView'),
-            dropdown: jQuery('.ge-layout-mode button').text(),
-            items: jQuery('.ge-layout-mode a').map(function() { return jQuery(this).attr('data-ge-view'); }).get(),
+            view: ge.getView(),
+            dropdown: document.querySelector('.ge-layout-mode button').textContent,
+            items: Array.from(document.querySelectorAll('.ge-layout-mode a')).map(a => a.getAttribute('data-ge-view')),
         };
     `);
     t.check('the dropdown and the method are the same path',
@@ -368,10 +360,10 @@ async function viewTests(t) {
         dropdownDriven);
 
     var numeric = await page.eval(`
-        const set = jQuery('#myGrid');
+        const ge = window.fixture.editor();
         const views = [0, 1, 2].map(function(index) {
-            set.gridEditor('changeView', index);
-            return set.gridEditor('getView');
+            ge.changeView(index);
+            return ge.getView();
         });
         return {
             views: views,
@@ -382,11 +374,11 @@ async function viewTests(t) {
         numeric.views.join() === 'lg,sm,xs' && numeric.warnings.length === 1, numeric);
 
     var unknown = await page.eval(`
-        const set = jQuery('#myGrid');
-        set.gridEditor('changeView', 'lg');
-        set.gridEditor('changeView', 'nonsense');
+        const ge = window.fixture.editor();
+        ge.changeView('lg');
+        ge.changeView('nonsense');
         return {
-            view: set.gridEditor('getView'),
+            view: ge.getView(),
             warnings: window.warnings.filter(w => /no such layout mode/.test(w)),
         };
     `);
@@ -398,27 +390,27 @@ async function viewTests(t) {
 }
 
 /**
- * init, deinit, reset, destroy and the deprecated remove alias.
+ * init, deinit, reset and destroy; remove, the 6.x alias of destroy, is gone.
  */
 async function lifecycleTests(t) {
-    var page = await t.page(FIXTURE, `jQuery('#myGrid').data('grideditor')`);
+    var page = await t.page(FIXTURE, READY);
     await page.eval(CAPTURE_WARNINGS);
 
     var idempotent = await page.eval(`
-        const set = jQuery('#myGrid');
-        const drawers = () => jQuery('#myGrid .ge-tools-drawer').length;
+        const ge = window.fixture.editor();
+        const drawers = () => document.querySelectorAll('#myGrid .ge-tools-drawer').length;
         const initial = drawers();
-        set.gridEditor('init').gridEditor('init');
+        ge.init().init();
         const afterInits = drawers();
-        set.gridEditor('deinit').gridEditor('deinit');
+        ge.deinit().deinit();
         const afterDeinits = drawers();
-        set.gridEditor('reset').gridEditor('reset');
+        ge.reset().reset();
         return {
             initial: initial,
             afterInits: afterInits,
             afterDeinits: afterDeinits,
             afterResets: drawers(),
-            editing: jQuery('#myGrid').hasClass('ge-editing'),
+            editing: ge.canvas.classList.contains('ge-editing'),
         };
     `);
     t.check('init, deinit and reset are idempotent and chain',
@@ -429,7 +421,7 @@ async function lifecycleTests(t) {
 
     var roundTrip = await page.eval(STRUCTURE);
     var exported = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
+        const html = window.fixture.editor().getHtml();
         return {
             html: html,
             drawers: /ge-tools-drawer/.test(html),
@@ -438,9 +430,9 @@ async function lifecycleTests(t) {
         };
     `);
     var reInitialized = await page.eval(`
-        const html = jQuery('#myGrid').gridEditor('getHtml');
-        jQuery('#myGrid').gridEditor('destroy');
-        jQuery('#myGrid').html(html);
+        const html = window.fixture.editor().getHtml();
+        window.fixture.editor().destroy();
+        document.getElementById('myGrid').innerHTML = html;
         window.fixture.init();
         ` + STRUCTURE);
     t.check('getHtml output carries no editor artifacts',
@@ -450,22 +442,24 @@ async function lifecycleTests(t) {
         { before: roundTrip, after: reInitialized });
 
     var destroyed = await page.eval(`
-        const set = jQuery('#myGrid');
-        set.gridEditor('destroy');
+        const ge = window.fixture.editor();
+        const grid = document.getElementById('myGrid');
+        ge.destroy();
         const afterDestroy = {
-            instance: !!set.data('grideditor'),
-            mainControls: jQuery('.ge-mainControls').length,
-            sourceTextarea: jQuery('.ge-html-output').length,
-            drawers: jQuery('#myGrid .ge-tools-drawer').length,
-            editing: set.hasClass('ge-editing'),
-            markup: set.find('h1').length,
+            instance: !!GridEditor.get(grid),
+            mainControls: document.querySelectorAll('.ge-mainControls').length,
+            sourceTextarea: document.querySelectorAll('.ge-html-output').length,
+            drawers: grid.querySelectorAll('.ge-tools-drawer').length,
+            editing: grid.classList.contains('ge-editing'),
+            markup: grid.querySelectorAll('h1').length,
         };
-        set.gridEditor('reset');
-        jQuery(window).trigger('scroll');
-        set.find('.ge-content').first().trigger('click');
+        ge.reset();
+        window.dispatchEvent(new Event('scroll'));
+        const area = grid.querySelector('.ge-content');
+        if (area) { area.click(); }
         return Object.assign(afterDestroy, {
-            drawersAfterCalls: jQuery('#myGrid .ge-tools-drawer').length,
-            rteActive: jQuery('#myGrid .ge-rte-active').length,
+            drawersAfterCalls: grid.querySelectorAll('.ge-tools-drawer').length,
+            rteActive: grid.querySelectorAll('.ge-rte-active').length,
         });
     `);
     t.check('destroy leaves the markup, drops the controls and unbinds',
@@ -474,64 +468,67 @@ async function lifecycleTests(t) {
         destroyed.drawersAfterCalls === 0 && destroyed.rteActive === 0,
         destroyed);
 
-    var deprecated = await page.eval(`
-        window.fixture.init();
-        const set = jQuery('#myGrid');
-        set.gridEditor('remove');
-        const first = window.warnings.filter(w => /deprecated/.test(w)).length;
-        window.fixture.init();
-        set.gridEditor('remove');
+    var removed = await page.eval(`
+        const ge = window.fixture.init();
         return {
-            firstWarnings: first,
-            warningsPerInstance: window.warnings.filter(w => /deprecated/.test(w)).length,
-            instance: !!set.data('grideditor'),
-            mainControls: jQuery('.ge-mainControls').length,
+            method: typeof ge.remove,
+            instance: GridEditor.get('#myGrid') === ge,
+            mainControls: document.querySelectorAll('.ge-mainControls').length,
         };
     `);
-    t.check('remove destroys and warns once per instance',
-        deprecated.firstWarnings === 1 && deprecated.warningsPerInstance === 2 &&
-        !deprecated.instance && deprecated.mainControls === 0,
-        deprecated);
+    t.check('remove, deprecated in 6.x, is gone: the instance has no such method, and the editor stays',
+        removed.method === 'undefined' && removed.instance && removed.mainControls === 1,
+        removed);
 
     var errors = page.errors();
     t.check('the lifecycle tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 /**
- * Dispatch over a set of more than one canvas.
+ * Two canvases on one page, an editor on each.
  */
 async function multipleCanvasTests(t) {
     var page = await t.page(FIXTURE + '?init=manual', `window.fixture`);
 
     var state = await page.eval(`
-        jQuery('<div id="second"><div class="row"><div class="col-lg-12"><p>second canvas</p></div></div></div>')
-            .appendTo('.container');
-        const both = jQuery('#myGrid, #second');
-        both.gridEditor(window.fixture.settings);
+        const holder = document.createElement('div');
+        holder.innerHTML = '<div id="second"><div class="row"><div class="col-lg-12"><p>second canvas</p></div></div></div>';
+        document.querySelector('.container').appendChild(holder.firstChild);
+        const editors = ['#myGrid', '#second'].map(id => GridEditor.create(id, window.fixture.settings));
         const initialized = {
-            instances: both.filter(function() { return !!jQuery(this).data('grideditor'); }).length,
-            canvases: jQuery('.ge-canvas').length,
-            controls: jQuery('.ge-mainControls').length,
+            instances: ['#myGrid', '#second'].filter(id => !!GridEditor.get(id)).length,
+            distinct: editors[0] !== editors[1],
+            canvases: document.querySelectorAll('.ge-canvas').length,
+            controls: document.querySelectorAll('.ge-mainControls').length,
         };
-        both.gridEditor('deinit');
-        const afterDeinit = jQuery('.ge-tools-drawer').length;
-        both.gridEditor('init');
+        editors[0].deinit();
+        const afterFirstDeinit = {
+            first: document.querySelectorAll('#myGrid .ge-tools-drawer').length,
+            second: document.querySelectorAll('#second .ge-tools-drawer').length,
+        };
+        editors.forEach(ge => ge.deinit());
+        const afterDeinit = document.querySelectorAll('.ge-tools-drawer').length;
+        editors.forEach(ge => ge.init());
         return Object.assign(initialized, {
+            afterFirstDeinit: afterFirstDeinit,
             afterDeinit: afterDeinit,
-            afterInit: jQuery('.ge-tools-drawer').length > 0,
-            htmlIsFirstCanvas: jQuery('#myGrid, #second').gridEditor('getHtml').indexOf('Fixture heading') !== -1,
-            viewOfFirst: both.gridEditor('getView'),
+            afterInit: document.querySelectorAll('.ge-tools-drawer').length > 0,
+            htmlOfFirst: editors[0].getHtml().indexOf('Fixture heading') !== -1 &&
+                editors[0].getHtml().indexOf('second canvas') === -1,
+            htmlOfSecond: editors[1].getHtml().indexOf('second canvas') !== -1,
+            viewOfFirst: editors[0].getView(),
         });
     `);
-    t.check('a method applies to every canvas in the set, and a value comes from the first',
-        state.instances === 2 && state.canvases === 2 && state.controls === 2 &&
-        state.afterDeinit === 0 && state.afterInit && state.htmlIsFirstCanvas &&
+    t.check('two canvases get an editor each, and each editor\'s methods act on its own canvas',
+        state.instances === 2 && state.distinct && state.canvases === 2 && state.controls === 2 &&
+        state.afterFirstDeinit.first === 0 && state.afterFirstDeinit.second > 0 &&
+        state.afterDeinit === 0 && state.afterInit && state.htmlOfFirst && state.htmlOfSecond &&
         state.viewOfFirst === 'all',
         state);
 
     var groups = await page.eval(`
         const groupOf = function(selector) {
-            const instance = Sortable.get(jQuery(selector).first()[0]);
+            const instance = Sortable.get(document.querySelector(selector));
             return instance ? instance.options.group.name : null;
         };
         return {
@@ -546,15 +543,15 @@ async function multipleCanvasTests(t) {
     // into the other, which took the first editor's drawer with it and fired
     // its events over someone else's canvas
     await page.eval(`
-        jQuery('#myGrid .column').first().attr('id', 'first-column');
-        jQuery('#second .column').first().attr('id', 'second-column');
+        document.querySelector('#myGrid .column').id = 'first-column';
+        document.querySelector('#second .column').id = 'second-column';
         return true;
     `);
     await page.drag('#first-column > .ge-tools-drawer .ge-move', '#second-column', { yRatio: 0.2 });
     var across = await page.eval(`
         return {
-            stayed: jQuery('#myGrid').find('#first-column').length,
-            leaked: jQuery('#second').find('#first-column').length,
+            stayed: document.querySelectorAll('#myGrid #first-column').length,
+            leaked: document.querySelectorAll('#second #first-column').length,
         };
     `);
     t.check('a column cannot be dragged from one editor into another',
@@ -566,7 +563,7 @@ async function multipleCanvasTests(t) {
 
 module.exports = {
     name: 'api',
-    description: 'method dispatch and the instance handle',
+    description: 'the GridEditor instance and its methods',
     run: async function(t) {
         await dispatchTests(t);
         await createTests(t);

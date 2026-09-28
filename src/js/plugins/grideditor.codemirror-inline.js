@@ -16,15 +16,16 @@
  *   <script src="codemirror/mode/javascript/javascript.js"></script>
  *   <script src="codemirror/mode/css/css.js"></script>
  *   <script src="codemirror/mode/htmlmixed/htmlmixed.js"></script>
- *   <script src="dist/jquery.grideditor.min.js"></script>
+ *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.codemirror-inline.min.js"></script>
  *
  * Without CodeMirror on the page the html is edited in a plain textarea.
  * CodeMirror's options are the codemirror plugin's, codemirror.config.
  */
-(function($) {
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
 
-$.extend($.fn.gridEditor.locales.en, {
+Object.assign(GridEditor.locales.en, {
     'tool.edit_html': 'Edit html',
     'codemirror.apply': 'Apply',
     'codemirror.cancel': 'Cancel',
@@ -33,14 +34,14 @@ $.extend($.fn.gridEditor.locales.en, {
 /** What has html of its own to edit: a pane's is split between its button and its body. */
 var KINDS = ['row', 'column', 'text', 'plain', 'element', 'section'];
 
-$.fn.gridEditor.features['codemirror-inline'] = function(ge) {
+GridEditor.features['codemirror-inline'] = function(ge) {
 
     var open = []; // The blocks being edited: { node, kind, from, wrapper, textarea, editor }
 
     function options() {
         var own = (ge.settings.codemirror && ge.settings.codemirror.config) || {};
 
-        return $.extend({
+        return Object.assign({
             mode: 'htmlmixed',
             lineNumbers: true,
             lineWrapping: true,
@@ -53,29 +54,29 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
 
     /** What stands for the node in its column: a text's text block, or the node. */
     function anchorOf(node) {
-        var textBlock = node.parent('.ge-text-block');
-        return textBlock.length ? textBlock : node;
+        var textBlock = node.parentElement;
+        return dom.hasClass(textBlock, 'ge-text-block') ? textBlock : node;
     }
 
     function entryOf(node) {
-        return open.filter(function(entry) { return entry.node[0] === node[0]; })[0] || null;
+        return open.filter(function(entry) { return entry.node === node; })[0] || null;
     }
 
     function editable(node, kind) {
-        return KINDS.indexOf(kind) !== -1 || node.is('[data-ge-container]');
+        return KINDS.indexOf(kind) !== -1 || dom.is(node, '[data-ge-container]');
     }
 
     /** The editor where the block was, the block hidden behind it. */
     function show(entry) {
-        var anchor = anchorOf(entry.node).addClass('ge-code-hidden');
-        entry.wrapper.insertAfter(anchor);
+        var anchor = dom.addClass(anchorOf(entry.node), 'ge-code-hidden');
+        dom.insertAfter(entry.wrapper, anchor);
         if (entry.editor) { entry.editor.refresh(); }
     }
 
     function hide(entry) {
-        entry.wrapper.detach();
-        anchorOf(entry.node).removeClass('ge-code-hidden');
-        entry.node.removeClass('ge-code-hidden');
+        entry.wrapper.remove();
+        dom.removeClass(anchorOf(entry.node), 'ge-code-hidden');
+        dom.removeClass(entry.node, 'ge-code-hidden');
     }
 
     function close(entry) {
@@ -94,30 +95,33 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
             // As getHtml gives it: no drawers, no editor open in it
             from: ge.nodeHtml(node),
             // A drawer, to the editor: never content, never a block to move
-            wrapper: $('<div class="ge-tools-drawer ge-code-inline" />'),
+            wrapper: dom.element('div', { 'class': 'ge-tools-drawer ge-code-inline' }),
             editor: null,
         };
-        entry.textarea = $('<textarea class="ge-code-inline-source" />').val(entry.from).appendTo(entry.wrapper);
+        entry.textarea = entry.wrapper.appendChild(dom.element('textarea', { 'class': 'ge-code-inline-source' }));
+        entry.textarea.value = entry.from;
 
-        var bar = $('<div class="ge-code-inline-bar" />').appendTo(entry.wrapper);
-        $('<button type="button" class="btn btn-sm btn-primary ge-code-apply" />')
-            .text(ge.t('codemirror.apply'))
-            .on('click', function() { apply(entry); })
-            .appendTo(bar);
-        $('<button type="button" class="btn btn-sm btn-outline-secondary ge-code-cancel" />')
-            .text(ge.t('codemirror.cancel'))
-            .on('click', function() { close(entry); })
-            .appendTo(bar);
+        var bar = entry.wrapper.appendChild(dom.element('div', { 'class': 'ge-code-inline-bar' }));
+        var applyButton = bar.appendChild(dom.element('button', {
+            type: 'button',
+            'class': 'btn btn-sm btn-primary ge-code-apply',
+        }, ge.t('codemirror.apply')));
+        applyButton.addEventListener('click', function() { apply(entry); });
+        var cancelButton = bar.appendChild(dom.element('button', {
+            type: 'button',
+            'class': 'btn btn-sm btn-outline-secondary ge-code-cancel',
+        }, ge.t('codemirror.cancel')));
+        cancelButton.addEventListener('click', function() { close(entry); });
 
         open.push(entry);
         show(entry);
 
         if (window.CodeMirror) {
-            entry.editor = window.CodeMirror.fromTextArea(entry.textarea[0], options());
-            $(entry.editor.getWrapperElement()).addClass('ge-code-editor');
+            entry.editor = window.CodeMirror.fromTextArea(entry.textarea, options());
+            dom.addClass(entry.editor.getWrapperElement(), 'ge-code-editor');
             entry.editor.focus();
         } else {
-            entry.textarea.trigger('focus');
+            entry.textarea.focus();
         }
     }
 
@@ -127,7 +131,7 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
      * getHtml, so what was written is read as the editor reads any markup.
      */
     function apply(entry) {
-        var to = entry.editor ? entry.editor.getValue() : entry.textarea.val();
+        var to = entry.editor ? entry.editor.getValue() : entry.textarea.value;
         var payload = ge.payloadFor(entry.kind, entry.node, { source: 'tool', from: entry.from, to: to });
 
         // Canceled, the editor stays open with what was written in it
@@ -135,15 +139,26 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
 
         close(entry);
 
-        var instance = ge.canvas.data('grideditor');
+        var instance = GridEditor.get(ge.canvas);
         instance.deinit();
 
-        var made = $('<div />').html(to).contents();
-        entry.node.replaceWith(made);
+        // Parsed as innerHTML parses: a <script> written here is markup,
+        // and does not run in the editor
+        var made = dom.parse(to);
+        var parent = entry.node.parentElement;
+        entry.node.replaceWith.apply(entry.node, made);
 
         instance.init();
 
-        ge.emit('after-edit-html', ge.payloadFor(entry.kind, made.filter('*'), {
+        // The node is the first element written, or none when only text was;
+        // `nodes` is every element written, which may be several
+        var written = made.filter(function(node) { return node.nodeType === 1; });
+        var first = written[0] || null;
+
+        ge.emit('after-edit-html', ge.payloadFor(entry.kind, first || entry.node, {
+            node: first,
+            nodes: written,
+            parent: first ? first.parentElement : parent,
             source: 'tool',
             from: entry.from,
             to: to,
@@ -174,7 +189,7 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
 
         onInit: function() {
             open.slice().forEach(function(entry) {
-                if (!$.contains(document.documentElement, entry.node[0])) {
+                if (!dom.attached(entry.node)) {
                     if (entry.editor) { entry.editor.toTextArea(); }
                     entry.wrapper.remove();
                     open.splice(open.indexOf(entry), 1);
@@ -186,5 +201,3 @@ $.fn.gridEditor.features['codemirror-inline'] = function(ge) {
         },
     };
 };
-
-})(jQuery);

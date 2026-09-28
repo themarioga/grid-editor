@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Grid editor test fixture, ES modules</title>
+
+    <!--
+        The editor as an app built with a bundler has it: ES modules, imported
+        rather than loaded, with nothing on window. What test/esm.js runs
+        against. The tabs plugin is imported for its side effect, which is
+        registering on the GridEditor the page imported; SortableJS is handed
+        over as GridEditor.Sortable, as a module app does.
+
+        The editor starts when the page asks for it, with window.start(), so
+        a suite can say which plugins it wants first. Dependencies come from
+        test/vendor, as for the other fixtures. Do not point this page at a
+        CDN.
+    -->
+
+    <link rel="stylesheet" href="../vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../dist/grideditor.css">
+
+    <!-- SortableJS as a module app has it: an import, not a global -->
+    <script src="../vendor/sortablejs/Sortable.min.js"></script>
+    <script>
+        window.SortableModule = window.Sortable;
+        delete window.Sortable;
+    </script>
+
+    <script type="module">
+        import GridEditor from '../../dist/grideditor.esm.js';
+
+        GridEditor.Sortable = window.SortableModule;
+
+        window.ModuleEditor = GridEditor;
+        window.start = async function(withTabs) {
+            if (withTabs) { await import('../../dist/plugins/grideditor.tabs.esm.js'); }
+            return GridEditor.create('#myGrid', { content_types: [] });
+        };
+        window.ready = true;
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <div id="myGrid">
+            <div class="row">
+                <div class="col-lg-12">
+                    <p>Fixture paragraph in a full width column.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

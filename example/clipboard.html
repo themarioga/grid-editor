@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
     <!-- Javascript dependencies -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
 
@@ -16,7 +15,7 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
     <!-- Grid editor javascript -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
     <!-- Copy and paste is a plugin of its own. The others are here so there
@@ -28,20 +27,22 @@
     <script src="../dist/plugins/grideditor.elements.min.js"></script>
 
     <script>
-        $(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             var settings = {
                 new_row_layouts: [[12], [6, 6], [4, 4, 4]],
                 content_types: ['tinymce'],
             };
 
-            $('#myGrid').gridEditor(settings);
-            $('#otherGrid').gridEditor(settings);
+            ['#myGrid', '#otherGrid'].forEach(function(selector) {
+                var grid = document.querySelector(selector);
+                new GridEditor(grid, settings);
 
-            // A paste is an add like any other, with source 'paste'
-            $('#myGrid, #otherGrid').on('grideditor:after-add', function(e, payload) {
-                if (payload.source === 'paste') {
-                    $('#log').text('Pasted a ' + payload.kind + ' into ' + e.currentTarget.id);
-                }
+                // A paste is an add like any other, with source 'paste'
+                grid.addEventListener('grideditor:after-add', function(e) {
+                    if (e.detail.source === 'paste') {
+                        document.getElementById('log').textContent = 'Pasted a ' + e.detail.kind + ' into ' + e.currentTarget.id;
+                    }
+                });
             });
         });
     </script>

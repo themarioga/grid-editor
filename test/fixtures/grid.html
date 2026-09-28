@@ -12,16 +12,19 @@
         The editor initializes on load with the settings in window.fixture,
         unless the page is opened with ?init=manual, which leaves the canvas
         untouched so a suite can initialize it itself.
+
+        No jQuery: 7.0's editor and every plugin but summernote run without
+        it, and this page is where the suites hold them to that.
+        adapter.html is the same page through the 6.x jQuery API.
     -->
 
     <link rel="stylesheet" href="../vendor/bootstrap/bootstrap.min.css">
     <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.css">
     <link rel="stylesheet" href="../../dist/grideditor.css">
 
-    <script src="../vendor/jquery/jquery.min.js"></script>
     <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script src="../vendor/sortablejs/Sortable.min.js"></script>
-    <script src="../../dist/jquery.grideditor.js"></script>
+    <script src="../../dist/grideditor.js"></script>
 
     <!-- The plugins. Loading a file is what makes its feature available;
          the fixture takes every one so a suite can use any. -->
@@ -67,19 +70,32 @@
                 return this.settings.plugins.concat(names);
             },
 
-            /** Initialize the grid editor, with `overrides` on top of the defaults. */
+            /**
+             * Initialize the grid editor, with `overrides` on top of the
+             * defaults. A fresh one each time: an editor already on the grid
+             * is destroyed first, since asking for a second one hands back
+             * the first, options and all.
+             */
             init: function(overrides) {
-                return $(this.grid).gridEditor($.extend({}, this.settings, overrides || {}));
+                var running = GridEditor.get(this.grid);
+                if (running) { running.destroy(); }
+                return GridEditor.create(this.grid, Object.assign({}, this.settings, overrides || {}));
+            },
+
+            /** The editor on the grid, or null. */
+            editor: function() {
+                return GridEditor.get(this.grid);
             },
 
             /** Tear the editor down and hand back the markup it leaves behind. */
             teardown: function() {
-                $(this.grid).gridEditor('remove');
-                return $(this.grid).html();
+                var running = GridEditor.get(this.grid);
+                if (running) { running.destroy(); }
+                return document.querySelector(this.grid).innerHTML;
             },
         };
 
-        $(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             if (new URLSearchParams(window.location.search).get('init') !== 'manual') {
                 window.fixture.init();
             }
