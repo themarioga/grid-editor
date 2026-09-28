@@ -96,6 +96,26 @@ same from it.
   `textTypes`; [docs/plugins.md](docs/plugins.md#text) has the contract, and
   [example/custom_editor.html](example/custom_editor.html) is one in full.
 
+* __The source button can be left out__ with `edit_source: false`. A page
+  that hid `.gm-edit-mode` with css of its own can drop that css.
+
+* __A code editor of your own over the source textarea__ - CodeMirror, Ace,
+  started on `.ge-html-output` when the source button is clicked - can be the
+  codemirror plugin instead, which edits the source view in CodeMirror 5, or a
+  feature plugin with `onSourceOpen(textarea)` and `onSourceClose(textarea)`:
+  the editor goes over the textarea on open, and puts its value back in it on
+  close, which is what the canvas is made of. See
+  [docs/plugins.md](docs/plugins.md). The codemirror-inline plugin edits one
+  block's html at a time, in place, from a </> tool in its drawer.
+
+* __`destroy` with the source view open__ leaves the canvas with the html
+  being written in it. It left the canvas hidden, holding the html it had
+  before the source opened.
+
+* __A page that names its plugins__ in the `plugins` setting names
+  `codemirror` and `codemirror-inline` there too, as any feature plugin, to use
+  them.
+
 
 Upgrading from grid-editor `4.*` to `5.*`
 =========================================
