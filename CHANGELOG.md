@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [6.0.0-beta.4] - 2026-09-28
 ### Added
 - `iconClass` for a container plugin and a text editor plugin: their toolbar
   button shows the icon alone, with the label as its title, where it showed a
