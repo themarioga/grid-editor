@@ -76,8 +76,8 @@ same from it.
 
 * __New columns are empty.__ A column the add column tool, a row button,
   `createRow` or `createColumn` makes - and a new container's or pane's
-  region - has no content area in it. Add a text with the column's *Add text*
-  tool, the toolbar's *Text* button or `createText`. `createColumn(size, {
+  region - has no content area in it. Add a text with the toolbar's *Text*
+  button, clicked or dragged into the column, or `createText`. `createColumn(size, {
   content })` still holds its content: as a text of the first editor
   offered, or as plain content with none.
 
@@ -95,6 +95,11 @@ same from it.
   editor of your own is a feature plugin that declares its type with
   `textTypes`; [docs/plugins.md](docs/plugins.md#text) has the contract, and
   [example/custom_editor.html](example/custom_editor.html) is one in full.
+
+* __No *Add text* tool in the columns' drawers.__ 5.3 put one there; a text
+  is added with the toolbar's *Text* button, dragged into the column, or
+  `createText`. The `tool.add_text` and `tool.add_text_type` locale keys are
+  gone with it.
 
 * __The source button can be left out__ with `edit_source: false`. A page
   that hid `.gm-edit-mode` with css of its own can drop that css.

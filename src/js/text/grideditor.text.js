@@ -8,10 +8,10 @@
  *
  * It is a feature plugin, `text`, that the `plugins` setting does not choose
  * (content_types does), and it is everything a text is to the editor: the
- * text block's drawer, the Text buttons in the toolbar and the Add text tool
- * in each column, createText, opening an editor on a click and closing it
- * again with the host's attributes put back, and making the host's plain
- * content a text through the core's `textTypes` hook.
+ * text block's drawer, the Text buttons in the toolbar, createText, opening
+ * an editor on a click and closing it again with the host's attributes put
+ * back, and making the host's plain content a text through the core's
+ * `textTypes` hook.
  *
  * Each editor registers under $.fn.gridEditor.texts, which is this file's own
  * registry and not a contract: an editor of a host's own is a feature plugin
@@ -22,8 +22,6 @@
     if ($.fn.gridEditor.features.text) { return; }
 
     $.extend($.fn.gridEditor.locales.en, {
-        'tool.add_text': 'Add text',
-        'tool.add_text_type': 'Add {editor} text',
         'text.add': 'Text',
         'text.add_type': 'Text ({editor})',
         'panel.editor': 'Editor',
@@ -117,11 +115,6 @@
                 .addClass('ge-content-type-' + type)
                 .attr('data-ge-content-type', type)
                 .html(content !== undefined ? content : (text && text.initialContent) || '');
-        }
-
-        /** A text block at the end of a column, through the add events. */
-        function addTextTo(col, type) {
-            return ge.place(makeText(type), 'text', { appendTo: col, source: 'tool' });
         }
 
         /**
@@ -262,44 +255,6 @@
             });
         }
 
-        /**
-         * The add text tool, in each column's drawer before its add row tool:
-         * a text of the first editor offered, or, held, of the one chosen.
-         */
-        function addTextTools() {
-            var texts = offeredTexts();
-            if (!texts.length) { return; }
-
-            ge.canvas.find('.column').each(function() {
-                var col = $(this);
-                var drawer = col.children('.ge-tools-drawer');
-                if (!drawer.length || drawer.children('.ge-add-text').length) { return; }
-
-                ge.createTool(drawer, ge.t('tool.add_text'), 'ge-add-text', 'bi bi-type', function() {
-                    if (ge.closePicker()) { return; } // The picker was open: that was the answer
-
-                    addTextTo(col, texts[0]);
-                });
-
-                var tool = drawer.children('.ge-add-text');
-                var addRow = drawer.children('.ge-add-row');
-                if (addRow.length) { tool.insertBefore(addRow); }
-
-                if (texts.length > 1) {
-                    ge.attachPicker(tool, function() {
-                        ge.openPicker(tool, texts.map(function(type) {
-                            return {
-                                label: textLabel(type),
-                                title: ge.t('tool.add_text_type', { editor: textLabel(type) }),
-                                attributes: { 'data-ge-content-type': type },
-                                choose: function() { addTextTo(col, type); },
-                            };
-                        }), 'ge-text-picker');
-                    });
-                }
-            });
-        }
-
         var texts = offeredTexts();
 
         return {
@@ -354,7 +309,6 @@
 
             onInit: function() {
                 markTexts();
-                addTextTools();
 
                 ge.canvas.off('click.ge-text').on('click.ge-text', '.ge-content', onClick);
             },

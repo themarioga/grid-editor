@@ -12,8 +12,8 @@
  *
  * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
  * loaded on its own, like every plugin. The built file starts with what
- * every text editor shares - text blocks, the Text button and the Add text
- * tool, createText, making the host's plain content a text - from
+ * every text editor shares - text blocks, the Text button, createText,
+ * making the host's plain content a text - from
  * src/js/text/grideditor.text.js, installed once however many editors a
  * page loads.
  */

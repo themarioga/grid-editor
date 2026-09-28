@@ -432,10 +432,9 @@ holds the focus, and while its settings are open. While the text is being
 edited it stays faint, not to hide the end of the line being typed, until the
 pointer is on the drawer itself.
 
-A column's drawer has an *Add text* tool, and the toolbar a *Text* button, one
-per editor when `content_types` offers several (*Text (tinyMCE)*, *Text
-(CKEditor)*...). Held, the add text tool offers each editor. The button adds a
-row with the text in it, or, dragged, puts the text where it is dropped.
+The toolbar has a *Text* button, one per editor when `content_types` offers
+several (*Text (tinyMCE)*, *Text (CKEditor)*...). The button adds a row with
+the text in it, or, dragged into a column, puts the text where it is dropped.
 
 ```javascript
 $('#myGrid').gridEditor('createText', { content: '<p>Hello</p>', appendTo: '#myColumn' });

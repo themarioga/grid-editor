@@ -358,8 +358,8 @@ off there.
 
 `grideditor.tinymce.js`, `grideditor.ckeditor.js` and
 `grideditor.summernote.js` each carry what text is to the editor - the text
-block's drawer, the *Text* buttons in the toolbar and the *Add text* tool in
-each column, `createText`, opening an editor on a click and closing it with
+block's drawer, the *Text* buttons in the toolbar, `createText`, opening an
+editor on a click and closing it with
 the host's attributes put back, and `textTypes` - from
 `src/js/text/grideditor.text.js`, which the build puts at the top of each.
 However many a page loads, that is installed once.

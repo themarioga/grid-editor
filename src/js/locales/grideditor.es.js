@@ -19,8 +19,6 @@
         'tool.move': 'Mover',
         'tool.settings': 'Configuración',
         'tool.add_row': 'Añadir fila',
-        'tool.add_text': 'Añadir texto',
-        'tool.add_text_type': 'Añadir texto con {editor}',
         'tool.delete_text': 'Quitar texto',
         'tool.delete_plain': 'Quitar contenido',
         'tool.edit_html': 'Editar html',

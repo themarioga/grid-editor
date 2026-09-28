@@ -280,19 +280,20 @@ async function blockTests(t) {
         window.events = [];
         listen();
         const column = jQuery('#myGrid .column').first();
-        column.find('> .ge-tools-drawer > .ge-add-text').trigger('click');
+        jQuery('#myGrid').data('grideditor').createText({ appendTo: column });
         const last = column.children().last();
         return {
+            tools: jQuery('#myGrid .column > .ge-tools-drawer > .ge-add-text').length,
             last: last.is('.ge-text-block'),
             html: last.children('.ge-content').html(),
             type: last.children('.ge-content').attr('data-ge-content-type'),
             events: window.events.map(function(e) { return e.type + ':' + e.kind + ':' + e.source + ':' + e.isContent; }),
         };
     `);
-    t.check('the column\'s add text tool puts a text block of the first editor at its end',
-        added.last && added.type === 'tinymce' && added.html === '<p>Lorem ipsum dolores</p>', added);
+    t.check('a column\'s drawer has no add text tool; createText into it puts a text block of the first editor at its end',
+        added.tools === 0 && added.last && added.type === 'tinymce' && added.html === '<p>Lorem ipsum dolores</p>', added);
     t.check('and announces it as a text: before-add-text, before-add, after-add-text, after-add',
-        added.events.join(' ') === 'before-add-text:text:tool:true before-add:text:tool:true after-add-text:text:tool:true after-add:text:tool:true',
+        added.events.join(' ') === 'before-add-text:text:api:true before-add:text:api:true after-add-text:text:api:true after-add:text:api:true',
         added.events);
 
     var deleted = await page.eval(`
@@ -374,21 +375,6 @@ async function choiceTests(t) {
     `);
     t.check('with two, one button each, named after its editor; a type with no plugin is not offered',
         two.buttons.join('|') === 'Text (tinyMCE)|Text (Simple)', two);
-
-    // Held, the add text tool offers each editor
-    var tool = '#myGrid .column:first > .ge-tools-drawer > .ge-add-text';
-    await page.eval(`jQuery(${JSON.stringify(tool)}).trigger('mouseenter'); return true;`);
-    await t.sleep(900);
-    var picker = await page.eval(`
-        const choices = jQuery('.ge-text-picker > a');
-        const offered = choices.map(function() { return jQuery(this).text(); }).get();
-        choices.last().trigger('click');
-        const last = jQuery('#myGrid .column').first().children().last().children('.ge-content');
-        return { offered: offered, type: last.attr('data-ge-content-type'), html: last.html(), closed: jQuery('.ge-text-picker').length === 0 };
-    `);
-    t.check('held, the add text tool offers every editor, and a choice adds a text of that one',
-        picker.offered.join('|') === 'tinyMCE|Simple' && picker.type === 'simple' && picker.html === '<p>Simple</p>' && picker.closed,
-        picker);
 
     var clicked = await page.eval(`
         window.events = [];
@@ -501,8 +487,8 @@ async function loadingTests(t) {
     `);
     t.check('with no content_types, every editor loaded is offered, in the order the page loaded them',
         all.buttons.join('|') === 'Text (tinyMCE)|Text (CKEditor)|Text (Summernote)', all);
-    t.check('three editors loaded install the text feature once: one add text tool per column',
-        all.features === 1 && all.addTextPerColumn.join(',') === '1,1', all);
+    t.check('three editors loaded install the text feature once: one Text button per editor, and no add text tool in the columns',
+        all.features === 1 && all.buttons.length === 3 && all.addTextPerColumn.join(',') === '0,0', all);
 
     var none = await page.eval(`
         window.warnings = [];

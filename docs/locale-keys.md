@@ -133,8 +133,7 @@ editor's label, one of the `text.<type>` keys below or, for a plugin with no
 label, its type.
 
 The keys a text needs once an editor is loaded - `text.add`, `text.add_type`,
-`tool.add_text`, `tool.add_text_type`, `panel.editor` and `panel.kind_text` -
-are the text editor plugins' since 6.0, and come with any of them. The rest
+`panel.editor` and `panel.kind_text` - are the text editor plugins' since 6.0, and come with any of them. The rest
 are the main bundle's: what the editor shows with no text editor loaded.
 
 | Key | English | Where |
@@ -145,8 +144,6 @@ are the main bundle's: what the editor shows with no text editor loaded.
 | `text.tinymce` | tinyMCE | The tinyMCE plugin's label |
 | `text.ckeditor` | CKEditor | The CKEditor plugin's label |
 | `text.summernote` | Summernote | The summernote plugin's label |
-| `tool.add_text` | Add text | Column drawer, adds a text block of the first editor offered |
-| `tool.add_text_type` | Add {editor} text | Title of each choice the add text tool offers, held, when several editors are |
 | `tool.delete_text` | Remove text | Text drawer |
 | `tool.delete_plain` | Remove content | Plain content's drawer |
 | `tool.convert_type` | Edit as {editor} text | Title of each choice a click on plain content offers, when several editors are |
