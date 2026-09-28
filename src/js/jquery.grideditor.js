@@ -358,6 +358,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             'default_view'      : ALL_VIEW,
             'resize'            : NESTED_SETTINGS.resize, // Resizing a column by dragging its edge
             'source_textarea'   : '',
+            'edit_source'       : true, // The toolbar's button to edit the canvas as html
             'locale'            : 'en', // Code of a locale in $.fn.gridEditor.locales
             'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
@@ -397,6 +398,7 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         var curView = settings.default_view; // Breakpoint key, or 'all'
         var confirmDialog = null; // The delete confirmation, built when first needed
         var sizePicker = null; // The open column size picker, if there is one
+        var sourceOpen = false; // Whether the canvas is being edited as html
         var dropMarker = null; // The line showing where a dragged toolbar button would land
         var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
@@ -1003,27 +1005,23 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             var btnGroup = $('<div class="btn-group pull-right"/>')
                 .appendTo(wrapper)
             ;
-            var htmlButton = $('<button type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>')
-                .attr('title', t('tool.edit_source'))
-                .on('click', function() {
-                    if (htmlButton.hasClass('active')) {
-                        canvas.empty().html(htmlTextArea.val()).show();
-                        init();
-                        htmlTextArea.hide();
-                    } else {
-                        deinit();
-                        htmlTextArea
-                            .height(0.8 * $(window).height())
-                            .val(canvas.html())
-                            .show()
-                        ;
-                        canvas.hide();
-                    }
+            if (settings.edit_source) {
+                // Built again by setLocale, maybe with the source open
+                var htmlButton = $('<button type="button" class="btn btn-sm btn-primary gm-edit-mode"><i class="bi bi-code-slash"></i></button>')
+                    .attr('title', t('tool.edit_source'))
+                    .toggleClass('active btn-danger', sourceOpen)
+                    .on('click', function() {
+                        if (sourceOpen) {
+                            closeSource();
+                        } else {
+                            openSource();
+                        }
 
-                    htmlButton.toggleClass('active btn-danger');
-                })
-                .appendTo(btnGroup)
-            ;
+                        htmlButton.toggleClass('active btn-danger', sourceOpen);
+                    })
+                    .appendTo(btnGroup)
+                ;
+            }
             var previewButton = $('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>')
                 .attr('title', t('tool.preview'))
                 .on('mouseenter', function() {
@@ -1584,6 +1582,32 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             init();
         }
 
+        /**
+         * The canvas as html, in the textarea in its place, to edit by hand.
+         * A feature plugin's onSourceOpen may put a code editor over the
+         * textarea; its onSourceClose puts what it holds back in it, which is
+         * what the canvas is made of again.
+         */
+        function openSource() {
+            deinit();
+            htmlTextArea
+                .height(0.8 * $(window).height())
+                .val(canvas.html())
+                .show()
+            ;
+            canvas.hide();
+            sourceOpen = true;
+            plugins('onSourceOpen', htmlTextArea);
+        }
+
+        function closeSource() {
+            plugins('onSourceClose', htmlTextArea);
+            sourceOpen = false;
+            canvas.empty().html(htmlTextArea.val()).show();
+            init();
+            htmlTextArea.hide();
+        }
+
         function init() {
             // The node whose settings were open is gone - deleted, say - and
             // its panel with it
@@ -1662,6 +1686,8 @@ $.fn.gridEditor = function( optionsOrMethod ) {
         }
 
         function destroy() {
+            // The html being edited is what the canvas is left with
+            if (sourceOpen) { closeSource(); }
             deinit();
             removeConfirmModal();
             removeSettingsPanels();
@@ -4581,6 +4607,13 @@ $.fn.gridEditor = function( optionsOrMethod ) {
             textBlock.addClass('ge-plain-block');
 
             createMoveTool(drawer);
+
+            // The tools a feature plugin gives plain content, which is not
+            // every plugin's drawerTools: no gear, no utilities, no copy
+            $.each(FEATURES, function(name, feature) {
+                if (feature.plainTools) { feature.plainTools(drawer, block); }
+            });
+
             createTool(drawer, t('tool.delete_plain'), 'ge-delete-plain', 'bi bi-trash', function() {
                 deleteNode('plain', block, t('confirm.delete_plain'), function(removed) {
                     textBlock.slideUp(function() {

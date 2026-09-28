@@ -161,8 +161,11 @@ $.fn.gridEditor.features.elements = function(ge) {
         onInit: function() { … },        // every init: put the furniture in
         onDeinit: function() { … },      // every deinit: take it out again
         onBeforeDeinit: function() { … },  // every deinit, before the drawers come off: close what you opened
+        onSourceOpen: function(textarea) { … },   // the source view opened: the canvas's html is in the textarea
+        onSourceClose: function(textarea) { … },  // and is closing: put what you edited back in the textarea
         onContentReady: function(area) { … },  // a rich text editor just took over, or rewrote a text
         textTypes: function() { … },      // the text types this plugin edits, see "Text"
+        plainTools: function(drawer, block) { … },  // tools for the host's plain content, which has no drawerTools
 
         cuts: '[data-my-block]',          // what cuts a text: a block of the column, never part of a text
         onSortable: function(sortable) { … },  // declare your own sortable lists
@@ -253,6 +256,17 @@ rather than remembering anything about it.
   Leaving `group` out makes a list that sorts only within itself, which is what
   a tab strip wants. Group names are scoped to the editor instance, so two
   editors on one page never drag into each other.
+- **`onSourceOpen(textarea)`** and **`onSourceClose(textarea)`** are the
+  toolbar's source view: it opens with the canvas's html in the textarea, and
+  closing it makes the canvas of what is in the textarea then. A code editor
+  goes over the textarea on open and puts its value back in it on close, which
+  is all the codemirror plugin does; `destroy` with the source open closes it
+  first.
+- **`plainTools(drawer, block)`** puts tools in the drawer of the host's plain
+  content, between move and delete. That drawer has no gear, so
+  `drawerTools` never runs for it: plain content gets no utility, no copy and
+  no host tool, only what a plugin gives it here - the codemirror-inline
+  plugin's </> tool.
 - **`methods`** are added to the instance handle. A method the editor
   documents but a plugin implements — `createElement` — warns and returns null
   when the plugin is not loaded.
@@ -285,9 +299,10 @@ Text
 What the editor finds in a column that is not the grid's - loose markup, the
 page it was started on before it had a row - it wraps in a content area with
 no type: the host's **plain content**, `<div class="ge-content">`. While
-editing it is a block with a drawer of two tools, move and delete, and no
-gear; it is edited in the source, with the toolbar's code button, and nothing
-in the editor makes a new one. `getHtml` saves it as it is, and it is plain
+editing it is a block with a drawer of move and delete - and what a plugin's
+`plainTools` add between them - and no gear; it is edited in the source, with
+the toolbar's code button or the codemirror-inline plugin's </> tool, and
+nothing in the editor makes a new one. `getHtml` saves it as it is, and it is plain
 content again when the page comes back. Events call it `kind: 'plain'`.
 
 A text is a content area with a type on it - `data-ge-content-type` and the

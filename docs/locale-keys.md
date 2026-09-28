@@ -165,6 +165,18 @@ The clipboard plugin: copy and paste.
 | `clipboard.paste_section` | Paste section | Title of the toolbar's paste button, while a section is copied |
 
 
+codemirror.*
+------------
+
+The codemirror-inline plugin: a block's html, edited in place.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `tool.edit_html` | Edit html | The </> tool, in the drawers of rows, columns, texts, plain content, elements, sections and containers |
+| `codemirror.apply` | Apply | Under the editor: the block's place takes what was written |
+| `codemirror.cancel` | Cancel | Under the editor: the block stays as it was |
+
+
 confirm.*
 ---------
 
@@ -289,6 +301,7 @@ all the same: the developer reading them is the one who chose the locale.
 | `error.tinymce_missing` | tinyMCE not available! … | `content_types: ['tinymce']` with no tinyMCE loaded |
 | `error.ckeditor_missing` | CKEditor not available! … | `content_types: ['ckeditor']` with no CKEditor loaded |
 | `error.summernote_missing` | Summernote not available! … | `content_types: ['summernote']` with no Summernote loaded |
+| `error.codemirror_missing` | CodeMirror not available! … | The codemirror plugin's source view with no CodeMirror loaded: the textarea is used |
 
 
 Namespaces not in use yet

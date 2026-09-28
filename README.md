@@ -447,8 +447,8 @@ delete, and its drawer says it cannot be edited.
 What the editor finds in a column that is not the grid's - loose markup, or a
 page that had no row at all - is the host's *plain content*: a content area
 with no text editor's type on it. It moves and deletes like any block, is
-edited in the source (the toolbar's code button), and nothing in the editor
-makes a new one. With a text editor loaded, a click makes it a text of that
+edited in the source (the toolbar's code button, or the codemirror-inline
+plugin's </> tool), and nothing in the editor makes a new one. With a text editor loaded, a click makes it a text of that
 editor - of the one chosen, when there are several - through the
 `before-convert` and `after-convert` events. New columns start empty, and
 `createColumn(size, { content })` holds its content as a text of the first
@@ -706,6 +706,61 @@ $('form.myForm').on('submit', function() {
     var html = $('#myGrid').gridEditor('getHtml');
     $('textarea.myTextarea').val(html);
 });
+```
+
+### Source view
+
+The toolbar's <i>code</i> button turns the canvas into its html, to edit by
+hand, and back again with what was written.
+
+__`edit_source`:__ Whether the toolbar has that button. Default value: `true`.
+
+```javascript
+$('#myGrid').gridEditor({
+    edit_source: false,
+});
+```
+
+The html is edited in a plain textarea. With the codemirror plugin it is
+edited in [CodeMirror 5](https://codemirror.net/5/), highlighted and with line
+numbers - load CodeMirror, its `htmlmixed` mode and the modes it is made of,
+then the plugin ([example](example/codemirror.html)):
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.codemirror.min.js"></script>
+```
+
+__`codemirror.config`:__ Anything `CodeMirror.fromTextArea` takes, over the
+plugin's defaults: `mode: 'htmlmixed'`, `lineNumbers`, `lineWrapping`, a tab
+of 2.
+
+```javascript
+$('#myGrid').gridEditor({
+    codemirror: { config: { theme: 'monokai' } },
+});
+```
+
+CodeMirror 5 rather than 6: 6 comes as ES modules, for a bundler, where 5
+loads from a script tag like the rest of the page. Without CodeMirror loaded
+the source view is the textarea, and the console says why.
+
+The codemirror-inline plugin edits one block's html instead of the whole
+canvas's: a </> tool in the drawer of every row, column, text, element,
+section and container, and of the host's plain content, opens the block's
+html - the block itself and everything in it - in CodeMirror where the block
+was, and *Apply* puts what was written in its place, through the
+`before-edit-html` and `after-edit-html` events. A tab or an accordion item
+has no tool of its own: its html is its container's. It uses CodeMirror the
+same way, `codemirror.config` included, and a textarea without it.
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.codemirror-inline.min.js"></script>
 ```
 
 ### Rich text editor options

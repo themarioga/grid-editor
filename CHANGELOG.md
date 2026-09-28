@@ -5,6 +5,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+### Added
+- `edit_source`: whether the toolbar has its source button, `true` by
+  default.
+- The codemirror plugin, `grideditor.codemirror.js`: the source view in
+  CodeMirror 5, highlighted and with line numbers, where it was a plain
+  textarea; `codemirror.config` for CodeMirror's own options. See
+  [example/codemirror.html](example/codemirror.html).
+- `onSourceOpen` and `onSourceClose` for a feature plugin: the source view
+  opening, with the canvas's html in the textarea, and closing.
+- The codemirror-inline plugin, `grideditor.codemirror-inline.js`: a </> tool
+  in the drawer of every row, column, text, element, section and container,
+  and of the host's plain content, that edits the block's html in place in
+  CodeMirror - the block itself and everything in it - and puts what was
+  written in its place on *Apply*, through the new `before-edit-html`
+  (cancelable) and `after-edit-html` events.
+- `plainTools` for a feature plugin: tools in the drawer of the host's plain
+  content, which has no `drawerTools`.
+
+### Fixed
+- `destroy` with the source view open left the canvas hidden and the html
+  being written unused; it closes the source first.
+
+
 ## [6.0.0-beta.4] - 2026-09-28
 ### Added
 - `iconClass` for a container plugin and a text editor plugin: their toolbar

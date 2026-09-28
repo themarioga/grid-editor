@@ -23,6 +23,9 @@
         'tool.add_text_type': 'Añadir texto con {editor}',
         'tool.delete_text': 'Quitar texto',
         'tool.delete_plain': 'Quitar contenido',
+        'tool.edit_html': 'Editar html',
+        'codemirror.apply': 'Aplicar',
+        'codemirror.cancel': 'Cancelar',
         'tool.convert_type': 'Editar como texto de {editor}',
         'text.add': 'Texto',
         'text.add_type': 'Texto ({editor})',
@@ -161,6 +164,7 @@
         'warning.setting_removed': 'El ajuste {setting} se eliminó en la 4.0. Usa {replacement} en su lugar.',
         'error.tinymce_missing': '¡tinyMCE no está disponible! Asegúrate de haber cargado el archivo js de tinyMCE.',
         'error.ckeditor_missing': '¡CKEditor no está disponible! Asegúrate de haber cargado los archivos js de ckeditor y del adaptador de jQuery.',
+        'error.codemirror_missing': '¡CodeMirror no está disponible! Asegúrate de haber cargado el archivo js de CodeMirror; sin él el código se edita en un textarea normal.',
         'error.summernote_missing': '¡Summernote no está disponible! Asegúrate de haber cargado el archivo js de Summernote.',
     };
 

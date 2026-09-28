@@ -94,6 +94,60 @@
     display: none;
 }
 
+/* A block's html edited in place, with the codemirror-inline plugin: the
+   block is hidden behind its editor while it is open */
+.ge-canvas.ge-editing {
+    .ge-code-hidden {
+        display: none !important;
+    }
+
+    .ge-tools-drawer.ge-code-inline {
+        position: relative;
+        width: 100%;
+        margin: 0 0 @editGutter;
+        padding: 4px;
+        background: #f8f9fa;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        cursor: auto;
+        -webkit-user-select: text;
+        user-select: text;
+
+        > .ge-code-inline-source {
+            width: 100%;
+            min-height: 120px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .CodeMirror {
+            height: auto;
+            border: 1px solid #ced4da;
+            font-size: 13px;
+        }
+        .CodeMirror-scroll {
+            min-height: 120px;
+            max-height: 60vh;
+        }
+
+        > .ge-code-inline-bar {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+            padding-top: 4px;
+        }
+    }
+}
+
+/* The source view in a code editor, with the codemirror plugin: where the
+   textarea was, and as wide */
+.ge-code-editor {
+    width: 100%;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
 /* Not editing */
 .ge-canvas {
     .ge-tools-drawer {

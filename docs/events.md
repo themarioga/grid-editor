@@ -51,6 +51,8 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-add-text` | `grideditor:after-add` | no | |
 | `grideditor:before-convert` | — | yes | before the host's plain content is made a text, on a click, with the type chosen |
 | `grideditor:after-convert` | — | no | once the type is on it, before its editor has finished opening |
+| `grideditor:before-edit-html` | — | yes | with the codemirror-inline plugin, before a block's html is replaced with what was written; canceled, the editor stays open |
+| `grideditor:after-edit-html` | — | no | once it is, and the canvas is editing again; `node` is what was written, which may be several nodes or none |
 | `grideditor:before-delete` | — | yes | before any node is removed, whatever its kind |
 | `grideditor:after-delete` | — | no | after removal completes, animation included |
 | `grideditor:before-move` | — | yes | on drag start (see *Canceling*) |
@@ -103,6 +105,10 @@ The payload
     // convert only
     from: 'plain',
     to: 'tinymce',        // the text type it is made
+
+    // edit-html only
+    from: '<div class="row">…</div>',   // the block's html as it was
+    to: '<div class="row">…</div>',     // what was written
 
     // popup-orphan only
     missing: 'ge-popup-3-a91',   // the id the trigger pointed at

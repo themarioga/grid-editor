@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
+
+    <!-- CodeMirror 5 and its html mode, which is made of the xml, javascript
+         and css modes -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/xml/xml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/css/css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/jquery.grideditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
+    <!-- The source view in CodeMirror, a plugin of its own -->
+    <script src="../dist/plugins/grideditor.codemirror.min.js"></script>
+    <!-- And each block's html, in place, from the </> tool in its drawer -->
+    <script src="../dist/plugins/grideditor.codemirror-inline.min.js"></script>
+
+    <script>
+        $(function() {
+            function start() {
+                if ($('#myGrid').data('grideditor')) { $('#myGrid').gridEditor('destroy'); }
+
+                $('#myGrid').gridEditor({
+                    new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                    // false leaves the toolbar's source button out
+                    edit_source: $('#editSource').prop('checked'),
+                    // Anything CodeMirror.fromTextArea takes, over the
+                    // plugin's own defaults
+                    codemirror: {
+                        config: { lineNumbers: true },
+                    },
+                });
+            }
+
+            $('#editSource').on('change', start);
+            start();
+        });
+    </script>
+
+    <title>Grid Editor example - the source in CodeMirror</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container py-3">
+        <h2>The source in CodeMirror</h2>
+        <p class="text-body-secondary">
+            The toolbar's <i class="bi bi-code-slash"></i> button turns the
+            canvas into its html, to edit by hand. With the codemirror plugin
+            loaded that html is in <a href="https://codemirror.net/5/">CodeMirror</a>,
+            highlighted and with line numbers, instead of a plain textarea; the
+            same button brings the canvas back with what you wrote.
+            <code>edit_source: false</code> leaves the button out.
+        </p>
+        <p class="text-body-secondary">
+            The codemirror-inline plugin puts a <i class="bi bi-code-slash"></i>
+            tool in the drawer of every row, column, text, element and
+            container, and of the page's plain content: it opens that block's
+            html, the block itself and all that is in it, in CodeMirror where
+            the block was. <em>Apply</em> puts what you wrote in its place.
+        </p>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="editSource" checked>
+            <label class="form-check-label" for="editSource"><code>edit_source</code></label>
+        </div>
+
+        <div id="myGrid">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h3>Edit me as html</h3>
+                    <p>Press the code button in the toolbar and this is CodeMirror.</p>
+                </div>
+                <div class="col-lg-6">
+                    <div class="ge-content ge-content-type-tinymce" data-ge-content-type="tinymce">
+                        <p>A text, saved as one: a click edits it in tinyMCE.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
