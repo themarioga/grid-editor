@@ -39,6 +39,9 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/autosave.html](example/autosave.html) | Saving the html as the user edits | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
 | [example/adapter.html](example/adapter.html) | A page written for 6.x, with jQuery, running unchanged through the adapter | [live](https://themarioga.github.io/grid-editor/example/adapter.html) |
 
+[example/angular](example/angular) is the editor in an Angular app, from the npm
+package: an Angular CLI project, with a build step, unlike the pages above.
+
 Installation
 ------------
 
@@ -98,6 +101,9 @@ The module build imports nothing itself. Without `GridEditor.Sortable` or a
 confirmed with the browser's `confirm()` and the modal settings panel opens
 with a backdrop of the editor's own. Types for the public API come with the
 package (`dist/grideditor.d.ts`).
+
+[example/angular](example/angular) is a whole app that does this, with the
+editor as an Angular component.
 
 Load the classic script *or* the module build on a page, never both.
 

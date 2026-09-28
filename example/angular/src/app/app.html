@@ -1,0 +1,32 @@
+<main class="container py-4">
+  <h1 class="h3">grid-editor 7 in Angular</h1>
+  <p class="text-body-secondary">
+    The editor as an Angular component, from the npm package: no jQuery, and no script tags.
+  </p>
+
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <button type="button" class="btn btn-outline-primary btn-sm" id="save" (click)="save()">Save (getHtml)</button>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="publish" (click)="publish()">Publish (getPlainHtml)</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="toggle" (click)="toggle()">
+      {{ shown() ? 'Take the editor away' : 'Bring it back' }}
+    </button>
+    <select class="form-select form-select-sm w-auto" id="locale" [value]="locale()" (change)="switchLocale($any($event.target).value)">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+    </select>
+    <span class="ms-auto small" id="changes">Changes: {{ changes() }}</span>
+  </div>
+
+  @if (shown()) {
+    <app-grid-editor [html]="saved()" [options]="options" (changed)="onChanged()" />
+  } @else {
+    <p class="alert alert-secondary" id="away">
+      The component is destroyed, and the editor with it. Bring it back to edit what was saved.
+    </p>
+  }
+
+  @if (output()) {
+    <h2 class="h6 mt-4">Output</h2>
+    <pre class="border rounded p-2 small bg-body-tertiary" id="output">{{ output() }}</pre>
+  }
+</main>
