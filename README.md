@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too, and any row, column, container or element can be given inline css, with Bootstrap's classes for it offered as chips. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — display, flex, order, alignment, gutters, spacing, text alignment, sticky and float — are edited per breakpoint too, and any row, column, container or element can be given inline css, with Bootstrap's classes for it offered as chips. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
@@ -482,7 +482,7 @@ new GridEditor('#myGrid', {
 A column's text is a *text block*: a content area, the text editor that edits
 it, and a drawer of its own - move, which editor, settings, the host's
 `text_tools`, delete - like any other block. It drags between columns, the
-clipboard copies it, and spacing, text alignment and visibility apply to it.
+clipboard copies it, and spacing, text alignment and display apply to it.
 The markup does not change: the drawer sits beside the content area in a
 wrapper that only exists while editing, because inside it the text editor would
 take it for text. It sits over the text's top right corner and takes no room,
@@ -581,8 +581,9 @@ time, and the one you opened last is open on the next node too.
 | Background | color, image, size, position, repeat | |
 | Text | color, size, alignment, and a text shadow builder | `text-{bp}-start`, `-center`, `-end` |
 | Typography | family, weight, style, line height, letter spacing, transform, decoration | |
-| Display | display, opacity, overflow, visibility | visibility, `d-{bp}-none` / `-block` / `-flex`, with the eye in the drawer |
-| Position | position, `top`, `right`, `bottom`, `left` (not on a column), `z-index` | float, `float-{bp}-*`, on an element |
+| Display | display, opacity, overflow, visibility | display, `d-{bp}-*` from `none` to `inline-flex`, with the eye in the drawer that hides and shows |
+| Flex | | direction, wrap, `justify-content-{bp}-*`, `align-items-{bp}-*`, `align-content-{bp}-*`; on anything but a row the gaps, `gap-{bp}-{0–5}`, `row-gap-*`, `column-gap-*`, and fill, grow and shrink |
+| Position | position, `top`, `right`, `bottom`, `left` (not on a column), `z-index` | sticky, `sticky-{bp}-top` / `-bottom`; float, `float-{bp}-*`, on an element |
 | Custom css | whatever no field stands for, as text | |
 
 What you type goes to the node's own `style`, through the browser: a value it
@@ -594,8 +595,9 @@ A text gets only Text and Display, with their per breakpoint fields: its
 editor owns what is inside it.
 
 Every section but Spacing and Custom css also offers Bootstrap's classes for
-what it styles - `rounded-3`, `shadow-sm`, `bg-primary`, `fs-4`, `fw-bold`,
-`opacity-50`, `position-relative`… - as chips. A chip puts its class in the
+what it styles - `rounded-3`, `shadow-sm`, `bg-primary`, `bg-primary-subtle`,
+`text-bg-dark`, `bg-opacity-50`, `fs-4`, `fw-bold`, `vstack`, `fixed-top`,
+and on an element `img-fluid` and `object-fit-cover`… - as chips. A chip puts its class in the
 classes field, and pressing it again takes it off; chips that are
 alternatives, like `rounded-2` and `rounded-pill`, take each other off.
 Bootstrap's utilities are `!important`, so a field whose property a class on
@@ -614,19 +616,23 @@ new GridEditor('#myGrid', {
             border: { properties: ['border-width', 'border-color'], catalog: false },  // two fields, no chips
         },
         spacing: { values: ['0', '2', '4'], scale: [/* if you changed $spacers */] },
-        visibility: { drawer: false },   // no eye in the drawers, the field only
+        visibility: { drawer: false },   // no eye in the drawers, the display field only
     },
 });
 ```
 
 The sections are `size`, `spacing`, `border`, `background`, `text`,
-`typography`, `display`, `position` and `custom`. `properties` chooses and
+`typography`, `display`, `flex`, `position` and `custom`. `properties` chooses and
 orders a section's inline fields; the per breakpoint ones stay while the
 section does. What a section you left out or narrowed would have shown is in
 Custom css.
 
 Sanitizing what `getHtml` returns is the page's business, style attributes
 included.
+
+A node that is flex or grid in the view you are in - a column with `d-flex`,
+a row with `flex-nowrap` - has its drawer on top, out of the flow, so the
+canvas lays out its content as the page will.
 
 See [example/style.html](example/style.html).
 
@@ -645,9 +651,9 @@ plugins of their own; the ones that style a node are the style plugin's, above.
 | Plugin | Classes | On |
 | --- | --- | --- |
 | `order` | `order-{bp}-{first,0–5,last}` | columns |
-| `alignment` | `justify-content-{bp}-*`, `align-items-{bp}-*`; `align-self-{bp}-*` | rows; columns |
+| `alignment` | `align-self-{bp}-*` | columns |
 | `gutters` | `g-{bp}-{0–5}`, `gx-{bp}-*`, `gy-{bp}-*` | rows |
-| `style` | visibility, spacing, text alignment and float; see [Style](#style) | rows, columns, elements, containers, texts |
+| `style` | display, flex (a row's `justify-content-*` and `align-items-*` among it), spacing, text alignment, sticky and float; see [Style](#style) | rows, columns, elements, containers, texts |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
 panel - or, for the style plugin, in its section of the *Style* accordion -
@@ -658,8 +664,8 @@ replaces what the breakpoints said. While you edit, the canvas shows what the
 classes mean in the view you are in; `getHtml` returns only the classes.
 
 ```javascript
-ge.setUtility(column, 'visibility', 'none', 'md');   // d-md-none
-ge.getUtility(column, 'visibility', 'lg');           // 'none', inherited
+ge.setUtility(column, 'display', 'none', 'md');   // d-md-none
+ge.getUtility(column, 'display', 'lg');           // 'none', inherited
 ```
 
 __`utilities`:__ Options for each plugin, under its name.

@@ -54,7 +54,7 @@ export interface PresetClass {
 
 /** A content filter: run on init and deinit with the canvas. A string names a function on window. */
 /** A section of the style plugin's accordion. */
-export type StyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'text' | 'typography' | 'display' | 'position' | 'custom';
+export type StyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'text' | 'typography' | 'display' | 'flex' | 'position' | 'custom';
 
 /** A section on or off, or on with some of its properties and without its catalog. */
 export type StyleSection = boolean | { properties?: string[]; catalog?: boolean };
@@ -63,9 +63,9 @@ export type StyleSection = boolean | { properties?: string[]; catalog?: boolean 
 export interface StyleOptions {
     /** Every section is on unless it is turned off here. */
     sections?: Partial<Record<StyleSectionKey, StyleSection>>;
-    /** The spacing section: the values offered, and what 0 to 5 come to. */
+    /** The spacing section: the values offered, and what 0 to 5 come to - for the gaps too. */
     spacing?: { values?: string[]; scale?: string[] };
-    /** Visibility: false leaves the eye out of the drawers. */
+    /** The eye that hides and shows a node, the display family's: false leaves it out of the drawers. */
     visibility?: { drawer?: boolean };
 }
 

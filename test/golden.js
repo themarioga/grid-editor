@@ -117,7 +117,6 @@ var SCENARIOS = {
         const second = document.querySelectorAll('#myGrid > .row')[1];
         const column = second.querySelector('.column');
         G.call('setUtility', column, 'order', '2', 'md');
-        G.call('setUtility', column, 'display', 'none', 'xs');
         G.call('setUtility', second, 'g', '0');
         return G.result();
     `,

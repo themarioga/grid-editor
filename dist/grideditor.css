@@ -401,6 +401,13 @@
   --bs-popover-max-width: 360px;
   width: 360px;
   max-width: calc(100vw - 16px);
+  /* Bootstrap's css leaves the arrow's position to Popper, which puts it on
+       as an inline style. Without it the arrow stays in the flow, a strip as
+       tall as the arrow above the header; out of it, the top or bottom of
+       .bs-popover-bottom and .bs-popover-top hang it outside the edge */
+}
+.ge-settings-popover > .popover-arrow {
+  position: absolute;
 }
 .ge-settings-popover > .popover-header {
   display: flex;
@@ -4583,19 +4590,34 @@
   margin-left: 91.66666667%;
 }
 /*
- * The visibility plugin. A node Bootstrap would hide is kept on the canvas -
- * there would be nothing left to click to show it again - and shown the way
- * the view sees it instead. The selectors outweigh Bootstrap's d-* classes,
- * which are !important too.
+ * The style plugin's display. A node Bootstrap would hide is kept on the
+ * canvas - there would be nothing left to click to show it again - and shown
+ * as it would be if it were not hidden, which data-ge-display says. The
+ * selectors outweigh Bootstrap's d-* classes, which are !important too.
  */
 .ge-canvas.ge-editing {
   /* The all view: hidden at some breakpoints, said in a corner */
 }
-.ge-canvas.ge-editing .ge-visibility {
+.ge-canvas.ge-editing [data-ge-display="inline"] {
+  display: inline !important;
+}
+.ge-canvas.ge-editing [data-ge-display="inline-block"] {
+  display: inline-block !important;
+}
+.ge-canvas.ge-editing [data-ge-display="block"] {
   display: block !important;
 }
-.ge-canvas.ge-editing .row.ge-visibility {
+.ge-canvas.ge-editing [data-ge-display="grid"] {
+  display: grid !important;
+}
+.ge-canvas.ge-editing [data-ge-display="inline-grid"] {
+  display: inline-grid !important;
+}
+.ge-canvas.ge-editing [data-ge-display="flex"] {
   display: flex !important;
+}
+.ge-canvas.ge-editing [data-ge-display="inline-flex"] {
+  display: inline-flex !important;
 }
 .ge-canvas.ge-editing .ge-hidden-in-view {
   opacity: 0.45;
@@ -4617,6 +4639,25 @@
   font-size: 10px;
   line-height: 16px;
   pointer-events: none;
+}
+/*
+ * The style plugin's drawer on a flex or grid node: out of the flow, on top
+ * and as wide as the node, over a transparent top border as tall as it is.
+ * The border's width comes with the node's data-ge-drawer-out, from a rule
+ * per height the plugin writes. The selectors outweigh Bootstrap's border
+ * classes and the drawer's own margins, which the spacing part sets inline.
+ */
+.ge-canvas.ge-editing .ge-drawer-out {
+  position: relative;
+  border-top-style: solid !important;
+  border-top-color: transparent !important;
+}
+.ge-canvas.ge-editing .ge-drawer-out > .ge-tools-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: auto !important;
+  margin: 0 !important;
 }
 /* The order plugin: a column ordered by class in this view says where */
 .ge-canvas.ge-editing .column[data-ge-order]::before {

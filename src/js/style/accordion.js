@@ -32,13 +32,24 @@ function familyApplies(family, node, kind) {
 
 /**
  * What a merged part shows in its section for a node: the spacing part
- * its own panel, the others the field of their one family.
+ * its own panel, the others a field per family that applies to it - one,
+ * or flex's eleven, together.
  */
 function partContent(ge, part, node, kind) {
     if (part.panel) { return part.panel(node, kind); }
 
-    var family = part.families[0];
-    return familyApplies(family, node, kind) ? ge.utilityField(node, family.name) : null;
+    var fields = part.families.filter(function(family) {
+        return familyApplies(family, node, kind);
+    }).map(function(family) {
+        return ge.utilityField(node, family.name);
+    });
+
+    if (fields.length < 2) { return fields[0] || null; }
+
+    var box = dom.element('div', { 'class': 'ge-style-part-fields' });
+    fields.forEach(function(field) { box.appendChild(field); });
+
+    return box;
 }
 
 /**

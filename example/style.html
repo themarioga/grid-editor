@@ -83,7 +83,7 @@
                     The gear of a row, a column, a container, a tab, an element
                     or a section has a <strong>Style</strong> accordion: size,
                     spacing, border, background, text, typography, display,
-                    position and free css. What you type is written to the
+                    flex, position and free css. What you type is written to the
                     node's own <code>style</code>; a value the browser does
                     not take is marked and not written.
                 </p>
@@ -96,9 +96,11 @@
                 </p>
                 <p class="form-text">
                     The inline style is the same at every size. Padding and
-                    margin, text alignment, visibility and float are
-                    Bootstrap's responsive classes, edited per breakpoint in
-                    their sections: pick a breakpoint in the dropdown.
+                    margin, text alignment, display, flex, sticky and float
+                    are Bootstrap's responsive classes, edited per breakpoint
+                    in their sections: pick a breakpoint in the dropdown. A
+                    node that is flex or grid has its drawer on top, out of
+                    the flow, so its content is laid out as on the page.
                 </p>
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     <div class="d-flex align-items-center gap-2">
@@ -141,6 +143,16 @@
                 </div>
                 <div class="col-6">
                     <p>Try Size on this column: it offers only the min- and max- widths and heights, since its width is the grid's.</p>
+                </div>
+            </div>
+
+            <div class="row my-3">
+                <div class="col-12 col-md-6 d-flex flex-column flex-md-row align-items-md-center gap-3 bg-primary-subtle">
+                    <p class="mb-0">A column made flex: its texts are stacked on phones and side by side from tablet up, with a gap between them.</p>
+                    <p class="mb-0">Open its gear, and look in Display and Flex.</p>
+                </div>
+                <div class="col-12 col-md-6 text-bg-dark">
+                    <p>This column has <code>text-bg-dark</code>, one of Bootstrap 5.3's colors in the Background section, with the subtle ones and the opacities.</p>
                 </div>
             </div>
 

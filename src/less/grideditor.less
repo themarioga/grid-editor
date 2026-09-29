@@ -1115,18 +1115,19 @@
 .ge-layout-modes();
 
 /*
- * The visibility plugin. A node Bootstrap would hide is kept on the canvas -
- * there would be nothing left to click to show it again - and shown the way
- * the view sees it instead. The selectors outweigh Bootstrap's d-* classes,
- * which are !important too.
+ * The style plugin's display. A node Bootstrap would hide is kept on the
+ * canvas - there would be nothing left to click to show it again - and shown
+ * as it would be if it were not hidden, which data-ge-display says. The
+ * selectors outweigh Bootstrap's d-* classes, which are !important too.
  */
+@ge-displays: inline, inline-block, block, grid, inline-grid, flex, inline-flex;
+
 .ge-canvas.ge-editing {
-    .ge-visibility {
-        display: block !important;
-    }
-    .row.ge-visibility {
-        display: flex !important;
-    }
+    each(@ge-displays, {
+        [data-ge-display="@{value}"] {
+            display: @value !important;
+        }
+    });
 
     .ge-hidden-in-view {
         opacity: .45;
@@ -1153,6 +1154,27 @@
             line-height: 16px;
             pointer-events: none;
         }
+    }
+}
+
+/*
+ * The style plugin's drawer on a flex or grid node: out of the flow, on top
+ * and as wide as the node, over a transparent top border as tall as it is.
+ * The border's width comes with the node's data-ge-drawer-out, from a rule
+ * per height the plugin writes. The selectors outweigh Bootstrap's border
+ * classes and the drawer's own margins, which the spacing part sets inline.
+ */
+.ge-canvas.ge-editing .ge-drawer-out {
+    position: relative;
+    border-top-style: solid !important;
+    border-top-color: transparent !important;
+
+    > .ge-tools-drawer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        width: auto !important;
+        margin: 0 !important;
     }
 }
 

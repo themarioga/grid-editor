@@ -9,6 +9,7 @@
 
 var COLORS = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
 var SIDES = ['top', 'end', 'bottom', 'start'];
+var OPACITIES = ['10', '25', '50', '75', '100'];
 
 function each(prefix, values, suffix) {
     return values.map(function(value) { return prefix + value + (suffix || ''); });
@@ -17,10 +18,10 @@ function each(prefix, values, suffix) {
 /**
  * A catalog group: the classes it offers and whether they exclude each
  * other, so choosing one takes the others off. `notOn` names the kinds of
- * node it is never offered on.
+ * node it is never offered on, `onlyOn` the only ones it is.
  */
-function group(classes, exclusive, notOn) {
-    return { classes: classes, exclusive: exclusive !== false, notOn: notOn || [] };
+function group(classes, exclusive, notOn, onlyOn) {
+    return { classes: classes, exclusive: exclusive !== false, notOn: notOn || [], onlyOn: onlyOn || null };
 }
 
 /**
@@ -41,6 +42,9 @@ function prop(name, options) {
 
 var NOT_ON_COLUMN = ['column'];
 
+/** The image classes are for the markup an element holds. */
+var ONLY_ON_ELEMENT = ['element'];
+
 export var SECTIONS = [
     {
         key: 'size',
@@ -57,6 +61,8 @@ export var SECTIONS = [
             group(each('w-', ['25', '50', '75', '100', 'auto']), true, NOT_ON_COLUMN),
             group(each('h-', ['25', '50', '75', '100', 'auto']), true, NOT_ON_COLUMN),
             group(['mw-100', 'mh-100', 'vw-100', 'vh-100', 'min-vw-100', 'min-vh-100'], false, NOT_ON_COLUMN),
+            group(['img-fluid', 'img-thumbnail'], false, [], ONLY_ON_ELEMENT),
+            group(each('object-fit-', ['contain', 'cover', 'fill', 'scale', 'none']), true, [], ONLY_ON_ELEMENT),
         ],
         parts: [],
     },
@@ -83,7 +89,8 @@ export var SECTIONS = [
         catalog: [
             group(['border', 'border-0'].concat(each('border-', SIDES), each('border-', SIDES, '-0')), false),
             group(each('border-', ['1', '2', '3', '4', '5'])),
-            group(each('border-', COLORS.concat(['black', 'white']))),
+            group(each('border-', COLORS.concat(['black', 'white'])).concat(each('border-', COLORS, '-subtle'))),
+            group(each('border-opacity-', OPACITIES)),
             group(['rounded'].concat(each('rounded-', ['0', '1', '2', '3', '4', '5', 'circle', 'pill']))),
             group(each('rounded-', SIDES), false),
             group(['shadow-none', 'shadow-sm', 'shadow', 'shadow-lg']),
@@ -101,8 +108,10 @@ export var SECTIONS = [
             prop('background-repeat', { labelKey: 'style.prop_background_repeat', type: 'select', values: ['repeat', 'no-repeat', 'repeat-x', 'repeat-y', 'space', 'round'] }),
         ],
         catalog: [
-            group(each('bg-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black', 'transparent']))),
+            group(each('bg-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black', 'transparent']))
+                .concat(each('bg-', COLORS, '-subtle'), each('text-bg-', COLORS))),
             group(['bg-gradient'], false),
+            group(each('bg-opacity-', OPACITIES)),
         ],
         parts: [],
     },
@@ -116,7 +125,9 @@ export var SECTIONS = [
             prop('text-shadow', { labelKey: 'style.prop_text_shadow', type: 'shadow' }),
         ],
         catalog: [
-            group(each('text-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black']))),
+            group(each('text-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black']))
+                .concat(each('text-', COLORS, '-emphasis'), ['text-body-emphasis'])),
+            group(each('text-opacity-', ['25', '50', '75', '100'])),
             group(each('fs-', ['1', '2', '3', '4', '5', '6'])),
             group(each('text-decoration-', ['none', 'underline', 'line-through'])),
         ],
@@ -159,7 +170,16 @@ export var SECTIONS = [
             group(each('overflow-', ['auto', 'hidden', 'visible', 'scroll'])),
             group(['visible', 'invisible']),
         ],
-        parts: ['visibility'],
+        parts: ['display'],
+    },
+    {
+        key: 'flex',
+        labelKey: 'style.section_flex',
+        properties: [],
+        catalog: [
+            group(['vstack', 'hstack'], true, ['row']),
+        ],
+        parts: ['flex'],
     },
     {
         key: 'position',
@@ -180,8 +200,9 @@ export var SECTIONS = [
             group(each('end-', ['0', '50', '100'])),
             group(['translate-middle', 'translate-middle-x', 'translate-middle-y']),
             group(['z-n1', 'z-0', 'z-1', 'z-2', 'z-3']),
+            group(['fixed-top', 'fixed-bottom']),
         ],
-        parts: ['float'],
+        parts: ['float', 'sticky'],
     },
     {
         key: 'custom',
@@ -199,6 +220,8 @@ export function section(key) {
 
 /** Whether a property or a catalog group is offered on this kind of node. */
 export function offeredOn(item, kind) {
+    if (item.onlyOn && item.onlyOn.indexOf(kind) === -1) { return false; }
+
     return item.notOn.indexOf(kind) === -1;
 }
 
@@ -208,6 +231,10 @@ var COLOR = '(?:' + COLORS.join('|') + '|black|white)';
 var BG = '(?:' + COLORS.join('|') + '|body|body-secondary|body-tertiary|white|black|transparent)';
 var TEXT_COLOR = '(?:' + COLORS.join('|') + '|body|body-secondary|body-tertiary|white|black|muted|black-50|white-50)';
 var BORDER = 'border(?:-(?:top|end|bottom|start))?(?:-0)?';
+var SUBTLE = '(?:' + COLORS.join('|') + ')-subtle';
+var EMPHASIS = '(?:' + COLORS.join('|') + '|body)-emphasis';
+var TEXT_BG = 'text-bg-(?:' + COLORS.join('|') + ')';
+var STICKY = 'sticky-' + BREAKPOINT;
 
 function spacing(key, side) {
     var sides = { top: '[ty]?', bottom: '[by]?', left: '[sx]?', right: '[ex]?' }[side];
@@ -236,12 +263,12 @@ var SETS = {
     'padding-left': spacing('p', 'left'),
     'border-width': new RegExp('^(?:' + BORDER + '|border-[1-5])$'),
     'border-style': new RegExp('^' + BORDER + '$'),
-    'border-color': new RegExp('^(?:' + BORDER + '|border-' + COLOR + ')$'),
+    'border-color': new RegExp('^(?:' + BORDER + '|border-' + COLOR + '|border-' + SUBTLE + ')$'),
     'border-radius': /^rounded(?:-(?:[0-5]|circle|pill|top|end|bottom|start))?$/,
     'box-shadow': /^shadow(?:-(?:none|sm|lg))?$/,
-    'background-color': new RegExp('^bg-' + BG + '$'),
+    'background-color': new RegExp('^(?:bg-' + BG + '|bg-' + SUBTLE + '|' + TEXT_BG + ')$'),
     'background-image': /^bg-gradient$/,
-    'color': new RegExp('^text-' + TEXT_COLOR + '$'),
+    'color': new RegExp('^(?:text-' + TEXT_COLOR + '|text-' + EMPHASIS + '|' + TEXT_BG + ')$'),
     'font-size': /^fs-[1-6]$/,
     'text-align': new RegExp('^text-' + BREAKPOINT + '(?:start|center|end)$'),
     'text-decoration': /^text-decoration-(?:none|underline|line-through)$/,
@@ -250,13 +277,13 @@ var SETS = {
     'font-style': /^fst-(?:italic|normal)$/,
     'line-height': /^lh-(?:1|sm|base|lg)$/,
     'text-transform': /^text-(?:lowercase|uppercase|capitalize)$/,
-    'display': new RegExp('^d-' + BREAKPOINT + '(?:none|inline|inline-block|block|grid|inline-grid|table|table-row|table-cell|flex|inline-flex)$'),
+    'display': new RegExp('^(?:d-' + BREAKPOINT + '(?:none|inline|inline-block|block|grid|inline-grid|table|table-row|table-cell|flex|inline-flex)|vstack|hstack)$'),
     'opacity': /^opacity-(?:0|25|50|75|100)$/,
     'overflow': /^overflow-(?:auto|hidden|visible|scroll)$/,
     'visibility': /^(?:visible|invisible)$/,
-    'position': /^position-(?:static|relative|absolute|fixed|sticky)$/,
-    'top': /^top-(?:0|50|100)$/,
-    'bottom': /^bottom-(?:0|50|100)$/,
+    'position': new RegExp('^(?:position-(?:static|relative|absolute|fixed|sticky)|fixed-(?:top|bottom)|' + STICKY + '(?:top|bottom))$'),
+    'top': new RegExp('^(?:top-(?:0|50|100)|fixed-top|' + STICKY + 'top)$'),
+    'bottom': new RegExp('^(?:bottom-(?:0|50|100)|fixed-bottom|' + STICKY + 'bottom)$'),
     'left': /^start-(?:0|50|100)$/,
     'right': /^end-(?:0|50|100)$/,
     'z-index': /^z-(?:n1|[0-3])$/,

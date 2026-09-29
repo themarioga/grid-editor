@@ -236,19 +236,16 @@ each utility and its values are the plugins' own keys.
 | `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
 | `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
 | `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |
-| `utility.visibility` | Visibility | Label of the visibility field, in the style plugin's Display section |
+| `utility.display` | Display | Label of the display field, `d-*`, in the style plugin's Display section. Its other choices are the values themselves |
 | `utility.visibility_hidden` | Hidden | Its choice for `d-*-none` |
-| `utility.visibility_shown` | Shown | Its choice for `d-*-block`, or `d-*-flex` on a row |
-| `tool.hide_in_view` | Hide in this view | The style plugin's visibility eye, on a node shown in the view being edited |
+| `tool.hide_in_view` | Hide in this view | The style plugin's eye, on a node shown in the view being edited |
 | `tool.show_in_view` | Show in this view | The same eye, on a node hidden there |
 | `utility.order` | Order | Label of the order plugin's field |
 | `utility.order_first` | First | Its choice for `order-*-first` |
 | `utility.order_last` | Last | Its choice for `order-*-last` |
 | `tool.order_earlier` | Earlier in this view | The order plugin's left arrow in a column drawer |
 | `tool.order_later` | Later in this view | Its right arrow |
-| `utility.justify_content` | Justify columns | The alignment plugin's `justify-content-*` field, on a row |
-| `utility.align_items` | Align columns | Its `align-items-*` field, on a row |
-| `utility.align_self` | Align self | Its `align-self-*` field, on a column |
+| `utility.align_self` | Align self | The alignment plugin's `align-self-*` field, on a column |
 | `utility.gutters` | Gutters | The gutters plugin's `g-*` field, on a row |
 | `utility.gutters_x` | Horizontal gutters | Its `gx-*` field |
 | `utility.gutters_y` | Vertical gutters | Its `gy-*` field |
@@ -265,6 +262,18 @@ each utility and its values are the plugins' own keys.
 | `utility.text_start` | Start | Its choice for `text-*-start` |
 | `utility.text_center` | Center | Its choice for `text-*-center` |
 | `utility.text_end` | End | Its choice for `text-*-end` |
+| `utility.flex_direction` | Direction | The `flex-*-row` / `-column` field, in the style plugin's Flex section |
+| `utility.flex_wrap` | Wrap | Its `flex-*-wrap` / `-nowrap` field |
+| `utility.justify_content` | Justify columns | Its `justify-content-*` field |
+| `utility.align_items` | Align columns | Its `align-items-*` field |
+| `utility.align_content` | Align lines | Its `align-content-*` field |
+| `utility.gap` | Gap | Its `gap-*` field, on anything but a row |
+| `utility.row_gap` | Row gap | Its `row-gap-*` field |
+| `utility.column_gap` | Column gap | Its `column-gap-*` field |
+| `utility.flex_fill` | Fill | Its `flex-*-fill` field, on anything but a row |
+| `utility.flex_grow` | Grow | Its `flex-*-grow-*` field |
+| `utility.flex_shrink` | Shrink | Its `flex-*-shrink-*` field |
+| `utility.sticky` | Sticky | The `sticky-*-top` / `-bottom` field, in the style plugin's Position section |
 | `utility.float` | Float | Label of the float field, in the style plugin's Position section, on an element |
 | `utility.float_start` | Start | Its choice for `float-*-start` |
 | `utility.float_end` | End | Its choice for `float-*-end` |
@@ -288,6 +297,7 @@ The style plugin's accordion, in a node's settings panel or in the dialog.
 | `style.section_text` | Text | The accordion's section header |
 | `style.section_typography` | Typography | The accordion's section header |
 | `style.section_display` | Display | The accordion's section header |
+| `style.section_flex` | Flex | The accordion's section header |
 | `style.section_position` | Position | The accordion's section header |
 | `style.section_custom` | Custom css | The accordion's section header |
 | `style.all_sizes` | Applies to every size | Note over a section's inline fields in a breakpoint view: the style attribute is not responsive |

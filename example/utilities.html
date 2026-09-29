@@ -15,10 +15,10 @@
 
     <!-- The editor, and the utility plugins. Each is a file of its own, and
          loading it is what puts its fields in the settings panels. The style
-         plugin carries visibility, spacing, text alignment and float, which
-         were plugins of their own up to 7.2, and edits them in its Style
-         accordion; order, alignment and gutters are the grid's, and stay in
-         the Responsive section. -->
+         plugin carries display, flex, spacing, text alignment, sticky and
+         float, and edits them in its Style accordion - a row's justify and
+         align among them, in Flex; order, a column's align-self and gutters
+         are the grid's, and stay in the Responsive section. -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.order.min.js"></script>
@@ -91,8 +91,8 @@
                     change is written for that breakpoint alone; in
                     <strong>All sizes</strong> it is written once, for every
                     size. Each drawer's gear has a <strong>Style</strong>
-                    accordion, whose sections hold visibility, spacing, text
-                    alignment and float, and a <strong>Responsive</strong>
+                    accordion, whose sections hold display, flex, spacing, text
+                    alignment, sticky and float, and a <strong>Responsive</strong>
                     section for the grid's utilities. Every field says what
                     the breakpoint inherits and from where.
                 </p>
@@ -106,7 +106,8 @@
                     </select>
                 </div>
                 <p class="form-text">
-                    <strong>Visibility:</strong> the eye in a drawer hides the
+                    <strong>Display:</strong> a field in the Display section,
+                    and the eye in a drawer, which hides the
                     node in the view being edited. It stays on the canvas,
                     faded, so you can show it again; in All sizes a badge says
                     at which breakpoints it is hidden. The sidebar below is
@@ -119,10 +120,10 @@
                     comes first on phones only.
                 </p>
                 <p class="form-text">
-                    <strong>Alignment:</strong> fields in the panel of a row
-                    (justify and align its columns) and of a column (align
-                    itself). The third row centres its narrow column from
-                    small desktop up.
+                    <strong>Alignment:</strong> a row justifies and aligns its
+                    columns with fields in the Style accordion's Flex section,
+                    and a column aligns itself with a field in Responsive. The
+                    third row centres its narrow column from small desktop up.
                 </p>
                 <p class="form-text">
                     <strong>Gutters:</strong> fields in a row's panel. A row

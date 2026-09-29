@@ -20,7 +20,7 @@ const options: GridEditorOptions = {
     },
     tinymce: { config: { toolbar: 'bold italic' } },
     style: {
-        sections: { border: { properties: ['border-width'], catalog: false }, position: false },
+        sections: { border: { properties: ['border-width'], catalog: false }, position: false, flex: { catalog: false } },
         spacing: { values: ['0', '2', '4'] },
         visibility: { drawer: false },
     },

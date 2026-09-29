@@ -4,7 +4,7 @@
  * A utility plugin: load this file after the editor and every row, column,
  * container, pane, element and section gets a Style accordion in its
  * settings panel - size, spacing, border, background, text, typography,
- * display, position and free css - written to the node's own style
+ * display, flex, position and free css - written to the node's own style
  * attribute, with Bootstrap's classes for each section as chips that put
  * them in the classes field. What it can ask the editor for is the handle
  * its factory is called with, described in docs/plugins.md.
@@ -12,21 +12,26 @@
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.style.min.js"></script>
  *
- * It also edits spacing, text alignment, visibility and float, Bootstrap's
- * responsive classes, per breakpoint in its sections.
+ * It also edits spacing, text alignment, display, flex, sticky and float,
+ * Bootstrap's responsive classes, per breakpoint in its sections. On a node
+ * that is flex or grid, the drawer leaves the flow, so the canvas lays the
+ * content out as the page will.
  *
  * Where the settings panel has no room for it - a popover, inline in the
  * drawer - the accordion opens in a dialog, from a Style button.
  *
  * style.sections chooses the sections, and in each the properties and
- * whether it has a catalog; style.spacing and style.visibility are the
- * options of those two.
+ * whether it has a catalog; style.spacing is the options of spacing, whose
+ * scale the gaps share, and style.visibility those of the eye.
  */
 import { GridEditor } from '../grideditor.js';
 import { spacingPart } from '../style/spacing.js';
 import { textalignPart } from '../style/textalign.js';
-import { visibilityPart } from '../style/visibility.js';
+import { displayPart } from '../style/display.js';
+import { flexPart } from '../style/flex.js';
 import { floatPart } from '../style/float.js';
+import { stickyPart } from '../style/sticky.js';
+import { drawerflowPart } from '../style/drawerflow.js';
 import { resolveOptions } from '../style/options.js';
 import { createAccordion } from '../style/accordion.js';
 
@@ -40,6 +45,7 @@ Object.assign(GridEditor.locales.en, {
     'style.section_text': 'Text',
     'style.section_typography': 'Typography',
     'style.section_display': 'Display',
+    'style.section_flex': 'Flex',
     'style.section_position': 'Position',
     'style.section_custom': 'Custom css',
     'style.all_sizes': 'Applies to every size',
@@ -100,7 +106,8 @@ Object.assign(GridEditor.locales.en, {
     'style.prop_z_index': 'Z-index',
 });
 
-var PARTS = ['spacing', 'textalign', 'visibility', 'float'];
+// The drawer's part last: it asks the browser how the others left the node
+var PARTS = ['spacing', 'textalign', 'display', 'flex', 'float', 'sticky', 'drawerflow'];
 
 GridEditor.utilities.style = function(ge) {
 
@@ -108,8 +115,11 @@ GridEditor.utilities.style = function(ge) {
     var parts = {
         spacing: spacingPart(ge, options.spacing),
         textalign: textalignPart(ge),
-        visibility: visibilityPart(ge, options.visibility),
+        display: displayPart(ge, options.visibility),
+        flex: flexPart(ge, options.spacing),
         float: floatPart(ge),
+        sticky: stickyPart(ge),
+        drawerflow: drawerflowPart(ge),
     };
     var accordions = []; // { node, accordion } for every panel built since the last init
     var context = {

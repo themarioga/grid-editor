@@ -4,8 +4,9 @@ Upgrading from grid-editor `7.x` to `8.0`
 8.0 takes out what kept pages, plugins and options of earlier versions
 working. Nothing it removes warns: an option that is gone is ignored like any
 option the editor does not know. The jQuery adapter stays, and so does the
-conversion of markup 5.x saved. `8.0.0-beta.1` is the first beta; install it
-with `npm install @themarioga/grid-editor@next`.
+conversion of markup 5.x saved. `8.0.0-beta.1` is the first beta, and
+`8.0.0-beta.2` the second; install them with
+`npm install @themarioga/grid-editor@next`.
 
 * __The spacing, textalign, visibility and float plugins are gone.__ Load
   `grideditor.style.js`, which has carried them since 7.3, and name it in the
@@ -34,6 +35,23 @@ with `npm install @themarioga/grid-editor@next`.
 * __Gone from the locales:__ `warning.setting_removed`,
   `warning.oninit_removed` and `warning.plugin_6x`. A locale of your own
   can drop them.
+
+From `8.0.0-beta.2`:
+
+* __The `visibility` utility is `display`.__ It edits every `d-{bp}-*`
+  value now, not only hidden and shown: `setUtility(node, 'display', 'none',
+  'md')`, and `before-utility` and `after-utility` say `family: 'display'`.
+  `'visibility'` is a family no plugin declares, and gets the usual warning.
+  The eye and `style.visibility.drawer` are as they were.
+* __A row's `justify-content-*` and `align-items-*` are the style plugin's.__
+  They are in its Flex section, on rows and on anything made flex, and the
+  alignment plugin keeps `align-self-*` only. A page that loads alignment
+  without style has no field for them: load `grideditor.style.js`.
+* __Locale keys:__ `utility.visibility` and `utility.visibility_shown` are
+  gone, and `utility.display` is new; `utility.justify_content` and
+  `utility.align_items` come with the style plugin now. The Flex section and
+  sticky bring keys of their own, listed in
+  [docs/locale-keys.md](docs/locale-keys.md).
 
 Upgrading from grid-editor `7.2` to `7.3`
 =========================================

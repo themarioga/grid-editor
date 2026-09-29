@@ -4,8 +4,9 @@
  * catalog of Bootstrap classes, free css, and the style setting.
  *
  * What the merged utilities do in its sections - spacing, text alignment,
- * visibility, float - is test/spacing.js, textalign.js, visibility.js and
- * float.js. Where the accordion opens for each settings_panel, and the
+ * display, flex, sticky, float and the drawer - is test/spacing.js,
+ * textalign.js, display.js, flex.js, sticky.js, float.js and drawerflow.js.
+ * Where the accordion opens for each settings_panel, and the
  * dialog, are test/panelsection.js.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
@@ -95,7 +96,7 @@ async function structure(t, page) {
         ge().createSection({ appendTo: '#myGrid' });
         const details = row().querySelector(':scope > .ge-tools-drawer > .ge-details');
         const text = document.querySelectorAll('#myGrid .ge-content')[1];
-        const all = 'size,spacing,border,background,text,typography,display,position,custom';
+        const all = 'size,spacing,border,background,text,typography,display,flex,position,custom';
         return {
             order: Array.from(details.children).map(function(child) { return child.className.split(' ')[0]; }).join(','),
             row: sections(row()),
@@ -118,7 +119,7 @@ async function structure(t, page) {
             return each === built.all;
         }), built);
     t.check('a text gets Text and Display, with the per breakpoint fields and no inline field or chip (AC-10)',
-        built.text === 'text,display' && built.textFields === 0 && built.textParts === 'text-align,visibility', built);
+        built.text === 'text,display' && built.textFields === 0 && built.textParts === 'text-align,display', built);
 
     var none = await page.eval(`
         start('<div class="row"><div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>',
@@ -289,6 +290,172 @@ async function catalog(t, page) {
     t.check('a class typed in the classes field presses its chip (AC-28)', typed.pressed === 'shadow-lg', typed);
     t.check('in a breakpoint view a chip still writes its class as it is: none is responsive (AC-29)',
         typed.md === 'shadow-lg bg-primary', typed);
+}
+
+/** The Bootstrap 5.3 classes of spec style-bootstrap-extras, and the Flex section. */
+async function extras(t, page) {
+    var groups = await page.eval(`
+        start('<div class="row"><div class="column col-6"><div class="ge-content"><p>a</p></div>' +
+            '<div data-ge-element="box">box</div></div>' +
+            '<div class="column col-6"><div data-ge-container="tabs"><ul class="nav nav-tabs"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p1">One</button></li></ul>' +
+            '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content"><p>in</p></div></div></div></div></div></div>' +
+            '</div></div>');
+        ge().createSection({ appendTo: '#myGrid' });
+        const rows = function(node, key) {
+            return Array.from(section(node, key).querySelectorAll('.ge-style-chips')).map(function(line) {
+                return Array.from(line.querySelectorAll('.ge-style-chip')).map(function(each) { return each.getAttribute('data-ge-class'); }).join(' ');
+            });
+        };
+        const images = function(node) {
+            return node ? Array.from(acc(node).querySelectorAll('.ge-style-chip')).map(function(each) {
+                return each.getAttribute('data-ge-class');
+            }).filter(function(name) { return /^(img-|object-fit-)/.test(name); }).join(' ') : '';
+        };
+        const element = document.querySelector('#myGrid .ge-element');
+        return {
+            background: rows(row(), 'background'),
+            text: rows(row(), 'text'),
+            border: rows(row(), 'border'),
+            element: images(element),
+            others: [row(), col(), document.querySelector('#myGrid [data-ge-container]'), document.querySelector('#myGrid .ge-tab'),
+                document.querySelector('#myGrid .ge-section')].map(images).join('|'),
+            position: rows(row(), 'position'),
+        };
+    `);
+    var colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+    var suffixed = function(prefix, suffix) { return colors.map(function(color) { return prefix + color + suffix; }).join(' '); };
+    t.check('Background offers the subtle and text-bg colors after today\'s, and the opacities after the gradient (AC-01)',
+        groups.background[0].endsWith('bg-transparent ' + suffixed('bg-', '-subtle') + ' ' + suffixed('text-bg-', '')) &&
+        groups.background[1] === 'bg-gradient' && groups.background[2] === 'bg-opacity-10 bg-opacity-25 bg-opacity-50 bg-opacity-75 bg-opacity-100',
+        groups.background);
+    t.check('Text offers the emphasis colors and the text opacities (AC-06)',
+        groups.text[0].endsWith('text-black ' + suffixed('text-', '-emphasis') + ' text-body-emphasis') &&
+        groups.text[1] === 'text-opacity-25 text-opacity-50 text-opacity-75 text-opacity-100',
+        groups.text);
+    t.check('Border offers the subtle colors and the border opacities (AC-08)',
+        groups.border[2].endsWith('border-white ' + suffixed('border-', '-subtle')) &&
+        groups.border[3] === 'border-opacity-10 border-opacity-25 border-opacity-50 border-opacity-75 border-opacity-100',
+        groups.border);
+    t.check('an element is offered the image classes (AC-09)',
+        groups.element === 'img-fluid img-thumbnail object-fit-contain object-fit-cover object-fit-fill object-fit-scale object-fit-none', groups);
+    t.check('rows, columns, containers, panes and sections are not (AC-10)', groups.others === '||||', groups);
+    t.check('Position offers fixed-top and fixed-bottom', groups.position[groups.position.length - 1] === 'fixed-top fixed-bottom', groups.position);
+
+    var picked = await page.eval(`
+        const pick = function(before, names, html) {
+            start(html || '<div class="row ' + before + '"><div class="column col-6"><div class="ge-content"><p>a</p></div><div data-ge-element="box">box</div></div></div>');
+            const node = html ? document.querySelector('#myGrid .ge-element') : row();
+            names.forEach(function(name) { chip(node, name).click(); });
+            return hostClasses(node);
+        };
+        const element = '<div class="row"><div class="column col-6"><div data-ge-element="box">box</div></div></div>';
+        return {
+            subtle: pick('bg-success', ['bg-primary-subtle']),
+            textBg: pick('bg-primary-subtle', ['text-bg-danger']),
+            opacity: pick('bg-primary-subtle', ['bg-opacity-50']),
+            opacities: pick('bg-opacity-25', ['bg-opacity-75']),
+            emphasis: pick('text-danger', ['text-primary-emphasis']),
+            images: pick('', ['img-fluid', 'img-thumbnail'], element),
+            fit: pick('', ['object-fit-cover', 'object-fit-contain'], element),
+            fixed: pick('fixed-top', ['fixed-bottom']),
+        };
+    `);
+    t.check('a subtle background takes the other background color off (AC-02)', picked.subtle === 'bg-primary-subtle', picked);
+    t.check('text-bg is a background color too (AC-03)', picked.textBg === 'text-bg-danger', picked);
+    t.check('an opacity goes with a color (AC-04)', picked.opacity === 'bg-primary-subtle bg-opacity-50', picked);
+    t.check('and one opacity takes the other off (AC-05)', picked.opacities === 'bg-opacity-75', picked);
+    t.check('an emphasis color takes the other text color off (AC-07)', picked.emphasis === 'text-primary-emphasis', picked);
+    t.check('img-fluid and img-thumbnail go together (AC-11)', picked.images === 'img-fluid img-thumbnail', picked);
+    t.check('one object-fit takes the other off (AC-12)', picked.fit === 'object-fit-contain', picked);
+    t.check('fixed-bottom takes fixed-top off (AC-48)', picked.fixed === 'fixed-bottom', picked);
+
+    var priority = await page.eval(`
+        const noteFor = function(classes, property, value, html) {
+            start(html || '<div class="row ' + classes + '"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+            const node = html ? document.querySelector('#myGrid .ge-element') : row();
+            type(classesField(node), classes);
+            type(input(node, property), value);
+            return note(node, property);
+        };
+        return {
+            textBgColor: noteFor('text-bg-primary', 'color', 'red'),
+            textBgBackground: noteFor('text-bg-primary', 'background-color', 'red'),
+            subtle: noteFor('bg-primary-subtle', 'background-color', 'red'),
+            emphasis: noteFor('text-primary-emphasis', 'color', 'red'),
+            body: noteFor('text-body-emphasis', 'color', 'red'),
+            border: noteFor('border-primary-subtle', 'border-color', 'red'),
+            opacity: noteFor('bg-opacity-50', 'background-color', 'red'),
+            fluid: noteFor('img-fluid', 'max-width', '10px',
+                '<div class="row"><div class="column col-6"><div data-ge-element="box">box</div></div></div>'),
+            stack: noteFor('vstack', 'display', 'grid',
+                '<div class="row"><div class="column col-6"><div data-ge-element="box">box</div></div></div>'),
+            sticky: noteFor('sticky-top', 'position', 'relative'),
+            stickyTop: noteFor('sticky-top', 'top', '1px'),
+            fixedBottom: noteFor('fixed-bottom', 'bottom', '1px'),
+        };
+    `);
+    var says = function(name) { return 'The class ' + name + ' takes priority over this value'; };
+    t.check('text-bg takes priority over color and background color (AC-13)',
+        priority.textBgColor === says('text-bg-primary') && priority.textBgBackground === says('text-bg-primary'), priority);
+    t.check('subtle and emphasis colors take priority over their property (AC-14)',
+        priority.subtle === says('bg-primary-subtle') && priority.emphasis === says('text-primary-emphasis') &&
+        priority.body === says('text-body-emphasis') && priority.border === says('border-primary-subtle'), priority);
+    t.check('an opacity and img-fluid take no priority (AC-15)', priority.opacity === '' && priority.fluid === '', priority);
+    t.check('stacks, sticky and fixed take priority over display, position, top and bottom (AC-45)',
+        priority.stack === says('vstack') && priority.sticky === says('sticky-top') &&
+        priority.stickyTop === says('sticky-top') && priority.fixedBottom === says('fixed-bottom'), priority);
+
+    var off = await page.eval(`
+        start('', { style: { sections: { background: { catalog: false } } } });
+        const none = chips(row(), 'background');
+        start();
+        ge().changeView('md');
+        chip(row(), 'bg-primary-subtle').click();
+        return { none: none, md: hostClasses(row()) };
+    `);
+    t.check('catalog false takes the new chips off too (AC-16)', off.none === 0, off);
+    t.check('a new chip is no more responsive than the others (AC-17)', off.md === 'bg-primary-subtle', off);
+
+    var flex = await page.eval(`
+        start('<div class="row"><div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div></div>');
+        const utilities = function(node) {
+            return Array.from(section(node, 'flex').querySelectorAll('.ge-utility')).map(function(each) {
+                return each.getAttribute('data-ge-family');
+            }).join(',');
+        };
+        const stacks = function(node) {
+            return Array.from(section(node, 'flex').querySelectorAll('.ge-style-chip')).map(function(each) {
+                return each.getAttribute('data-ge-class');
+            }).join(',');
+        };
+        const text = document.querySelector('#myGrid .ge-content');
+        const result = {
+            column: utilities(col()),
+            columnStacks: stacks(col()),
+            row: utilities(row()),
+            rowStacks: stacks(row()),
+            text: sections(text),
+            textSticky: acc(text).querySelectorAll('.ge-utility[data-ge-family="sticky"]').length,
+        };
+        chip(col(), 'vstack').click();
+        chip(col(), 'hstack').click();
+        result.swapped = hostClasses(col());
+        start('', { style: { sections: { flex: false } } });
+        result.off = sections(col());
+        ge().setUtility(col(), 'flex-direction', 'column');
+        result.written = col().classList.contains('flex-column');
+        return result;
+    `);
+    t.check('a column\'s Flex section has the eleven fields in order, and the stacks (AC-31)',
+        flex.column === 'flex-direction,flex-wrap,justify-content,align-items,align-content,gap,row-gap,column-gap,flex-fill,flex-grow,flex-shrink' &&
+        flex.columnStacks === 'vstack,hstack', flex);
+    t.check('a row\'s has no gaps, no fill, grow or shrink, and no stacks (AC-32)',
+        flex.row === 'flex-direction,flex-wrap,justify-content,align-items,align-content' && flex.rowStacks === '', flex);
+    t.check('a text has no Flex section and no sticky field (AC-33)',
+        flex.text === 'text,display' && flex.textSticky === 0, flex);
+    t.check('hstack takes vstack off (AC-44)', flex.swapped === 'hstack', flex);
+    t.check('with the Flex section off, the families still write (AC-43)',
+        flex.off.indexOf('flex') === -1 && flex.off.indexOf('display') !== -1 && flex.written, flex);
 }
 
 async function views(t, page) {
@@ -475,7 +642,7 @@ async function locale(t, page) {
         };
     `);
     t.check('the accordion speaks the editor\'s locale (AC-72)',
-        spanish.sections === 'Tamaño,Espaciado,Borde,Fondo,Texto,Tipografía,Visualización,Posición,CSS libre' &&
+        spanish.sections === 'Tamaño,Espaciado,Borde,Fondo,Texto,Tipografía,Visualización,Flex,Posición,CSS libre' &&
         spanish.note === 'La clase mt-3 tiene prioridad sobre este valor' &&
         spanish.sizes === 'Se aplica a todos los tamaños' && spanish.label === 'Margen superior', spanish);
 }
@@ -491,6 +658,7 @@ module.exports = {
         await inline(t, page);
         await conflicts(t, page);
         await catalog(t, page);
+        await extras(t, page);
         await views(t, page);
         await columns(t, page);
         await shadows(t, page);

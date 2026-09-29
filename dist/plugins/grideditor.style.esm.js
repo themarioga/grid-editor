@@ -1,5 +1,5 @@
 // src/js/plugins/grideditor.style.js
-import { GridEditor as GridEditor5 } from "../grideditor.esm.js";
+import { GridEditor as GridEditor7 } from "../grideditor.esm.js";
 
 // src/js/style/spacing.js
 import { GridEditor } from "../grideditor.esm.js";
@@ -277,9 +277,9 @@ function spacingPart(ge, given) {
     box.appendChild(field);
     return box;
   }
-  var NODES2 = ".row, .column, .ge-element, [data-ge-container]";
+  var NODES3 = ".row, .column, .ge-element, [data-ge-container]";
   function mark2(scope) {
-    selfAndAll(scope, NODES2).forEach(function(node) {
+    selfAndAll(scope, NODES3).forEach(function(node) {
       var drawer = child(node, ".ge-tools-drawer");
       if (!drawer || !applies(node, ge.kindOf(node))) {
         return;
@@ -395,28 +395,39 @@ function textalignPart(ge) {
   };
 }
 
-// src/js/style/visibility.js
+// src/js/style/display.js
 import { GridEditor as GridEditor3 } from "../grideditor.esm.js";
 Object.assign(GridEditor3.locales.en, {
-  "utility.visibility": "Visibility",
+  "utility.display": "Display",
   "utility.visibility_hidden": "Hidden",
-  "utility.visibility_shown": "Shown",
   "tool.hide_in_view": "Hide in this view",
   "tool.show_in_view": "Show in this view",
   "badge.hidden_in": "Hidden at {breakpoints}"
 });
-var CLASS_PATTERN = /(?:^|\s)d-(?:(?:sm|md|lg|xl|xxl)-)?(?:none|block|flex)(?:\s|$)/;
+var VALUES2 = ["none", "inline", "inline-block", "block", "grid", "inline-grid", "flex", "inline-flex"];
+var CLASS_PATTERN = new RegExp("(?:^|\\s)d-(?:(?:sm|md|lg|xl|xxl)-)?(?:" + VALUES2.join("|") + ")(?:\\s|$)");
+var NONE_PATTERN = /^d-(?:(?:sm|md|lg|xl|xxl)-)?none$/;
 var NODES = ".row, .column, .ge-content, .ge-element, [data-ge-container]";
-function visibilityPart(ge, given) {
+var SHOWN_ATTR = "data-ge-display";
+function displayPart(ge, given) {
   var options = Object.assign({ drawer: true }, given);
-  function shown(kind) {
+  function choices(kind) {
+    if (kind === "row") {
+      return ["none", "flex"];
+    }
+    if (kind === "text" || kind === "plain") {
+      return ["none", "block"];
+    }
+    return VALUES2;
+  }
+  function shownByDefault(kind) {
     return kind === "row" ? "flex" : "block";
   }
   function applies(node, kind) {
     return kind === "row" || kind === "column" || kind === "element" || kind === "text" || kind === "plain" || is(node, "[data-ge-container]");
   }
   function hiddenAt(node, view) {
-    return ge.getUtility(node, "visibility", view) === "none";
+    return ge.getUtility(node, "display", view) === "none";
   }
   function hiddenTiers(node) {
     return ge.breakpoints.filter(function(key) {
@@ -430,6 +441,18 @@ function visibilityPart(ge, given) {
     var index = ge.breakpoints.indexOf(ge.view());
     return index > 0 && hiddenAt(node, ge.breakpoints[index - 1]);
   }
+  function shownBelow(node, view) {
+    for (var i = ge.breakpoints.indexOf(view) - 1; i >= 0; i--) {
+      var value = ge.getUtility(node, "display", ge.breakpoints[i]);
+      if (value === null) {
+        return null;
+      }
+      if (value !== "none") {
+        return value;
+      }
+    }
+    return null;
+  }
   function toggle2(node, kind) {
     var hide2 = !hiddenHere(node);
     var value;
@@ -438,9 +461,18 @@ function visibilityPart(ge, given) {
     } else if (hide2) {
       value = hiddenBelow(node) ? null : "none";
     } else {
-      value = hiddenBelow(node) ? shown(kind) : null;
+      value = hiddenBelow(node) ? shownBelow(node, ge.view()) || shownByDefault(kind) : null;
     }
-    ge.setUtility(node, "visibility", value, { source: "tool" });
+    ge.setUtility(node, "display", value, { source: "tool" });
+  }
+  function shownAs(node) {
+    var original = node.getAttribute("class");
+    node.setAttribute("class", original.split(/\s+/).filter(function(name) {
+      return !NONE_PATTERN.test(name);
+    }).join(" "));
+    var display = getComputedStyle(node).display;
+    node.setAttribute("class", original);
+    return display !== "none" && VALUES2.indexOf(display) !== -1 ? display : "block";
   }
   function mark2(scope) {
     selfAndAll(scope, NODES).forEach(function(node) {
@@ -449,7 +481,10 @@ function visibilityPart(ge, given) {
       var tiers = carries ? hiddenTiers(node) : [];
       var here = carries && hiddenHere(node);
       var partly = carries && ge.view() === "all" && tiers.length > 0 && !here;
-      toggleClass(node, "ge-visibility", carries);
+      node.removeAttribute(SHOWN_ATTR);
+      if (carries && getComputedStyle(node).display === "none") {
+        node.setAttribute(SHOWN_ATTR, shownAs(node));
+      }
       toggleClass(node, "ge-hidden-in-view", here);
       if (partly) {
         node.setAttribute("data-ge-hidden-in", ge.t("badge.hidden_in", { breakpoints: tiers.join(", ") }));
@@ -467,25 +502,37 @@ function visibilityPart(ge, given) {
     });
   }
   function unmark() {
-    all(ge.canvas, ".ge-visibility, .ge-hidden-in-view, [data-ge-hidden-in]").forEach(function(node) {
-      removeClass(node, "ge-visibility ge-hidden-in-view");
+    all(ge.canvas, ".ge-hidden-in-view, [data-ge-hidden-in], [" + SHOWN_ATTR + "]").forEach(function(node) {
+      removeClass(node, "ge-hidden-in-view");
       node.removeAttribute("data-ge-hidden-in");
+      node.removeAttribute(SHOWN_ATTR);
       dropEmptyClass(node);
     });
   }
   return {
     families: [{
-      name: "visibility",
+      name: "display",
       prefix: "d",
-      values: ["none", "block", "flex"],
+      values: VALUES2,
       appliesTo: ["row", "column", "text", "element", "container"],
-      labelKey: "utility.visibility",
-      /** Hidden, or shown the way this kind of node is shown. */
+      labelKey: "utility.display",
       choices: function(node, kind) {
-        return ["none", shown(kind)];
+        return choices(kind);
       },
       label: function(value) {
-        return value === "none" ? ge.t("utility.visibility_hidden") : ge.t("utility.visibility_shown");
+        return value === "none" ? ge.t("utility.visibility_hidden") : value;
+      },
+      /**
+       * What the view being edited displays the node as. Hidden is
+       * shown the way the breakpoints below show it, since the canvas
+       * keeps a hidden node, faded; with no class applying, it is what
+       * the node is without any.
+       */
+      preview: function(value, node) {
+        if (value === "none") {
+          value = shownBelow(node, ge.view());
+        }
+        return { display: value === null ? ge.bareStyle(node, "display", "display") : value };
       }
     }],
     drawerTools: function(drawer, node, kind) {
@@ -501,9 +548,145 @@ function visibilityPart(ge, given) {
   };
 }
 
-// src/js/style/float.js
+// src/js/style/flex.js
 import { GridEditor as GridEditor4 } from "../grideditor.esm.js";
 Object.assign(GridEditor4.locales.en, {
+  "utility.flex_direction": "Direction",
+  "utility.flex_wrap": "Wrap",
+  "utility.justify_content": "Justify columns",
+  "utility.align_items": "Align columns",
+  "utility.align_content": "Align lines",
+  "utility.gap": "Gap",
+  "utility.row_gap": "Row gap",
+  "utility.column_gap": "Column gap",
+  "utility.flex_fill": "Fill",
+  "utility.flex_grow": "Grow",
+  "utility.flex_shrink": "Shrink"
+});
+var FLEX = {
+  start: "flex-start",
+  end: "flex-end",
+  center: "center",
+  between: "space-between",
+  around: "space-around",
+  evenly: "space-evenly",
+  baseline: "baseline",
+  stretch: "stretch"
+};
+var GAPS = ["0", "1", "2", "3", "4", "5"];
+var SCALE2 = ["0", ".25rem", ".5rem", "1rem", "1.5rem", "3rem"];
+var CONTAINERS = ["row", "column", "element", "container"];
+var ITEMS = ["column", "element", "container"];
+function flexPart(ge, spacing2) {
+  var scale = spacing2 && spacing2.scale || SCALE2;
+  function family(definition) {
+    var property = definition.property || definition.name;
+    return Object.assign({
+      prefix: definition.name,
+      panel: false,
+      preview: function(value, node) {
+        var styles = {};
+        styles[property] = value === null ? ge.bareStyle(node, definition.name, property) : definition.css(value);
+        return styles;
+      }
+    }, definition);
+  }
+  function alignment(definition) {
+    return family(Object.assign({
+      appliesTo: CONTAINERS,
+      preview: function(value) {
+        var styles = {};
+        styles[definition.name] = value === null ? "normal" : FLEX[value];
+        return styles;
+      }
+    }, definition));
+  }
+  function gap(definition) {
+    return family(Object.assign({
+      values: GAPS,
+      appliesTo: ITEMS,
+      css: function(value) {
+        return scale[value];
+      }
+    }, definition));
+  }
+  function same(value) {
+    return value;
+  }
+  return {
+    families: [
+      family({
+        name: "flex-direction",
+        prefix: "flex",
+        labelKey: "utility.flex_direction",
+        values: ["row", "row-reverse", "column", "column-reverse"],
+        appliesTo: CONTAINERS,
+        css: same
+      }),
+      family({
+        name: "flex-wrap",
+        prefix: "flex",
+        labelKey: "utility.flex_wrap",
+        values: ["wrap", "nowrap", "wrap-reverse"],
+        appliesTo: CONTAINERS,
+        css: same
+      }),
+      alignment({
+        name: "justify-content",
+        labelKey: "utility.justify_content",
+        values: ["start", "center", "end", "between", "around", "evenly"]
+      }),
+      alignment({
+        name: "align-items",
+        labelKey: "utility.align_items",
+        values: ["start", "center", "end", "baseline", "stretch"]
+      }),
+      alignment({
+        name: "align-content",
+        labelKey: "utility.align_content",
+        values: ["start", "center", "end", "between", "around", "stretch"]
+      }),
+      gap({ name: "gap", labelKey: "utility.gap" }),
+      gap({ name: "row-gap", labelKey: "utility.row_gap" }),
+      gap({ name: "column-gap", labelKey: "utility.column_gap" }),
+      family({
+        name: "flex-fill",
+        prefix: "flex",
+        property: "flex",
+        labelKey: "utility.flex_fill",
+        values: ["fill"],
+        appliesTo: ITEMS,
+        css: function() {
+          return "1 1 auto";
+        }
+      }),
+      family({
+        name: "flex-grow",
+        prefix: "flex",
+        labelKey: "utility.flex_grow",
+        values: ["grow-0", "grow-1"],
+        appliesTo: ITEMS,
+        css: function(value) {
+          return value.slice(-1);
+        }
+      }),
+      family({
+        name: "flex-shrink",
+        prefix: "flex",
+        labelKey: "utility.flex_shrink",
+        values: ["shrink-0", "shrink-1"],
+        appliesTo: ITEMS,
+        css: function(value) {
+          return value.slice(-1);
+        }
+      })
+    ]
+  };
+}
+
+// src/js/style/float.js
+import { GridEditor as GridEditor5 } from "../grideditor.esm.js";
+Object.assign(GridEditor5.locales.en, {
   "utility.float": "Float",
   "utility.float_start": "Start",
   "utility.float_end": "End",
@@ -536,16 +719,140 @@ function floatPart(ge) {
   };
 }
 
+// src/js/style/sticky.js
+import { GridEditor as GridEditor6 } from "../grideditor.esm.js";
+Object.assign(GridEditor6.locales.en, {
+  "utility.sticky": "Sticky"
+});
+var STUCK = {
+  top: { position: "sticky", top: "0", "z-index": "1020" },
+  bottom: { position: "sticky", bottom: "0", "z-index": "1020" }
+};
+function stickyPart(ge) {
+  return {
+    families: [{
+      name: "sticky",
+      prefix: "sticky",
+      values: ["top", "bottom"],
+      appliesTo: ["row", "column", "element", "container"],
+      labelKey: "utility.sticky",
+      panel: false,
+      /** With no class applying here, where the node is without one. */
+      preview: function(value, node) {
+        if (value !== null) {
+          return STUCK[value];
+        }
+        return { position: ge.bareStyle(node, "sticky", "position") };
+      }
+    }]
+  };
+}
+
+// src/js/style/drawerflow.js
+var NODES2 = ".row, .column, .ge-element, [data-ge-container]";
+var OUT_CLASS = "ge-drawer-out";
+var OUT_ATTR = "data-ge-drawer-out";
+var GAP = 5;
+var LAYS_OUT = /^(?:inline-)?(?:flex|grid)$/;
+function drawerflowPart(ge) {
+  var sheet = null;
+  var heights = {};
+  var observer = null;
+  function rule(room) {
+    if (heights[room]) {
+      return;
+    }
+    heights[room] = true;
+    if (!sheet) {
+      sheet = document.head.appendChild(element("style", { "data-ge-drawer-flow": "" }));
+    }
+    var node = ".ge-canvas.ge-editing [" + OUT_ATTR + '="' + room + '"]';
+    sheet.appendChild(document.createTextNode(
+      node + " { border-top-width: " + room + "px !important; }\n" + node + " > .ge-tools-drawer { top: -" + room + "px; }\n"
+    ));
+  }
+  function laysOut(node) {
+    var style = getComputedStyle(node);
+    if (!LAYS_OUT.test(style.display)) {
+      return false;
+    }
+    return !(hasClass(node, "row") && style.flexDirection === "row" && style.flexWrap === "wrap");
+  }
+  function measure(node, drawer) {
+    var room = Math.ceil(drawer.offsetHeight) + GAP;
+    rule(room);
+    node.setAttribute(OUT_ATTR, String(room));
+  }
+  function watch(drawer) {
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    if (!observer) {
+      observer = new ResizeObserver(function(entries) {
+        entries.forEach(function(entry) {
+          var node = entry.target.parentNode;
+          if (node && hasClass(node, OUT_CLASS)) {
+            measure(node, entry.target);
+          }
+        });
+      });
+    }
+    observer.observe(drawer);
+  }
+  function mark2(scope) {
+    selfAndAll(scope, NODES2).forEach(function(node) {
+      var drawer = child(node, ".ge-tools-drawer");
+      if (!drawer) {
+        return;
+      }
+      if (laysOut(node)) {
+        addClass(node, OUT_CLASS);
+        measure(node, drawer);
+        watch(drawer);
+      } else if (hasClass(node, OUT_CLASS)) {
+        removeClass(node, OUT_CLASS);
+        node.removeAttribute(OUT_ATTR);
+        dropEmptyClass(node);
+        if (observer) {
+          observer.unobserve(drawer);
+        }
+      }
+    });
+  }
+  function unmark() {
+    if (observer) {
+      observer.disconnect();
+    }
+    observer = null;
+    all(ge.canvas, "." + OUT_CLASS).forEach(function(node) {
+      removeClass(node, OUT_CLASS);
+      node.removeAttribute(OUT_ATTR);
+      dropEmptyClass(node);
+    });
+    if (sheet) {
+      sheet.remove();
+    }
+    sheet = null;
+    heights = {};
+  }
+  return {
+    families: [],
+    onRefresh: mark2,
+    onDeinit: unmark
+  };
+}
+
 // src/js/style/sections.js
 var COLORS = ["primary", "secondary", "success", "danger", "warning", "info", "light", "dark"];
 var SIDES2 = ["top", "end", "bottom", "start"];
+var OPACITIES = ["10", "25", "50", "75", "100"];
 function each(prefix, values, suffix) {
   return values.map(function(value) {
     return prefix + value + (suffix || "");
   });
 }
-function group(classes, exclusive, notOn) {
-  return { classes, exclusive: exclusive !== false, notOn: notOn || [] };
+function group(classes, exclusive, notOn, onlyOn) {
+  return { classes, exclusive: exclusive !== false, notOn: notOn || [], onlyOn: onlyOn || null };
 }
 function prop(name, options) {
   return {
@@ -557,6 +864,7 @@ function prop(name, options) {
   };
 }
 var NOT_ON_COLUMN = ["column"];
+var ONLY_ON_ELEMENT = ["element"];
 var SECTIONS = [
   {
     key: "size",
@@ -572,7 +880,9 @@ var SECTIONS = [
     catalog: [
       group(each("w-", ["25", "50", "75", "100", "auto"]), true, NOT_ON_COLUMN),
       group(each("h-", ["25", "50", "75", "100", "auto"]), true, NOT_ON_COLUMN),
-      group(["mw-100", "mh-100", "vw-100", "vh-100", "min-vw-100", "min-vh-100"], false, NOT_ON_COLUMN)
+      group(["mw-100", "mh-100", "vw-100", "vh-100", "min-vw-100", "min-vh-100"], false, NOT_ON_COLUMN),
+      group(["img-fluid", "img-thumbnail"], false, [], ONLY_ON_ELEMENT),
+      group(each("object-fit-", ["contain", "cover", "fill", "scale", "none"]), true, [], ONLY_ON_ELEMENT)
     ],
     parts: []
   },
@@ -605,7 +915,8 @@ var SECTIONS = [
     catalog: [
       group(["border", "border-0"].concat(each("border-", SIDES2), each("border-", SIDES2, "-0")), false),
       group(each("border-", ["1", "2", "3", "4", "5"])),
-      group(each("border-", COLORS.concat(["black", "white"]))),
+      group(each("border-", COLORS.concat(["black", "white"])).concat(each("border-", COLORS, "-subtle"))),
+      group(each("border-opacity-", OPACITIES)),
       group(["rounded"].concat(each("rounded-", ["0", "1", "2", "3", "4", "5", "circle", "pill"]))),
       group(each("rounded-", SIDES2), false),
       group(["shadow-none", "shadow-sm", "shadow", "shadow-lg"])
@@ -623,8 +934,9 @@ var SECTIONS = [
       prop("background-repeat", { labelKey: "style.prop_background_repeat", type: "select", values: ["repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round"] })
     ],
     catalog: [
-      group(each("bg-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black", "transparent"]))),
-      group(["bg-gradient"], false)
+      group(each("bg-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black", "transparent"])).concat(each("bg-", COLORS, "-subtle"), each("text-bg-", COLORS))),
+      group(["bg-gradient"], false),
+      group(each("bg-opacity-", OPACITIES))
     ],
     parts: []
   },
@@ -638,7 +950,8 @@ var SECTIONS = [
       prop("text-shadow", { labelKey: "style.prop_text_shadow", type: "shadow" })
     ],
     catalog: [
-      group(each("text-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black"]))),
+      group(each("text-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black"])).concat(each("text-", COLORS, "-emphasis"), ["text-body-emphasis"])),
+      group(each("text-opacity-", ["25", "50", "75", "100"])),
       group(each("fs-", ["1", "2", "3", "4", "5", "6"])),
       group(each("text-decoration-", ["none", "underline", "line-through"]))
     ],
@@ -681,7 +994,16 @@ var SECTIONS = [
       group(each("overflow-", ["auto", "hidden", "visible", "scroll"])),
       group(["visible", "invisible"])
     ],
-    parts: ["visibility"]
+    parts: ["display"]
+  },
+  {
+    key: "flex",
+    labelKey: "style.section_flex",
+    properties: [],
+    catalog: [
+      group(["vstack", "hstack"], true, ["row"])
+    ],
+    parts: ["flex"]
   },
   {
     key: "position",
@@ -701,9 +1023,10 @@ var SECTIONS = [
       group(each("start-", ["0", "50", "100"])),
       group(each("end-", ["0", "50", "100"])),
       group(["translate-middle", "translate-middle-x", "translate-middle-y"]),
-      group(["z-n1", "z-0", "z-1", "z-2", "z-3"])
+      group(["z-n1", "z-0", "z-1", "z-2", "z-3"]),
+      group(["fixed-top", "fixed-bottom"])
     ],
-    parts: ["float"]
+    parts: ["float", "sticky"]
   },
   {
     key: "custom",
@@ -720,6 +1043,9 @@ function section(key) {
   })[0] || null;
 }
 function offeredOn(item, kind) {
+  if (item.onlyOn && item.onlyOn.indexOf(kind) === -1) {
+    return false;
+  }
   return item.notOn.indexOf(kind) === -1;
 }
 var BREAKPOINT = "(?:(?:sm|md|lg|xl|xxl)-)?";
@@ -728,6 +1054,10 @@ var COLOR = "(?:" + COLORS.join("|") + "|black|white)";
 var BG = "(?:" + COLORS.join("|") + "|body|body-secondary|body-tertiary|white|black|transparent)";
 var TEXT_COLOR = "(?:" + COLORS.join("|") + "|body|body-secondary|body-tertiary|white|black|muted|black-50|white-50)";
 var BORDER = "border(?:-(?:top|end|bottom|start))?(?:-0)?";
+var SUBTLE = "(?:" + COLORS.join("|") + ")-subtle";
+var EMPHASIS = "(?:" + COLORS.join("|") + "|body)-emphasis";
+var TEXT_BG = "text-bg-(?:" + COLORS.join("|") + ")";
+var STICKY = "sticky-" + BREAKPOINT;
 function spacing(key, side) {
   var sides = { top: "[ty]?", bottom: "[by]?", left: "[sx]?", right: "[ex]?" }[side];
   return new RegExp("^" + key + sides + "-" + BREAKPOINT + SPACER + "$");
@@ -749,12 +1079,12 @@ var SETS = {
   "padding-left": spacing("p", "left"),
   "border-width": new RegExp("^(?:" + BORDER + "|border-[1-5])$"),
   "border-style": new RegExp("^" + BORDER + "$"),
-  "border-color": new RegExp("^(?:" + BORDER + "|border-" + COLOR + ")$"),
+  "border-color": new RegExp("^(?:" + BORDER + "|border-" + COLOR + "|border-" + SUBTLE + ")$"),
   "border-radius": /^rounded(?:-(?:[0-5]|circle|pill|top|end|bottom|start))?$/,
   "box-shadow": /^shadow(?:-(?:none|sm|lg))?$/,
-  "background-color": new RegExp("^bg-" + BG + "$"),
+  "background-color": new RegExp("^(?:bg-" + BG + "|bg-" + SUBTLE + "|" + TEXT_BG + ")$"),
   "background-image": /^bg-gradient$/,
-  "color": new RegExp("^text-" + TEXT_COLOR + "$"),
+  "color": new RegExp("^(?:text-" + TEXT_COLOR + "|text-" + EMPHASIS + "|" + TEXT_BG + ")$"),
   "font-size": /^fs-[1-6]$/,
   "text-align": new RegExp("^text-" + BREAKPOINT + "(?:start|center|end)$"),
   "text-decoration": /^text-decoration-(?:none|underline|line-through)$/,
@@ -763,13 +1093,13 @@ var SETS = {
   "font-style": /^fst-(?:italic|normal)$/,
   "line-height": /^lh-(?:1|sm|base|lg)$/,
   "text-transform": /^text-(?:lowercase|uppercase|capitalize)$/,
-  "display": new RegExp("^d-" + BREAKPOINT + "(?:none|inline|inline-block|block|grid|inline-grid|table|table-row|table-cell|flex|inline-flex)$"),
+  "display": new RegExp("^(?:d-" + BREAKPOINT + "(?:none|inline|inline-block|block|grid|inline-grid|table|table-row|table-cell|flex|inline-flex)|vstack|hstack)$"),
   "opacity": /^opacity-(?:0|25|50|75|100)$/,
   "overflow": /^overflow-(?:auto|hidden|visible|scroll)$/,
   "visibility": /^(?:visible|invisible)$/,
-  "position": /^position-(?:static|relative|absolute|fixed|sticky)$/,
-  "top": /^top-(?:0|50|100)$/,
-  "bottom": /^bottom-(?:0|50|100)$/,
+  "position": new RegExp("^(?:position-(?:static|relative|absolute|fixed|sticky)|fixed-(?:top|bottom)|" + STICKY + "(?:top|bottom))$"),
+  "top": new RegExp("^(?:top-(?:0|50|100)|fixed-top|" + STICKY + "top)$"),
+  "bottom": new RegExp("^(?:bottom-(?:0|50|100)|fixed-bottom|" + STICKY + "bottom)$"),
   "left": /^start-(?:0|50|100)$/,
   "right": /^end-(?:0|50|100)$/,
   "z-index": /^z-(?:n1|[0-3])$/
@@ -1333,8 +1663,19 @@ function partContent(ge, part, node, kind) {
   if (part.panel) {
     return part.panel(node, kind);
   }
-  var family = part.families[0];
-  return familyApplies(family, node, kind) ? ge.utilityField(node, family.name) : null;
+  var fields = part.families.filter(function(family) {
+    return familyApplies(family, node, kind);
+  }).map(function(family) {
+    return ge.utilityField(node, family.name);
+  });
+  if (fields.length < 2) {
+    return fields[0] || null;
+  }
+  var box = element("div", { "class": "ge-style-part-fields" });
+  fields.forEach(function(field) {
+    box.appendChild(field);
+  });
+  return box;
 }
 function createAccordion(ge, node, kind, context) {
   var inline = takesInlineStyle(node, kind);
@@ -1441,7 +1782,7 @@ function createAccordion(ge, node, kind, context) {
 }
 
 // src/js/plugins/grideditor.style.js
-Object.assign(GridEditor5.locales.en, {
+Object.assign(GridEditor7.locales.en, {
   "style.section_title": "Style",
   "style.dialog_title": "Style: {kind}",
   "style.section_size": "Size",
@@ -1451,6 +1792,7 @@ Object.assign(GridEditor5.locales.en, {
   "style.section_text": "Text",
   "style.section_typography": "Typography",
   "style.section_display": "Display",
+  "style.section_flex": "Flex",
   "style.section_position": "Position",
   "style.section_custom": "Custom css",
   "style.all_sizes": "Applies to every size",
@@ -1510,14 +1852,17 @@ Object.assign(GridEditor5.locales.en, {
   "style.prop_left": "Left",
   "style.prop_z_index": "Z-index"
 });
-var PARTS = ["spacing", "textalign", "visibility", "float"];
-GridEditor5.utilities.style = function(ge) {
+var PARTS = ["spacing", "textalign", "display", "flex", "float", "sticky", "drawerflow"];
+GridEditor7.utilities.style = function(ge) {
   var options = resolveOptions(ge);
   var parts = {
     spacing: spacingPart(ge, options.spacing),
     textalign: textalignPart(ge),
-    visibility: visibilityPart(ge, options.visibility),
-    float: floatPart(ge)
+    display: displayPart(ge, options.visibility),
+    flex: flexPart(ge, options.spacing),
+    float: floatPart(ge),
+    sticky: stickyPart(ge),
+    drawerflow: drawerflowPart(ge)
   };
   var accordions = [];
   var context = {

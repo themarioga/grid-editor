@@ -1,10 +1,12 @@
 /**
- * Browser tests for the visibility plugin: hiding a node at some breakpoints
- * and showing it at others, without ever hiding it from the editor.
+ * Browser tests for the style plugin's display: how a node is displayed at
+ * each breakpoint, hiding it and showing it again, without ever hiding it
+ * from the editor.
  *
  * The engine underneath - the cascade, the events, the panel - is covered by
- * test/utilities.js. What is tested here is the plugin's own choices: which
- * classes a click on the eye writes, and how the canvas shows the result.
+ * test/utilities.js. What is tested here is the part's own choices: what each
+ * kind of node is offered, which classes a click on the eye writes, and how
+ * the canvas shows the result.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
  * changed anything under `src`.
@@ -37,7 +39,16 @@ var HELPERS = `
             icon: tool ? tool.querySelector('i').getAttribute('class') : undefined,
         };
     };
+    window.warnings = [];
+    const warn = console.warn;
+    console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
+    window.log = [];
+    document.querySelector('#myGrid').addEventListener('grideditor:after-utility', function(e) {
+        window.log.push({ family: e.detail.family, breakpoint: e.detail.breakpoint, to: e.detail.to });
+    });
     window.start = function(rowClasses, colClasses, settings) {
+        window.warnings = [];
+        window.log = [];
         if (window.fixture.editor()) { window.fixture.teardown(); }
         document.querySelector('#myGrid').innerHTML =
             '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
@@ -58,7 +69,7 @@ async function toolTests(t, page) {
         window.fixture.init({ plugins: window.fixture.plugins(['style']) });
         const has = function(selector) { return eye(document.querySelector(selector)) ? 1 : 0; };
         const options = function(node) {
-            return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option'));
+            return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="display"] select option'));
         };
         return {
             row: has('#myGrid .row'),
@@ -69,21 +80,61 @@ async function toolTests(t, page) {
             pane: document.querySelectorAll('#myGrid .ge-pane-drawer .ge-visibility-tool').length,
             choices: options(col()).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
             rowChoices: options(row()).map(function(option) { return option.value; }).join(','),
+            elementChoices: options(document.querySelector('#myGrid .ge-element')).map(function(option) { return option.value; }).join(','),
+            containerChoices: options(document.querySelector('#myGrid [data-ge-container]')).map(function(option) { return option.value; }).join(','),
+            textChoices: Array.from(document.querySelector('#myGrid .ge-text-block').querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="display"] select option')).map(function(option) { return option.value; }).join(','),
+            label: col().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="display"] .ge-utility-label').textContent,
         };
     `);
     t.check('rows, columns, texts, elements and containers get the eye; panes do not',
         tools.row === 1 && tools.column === 1 && tools.text === 1 && tools.element === 1 && tools.container === 1 &&
         tools.pane === 0,
         tools);
-    t.check('the field offers hidden and shown, and shown is flex on a row',
-        tools.choices === '=Default,none=Hidden,block=Shown' && tools.rowChoices === ',none,flex', tools);
+    var eight = ',none,inline,inline-block,block,grid,inline-grid,flex,inline-flex';
+    t.check('a column, an element and a container are offered every display, none as Hidden (AC-18)',
+        tools.choices === '=Default,none=Hidden,inline=inline,inline-block=inline-block,block=block,grid=grid,' +
+            'inline-grid=inline-grid,flex=flex,inline-flex=inline-flex' &&
+        tools.elementChoices === eight && tools.containerChoices === eight && tools.label === 'Display', tools);
+    t.check('a row is offered hidden or flex (AC-19)', tools.rowChoices === ',none,flex', tools);
+    t.check('a text is offered hidden or block (AC-20)', tools.textChoices === ',none,block', tools);
 
     var off = await page.eval(`
         start('', '', { style: { visibility: { drawer: false } } });
-        return { eyes: document.querySelectorAll('#myGrid .ge-visibility-tool').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="visibility"]').length };
+        return { eyes: document.querySelectorAll('#myGrid .ge-visibility-tool').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="display"]').length };
     `);
-    t.check('utilities.visibility.drawer false leaves the eye out and keeps the field',
+    t.check('style.visibility.drawer false leaves the eye out and keeps the field (AC-30)',
         off.eyes === 0 && off.fields === 5, off);
+}
+
+async function apiTests(t, page) {
+    var api = await page.eval(`
+        start('', '');
+        ge().changeView('md');
+        const select = col().querySelector(':scope > .ge-tools-drawer .ge-utility[data-ge-family="display"] select');
+        select.value = 'flex';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        const field = { classes: classes(col()), event: window.log[window.log.length - 1] };
+        ge().setUtility(col(), 'display', 'inline-flex', 'lg');
+        const lg = { classes: classes(col()), xl: ge().getUtility(col(), 'display', 'xl') };
+        window.warnings = [];
+        const before = col().getAttribute('class');
+        const old = {
+            read: ge().getUtility(col(), 'visibility', 'md'),
+            written: ge().setUtility(col(), 'visibility', 'none'),
+            same: col().getAttribute('class') === before,
+        };
+        ge().getUtility(col(), 'visibility', 'md');
+        old.warnings = window.warnings.filter(function(w) { return /no loaded plugin declares that utility/.test(w); });
+        return { field: field, lg: lg, old: old };
+    `);
+    t.check('choosing flex in the field writes the breakpoint\'s d-*-flex, and the event says display (AC-21)',
+        api.field.classes === 'd-md-flex' && api.field.event && api.field.event.family === 'display' &&
+        api.field.event.to === 'flex' && api.field.event.breakpoint === 'md', api.field);
+    t.check('setUtility and getUtility take display, and a wider breakpoint inherits it (AC-22)',
+        api.lg.classes === 'd-lg-inline-flex d-md-flex' && api.lg.xl === 'inline-flex', api.lg);
+    t.check('visibility is no family any more: nothing is read or written, and it warns once (AC-23)',
+        api.old.read === null && api.old.written === false && api.old.same && api.old.warnings.length === 1 &&
+        /getUtility\("visibility"\)/.test(api.old.warnings[0]), api.old);
 }
 
 async function breakpointTests(t, page) {
@@ -128,6 +179,52 @@ async function breakpointTests(t, page) {
         shownOver);
     t.check('hiding where the breakpoint below hides takes this breakpoint\'s class off',
         shownOver.back.classes === 'd-lg-none d-none' && shownOver.back.faded, shownOver.back);
+
+    var flex = await page.eval(`
+        start('', 'd-flex');
+        ge().changeView('md');
+        eye(col()).click();
+        const hidden = state(col());
+        ge().changeView('lg');
+        eye(col()).click();
+        const flexed = state(col());
+        start('', '');
+        ge().changeView('md');
+        eye(col()).click();
+        ge().changeView('lg');
+        eye(col()).click();
+        const block = state(col());
+        start('', '');
+        ge().changeView('md');
+        eye(row()).click();
+        ge().changeView('lg');
+        eye(row()).click();
+        return { hidden: hidden, flexed: flexed, block: block, row: state(row()) };
+    `);
+    t.check('a flex column hidden at md and shown at lg comes back flex (AC-24)',
+        flex.hidden.classes === 'd-flex d-md-none' && flex.flexed.classes === 'd-flex d-lg-flex d-md-none' &&
+        flex.flexed.display === 'flex', flex);
+    t.check('a column with nothing below comes back block (AC-25)',
+        flex.block.classes === 'd-lg-block d-md-none', flex.block);
+    t.check('a row comes back flex (AC-26)', flex.row.classes === 'd-lg-flex d-md-none', flex.row);
+
+    // An element, not a column: a column is an item of its flex row, and an
+    // item's inline-flex is a flex
+    var shownAs = await page.eval(`
+        start('', '');
+        window.fixture.editor().destroy();
+        col().insertAdjacentHTML('beforeend', '<div data-ge-element="box" class="d-inline-flex d-md-none">box</div>');
+        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
+        ge().changeView('md');
+        const hidden = state(document.querySelector('#myGrid .ge-element'));
+        start('', 'd-md-flex');
+        ge().changeView('sm');
+        return { hidden: hidden, sm: state(col()) };
+    `);
+    t.check('a node hidden in the view is faded and shown with the display below it (AC-27)',
+        shownAs.hidden.faded && shownAs.hidden.display === 'inline-flex', shownAs.hidden);
+    t.check('below its breakpoint, a node is displayed as it is without the class (AC-28)',
+        shownAs.sm.display === 'block', shownAs.sm);
 }
 
 async function allViewTests(t, page) {
@@ -139,7 +236,7 @@ async function allViewTests(t, page) {
         eye(col()).click();
         return { partly: partly, everywhere: everywhere, none: state(col()) };
     `);
-    t.check('in the all view a node hidden at some breakpoints is shown, with a badge naming them',
+    t.check('in the all view a node hidden at some breakpoints is shown, with a badge naming them (AC-29)',
         all.partly.badge === 'Hidden at md, lg, xl, xxl' && !all.partly.faded &&
         all.partly.display === 'block' && all.partly.title === 'Hide in this view',
         all.partly);
@@ -162,10 +259,10 @@ async function markupTests(t, page) {
     `);
     t.check('getHtml keeps the classes and none of the editing marks',
         /class="row d-lg-none"/.test(exported.html) && /d-none d-md-block/.test(exported.html) &&
-        !/ge-visibility|ge-hidden-in-view|data-ge-hidden-in/.test(exported.html),
+        !/ge-hidden-in-view|data-ge-hidden-in|data-ge-display/.test(exported.html),
         exported.html.slice(0, 200));
     t.check('the marks come back after getHtml, and go for good on destroy',
-        exported.afterReinit.faded && !/ge-visibility|ge-hidden-in-view|data-ge-hidden-in/.test(exported.torndown),
+        exported.afterReinit.faded && !/ge-hidden-in-view|data-ge-hidden-in|data-ge-display/.test(exported.torndown),
         exported.afterReinit);
 
     var spanish = await page.eval(`
@@ -183,18 +280,19 @@ async function markupTests(t, page) {
 }
 
 module.exports = {
-    name: 'visibility',
-    description: 'the visibility utility plugin',
+    name: 'display',
+    description: 'the style plugin\'s display, and its eye',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);
 
         await toolTests(t, page);
+        await apiTests(t, page);
         await breakpointTests(t, page);
         await allViewTests(t, page);
         await markupTests(t, page);
 
         var errors = page.errors();
-        t.check('the visibility tests logged no errors', errors.length === 0, errors.slice(0, 5));
+        t.check('the display tests logged no errors', errors.length === 0, errors.slice(0, 5));
     },
 };

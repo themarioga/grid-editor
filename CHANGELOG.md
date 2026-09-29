@@ -5,6 +5,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.0.0-beta.2] - Unreleased
+
+### Added
+- The style plugin's catalog has Bootstrap 5.3's colors: `bg-*-subtle`,
+  `text-bg-*`, `text-*-emphasis`, `text-body-emphasis` and `border-*-subtle`,
+  the opacities `bg-opacity-*`, `text-opacity-*` and `border-opacity-*`,
+  `fixed-top` and `fixed-bottom`, and on an element `img-fluid`,
+  `img-thumbnail` and `object-fit-*`.
+- A Flex section in the style plugin: direction, wrap, `justify-content`,
+  `align-items`, `align-content`, and on anything but a row `gap`,
+  `row-gap`, `column-gap`, fill, grow and shrink, per breakpoint, with
+  `vstack` and `hstack` as chips. `style.sections.flex` turns it off.
+- `sticky-{bp}-top` and `sticky-{bp}-bottom`, per breakpoint, in the style
+  plugin's Position section.
+- On a node that is flex or grid in the view being edited, the drawer sits
+  on top out of the flow, and the canvas lays the content out as the page
+  will.
+
+### Changed
+- **BREAKING:** The style plugin's `visibility` utility is `display`, and
+  edits every `d-{bp}-*` value from `none` to `inline-flex`. The eye shows a
+  node again with the display it has below, so a flex column comes back
+  flex. `utility.visibility` and `utility.visibility_shown` are gone from the
+  locales, and `utility.display` is new.
+- **BREAKING:** `justify-content-*` and `align-items-*` are the style
+  plugin's, in its Flex section, on rows, columns, elements and containers.
+  The alignment plugin keeps `align-self-*` only.
+- A node Bootstrap hides in the view being edited is kept on the canvas with
+  the display it would have, not as a block.
 ## [8.0.0-beta.1] - 2026-09-29
 
 ### Removed
