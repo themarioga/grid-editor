@@ -777,6 +777,13 @@ __`plugins`:__ Which of the loaded plugins to use, containers, features and util
 new GridEditor('#myGrid', { plugins: ['tabs', 'elements'] });
 ```
 
+__`tabs`:__ The variant of the tabs containers made new, from the toolbar or with `createContainer`: `variant` (`'tabs'`, `'pills'` or `'underline'`), `width` (`'natural'`, `'fill'` or `'justified'`), `align` (`'start'`, `'center'` or `'end'`, with the natural width only) and `vertical` (`false`, `true`, or a breakpoint to go vertical from, `'md'`). Every tabs container also has a *Tabs* section in its settings panel, which changes its own. It is all Bootstrap's classes on the strip and the container, so a page's markup says it too - pills written by hand are tabs.
+
+```javascript
+new GridEditor('#myGrid', { tabs: { variant: 'pills', vertical: 'md' } });   // a side menu from tablet up
+ge.createContainer('tabs', { variant: 'underline', width: 'fill' });          // an option given wins
+```
+
 __`container_tools`, `tab_tools`, `accordion_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
 
 ```javascript

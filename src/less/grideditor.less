@@ -714,6 +714,34 @@
         }
     }
 
+    /* A tabs container laid out vertically from a breakpoint: Bootstrap's
+       classes answer to the window, and a breakpoint view narrows the canvas
+       instead, so the tabs plugin says which layout the view has and that is
+       what shows. The selectors outweigh Bootstrap's !important utilities.
+       Vertical, the container wraps, so its drawer is a line of its own
+       above the strip and the panes */
+    [data-ge-tabs-layout="vertical"] {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: flex-start !important;
+
+        > .ge-container-drawer {
+            flex-shrink: 0;
+        }
+        > .nav {
+            flex-direction: column !important;
+            margin-right: 1rem !important;
+        }
+    }
+    [data-ge-tabs-layout="horizontal"] {
+        display: block !important;
+
+        > .nav {
+            flex-direction: row !important;
+            margin-right: 0 !important;
+        }
+    }
+
     /* The label is edited in place, so it needs to look like it can be */
     .ge-pane-label {
         &:hover {

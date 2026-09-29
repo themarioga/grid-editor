@@ -100,8 +100,11 @@
                     asked to do any of it, so there is no backdrop and no focus
                     trap to fight with. Double click a tab or item label to
                     rename it, and a card&rsquo;s header and footer the same
-                    way. The last row shows two levels: tabs inside an
-                    accordion item.
+                    way. The row after the popup shows two levels: tabs inside
+                    an accordion item. A tabs container's gear has a Tabs
+                    section for its variant - tabs, pills or underline, full
+                    width, alignment, and vertical from a breakpoint up - and
+                    the last row has two of them.
                 </p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <button class="btn btn-sm btn-primary" id="authored" type="button">Open that html as a real page</button>
@@ -233,6 +236,65 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div data-ge-container="tabs" class="d-md-flex align-items-md-start">
+                        <ul class="nav nav-pills flex-md-column me-md-3" role="tablist" aria-orientation="vertical">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#example-vtab-one" aria-controls="example-vtab-one">Profile</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#example-vtab-two" aria-controls="example-vtab-two">Settings</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="example-vtab-one" role="tabpanel" tabindex="0">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>Pills, vertical from tablet up: open the container&rsquo;s gear and look in Tabs.</p></div>
+                                </div></div>
+                            </div>
+                            <div class="tab-pane fade" id="example-vtab-two" role="tabpanel" tabindex="0">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>On a phone the pills are a row above the panes.</p></div>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div data-ge-container="tabs">
+                        <ul class="nav nav-underline nav-fill" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#example-utab-one" aria-controls="example-utab-one">Week</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#example-utab-two" aria-controls="example-utab-two">Month</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#example-utab-three" aria-controls="example-utab-three">Year</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="example-utab-one" role="tabpanel" tabindex="0">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>Underline, filling the width.</p></div>
+                                </div></div>
+                            </div>
+                            <div class="tab-pane fade" id="example-utab-two" role="tabpanel" tabindex="0">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>The second.</p></div>
+                                </div></div>
+                            </div>
+                            <div class="tab-pane fade" id="example-utab-three" role="tabpanel" tabindex="0">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>The third.</p></div>
+                                </div></div>
                             </div>
                         </div>
                     </div>

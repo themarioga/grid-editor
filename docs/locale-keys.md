@@ -96,6 +96,23 @@ The containers: tabs, accordions and popups, and the panes inside them.
 | `container.add_tabs` | Tabs | Toolbar button that adds a tabs container |
 | `container.add_tab` | Add tab | Container drawer, adds a pane |
 | `container.tab_label` | Tab {number} | Label of a new tab. `{number}` is its position |
+| `container.tabs_section` | Tabs | The tabs container's section of its settings panel |
+| `container.tabs_style` | Style | Its strip's style select |
+| `container.tabs_style_tabs` | Tabs | Its choice for `nav-tabs` |
+| `container.tabs_style_pills` | Pills | Its choice for `nav-pills` |
+| `container.tabs_style_underline` | Underline | Its choice for `nav-underline` |
+| `container.tabs_width` | Width | The strip's width select |
+| `container.tabs_width_natural` | Natural | Its choice for no width class |
+| `container.tabs_width_fill` | Fill | Its choice for `nav-fill` |
+| `container.tabs_width_justified` | Justified | Its choice for `nav-justified` |
+| `container.tabs_align` | Alignment | The strip's alignment select, with the natural width and horizontal only |
+| `container.tabs_align_start` | Start | Its choice for no alignment class |
+| `container.tabs_align_center` | Center | Its choice for `justify-content-center` |
+| `container.tabs_align_end` | End | Its choice for `justify-content-end` |
+| `container.tabs_layout` | Layout | The container's layout select |
+| `container.tabs_layout_horizontal` | Horizontal | Its choice for the strip above the panes |
+| `container.tabs_layout_vertical` | Vertical | Its choice for the strip beside the panes at every size: `d-flex`, `flex-column` |
+| `container.tabs_layout_vertical_from` | Vertical from {breakpoint} | Its choices for vertical from a breakpoint up, `d-{bp}-flex`, `flex-{bp}-column`. `{breakpoint}` is its key, `md` |
 | `container.add_accordion` | Accordion | Toolbar button that adds an accordion |
 | `container.add_accordion_item` | Add item | Container drawer, adds an item |
 | `container.accordion_label` | Item {number} | Label of a new accordion item |

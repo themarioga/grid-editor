@@ -437,6 +437,12 @@
        beside the content areas, and each of its panes is an ordinary region */
   /* A pane's own drawer is small and sits with its label rather than
        above it: a tab strip is a row of tabs, not a stack of them */
+  /* A tabs container laid out vertically from a breakpoint: Bootstrap's
+       classes answer to the window, and a breakpoint view narrows the canvas
+       instead, so the tabs plugin says which layout the view has and that is
+       what shows. The selectors outweigh Bootstrap's !important utilities.
+       Vertical, the container wraps, so its drawer is a line of its own
+       above the strip and the panes */
   /* The label is edited in place, so it needs to look like it can be */
   /* Open and closed while editing is what the page will ship, which is what
        data-ge-open says. Bootstrap's own collapse is not involved: its
@@ -638,6 +644,25 @@
 }
 .ge-canvas.ge-editing .ge-tab .nav-link {
   padding-left: 4px;
+}
+.ge-canvas.ge-editing [data-ge-tabs-layout="vertical"] {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: flex-start !important;
+}
+.ge-canvas.ge-editing [data-ge-tabs-layout="vertical"] > .ge-container-drawer {
+  flex-shrink: 0;
+}
+.ge-canvas.ge-editing [data-ge-tabs-layout="vertical"] > .nav {
+  flex-direction: column !important;
+  margin-right: 1rem !important;
+}
+.ge-canvas.ge-editing [data-ge-tabs-layout="horizontal"] {
+  display: block !important;
+}
+.ge-canvas.ge-editing [data-ge-tabs-layout="horizontal"] > .nav {
+  flex-direction: row !important;
+  margin-right: 0 !important;
 }
 .ge-canvas.ge-editing .ge-pane-label:hover {
   outline: 1px dotted #197550;

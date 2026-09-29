@@ -24,6 +24,7 @@ const options: GridEditorOptions = {
         spacing: { values: ['0', '2', '4'] },
         visibility: { drawer: false },
     },
+    tabs: { variant: 'pills', vertical: 'md' },
 };
 
 const ge = new GridEditor('#myGrid', options);
@@ -38,6 +39,7 @@ const row: HTMLElement | null = ge.createRow([8, 4], { appendTo: ge.canvas });
 ge.createColumn('equal', { appendTo: '#myGrid .row', content: '<p>Text</p>' });
 ge.createText({ content: '<p>Hi</p>', appendTo: '#col' });
 const tabs = ge.createContainer('tabs', { appendTo: '#col' });
+ge.createContainer('tabs', { variant: 'underline', width: 'fill', vertical: 'xl' });
 if (tabs) { ge.addTab(tabs, { label: 'More' }); }
 const changed: boolean = ge.setUtility('#col', 'order', 2, 'md');
 const value: string | null = ge.getUtility('#col', 'order');

@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.0.0-beta.3] - Unreleased
+
+### Added
+- Variants for the tabs container: style (`nav-tabs`, `nav-pills`,
+  `nav-underline`), width (`nav-fill`, `nav-justified`), alignment
+  (`justify-content-center`, `-end`) and a vertical layout, always or from a
+  breakpoint up (`d-{bp}-flex`, `flex-{bp}-column`). They are chosen in a
+  Tabs section of the container's settings panel, given to
+  `createContainer('tabs', { variant, width, align, vertical })`, or set for
+  the new ones with the `tabs` setting. While editing, each view shows the
+  layout its breakpoint has.
+
+### Fixed
+- A tab strip without `nav-tabs` - pills or underline written by hand - is
+  recognised as tabs.
+
 ## [8.0.0-beta.2] - 2026-09-29
 
 ### Added

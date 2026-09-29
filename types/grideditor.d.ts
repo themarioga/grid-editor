@@ -59,6 +59,24 @@ export type StyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'te
 /** A section on or off, or on with some of its properties and without its catalog. */
 export type StyleSection = boolean | { properties?: string[]; catalog?: boolean };
 
+/**
+ * A tabs container's variant: its strip's style, width and alignment, and
+ * whether it is laid out vertically - always, or from a breakpoint up.
+ */
+export interface TabsOptions {
+    variant?: 'tabs' | 'pills' | 'underline';
+    width?: 'natural' | 'fill' | 'justified';
+    /** Only with the natural width, and horizontal. */
+    align?: 'start' | 'center' | 'end';
+    vertical?: boolean | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+}
+
+/** createContainer('tabs', …): how many tabs, their labels, and the variant. */
+export interface CreateTabsOptions extends Placement, TabsOptions {
+    tabs?: number;
+    labels?: string[];
+}
+
 /** The style plugin's settings. */
 export interface StyleOptions {
     /** Every section is on unless it is turned off here. */
@@ -97,6 +115,8 @@ export interface GridEditorOptions {
     utilities?: Record<string, unknown>;
     /** The style plugin's sections, and the options of the utilities it carries. */
     style?: StyleOptions;
+    /** The tabs plugin: the variant of the tabs containers made new. */
+    tabs?: TabsOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean };
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];
@@ -328,6 +348,7 @@ export declare class GridEditor {
     createText(options: CreateTextOptions): HTMLElement | null;
     createElement(content: string | Node | ArrayLike<Node>, options?: CreateElementOptions): HTMLElement | null;
     createSection(options?: CreateSectionOptions): HTMLElement | null;
+    createContainer(type: 'tabs', options?: CreateTabsOptions): HTMLElement | null;
     createContainer(type: string, options?: Placement & Record<string, unknown>): HTMLElement | null;
     addTab(container: Target, options?: PaneOptions): HTMLElement | null;
     addAccordionItem(container: Target, options?: PaneOptions): HTMLElement | null;
