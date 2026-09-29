@@ -410,7 +410,7 @@
     });
     readBefore = /* @__PURE__ */ new WeakMap();
     readReady = /* @__PURE__ */ new WeakMap();
-    EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
+    EDITOR_CLASS = /^(mce-|cke|ck-|note-)|^(ck|active|ge-rte-active)$/;
     EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
     textFeature.always = true;
     GridEditor.features.text = textFeature;
@@ -422,81 +422,156 @@
 
   // src/js/plugins/grideditor.ckeditor.js
   Object.assign(GridEditor.locales.en, {
-    "text.ckeditor": "CKEditor"
+    "text.ckeditor": "CKEditor",
+    "error.ckeditor_start": "CKEditor could not start: {message}",
+    "warning.ckeditor_plugin": "CKEditor has no plugin called {name}, so it is left out."
   });
   var INITIAL_CONTENT = "<p>Lorem initius... </p>";
-  var instances = /* @__PURE__ */ new WeakMap();
-  GridEditor.texts.ckeditor = function(ge) {
-    function instanceOf(contentArea) {
-      var kept = instances.get(contentArea);
-      if (kept) {
-        return kept;
+  var PLUGINS = [
+    "Essentials",
+    "Autoformat",
+    "Paragraph",
+    "Heading",
+    "Bold",
+    "Italic",
+    "Underline",
+    "Strikethrough",
+    "Link",
+    "AutoLink",
+    "List",
+    "BlockQuote",
+    "Indent",
+    "HorizontalLine",
+    "Table",
+    "TableToolbar",
+    "PasteFromOffice"
+  ];
+  var DEFAULTS = {
+    toolbar: [
+      "undo",
+      "redo",
+      "|",
+      "heading",
+      "|",
+      "bold",
+      "italic",
+      "underline",
+      "strikethrough",
+      "|",
+      "link",
+      "bulletedList",
+      "numberedList",
+      "blockQuote",
+      "|",
+      "insertTable",
+      "horizontalLine"
+    ],
+    // CKEditor's own headings start at h2, and make every h1 in the content
+    // an h2: a column's text keeps the headings it has
+    heading: {
+      options: [
+        { model: "paragraph", title: "Paragraph", class: "ck-heading_paragraph" }
+      ].concat([1, 2, 3, 4, 5, 6].map(function(level) {
+        return {
+          model: "heading" + level,
+          view: "h" + level,
+          title: "Heading " + level,
+          class: "ck-heading_heading" + level
+        };
+      }))
+    },
+    table: { contentToolbar: ["tableColumn", "tableRow", "mergeTableCells"] }
+  };
+  var editors = /* @__PURE__ */ new WeakMap();
+  var starting = /* @__PURE__ */ new WeakMap();
+  var busy = /* @__PURE__ */ new WeakMap();
+  function pluginsFor(ge, names) {
+    return names.map(function(plugin) {
+      if (typeof plugin !== "string") {
+        return plugin;
       }
-      var found = null;
-      Object.keys(window.CKEDITOR.instances).forEach(function(name) {
-        var instance = window.CKEDITOR.instances[name];
-        if (instance.element && instance.element.$ === contentArea) {
-          found = instance;
-        }
+      if (!window.CKEDITOR[plugin]) {
+        ge.warn(ge.t("warning.ckeditor_plugin", { name: plugin }));
+      }
+      return window.CKEDITOR[plugin];
+    }).filter(Boolean);
+  }
+  GridEditor.texts.ckeditor = function(ge) {
+    function destroy(contentArea, editor) {
+      var data = editor.getData();
+      var done = editor.destroy().catch(function() {
+      }).then(function() {
+        contentArea.innerHTML = data;
       });
-      return found;
+      contentArea.innerHTML = data;
+      return done;
     }
     return {
       labelKey: "text.ckeditor",
       initialContent: INITIAL_CONTENT,
       missingKey: "error.ckeditor_missing",
+      // CKEditor 4 is window.CKEDITOR too, without an InlineEditor
       available: function() {
-        return !!window.CKEDITOR;
+        return !!(window.CKEDITOR && window.CKEDITOR.InlineEditor);
       },
       start: function(contentAreas) {
         var settings = ge.settings;
+        var userConfig = settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {};
         contentAreas.forEach(function(contentArea) {
           if (hasClass(contentArea, "active")) {
             return;
           }
           if (contentArea.innerHTML == INITIAL_CONTENT) {
-            contentArea.innerHTML = "&nbsp;";
+            contentArea.innerHTML = "";
           }
           addClass(contentArea, "active");
-          contentArea.setAttribute("contenteditable", "true");
-          var configuration = Object.assign(
-            {},
-            settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {},
-            {
-              // Focus editor on creation
-              on: {
-                instanceReady: function(evt) {
-                  var callback;
-                  try {
-                    callback = settings.ckeditor.config.on.instanceReady;
-                  } catch (err) {
-                  }
-                  if (callback) {
-                    callback.call(this, evt);
-                  }
-                  ge.textReady(contentArea);
-                  instance.focus();
-                }
-              }
+          var configuration = Object.assign({}, DEFAULTS, userConfig);
+          configuration.plugins = pluginsFor(ge, userConfig.plugins || PLUGINS);
+          delete configuration.on;
+          var ticket = {};
+          starting.set(contentArea, ticket);
+          var run = (busy.get(contentArea) || Promise.resolve()).then(function() {
+            if (starting.get(contentArea) !== ticket) {
+              return null;
             }
-          );
-          var instance = window.CKEDITOR.inline(contentArea, configuration);
-          instances.set(contentArea, instance);
+            return window.CKEDITOR.InlineEditor.create(contentArea, configuration);
+          }).then(function(editor) {
+            if (!editor) {
+              return null;
+            }
+            if (starting.get(contentArea) !== ticket) {
+              return destroy(contentArea, editor);
+            }
+            starting.delete(contentArea);
+            editors.set(contentArea, editor);
+            var callback = userConfig.on && userConfig.on.instanceReady;
+            if (callback) {
+              callback.call(editor, { editor });
+            }
+            ge.textReady(contentArea);
+            editor.editing.view.focus();
+            return null;
+          }).catch(function(error) {
+            if (starting.get(contentArea) === ticket) {
+              starting.delete(contentArea);
+              removeClass(contentArea, "active");
+            }
+            console.error(ge.t("error.ckeditor_start", { message: error && error.message || error }));
+          });
+          busy.set(contentArea, run);
         });
       },
       stop: function(contentAreas) {
         contentAreas.filter(function(contentArea) {
           return hasClass(contentArea, "active");
         }).forEach(function(contentArea) {
-          var instance = window.CKEDITOR ? instanceOf(contentArea) : null;
-          if (instance) {
-            instance.destroy();
+          var editor = editors.get(contentArea);
+          editors.delete(contentArea);
+          starting.delete(contentArea);
+          if (editor) {
+            busy.set(contentArea, destroy(contentArea, editor));
           }
-          instances.delete(contentArea);
-          removeClass(contentArea, "active cke_focus");
-          ["id", "style", "spellcheck", "contenteditable"].forEach(function(name) {
-            contentArea.removeAttribute(name);
-          });
+          removeClass(contentArea, "active");
         });
       }
     };

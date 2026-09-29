@@ -152,7 +152,9 @@ GridEditor.locales.es = {
   "warning.adapter_no_jquery": "grideditor.jquery.js necesita jQuery 4 y la p\xE1gina no tiene jQuery: la API de jQuery no est\xE1 disponible.",
   "warning.oninit_removed": "La opci\xF3n oninit de tinyMCE se elimin\xF3 en la 7.0 y se ignora: usa init_instance_callback.",
   "error.tinymce_missing": "\xA1tinyMCE no est\xE1 disponible! Aseg\xFArate de haber cargado el archivo js de tinyMCE.",
-  "error.ckeditor_missing": "\xA1CKEditor no est\xE1 disponible! Aseg\xFArate de haber cargado el archivo js de CKEditor.",
+  "error.ckeditor_missing": "\xA1CKEditor 5 no est\xE1 disponible! Aseg\xFArate de haber cargado su archivo ckeditor5.umd.js: CKEditor 4 ya no est\xE1 soportado.",
+  "error.ckeditor_start": "CKEditor no ha podido arrancar: {message}",
+  "warning.ckeditor_plugin": "CKEditor no tiene ning\xFAn plugin llamado {name}, as\xED que se deja fuera.",
   "error.codemirror_missing": "\xA1CodeMirror no est\xE1 disponible! Aseg\xFArate de haber cargado el archivo js de CodeMirror; sin \xE9l el c\xF3digo se edita en un textarea normal.",
   "error.summernote_missing": "\xA1Summernote no est\xE1 disponible! Aseg\xFArate de haber cargado jQuery y el archivo js de Summernote."
 };

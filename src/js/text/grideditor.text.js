@@ -40,7 +40,7 @@ if (!GridEditor.features.text) {
     var readReady = new WeakMap();
 
     /** What a text editor puts on a content area while it is open, whenever it likes. */
-    var EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
+    var EDITOR_CLASS = /^(mce-|cke|ck-|note-)|^(ck|active|ge-rte-active)$/;
     var EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
 
     function attributesOf(element) {

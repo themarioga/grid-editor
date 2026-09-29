@@ -48,7 +48,7 @@ Installation
 * __Dependencies:__ Grid Editor depends on [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. It does not need jQuery since 7.0.
     * If you want to use the tinyMCE integration, include tinyMCE 7 (7.9.3 or later) as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor.
     * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`. Summernote needs jQuery itself, so that page loads jQuery too; nothing else does.
-    * If you want to use the CKEditor integration... you get the point: CKEditor and `dist/plugins/grideditor.ckeditor.min.js`.
+    * If you want to use the CKEditor integration... you get the point: CKEditor 5's browser build (`ckeditor5.umd.js` and `ckeditor5.css`) and `dist/plugins/grideditor.ckeditor.min.js`. CKEditor 4 is no longer supported.
     * Up to 5.x the main bundle carried a copy of the three; since 6.0 the plugin of the editor you use has to be loaded, as above. See [UPGRADING.md](UPGRADING.md).
 * From npm:
 
@@ -825,7 +825,7 @@ same way, `codemirror.config` included, and a textarea without it.
 Grid editor comes with support for the following rich text editors (RTEs), each a plugin of its own to load after the editor:
 * [TinyMCE](http://www.tinymce.com/) 7 - `dist/plugins/grideditor.tinymce.min.js` - [(example)](example/basic.html)
 * [summernote](http://summernote.org/) 0.9 - `dist/plugins/grideditor.summernote.min.js` - [(example)](example/summernote.html)
-* [CKEditor](http://ckeditor.com/) 4 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/ckeditor.html)
+* [CKEditor](http://ckeditor.com/) 5 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/ckeditor.html)
 
 A text editor is chosen by `content_types`, not by the `plugins` setting: a page
 that names its containers in `plugins` still has its editor. Summernote 0.9.1
@@ -842,17 +842,46 @@ new GridEditor('#myGrid', {
 });
 ```
 
-__`ckeditor.config`:__ Specify ckeditor config, when using the `ckeditor` `content_types`.
-See the [CKEditor documentation](http://docs.ckeditor.com/). 
+__`ckeditor.config`:__ Specify CKEditor 5 config, when using the `ckeditor` `content_types`:
+anything `InlineEditor.create` takes. See the [CKEditor documentation](https://ckeditor.com/docs/ckeditor5/latest/).
 Also check out the [ckeditor example](example/ckeditor.html).
+
+Load CKEditor 5's browser build, which puts it on the page as `window.CKEDITOR`:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.css">
+<script src="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.umd.js"></script>
+```
+
+CKEditor 5 does not start without a `licenseKey`: pass `'GPL'` to accept its
+GPL-2.0-or-later licence, or your own key if you have a commercial licence.
+Grid editor does not pass one for you, since the licence is yours to choose,
+and logs `CKEditor could not start: license-key-missing` when there is none.
+CKEditor's cloud CDN is for commercial keys: with `'GPL'`, load it from npm,
+as above, or host it yourself.
+
+CKEditor 5 has no plugins of its own, so grid editor gives it a set - the basic
+styles, headings h1 to h6, links, lists, block quotes, tables and horizontal
+lines - and a toolbar for them. `plugins` and `toolbar` in your config replace
+those; a plugin can be given by its name on `window.CKEDITOR`. Markup that no
+loaded plugin knows is dropped as the editor opens, a class included: add
+`'GeneralHtmlSupport'` and its `htmlSupport` option to keep it.
 
 ```javascript
 new GridEditor('#myGrid', {
     ckeditor: {
-        config: { language: 'fr' }
+        config: {
+            licenseKey: 'GPL',
+            plugins: ['Essentials', 'Paragraph', 'Heading', 'Bold', 'Italic', 'Link', 'GeneralHtmlSupport'],
+            toolbar: ['heading', 'bold', 'italic', 'link'],
+            htmlSupport: { allow: [{ name: /^(p|h[1-6]|a|strong|i)$/, classes: true }] },
+        }
     }
 });
 ```
+
+`config.on.instanceReady`, CKEditor 4's, is still called once the editor is
+ready, with the editor as `this` and as `evt.editor`.
 
 __`summernote.config`:__ Specify summernote config, when using the `summernote` `content_types`.
 See the [summernote documentation](http://summernote.org/deep-dive/). 

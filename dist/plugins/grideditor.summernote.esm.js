@@ -407,7 +407,7 @@ if (!GridEditor.features.text) {
   });
   readBefore = /* @__PURE__ */ new WeakMap();
   readReady = /* @__PURE__ */ new WeakMap();
-  EDITOR_CLASS = /^(mce-|cke|note-)|^(active|ge-rte-active)$/;
+  EDITOR_CLASS = /^(mce-|cke|ck-|note-)|^(ck|active|ge-rte-active)$/;
   EDITOR_ATTRIBUTE = /^(data-mce-|contenteditable$|spellcheck$)/;
   textFeature.always = true;
   GridEditor.features.text = textFeature;

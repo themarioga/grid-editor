@@ -1,3 +1,44 @@
+Upgrading from grid-editor `7.1` to `7.2`
+=========================================
+
+Only for a page that uses the CKEditor plugin: **the CKEditor integration is
+CKEditor 5**. It breaks such a page, and it is a minor all the same, because
+it is a change in a plugin, not in the core.
+
+CKEditor 4.22.1, the last open source CKEditor 4, has known cross-site
+scripting vulnerabilities and gets no more fixes; every CKEditor 4 after it is
+commercial. A page that does not use CKEditor has nothing to change. Markup
+saved with a CKEditor text loads as it is: the content type is still
+`ckeditor`.
+
+* __Load CKEditor 5 instead of CKEditor 4.__ Its browser build, and its
+  stylesheet:
+
+  ```html
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.css">
+  <script src="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.umd.js"></script>
+  ```
+
+  With CKEditor 4 on the page, the plugin says CKEditor 5 is not available.
+* __Pass a `licenseKey`.__ CKEditor 5 does not start without one: `'GPL'`
+  accepts its GPL-2.0-or-later licence, or pass your commercial key.
+
+  ```javascript
+  new GridEditor('#myGrid', {
+      content_types: ['ckeditor'],
+      ckeditor: { config: { licenseKey: 'GPL' } },
+  });
+  ```
+* __Rewrite the rest of `ckeditor.config` for CKEditor 5.__ It is what
+  `InlineEditor.create` takes, and CKEditor 4's options mean nothing to it:
+  `toolbar` has another shape, `extraPlugins`, `removePlugins` and
+  `allowedContent` are gone, and `plugins` lists every plugin. grid-editor
+  gives it a set of plugins and a toolbar when the config has none; see the
+  README. `on.instanceReady` is still called, with the editor as `this` and
+  as `evt.editor`.
+* __Markup no plugin knows is dropped__ as the editor opens, as CKEditor 4's
+  content filter did: add `GeneralHtmlSupport` to keep classes and elements.
+
 Upgrading from grid-editor `6.*` to `7.*`
 =========================================
 

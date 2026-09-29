@@ -302,7 +302,9 @@ all the same: the developer reading them is the one who chose the locale.
 | `warning.adapter_no_jquery` | grideditor.jquery.js needs jQuery 4, … | `grideditor.jquery.js` loaded on a page with no jQuery |
 | `warning.oninit_removed` | tinyMCE's oninit option was removed in 7.0 … | A `tinymce.config` that still has `oninit`; `init_instance_callback` is called |
 | `error.tinymce_missing` | tinyMCE not available! … | `content_types: ['tinymce']` with no tinyMCE loaded |
-| `error.ckeditor_missing` | CKEditor not available! … | `content_types: ['ckeditor']` with no CKEditor loaded |
+| `error.ckeditor_missing` | CKEditor 5 not available! … | `content_types: ['ckeditor']` with no CKEditor 5 loaded, CKEditor 4 included |
+| `error.ckeditor_start` | CKEditor could not start: {message} | `InlineEditor.create` failed: most likely no `licenseKey` in `ckeditor.config` |
+| `warning.ckeditor_plugin` | CKEditor has no plugin called {name}, … | A plugin name in `ckeditor.config.plugins` that is not on `window.CKEDITOR` |
 | `error.summernote_missing` | Summernote not available! … | `content_types: ['summernote']` with no Summernote loaded |
 | `error.codemirror_missing` | CodeMirror not available! … | The codemirror plugin's source view with no CodeMirror loaded: the textarea is used |
 

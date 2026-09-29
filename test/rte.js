@@ -528,47 +528,95 @@ async function containerTests(t) {
  */
 async function otherEditorTests(t) {
     var page = await openPage(t, '/example/ckeditor.html',
-        `window.CKEDITOR && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page');
+        `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page');
+
+    var loaded = await page.eval(`return { version: CKEDITOR.version, v4: typeof CKEDITOR.inline };`);
+    t.check('example/ckeditor.html loads CKEditor 5, not CKEditor 4',
+        /^48\./.test(loaded.version) && loaded.v4 === 'undefined', loaded);
 
     // A CKEditor of the page's own, outside the grid: closing a content area
     // used to destroy every instance on the page, this one included
     await page.eval(`
         const own = document.createElement('div');
         own.id = 'host-ckeditor';
-        own.setAttribute('contenteditable', 'true');
         own.innerHTML = '<p>A CKEditor of the page itself</p>';
         document.body.appendChild(own);
-        CKEDITOR.inline(own);
+        window.hostEditor = await CKEDITOR.InlineEditor.create(own, {
+            licenseKey: 'GPL', plugins: [CKEDITOR.Essentials, CKEDITOR.Paragraph],
+        });
         return true;
     `);
-    await page.waitFor(`CKEDITOR.instances['host-ckeditor'] && CKEDITOR.instances['host-ckeditor'].status === 'ready'`,
-        { label: 'the page\'s own CKEditor' });
 
     var state = `return {
-        instances: Object.keys(CKEDITOR.instances).filter(function(name) { return name !== 'host-ckeditor'; }).length,
-        hostKept: !!CKEDITOR.instances['host-ckeditor'],
+        instances: $$('#myGrid .ck-editor__editable').length,
+        hostKept: window.hostEditor.state === 'ready',
         rteActive: document.querySelector('#myGrid .ge-content').classList.contains('ge-rte-active'),
     };`;
 
     await page.click('.ge-content');
-    await sleep(2000);
+    await page.waitFor(`document.querySelector('#myGrid .ge-content.ck-focused')`, { label: 'ckeditor focused' });
     var ckediting = await page.eval(state);
+    await page.type('CKEDITOR_TYPED ');
     var html = await page.eval(`return ge().getHtml();`);
-    await sleep(500);
     var afterExport = await page.eval(state);
     await page.click('.ge-content');
-    await sleep(2000);
+    await page.waitFor(`$$('#myGrid .ck-editor__editable').length === 1`, { label: 'ckeditor again after getHtml' });
     var ckReEdited = await page.eval(state);
 
-    // 4.22.1 is the last release under the open source licence, so its
-    // "consider upgrading" notice is expected and not a test failure
-    var ckErrors = page.errors([/version is not secure/]);
+    var ckErrors = page.errors();
     t.check('ckeditor edits, exports clean html and edits again',
-        ckediting.instances === 1 && afterExport.instances === 0 && !afterExport.rteActive &&
-        ckReEdited.instances === 1 && !/contenteditable|cke_|ge-rte-active/.test(html) && ckErrors.length === 0,
+        ckediting.instances === 1 && ckediting.rteActive && afterExport.instances === 0 && !afterExport.rteActive &&
+        ckReEdited.instances === 1 && html.indexOf('CKEDITOR_TYPED') !== -1 &&
+        !/contenteditable|ck-|ge-rte-active/.test(html) && ckErrors.length === 0,
         { editing: ckediting, afterExport: afterExport, reEdited: ckReEdited, errors: ckErrors.slice(0, 3) });
     t.check('closing a content area destroys its own CKEditor and leaves the page\'s alone',
         afterExport.hostKept && ckReEdited.hostKept, { afterExport: afterExport, reEdited: ckReEdited });
+
+    // CKEditor's own headings start at h2 and turn an h1 into one
+    t.check('an h1 in a CKEditor text stays an h1',
+        /<h1>/.test(html) && !/<h2>Lorem ipsum dolor sit amet, consectetur<\/h2>/.test(html), html.slice(0, 200));
+
+    // CKEditor empties the element as its destroy() finishes, after getHtml
+    // has read it: the content goes back in, and an editor started on the
+    // content area before that waits for it rather than starting on nothing
+    var rapid = await page.eval(`
+        const area = document.querySelector('#myGrid .ge-content');
+        const first = ge().getHtml();
+        area.click();
+        const second = ge().getHtml();
+        area.click();
+        await new Promise(function(resolve) { setTimeout(resolve, 1500); });
+        const editor = $$('#myGrid .ck-editor__editable').length;
+        const third = ge().getHtml();
+        await new Promise(function(resolve) { setTimeout(resolve, 500); });
+        return {
+            same: first === second && second === third && first.indexOf('CKEDITOR_TYPED') !== -1,
+            open: editor,
+            kept: area.innerHTML.indexOf('CKEDITOR_TYPED') !== -1 && !/ck-|contenteditable/.test(area.innerHTML),
+        };
+    `);
+    t.check('closing and opening CKEditor straight away, twice, loses no content',
+        rapid.same && rapid.open === 1 && rapid.kept, rapid);
+
+    // CKEditor 5 does not start without a licenseKey, and says why
+    var unlicensed = await openPage(t, '/example/ckeditor.html',
+        `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page, no key');
+    await unlicensed.eval(`
+        ge().destroy();
+        new GridEditor('#myGrid', { content_types: ['ckeditor'], ckeditor: { config: {} } });
+        return true;
+    `);
+    await unlicensed.click('.ge-content');
+    await sleep(1500);
+    var noKey = await unlicensed.eval(`return {
+        instances: $$('#myGrid .ck-editor__editable').length,
+        active: $$('#myGrid .ge-content.active').length,
+    };`);
+    var noKeyErrors = unlicensed.errors().map(function(e) { return e.text; });
+    t.check('without a licenseKey CKEditor does not start, and the console says why',
+        noKey.instances === 0 && noKey.active === 0 &&
+        noKeyErrors.some(function(text) { return /CKEditor could not start: license-key-missing/.test(text); }),
+        { state: noKey, errors: noKeyErrors.slice(0, 3) });
 
     // Summernote needs jQuery itself, so its page loads jQuery 4 and
     // summernote - and not the adapter: the editor is driven natively. And
@@ -733,7 +781,7 @@ async function attributePluginTests(t) {
  * utility's class, a plugin's attribute - given while its editor is open.
  * tinyMCE puts back the attributes it found when it opened, and every
  * integration took the id off when it closed, so each of these used to be
- * lost; and CKEditor left aria-readonly behind.
+ * lost; and CKEditor 4 left aria-readonly behind.
  */
 async function textAttributeTests(t) {
     var results = {};
@@ -768,7 +816,7 @@ async function textAttributeTests(t) {
                 }, 1800);
             });
         `);
-        results[example].errors = page.errors([/version is not secure/]);
+        results[example].errors = page.errors();
     }
 
     ['basic', 'ckeditor', 'summernote'].forEach(function(name) {

@@ -5,6 +5,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [7.2.0] - 2026-09-29
+
+### Changed
+- **BREAKING:** The CKEditor integration is CKEditor 5, and the example and
+  the tests use CKEditor 48.5.2, the latest release and one with no known
+  advisories. CKEditor 4.22.1 has five (GHSA-fq6h-4g8v-qqvm,
+  GHSA-6v96-m24v-f58j, GHSA-7r32-vfj5-c2jv, GHSA-wh5w-82f3-wrxh,
+  GHSA-mw2c-vx6j-mg76), and every CKEditor 4 with them fixed is commercial.
+  CKEditor 5 is GPL-2.0-or-later, and does not start without a `licenseKey`
+  in `ckeditor.config`: `'GPL'`, or a commercial key. `ckeditor.config` is
+  CKEditor 5's; the plugin gives it plugins, a toolbar and h1 to h6 headings
+  when the config has none, and still calls `on.instanceReady`. The content
+  type is still `ckeditor`, so saved markup loads as it is, and the `ck-*`
+  classes CKEditor 5 puts on a content area stay out of it. See
+  [UPGRADING.md](UPGRADING.md).
+
+### Added
+- `error.ckeditor_start`, logged when CKEditor 5 cannot start, and
+  `warning.ckeditor_plugin`, for a plugin name the config gives that CKEditor
+  does not have.
+
+
 ## [7.1.0] - 2026-09-29
 
 ### Changed

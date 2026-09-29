@@ -1,14 +1,19 @@
 /**
  * CKEditor for grid-editor's content areas.
  *
- * A text editor plugin: load this file after the editor, and CKEditor 4
- * after or before it, and a text of the ckeditor type is edited with an
- * inline CKEditor. What it can ask the editor for is the handle its
- * factory is called with, described in docs/plugins.md.
+ * A text editor plugin: load this file after the editor, and CKEditor 5's
+ * browser build after or before it, and a text of the ckeditor type is
+ * edited with an inline CKEditor. What it can ask the editor for is the
+ * handle its factory is called with, described in docs/plugins.md.
  *
- *   <script src="ckeditor/ckeditor.js"></script>
+ *   <link rel="stylesheet" href="ckeditor5/ckeditor5.css">
+ *   <script src="ckeditor5/ckeditor5.umd.js"></script>
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.ckeditor.min.js"></script>
+ *
+ * Up to 7.1 this was CKEditor 4, whose last open source release has known
+ * vulnerabilities and no fixes to come. CKEditor 5 asks for a licenseKey:
+ * 'GPL', or a commercial key, is the host's to pass in ckeditor.config.
  *
  * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
  * loaded on its own, like every plugin. It imports what every text editor
@@ -22,31 +27,77 @@ import '../text/grideditor.text.js';
 
 Object.assign(GridEditor.locales.en, {
     'text.ckeditor': 'CKEditor',
+    'error.ckeditor_start': 'CKEditor could not start: {message}',
+    'warning.ckeditor_plugin': 'CKEditor has no plugin called {name}, so it is left out.',
 });
 
 var INITIAL_CONTENT = '<p>Lorem initius... </p>';
 
-// The instance each content area is edited with, as this file made it
-var instances = new WeakMap();
+// What CKEditor 5 is started with when the host's config does not say. It
+// has no plugins of its own, so these are what a text can do: much what the
+// CKEditor 4 build 7.1 used offered. Names, looked up on window.CKEDITOR.
+var PLUGINS = [
+    'Essentials', 'Autoformat', 'Paragraph', 'Heading', 'Bold', 'Italic', 'Underline', 'Strikethrough',
+    'Link', 'AutoLink', 'List', 'BlockQuote', 'Indent', 'HorizontalLine', 'Table', 'TableToolbar',
+    'PasteFromOffice',
+];
+
+var DEFAULTS = {
+    toolbar: [
+        'undo', 'redo', '|', 'heading', '|', 'bold', 'italic', 'underline', 'strikethrough', '|',
+        'link', 'bulletedList', 'numberedList', 'blockQuote', '|', 'insertTable', 'horizontalLine',
+    ],
+    // CKEditor's own headings start at h2, and make every h1 in the content
+    // an h2: a column's text keeps the headings it has
+    heading: {
+        options: [
+            { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+        ].concat([1, 2, 3, 4, 5, 6].map(function(level) {
+            return {
+                model: 'heading' + level, view: 'h' + level,
+                title: 'Heading ' + level, class: 'ck-heading_heading' + level,
+            };
+        })),
+    },
+    table: { contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells'] },
+};
+
+// What this file keeps about a content area: its editor once it is ready,
+// the start that is still to have one, and a promise of the content area
+// being free again, with no editor starting or being destroyed on it:
+// CKEditor does both asynchronously, and two at once on one element clash
+var editors = new WeakMap();
+var starting = new WeakMap();
+var busy = new WeakMap();
+
+/** The plugins the config names, as CKEditor wants them: constructors. */
+function pluginsFor(ge, names) {
+    return names.map(function(plugin) {
+        if (typeof plugin !== 'string') { return plugin; }
+        if (!window.CKEDITOR[plugin]) { ge.warn(ge.t('warning.ckeditor_plugin', { name: plugin })); }
+        return window.CKEDITOR[plugin];
+    }).filter(Boolean);
+}
 
 GridEditor.texts.ckeditor = function(ge) {
 
     /**
-     * The instance editing this content area. Kept when it is made, and
-     * looked for among CKEditor's own as a fallback, since an instance made
-     * by another copy of this file is not in this one's record.
+     * Take the editor off a content area and leave its content behind, now:
+     * getHtml reads the content area the moment its editor is stopped.
+     *
+     * CKEditor puts the attributes back as destroy() is called, but its
+     * content only as it finishes, and then as nothing: it empties the
+     * element unless told otherwise. So the content goes back in twice, now
+     * and once CKEditor is done. The promise is of that.
      */
-    function instanceOf(contentArea) {
-        var kept = instances.get(contentArea);
-        if (kept) { return kept; }
-
-        var found = null;
-        Object.keys(window.CKEDITOR.instances).forEach(function(name) {
-            var instance = window.CKEDITOR.instances[name];
-            if (instance.element && instance.element.$ === contentArea) { found = instance; }
+    function destroy(contentArea, editor) {
+        var data = editor.getData();
+        var done = editor.destroy().catch(function() {}).then(function() {
+            contentArea.innerHTML = data;
         });
 
-        return found;
+        contentArea.innerHTML = data;
+        return done;
     }
 
     return {
@@ -54,53 +105,67 @@ GridEditor.texts.ckeditor = function(ge) {
         initialContent: INITIAL_CONTENT,
         missingKey: 'error.ckeditor_missing',
 
-        available: function() { return !!window.CKEDITOR; },
+        // CKEditor 4 is window.CKEDITOR too, without an InlineEditor
+        available: function() { return !!(window.CKEDITOR && window.CKEDITOR.InlineEditor); },
 
         start: function(contentAreas) {
             var settings = ge.settings;
+            var userConfig = (settings.ckeditor && settings.ckeditor.config) ? settings.ckeditor.config : {};
 
             contentAreas.forEach(function(contentArea) {
                 if (dom.hasClass(contentArea, 'active')) { return; }
 
                 if (contentArea.innerHTML == INITIAL_CONTENT) {
-                    // CKEditor kills this '&nbsp' creating a non usable box :/
-                    contentArea.innerHTML = '&nbsp;';
+                    contentArea.innerHTML = '';
                 }
-
-                // contenteditable="true", or CKEditor loads readonly
                 dom.addClass(contentArea, 'active');
-                contentArea.setAttribute('contenteditable', 'true');
 
-                var configuration = Object.assign(
-                    {},
-                    (settings.ckeditor && settings.ckeditor.config ? settings.ckeditor.config : {}),
-                    {
-                        // Focus editor on creation
-                        on: {
-                            instanceReady: function( evt ) {
-                                // Call original instanceReady function, if one was passed in the config
-                                var callback;
-                                try {
-                                    callback = settings.ckeditor.config.on.instanceReady;
-                                } catch (err) {
-                                    // No callback passed
-                                }
-                                if (callback) {
-                                    callback.call(this, evt);
-                                }
+                var configuration = Object.assign({}, DEFAULTS, userConfig);
+                configuration.plugins = pluginsFor(ge, userConfig.plugins || PLUGINS);
+                // on.instanceReady is CKEditor 4's, and CKEditor 5 has no
+                // such option: this file calls it, as it did in 7.1
+                delete configuration.on;
 
-                                // The editor owns what is inside the
-                                // content area now, so the grid editor is
-                                // told to put its own furniture back
-                                ge.textReady(contentArea);
+                var ticket = {};
+                starting.set(contentArea, ticket);
 
-                                instance.focus();
-                            }
-                        }
+                var run = (busy.get(contentArea) || Promise.resolve()).then(function() {
+                    // Stopped again while it waited for the last editor to go
+                    if (starting.get(contentArea) !== ticket) { return null; }
+
+                    return window.CKEDITOR.InlineEditor.create(contentArea, configuration);
+                }).then(function(editor) {
+                    if (!editor) { return null; }
+
+                    // Stopped while it started, so it goes again
+                    if (starting.get(contentArea) !== ticket) {
+                        return destroy(contentArea, editor);
                     }
-                );
-                var instance = window.CKEDITOR.inline(contentArea, configuration);
-                instances.set(contentArea, instance);
+                    starting.delete(contentArea);
+                    editors.set(contentArea, editor);
+
+                    // Call the original instanceReady function, if one was
+                    // passed in the config: 7.1's, with CKEditor 4's event
+                    var callback = userConfig.on && userConfig.on.instanceReady;
+                    if (callback) {
+                        callback.call(editor, { editor: editor });
+                    }
+
+                    // The editor owns what is inside the content area now,
+                    // so the grid editor is told to put its own furniture back
+                    ge.textReady(contentArea);
+
+                    editor.editing.view.focus();
+                    return null;
+                }).catch(function(error) {
+                    // A licenseKey missing is the likely one
+                    if (starting.get(contentArea) === ticket) {
+                        starting.delete(contentArea);
+                        dom.removeClass(contentArea, 'active');
+                    }
+                    console.error(ge.t('error.ckeditor_start', { message: (error && error.message) || error }));
+                });
+                busy.set(contentArea, run);
             });
         },
 
@@ -108,18 +173,17 @@ GridEditor.texts.ckeditor = function(ge) {
             contentAreas.filter(function(contentArea) {
                 return dom.hasClass(contentArea, 'active');
             }).forEach(function(contentArea) {
-                // This content area's instance, and no other: up to 5.x
+                // This content area's editor, and no other: up to 5.x
                 // closing one content area destroyed every CKEditor on
                 // the page, other editors' and the host's own included
-                var instance = window.CKEDITOR ? instanceOf(contentArea) : null;
-                if (instance) { instance.destroy(); }
-                instances.delete(contentArea);
+                var editor = editors.get(contentArea);
+                editors.delete(contentArea);
+                // One still starting sees this and goes as it is ready
+                starting.delete(contentArea);
 
-                // Cleanup
-                dom.removeClass(contentArea, 'active cke_focus');
-                ['id', 'style', 'spellcheck', 'contenteditable'].forEach(function(name) {
-                    contentArea.removeAttribute(name);
-                });
+                if (editor) { busy.set(contentArea, destroy(contentArea, editor)); }
+
+                dom.removeClass(contentArea, 'active');
             });
         },
     };

@@ -5078,7 +5078,7 @@ GridEditor.locales = {
         'warning.plugin_6x': 'The "{name}" plugin is written for grid-editor 6 and is not loaded. Plugins register on GridEditor since 7.0: see UPGRADING.md.',
         'warning.adapter_no_jquery': 'grideditor.jquery.js needs jQuery 4, and there is no jQuery on the page: the jQuery API is not there.',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
-        'error.ckeditor_missing': 'CKEditor not available! Make sure you loaded the CKEditor js file.',
+        'error.ckeditor_missing': 'CKEditor 5 not available! Make sure you loaded its ckeditor5.umd.js file: CKEditor 4 is no longer supported.',
         'error.summernote_missing': 'Summernote not available! Make sure you loaded jQuery and the Summernote js file.',
     },
 };
