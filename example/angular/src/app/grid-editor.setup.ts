@@ -25,7 +25,7 @@ import Sortable from 'sortablejs';
 // settings panel, and its data API runs the view dropdown and the tabs.
 import * as bootstrap from 'bootstrap';
 
-// tinyMCE 6, bundled: the editor, its default theme, model and icons. Its
+// tinyMCE 7, bundled: the editor, its default theme, model and icons. Its
 // skin is a stylesheet, in angular.json.
 import 'tinymce/tinymce';
 import 'tinymce/models/dom';

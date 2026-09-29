@@ -100,9 +100,11 @@ async function tinymceTests(t) {
     t.check('the new editor takes focus and shows its inline toolbar',
         editing.focused && editing.toolbar, editing);
 
+    // tinyMCE 7 draws the .tox-promotion box whatever promotion says, and
+    // promotion: false only leaves the link out of it
     var promotion = await page.eval(`
         return {
-            byDefault: document.querySelectorAll('.tox-promotion').length,
+            byDefault: document.querySelectorAll('.tox-promotion-link').length,
             menubar: !!document.querySelector('.tox-menubar'),
         };
     `);

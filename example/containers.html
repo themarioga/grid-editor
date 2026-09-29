@@ -9,7 +9,7 @@
 
     <!-- Javascript dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.6/tinymce.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.9.3/tinymce.min.js"></script>
 
     <!-- Grid editor CSS -->
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
@@ -29,6 +29,9 @@
             var editor = new GridEditor('#myGrid', {
                 new_row_layouts: [[12], [6,6]],
                 content_types: ['tinymce'],
+                // tinyMCE 7 is GPL-2.0-or-later: 'gpl' accepts that licence.
+                // A commercial licence passes its own key here instead.
+                tinymce: { config: { license_key: 'gpl' } },
 
                 // Every container plugin the page loaded is offered. Name
                 // them to offer fewer than were loaded:

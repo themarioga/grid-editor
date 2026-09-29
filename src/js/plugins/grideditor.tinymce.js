@@ -1,7 +1,7 @@
 /**
  * tinyMCE for grid-editor's content areas.
  *
- * A text editor plugin: load this file after the editor, and tinyMCE 6
+ * A text editor plugin: load this file after the editor, and tinyMCE 7
  * after or before it, and a text of the tinymce type is edited with an
  * inline tinyMCE. What it can ask the editor for is the handle its
  * factory is called with, described in docs/plugins.md.

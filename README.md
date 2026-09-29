@@ -46,7 +46,7 @@ Installation
 ------------
 
 * __Dependencies:__ Grid Editor depends on [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. It does not need jQuery since 7.0.
-    * If you want to use the tinyMCE integration, include tinyMCE 6 as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor.
+    * If you want to use the tinyMCE integration, include tinyMCE 7 (7.9.3 or later) as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor.
     * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`. Summernote needs jQuery itself, so that page loads jQuery too; nothing else does.
     * If you want to use the CKEditor integration... you get the point: CKEditor and `dist/plugins/grideditor.ckeditor.min.js`.
     * Up to 5.x the main bundle carried a copy of the three; since 6.0 the plugin of the editor you use has to be loaded, as above. See [UPGRADING.md](UPGRADING.md).
@@ -823,7 +823,7 @@ same way, `codemirror.config` included, and a textarea without it.
 ### Rich text editor options
 
 Grid editor comes with support for the following rich text editors (RTEs), each a plugin of its own to load after the editor:
-* [TinyMCE](http://www.tinymce.com/) 6 - `dist/plugins/grideditor.tinymce.min.js` - [(example)](example/basic.html)
+* [TinyMCE](http://www.tinymce.com/) 7 - `dist/plugins/grideditor.tinymce.min.js` - [(example)](example/basic.html)
 * [summernote](http://summernote.org/) 0.9 - `dist/plugins/grideditor.summernote.min.js` - [(example)](example/summernote.html)
 * [CKEditor](http://ckeditor.com/) 4 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/ckeditor.html)
 
@@ -867,7 +867,7 @@ new GridEditor('#myGrid', {
 ```
 
 __`tinymce.config`:__ Specify tinyMCE config, when using the `tinymce` `content_types`.
-See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/6/).
+See the [tinyMCE documentation](https://www.tiny.cloud/docs/tinymce/7/).
 Also check out the [tinymce example](example/basic.html).
 
 ```javascript
@@ -881,6 +881,24 @@ new GridEditor('#myGrid', {
 Grid editor passes `promotion: false`, so tinyMCE's "Upgrade" badge does not
 appear in the menubar of an inline editor sitting in someone's page. Pass
 `promotion: true` in your own config to get it back.
+
+tinyMCE 7 is licensed GPL-2.0-or-later, and asks for a `license_key`: pass
+`license_key: 'gpl'` to accept the GPL, or your own key if you have a
+commercial licence. Without one it runs in evaluation mode and says so in the
+console. Grid editor does not pass one for you, since the licence is yours to
+choose.
+
+```javascript
+new GridEditor('#myGrid', {
+    tinymce: {
+        config: { license_key: 'gpl' }
+    }
+});
+```
+
+Use 7.9.3 or later: every tinyMCE 6 release, and 7.x before 7.9.3, has known
+cross-site scripting vulnerabilities. The integration still works with
+tinyMCE 6, but the examples and tests run on 7.9.3.
 
 
 Upgrading

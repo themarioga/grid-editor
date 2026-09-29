@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+- The tinyMCE integration now targets tinyMCE 7, and the examples, the
+  Angular app and the tests use TinyMCE 7.9.3. 6.8.6 has five known
+  cross-site scripting advisories (GHSA-5359-pvf2-pw78, GHSA-mh5m-5hw4-5c69,
+  GHSA-vg35-5wq7-3x7w, GHSA-q742-qvgc-gc2f, GHSA-v98h-vmpc-fpqv), and 7.9.3
+  is the first release with none. This changes tinyMCE's licence from MIT to
+  GPL-2.0-or-later: the examples pass `license_key: 'gpl'`, and a page that
+  uses tinyMCE 7 passes that or its own commercial key in `tinymce.config`.
+  grid-editor stays MIT. The integration still works with tinyMCE 6.
+
 ## [7.0.0] - 2026-09-28
 grid-editor is plain DOM: no jQuery. See [UPGRADING.md](UPGRADING.md).
 

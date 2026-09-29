@@ -40,6 +40,8 @@ export class App {
     settings_panel: 'modal',
     tinymce: {
       config: {
+        // tinyMCE 7 is GPL-2.0-or-later: 'gpl' accepts that licence
+        license_key: 'gpl',
         // The skin is in angular.json's styles, bundled like the rest
         skin: false,
         content_css: false,
