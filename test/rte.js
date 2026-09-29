@@ -606,6 +606,38 @@ async function otherEditorTests(t) {
     t.check('closing and opening CKEditor straight away, twice, loses no content',
         rapid.same && rapid.open === 1 && rapid.kept, rapid);
 
+    // on.instanceReady was CKEditor 4's, and 8.0 stops calling it: on goes
+    // to CKEditor 5 as it is
+    var ready = await openPage(t, '/example/ckeditor.html',
+        `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page, instanceReady');
+    await ready.eval(`
+        window.readyCalls = 0;
+        window.passedOn = null;
+        window.warnings = [];
+        const warn = console.warn;
+        console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
+        const create = CKEDITOR.InlineEditor.create;
+        CKEDITOR.InlineEditor.create = function(element, config) {
+            window.passedOn = !!(config.on && config.on.instanceReady);
+            return create.apply(this, arguments);
+        };
+        ge().destroy();
+        new GridEditor('#myGrid', { content_types: ['ckeditor'], ckeditor: { config: {
+            licenseKey: 'GPL',
+            on: { instanceReady: function() { window.readyCalls++; } },
+        } } });
+        return true;
+    `);
+    await ready.click('.ge-content');
+    await ready.waitFor(`$$('#myGrid .ck-editor__editable').length === 1`, { label: 'ckeditor with on.instanceReady started' });
+    var instanceReady = await ready.eval(`return {
+        calls: window.readyCalls,
+        passed: window.passedOn,
+        warned: window.warnings.filter(function(w) { return /grid-editor/.test(w); }).length,
+    };`);
+    t.check('on.instanceReady is not called, and on reaches CKEditor as it is, without a word (AC-25)',
+        instanceReady.calls === 0 && instanceReady.passed === true && instanceReady.warned === 0, instanceReady);
+
     // CKEditor 5 does not start without a licenseKey, and says why
     var unlicensed = await openPage(t, '/example/ckeditor.html',
         `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page, no key');

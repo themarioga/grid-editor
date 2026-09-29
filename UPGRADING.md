@@ -23,6 +23,10 @@ with `npm install @themarioga/grid-editor@next`.
   warning 4.0 gave: use `drag` and `resize`.
 * __`tinymce.config.oninit` is passed to tinyMCE as it is__, without the
   warning 7.0 gave: use `init_instance_callback`.
+* __`ckeditor.config.on.instanceReady` is not called.__ It was CKEditor 4's,
+  and 7.x called it itself; `on` goes to CKEditor 5 as it is, which does not
+  know it. A function in `config.extraPlugins` is CKEditor 5's way: it is
+  called with the editor as the editor starts.
 * __The adapter has no `$.fn.gridEditor.containers`, `.features`,
   `.utilities` or `.texts`.__ A plugin written for 6.x that registers there
   throws as it loads, where 7.x warned and left it out. Port it: see

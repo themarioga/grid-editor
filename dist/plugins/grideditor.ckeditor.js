@@ -527,7 +527,6 @@
           addClass(contentArea, "active");
           var configuration = Object.assign({}, DEFAULTS, userConfig);
           configuration.plugins = pluginsFor(ge, userConfig.plugins || PLUGINS);
-          delete configuration.on;
           var ticket = {};
           starting.set(contentArea, ticket);
           var run = (busy.get(contentArea) || Promise.resolve()).then(function() {
@@ -544,10 +543,6 @@
             }
             starting.delete(contentArea);
             editors.set(contentArea, editor);
-            var callback = userConfig.on && userConfig.on.instanceReady;
-            if (callback) {
-              callback.call(editor, { editor });
-            }
             ge.textReady(contentArea);
             editor.editing.view.focus();
             return null;

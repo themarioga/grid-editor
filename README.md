@@ -943,9 +943,6 @@ new GridEditor('#myGrid', {
 });
 ```
 
-`config.on.instanceReady`, CKEditor 4's, is still called once the editor is
-ready, with the editor as `this` and as `evt.editor`.
-
 __`summernote.config`:__ Specify summernote config, when using the `summernote` `content_types`.
 See the [summernote documentation](http://summernote.org/deep-dive/). 
 Also check out the [summernote example](example/summernote.html).

@@ -120,9 +120,6 @@ GridEditor.texts.ckeditor = function(ge) {
 
                 var configuration = Object.assign({}, DEFAULTS, userConfig);
                 configuration.plugins = pluginsFor(ge, userConfig.plugins || PLUGINS);
-                // CKEditor 5 has no on.instanceReady option: this file
-                // calls it, below
-                delete configuration.on;
 
                 var ticket = {};
                 starting.set(contentArea, ticket);
@@ -141,13 +138,6 @@ GridEditor.texts.ckeditor = function(ge) {
                     }
                     starting.delete(contentArea);
                     editors.set(contentArea, editor);
-
-                    // Call the instanceReady function, if one was passed in
-                    // the config, with the editor as this and as evt.editor
-                    var callback = userConfig.on && userConfig.on.instanceReady;
-                    if (callback) {
-                        callback.call(editor, { editor: editor });
-                    }
 
                     // The editor owns what is inside the content area now,
                     // so the grid editor is told to put its own furniture back

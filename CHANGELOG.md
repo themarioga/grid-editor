@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `resizable_options`, removed in 4.0, and about `tinymce.config.oninit`,
   removed in 7.0: they are ignored, and `oninit` is passed to tinyMCE as it
   is.
+- **BREAKING:** `ckeditor.config.on.instanceReady`, CKEditor 4's, which 7.x
+  called itself: it is not called, and `on` goes to CKEditor 5 as it is.
 - **BREAKING:** The adapter's `$.fn.gridEditor.containers`, `.features`,
   `.utilities` and `.texts`, which kept a plugin written for 6.x from
   throwing: one throws as it loads now.
