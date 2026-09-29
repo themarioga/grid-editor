@@ -4,8 +4,8 @@ Upgrading from grid-editor `7.x` to `8.0`
 8.0 takes out what kept pages, plugins and options of earlier versions
 working. Nothing it removes warns: an option that is gone is ignored like any
 option the editor does not know. The jQuery adapter stays, and so does the
-conversion of markup 5.x saved. `8.0.0-beta.1` is the first beta, and
-`8.0.0-beta.2` the second; install them with
+conversion of markup 5.x saved. `8.0.0-beta.2` is the first beta published
+(`8.0.0-beta.1` never was); install it with
 `npm install @themarioga/grid-editor@next`.
 
 * __The spacing, textalign, visibility and float plugins are gone.__ Load
@@ -36,7 +36,7 @@ conversion of markup 5.x saved. `8.0.0-beta.1` is the first beta, and
   `warning.oninit_removed` and `warning.plugin_6x`. A locale of your own
   can drop them.
 
-From `8.0.0-beta.2`:
+What `8.0.0-beta.2` adds to that:
 
 * __The `visibility` utility is `display`.__ It edits every `d-{bp}-*`
   value now, not only hidden and shown: `setUtility(node, 'display', 'none',
