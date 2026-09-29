@@ -192,13 +192,6 @@
         return result;
       };
     });
-    function warnAboutLegacyPlugins() {
-      ["containers", "features", "utilities", "texts"].forEach(function(registry) {
-        Object.keys(legacy[registry]).forEach(function(name) {
-          warnOnce("plugin-6x:" + registry + ":" + name, english("warning.plugin_6x", { name }));
-        });
-      });
-    }
     function dispatchMethod(set, name, args) {
       var descriptor = METHODS[name];
       if (!descriptor) {
@@ -235,18 +228,12 @@
       if (typeof optionsOrMethod == "string") {
         return dispatchMethod(this, optionsOrMethod, Array.prototype.slice.call(arguments, 1));
       }
-      warnAboutLegacyPlugins();
       var options = adaptOptions(optionsOrMethod);
       this.each(function() {
         GridEditor.create(this, options);
       });
       return this;
     };
-    var legacy = { containers: {}, features: {}, utilities: {}, texts: {} };
-    $.fn.gridEditor.containers = legacy.containers;
-    $.fn.gridEditor.features = legacy.features;
-    $.fn.gridEditor.utilities = legacy.utilities;
-    $.fn.gridEditor.texts = legacy.texts;
     $.fn.gridEditor.locales = GridEditor.locales;
     $.fn.gridEditor.t = GridEditor.t;
   }

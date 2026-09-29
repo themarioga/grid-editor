@@ -92,10 +92,10 @@ A page or an app imports it for that side effect, after the editor:
 editors made after a plugin registered have it.
 
 Everything the editor hands a plugin, and everything a plugin hands back, is
-DOM: elements, and arrays of them where there may be several. Up to 6.x it was
-jQuery objects; a plugin written for 6.x is ported by taking that out, and
-[UPGRADING.md](../UPGRADING.md) says how. The shipped plugins are written in
-plain DOM, and a plugin of your own is free to use whatever it likes.
+DOM: elements, and arrays of them where there may be several. The shipped
+plugins are written in plain DOM, and a plugin of your own is free to use
+whatever it likes. [UPGRADING.md](../UPGRADING.md) says how to port a plugin
+written for 6.x.
 
 - **`iconClass`**, when given, is the toolbar button's face: the icon alone,
   with the label as its title. Without one the button shows a plus and the
@@ -118,9 +118,8 @@ The handle
 
 Everything a plugin needs from the editor comes through the handle its factory
 is called with. It is the plugin contract: these names, and what they do, do
-not change without a major version. 7.0 was one: every node it takes or gives
-is an element, and where 6.x gave a jQuery set that may hold several, an
-array.
+not change without a major version. Every node it takes or gives is an
+element, and where there may be several, an array.
 
 | | |
 | --- | --- |
@@ -251,20 +250,6 @@ with `ge.hostStyle`: in a breakpoint view the node's `style` holds the
 preview's `!important` values too, and they come off on `deinit` with
 whatever was written under them.
 
-### A plugin that takes the place of others
-
-A factory with **`replaces: ['old', …]`** on it - the function, not what it
-returns, since it is read before any factory is called - stands in for those
-plugins. Loaded beside it, they stand down, with a warning, and none of their
-families is declared twice; an old name in the `plugins` setting asks for it,
-with a warning that the name is deprecated. This is how the style plugin
-takes the spacing, textalign, visibility and float plugins' place:
-
-```javascript
-GridEditor.utilities.style = function(ge) { … };
-GridEditor.utilities.style.replaces = ['spacing', 'textalign', 'visibility', 'float'];
-```
-
 ### Settings of your own, saved on the node
 
 A tool that opens a dialog and saves what the user chose on the node is a
@@ -278,11 +263,9 @@ animation for rows, columns, containers and elements, kept in a
 - **The dialog lives outside the canvas**, appended to `body`, so it is never
   part of the markup.
 - **Nothing else.** A plain `attr()` on any node. An element is never inside a
-  text editor since 6.0, and a text's own attributes, given while its editor
-  is open, are kept by grid-editor when the editor closes - tinyMCE would put
-  back the ones it found when it opened. Up to 5.x an element sat inside the
-  text, and an attribute written behind the editor's back was lost to its
-  undo.
+  text editor, and a text's own attributes, given while its editor is open,
+  are kept by grid-editor when the editor closes - tinyMCE would put back the
+  ones it found when it opened.
 
 A node's drawer is built again on every `init`, so a tool reads the node
 rather than remembering anything about it.
@@ -440,11 +423,7 @@ editor, and `onBeforeDeinit` to close it.
 on the browser's `contenteditable`, on a page that loads none of the shipped
 editors.
 
-Up to 5.x an editor of a host's own registered under
-`$.fn.gridEditor.RTEs`, and in 5.x and the 6.0 betas under
-`$.fn.gridEditor.texts`. 6.0 ignored the first, with a warning, and 7.0 has
-neither: `GridEditor.texts` is the shipped editors' own registry, not a
-contract.
+`GridEditor.texts` is the shipped editors' own registry, not a contract.
 
 
 Utility plugins
@@ -554,5 +533,5 @@ Plugin options live in the `utilities` setting, under the plugin's name:
 `utilities: { gutters: { scale: [...] } }`. The editor passes the
 setting through as it is; each plugin fills in its own defaults. The style
 plugin's are the `style` setting, since most of them are about its inline
-css; `utilities.spacing` and `utilities.visibility` are read there until 8.0.
+css.
 

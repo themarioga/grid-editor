@@ -63,9 +63,9 @@ export type StyleSection = boolean | { properties?: string[]; catalog?: boolean 
 export interface StyleOptions {
     /** Every section is on unless it is turned off here. */
     sections?: Partial<Record<StyleSectionKey, StyleSection>>;
-    /** What utilities.spacing was: the values offered, and what 0 to 5 come to. */
+    /** The spacing section: the values offered, and what 0 to 5 come to. */
     spacing?: { values?: string[]; scale?: string[] };
-    /** What utilities.visibility was: false leaves the eye out of the drawers. */
+    /** Visibility: false leaves the eye out of the drawers. */
     visibility?: { drawer?: boolean };
 }
 

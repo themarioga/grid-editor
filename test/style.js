@@ -426,19 +426,32 @@ async function settings(t, page) {
         chosen.warnings.some(function(w) { return /no "foo" section/.test(w); }) &&
         chosen.warnings.some(function(w) { return /"border-color" is not one of its properties/.test(w); }), chosen);
 
-    var legacy = await page.eval(`
+    var options = await page.eval(`
         const values = function() {
             const select = section(row(), 'spacing').querySelector('.ge-spacing-group[data-ge-spacing="p"] .ge-utility select');
             return Array.from(select.options).map(function(option) { return option.value; }).filter(Boolean).join(',');
         };
         start('', { utilities: { spacing: { values: ['0', '2'] } } });
         const old = { values: values(), warnings: window.warnings.slice() };
-        start('', { utilities: { spacing: { values: ['0'] } }, style: { spacing: { values: ['0', '4'] } } });
-        return { old: old, both: values() };
+        start('', { utilities: { visibility: { drawer: false } } });
+        const eye = { eye: !!row().querySelector(':scope > .ge-tools-drawer > .ge-visibility-tool'), warnings: window.warnings.slice() };
+        start('', { style: { spacing: { values: ['0', '4'] } } });
+        return { old: old, eye: eye, style: values() };
     `);
-    t.check('utilities.spacing is still read, and said to be deprecated (AC-66)',
-        legacy.old.values === '0,2' && legacy.old.warnings.some(function(w) { return /utilities\.spacing is deprecated/.test(w); }), legacy);
-    t.check('style.spacing wins over it (AC-67)', legacy.both === '0,4', legacy);
+    t.check('utilities.spacing is not read, and nothing is said about it (AC-04)',
+        options.old.values === '0,1,2,3,4,5' && options.old.warnings.length === 0, options);
+    t.check('nor utilities.visibility: the eye is there (AC-05)', options.eye.eye && options.eye.warnings.length === 0, options);
+    t.check('style.spacing is (AC-06)', options.style === '0,4', options);
+
+    var named = await page.eval(`
+        start('', { plugins: window.fixture.plugins(['spacing']) });
+        return {
+            accordion: !!acc(row()),
+            warnings: window.warnings.filter(function(w) { return /"spacing" plugin is not loaded/.test(w); }).length,
+        };
+    `);
+    t.check('spacing in the plugins setting is a plugin that is not loaded: the usual warning, and no style (AC-02)',
+        !named.accordion && named.warnings === 1, named);
 }
 
 async function locale(t, page) {

@@ -2,10 +2,8 @@
  * Float, a part of the style plugin: floating an element per breakpoint, with Bootstrap's
  * float-{breakpoint}-start, -end and -none classes.
  *
- * The part is what the float plugin was up to 7.2 - its families, and
- * whatever it did on the canvas - as a function of the handle.
- * grideditor.style.js puts it in its sections; the deprecated
- * grideditor.float.js still registers it on its own, as it always did.
+ * Its families, and whatever it does on the canvas, as a function of the
+ * handle: grideditor.style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 

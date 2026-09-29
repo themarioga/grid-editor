@@ -3,13 +3,11 @@
  *
  *   style: {
  *       sections: { border: { properties: [...], catalog: false }, position: false, … },
- *       spacing: { values, scale },   // what utilities.spacing was
- *       visibility: { drawer },       // what utilities.visibility was
+ *       spacing: { values, scale },   // the values offered, and what 0 to 5 come to
+ *       visibility: { drawer },       // false leaves the eye out of the drawers
  *   }
  *
- * Every section is on unless it is turned off. utilities.spacing and
- * utilities.visibility are still read, for 7.x, when the new key is not
- * there, and said to be deprecated.
+ * Every section is on unless it is turned off.
  */
 import { SECTIONS, section } from './sections.js';
 
@@ -51,25 +49,12 @@ function resolveSections(ge, given) {
     return resolved;
 }
 
-/** An option of a merged part: the new key, or the old one, deprecated. */
-function partOption(ge, style, name) {
-    if (style[name] !== undefined) { return style[name]; }
-
-    var old = (ge.settings.utilities || {})[name];
-    if (old !== undefined) {
-        ge.warn('utilities.' + name + ' is deprecated and will be removed in 8.0: use style.' + name);
-        return old;
-    }
-
-    return undefined;
-}
-
 export function resolveOptions(ge) {
     var style = ge.settings.style || {};
 
     return {
         sections: resolveSections(ge, style.sections),
-        spacing: partOption(ge, style, 'spacing'),
-        visibility: partOption(ge, style, 'visibility'),
+        spacing: style.spacing,
+        visibility: style.visibility,
     };
 }

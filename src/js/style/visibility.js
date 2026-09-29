@@ -2,10 +2,8 @@
  * Visibility, a part of the style plugin: hiding and showing per breakpoint, with Bootstrap's d-{breakpoint}-none
  * and d-{breakpoint}-block or -flex classes, and the eye in the drawers.
  *
- * The part is what the visibility plugin was up to 7.2 - its families, and
- * whatever it did on the canvas - as a function of the handle and its options.
- * grideditor.style.js puts it in its sections; the deprecated
- * grideditor.visibility.js still registers it on its own, as it always did.
+ * Its families, and whatever it does on the canvas, as a function of the
+ * handle and its options: grideditor.style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';

@@ -823,23 +823,12 @@ function resolveSections(ge, given) {
   });
   return resolved;
 }
-function partOption(ge, style, name) {
-  if (style[name] !== void 0) {
-    return style[name];
-  }
-  var old = (ge.settings.utilities || {})[name];
-  if (old !== void 0) {
-    ge.warn("utilities." + name + " is deprecated and will be removed in 8.0: use style." + name);
-    return old;
-  }
-  return void 0;
-}
 function resolveOptions(ge) {
   var style = ge.settings.style || {};
   return {
     sections: resolveSections(ge, style.sections),
-    spacing: partOption(ge, style, "spacing"),
-    visibility: partOption(ge, style, "visibility")
+    spacing: style.spacing,
+    visibility: style.visibility
   };
 }
 
@@ -1590,4 +1579,3 @@ GridEditor5.utilities.style = function(ge) {
     }
   };
 };
-GridEditor5.utilities.style.replaces = PARTS;

@@ -38,11 +38,10 @@ listener and every callback hears each notification, whatever the ones before
 it did.
 
 A listener that throws is the browser's to report, as any listener's error
-is: the other listeners, the callbacks and the operation go on. Up to 6.x an
-error thrown in a jQuery handler stopped the operation where it was.
+is: the other listeners, the callbacks and the operation go on.
 
-The payload's nodes are elements. Up to 6.x they were jQuery objects, and
-they still are for a page that loads `grideditor.jquery.js`: through the
+The payload's nodes are elements. They are jQuery objects for a page that
+loads `grideditor.jquery.js`: through the
 adapter, a jQuery listener - bound on the canvas or delegated from an
 ancestor - runs once per notification with `(event, payload)`, the payload's
 nodes wrapped, and `preventDefault()` on its event cancels as before. The
@@ -168,8 +167,7 @@ the clipboard plugin put in, from a paste tool or the toolbar. A paste is an add
 like any other, so canceling its `before-add-*` turns it away.
 
 A text block is `kind: 'text'`, with its content area as the node, when it is
-added, deleted or moved, and in `drawerTools`. Up to 5.x a content area
-dragged between columns was `kind: 'content'`. The host's plain content - a
+added, deleted or moved, and in `drawerTools`. The host's plain content - a
 content area with no text type on it - is `kind: 'plain'` when it is deleted,
 moved or converted; the convert pair's `source` is `tool`, and canceling
 `before-convert` leaves it plain, with no editor opened. The kinds for containers are

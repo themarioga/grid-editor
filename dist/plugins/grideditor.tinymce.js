@@ -422,8 +422,7 @@
 
   // src/js/plugins/grideditor.tinymce.js
   Object.assign(GridEditor.locales.en, {
-    "text.tinymce": "tinyMCE",
-    "warning.oninit_removed": "tinyMCE's oninit option was removed in 7.0 and is ignored: use init_instance_callback."
+    "text.tinymce": "tinyMCE"
   });
   function cleanUp(contentArea) {
     removeClass(contentArea, "active ge-rte-active");
@@ -434,7 +433,6 @@
   var INITIAL_CONTENT = "<p>Lorem ipsum dolores</p>";
   var editors = /* @__PURE__ */ new WeakMap();
   var pendingRemove = /* @__PURE__ */ new WeakSet();
-  var warnedOninit = false;
   GridEditor.texts.tinymce = function(ge) {
     return {
       labelKey: "text.tinymce",
@@ -446,10 +444,6 @@
       start: function(contentAreas) {
         var settings = ge.settings;
         var userConfig = settings.tinymce && settings.tinymce.config ? settings.tinymce.config : {};
-        if (userConfig.oninit && !warnedOninit) {
-          warnedOninit = true;
-          ge.warn(ge.t("warning.oninit_removed"));
-        }
         contentAreas.forEach(function(contentArea) {
           if (hasClass(contentArea, "active")) {
             return;
@@ -500,7 +494,6 @@
             }
           });
           delete configuration.selector;
-          delete configuration.oninit;
           window.tinymce.init(configuration);
         });
       },

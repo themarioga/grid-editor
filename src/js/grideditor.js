@@ -4,9 +4,8 @@
  * A fork of https://github.com/Friendly-Pixel/grid-editor by Simon Epskamp,
  * maintained at https://github.com/themarioga/grid-editor.
  *
- * Plain DOM since 7.0: nothing here needs jQuery. A page written for the 6.x
- * jQuery API loads grideditor.jquery.js beside this file and keeps working;
- * see UPGRADING.md.
+ * Plain DOM: nothing here needs jQuery. A page written against the jQuery
+ * API loads grideditor.jquery.js beside this file.
  */
 import * as dom from './dom.js';
 
@@ -73,8 +72,6 @@ var ALL_VIEW_LABEL_KEY = 'view.all';
 /** Every view key the dropdown can offer, in the order it offers them. */
 var VIEW_KEYS = [ALL_VIEW].concat(BREAKPOINTS.map(function(tier) { return tier.key; }));
 
-/** What the three layout mode indexes of 2.x meant. */
-var LEGACY_VIEW_INDEXES = ['lg', 'sm', 'xs'];
 
 var MAX_COL_SIZE = 12;
 var MAX_COL_OFFSET = 11;
@@ -156,12 +153,6 @@ var NESTED_SETTINGS = {
         animation: 150, // Milliseconds of reordering animation, 0 for none
         scroll: true, // Scroll the page when a drag reaches its edge
     },
-};
-
-/** Settings 4.0 took away, and what a host should reach for instead. */
-var REMOVED_SETTINGS = {
-    sortable_options: 'drag',
-    resizable_options: 'resize',
 };
 
 var warned = {};
@@ -372,7 +363,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
             // content_types, text_tools and text_classes are the text editor
-            // plugins' settings since 6.0: see grideditor.text.js
+            // plugins' settings: see grideditor.text.js
             'container_classes' : [], // The same, on a container's panel
             'pane_classes'      : [], // And on a tab's or an accordion item's
             'container_tools'   : [], // Host tools on container drawers
@@ -405,18 +396,6 @@ function build(instance, baseElem, optionsOrMethod) {
             settings[name] = Object.assign({}, NESTED_SETTINGS[name], settings[name]);
         });
 
-        // Both handed out the drag toolkit's own options, which 4.0 stops
-        // promising: there is no widget underneath a host should be reaching
-        // for. What they were used for is a setting of the editor's now.
-        Object.keys(REMOVED_SETTINGS).forEach(function(name) {
-            if (optionsOrMethod && optionsOrMethod[name] !== undefined) {
-                warn(translate(settings, 'warning.setting_removed', {
-                    setting: name,
-                    replacement: REMOVED_SETTINGS[name],
-                }));
-            }
-        });
-
 
         // Elems
         var canvas,
@@ -432,7 +411,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var sizePicker = null; // The open column size picker, if there is one
         var sourceOpen = false; // Whether the canvas is being edited as html
         var dropMarker = null; // The line showing where a dragged toolbar button would land
-        var warnedHere = {}; // Deprecations are worth saying once per instance, not once per call
+        var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
         var destroyed = false;
@@ -1866,35 +1845,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
             registerFamily('grid', {}, widthFamily());
             if (settings.row_cols !== false) { registerFamily('grid', {}, rowColsFamily()); }
-            // A plugin whose factory says it `replaces` others has taken
-            // their place: an old name in the plugins setting asks for it,
-            // and the old plugin, loaded beside it, stands down
-            var replacedBy = {};
-            [GridEditor.containers, GridEditor.features, GridEditor.utilities].forEach(function(registry) {
-                Object.keys(registry).forEach(function(name) {
-                    (registry[name].replaces || []).forEach(function(old) {
-                        if (!replacedBy[old]) { replacedBy[old] = name; }
-                    });
-                });
-            });
-            var named = function(name) {
-                return !settings.plugins || settings.plugins.indexOf(name) !== -1;
-            };
-            var namedAsOld = function(name) {
-                return !!settings.plugins && settings.plugins.some(function(old) { return replacedBy[old] === name; });
-            };
-            var standsDown = function(name) {
-                return !!replacedBy[name] && wanted(replacedBy[name]);
-            };
             var wanted = function(name) {
-                return !standsDown(name) && (named(name) || namedAsOld(name));
-            };
-            var replaced = function(name) {
-                if (!standsDown(name) || !named(name)) { return false; }
-
-                warnOnceHere('replaced:' + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] +
-                    '", which is loaded: ignoring it');
-                return true;
+                return !settings.plugins || settings.plugins.indexOf(name) !== -1;
             };
 
             // What the plugins setting does not choose: the text editors,
@@ -1905,16 +1857,16 @@ function build(instance, baseElem, optionsOrMethod) {
             };
 
             Object.keys(GridEditor.containers).forEach(function(type) {
-                if (!replaced(type) && wanted(type)) { CONTAINERS[type] = GridEditor.containers[type](api); }
+                if (wanted(type)) { CONTAINERS[type] = GridEditor.containers[type](api); }
             });
 
             Object.keys(GridEditor.features).forEach(function(name) {
                 var factory = GridEditor.features[name];
-                if (!replaced(name) && featureWanted(name, factory)) { FEATURES[name] = factory(api); }
+                if (featureWanted(name, factory)) { FEATURES[name] = factory(api); }
             });
 
             Object.keys(GridEditor.utilities).forEach(function(name) {
-                if (replaced(name) || !wanted(name)) { return; }
+                if (!wanted(name)) { return; }
 
                 UTILITIES[name] = GridEditor.utilities[name](api);
                 (UTILITIES[name].families || []).forEach(function(family) {
@@ -1931,12 +1883,6 @@ function build(instance, baseElem, optionsOrMethod) {
 
             (settings.plugins || []).forEach(function(name) {
                 if (CONTAINERS[name] || FEATURES[name] || UTILITIES[name]) { return; }
-
-                if (standsDown(name)) {
-                    warnOnceHere('renamed:' + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] +
-                        '" now: name "' + replacedBy[name] + '" in the plugins setting instead');
-                    return;
-                }
 
                 warnOnceHere('plugin:' + name, 'the "' + name + '" plugin is not loaded: ' +
                     'include dist/plugins/grideditor.' + name + '.js after the editor');
@@ -3295,8 +3241,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 refreshUtilities(container);
             });
 
-            // Bootstrap 5's outline buttons, filled while their class is on;
-            // up to 5.x they carried Bootstrap 3's btn-default, which 5 lacks
+            // Bootstrap's outline buttons, filled while their class is on
             var classGroup = general.appendChild(dom.element('div', { 'class': 'btn-group btn-group-sm ge-presets', role: 'group' }));
             cssClasses.forEach(function(rowClass) {
                 var on = dom.hasClass(container, rowClass.cssClass);
@@ -3307,7 +3252,7 @@ function build(instance, baseElem, optionsOrMethod) {
                     'aria-pressed': on ? 'true' : 'false',
                 });
 
-                // A preset's label is the host's markup, as it was in 6.x
+                // A preset's label is the host's markup
                 btn.innerHTML = rowClass.label;
                 dom.toggleClass(btn, 'active', on);
                 btn.addEventListener('click', function() {
@@ -5139,20 +5084,8 @@ function build(instance, baseElem, optionsOrMethod) {
             dom.one(layoutDropdown, 'button').textContent = t(labelKeyFor(view));
         }
 
-        /**
-         * The view key a caller asked for, or null. 2.x callers passed a
-         * layout mode index, which still works and says so once.
-         */
+        /** The view key a caller asked for, or null. */
         function viewKey(view) {
-            if (typeof view == 'number') {
-                warnOnceHere('changeView-index', 'changeView(' + view + '): layout modes are ' +
-                    'identified by breakpoint key now, so pass one of ' +
-                    JSON.stringify(VIEW_KEYS) + '. Numeric indexes still work, ' +
-                    'but they mean what they meant in 2.x (' +
-                    LEGACY_VIEW_INDEXES.join(', ') + ') and will be dropped.');
-                return LEGACY_VIEW_INDEXES[view] || null;
-            }
-
             return VIEW_KEYS.indexOf(view) === -1 ? null : view;
         }
 
@@ -5409,14 +5342,12 @@ GridEditor.locales = {
         'utility.inherit': 'Inherit: {value} (from {breakpoint})',
         'utility.varies': 'Changes at {breakpoints}; choosing here replaces that',
         'error.sortable_missing': 'SortableJS not available! Make sure you loaded the Sortable js file; dragging is off without it.',
-        'warning.setting_removed': 'The {setting} setting was removed in 4.0. Use {replacement} instead.',
         'warning.already_editing': 'This element already has an editor: that one is handed back, with the options it was made with.',
         'warning.destroyed': '{method}() was called on an editor that has been destroyed, and does nothing.',
         'warning.duplicate_build': 'grideditor.js was loaded twice: the first GridEditor is kept.',
-        'warning.plugin_6x': 'The "{name}" plugin is written for grid-editor 6 and is not loaded. Plugins register on GridEditor since 7.0: see UPGRADING.md.',
         'warning.adapter_no_jquery': 'grideditor.jquery.js needs jQuery 4, and there is no jQuery on the page: the jQuery API is not there.',
         'error.tinymce_missing': 'tinyMCE not available! Make sure you loaded the tinyMCE js file.',
-        'error.ckeditor_missing': 'CKEditor 5 not available! Make sure you loaded its ckeditor5.umd.js file: CKEditor 4 is no longer supported.',
+        'error.ckeditor_missing': 'CKEditor 5 not available! Make sure you loaded its ckeditor5.umd.js file.',
         'error.summernote_missing': 'Summernote not available! Make sure you loaded jQuery and the Summernote js file.',
     },
 };

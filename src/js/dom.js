@@ -314,8 +314,7 @@ export function fire(node, type) {
 /* ------------------------------------------------------------------
  * Taking a node away, visibly.
  *
- * The durations are the ones 6.x had through jQuery: 400 ms unless the
- * caller says otherwise. `done` runs once the node is out of sight, which is
+ * The durations are jQuery's: 400 ms unless the caller says otherwise. `done` runs once the node is out of sight, which is
  * when the caller removes it; a node that is already out of sight is done at
  * once, on the next task, as jQuery had it.
  * ------------------------------------------------------------------ */

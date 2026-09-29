@@ -39,6 +39,16 @@ function readableScripts() {
     return found;
 }
 
+/** What the build makes of src: the editor, its module and the adapter, and each plugin and locale both ways. */
+function expectedScripts() {
+    var SRC = path.join(__dirname, '..', 'src', 'js');
+    var count = function(dir) {
+        return fs.readdirSync(path.join(SRC, dir)).filter(function(file) { return /\.js$/.test(file); }).length;
+    };
+
+    return 3 + 2 * count('plugins') + 2 * count('locales');
+}
+
 function staticTests(t) {
     var scripts = readableScripts();
     var using = scripts.filter(function(file) {
@@ -48,8 +58,8 @@ function staticTests(t) {
     t.check('every readable script in dist/ was scanned: the editor, its module, the adapter, each plugin and locale both ways',
         scripts.indexOf('grideditor.js') !== -1 && scripts.indexOf('grideditor.esm.js') !== -1 &&
         scripts.indexOf('plugins/grideditor.tabs.js') !== -1 && scripts.indexOf('plugins/grideditor.tabs.esm.js') !== -1 &&
-        scripts.indexOf('locales/grideditor.es.esm.js') !== -1 && scripts.length > 40,
-        scripts.length);
+        scripts.indexOf('locales/grideditor.es.esm.js') !== -1 && scripts.length === expectedScripts(),
+        { found: scripts.length, expected: expectedScripts() });
     t.check('no file in dist/ uses jQuery but the adapter and the summernote plugin', using.length === 0, using);
     t.check('and those two do: the scan finds what it looks for',
         USES.test(fs.readFileSync(path.join(DIST, 'grideditor.jquery.js'), 'utf8')) &&

@@ -183,10 +183,18 @@ async function tinymceTests(t) {
         afterRace.editorsOpen === 1 && afterRace.editorAttached,
         afterRace);
 
-    // Callbacks from the caller's own config. The pre-6 oninit name was
-    // removed in 7.0: it is not called, and saying so once is the warning
+    // Callbacks from the caller's own config. oninit is not one of
+    // grid-editor's: it goes to tinyMCE as it is, and nothing is said
     await page.eval(`
-        window.callbacks = { init_instance_callback: 0, oninit: 0, sameEditor: null };
+        window.callbacks = { init_instance_callback: 0, oninit: 0, sameEditor: null, passed: null };
+        if (!tinymce.geWrapped) {
+            const init = tinymce.init;
+            tinymce.init = function(config) {
+                window.callbacks.passed = typeof config.oninit === 'function';
+                return init.apply(this, arguments);
+            };
+            tinymce.geWrapped = true;
+        }
         window.warnings = [];
         const warn = console.warn;
         console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
@@ -211,14 +219,14 @@ async function tinymceTests(t) {
         return Object.assign({}, window.callbacks, {
             editorsOpen: tinymce.get().length,
             menubar: !!document.querySelector('.tox-menubar'),
-            warned: window.warnings.filter(function(w) { return /oninit/.test(w) && /removed in 7\.0/.test(w); }).length,
+            warned: window.warnings.filter(function(w) { return /grid-editor/.test(w) && /oninit/.test(w); }).length,
         });
     `);
     t.check('init_instance_callback fires once, with the user config applied',
         callbacks.init_instance_callback === 1 && callbacks.sameEditor === true && callbacks.menubar === false,
         callbacks);
-    t.check('the pre-6 oninit, removed in 7.0, is not called, and one warning names it',
-        callbacks.oninit === 0 && callbacks.warned === 1, callbacks);
+    t.check('tinymce.config.oninit reaches tinymce.init as it is, and grid-editor says nothing about it (AC-11)',
+        callbacks.passed === true && callbacks.warned === 0, callbacks);
 
     // The source code button deinits, then inits again on the way back
     await page.click('.gm-edit-mode');

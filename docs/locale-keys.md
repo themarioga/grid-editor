@@ -133,7 +133,7 @@ editor's label, one of the `text.<type>` keys below or, for a plugin with no
 label, its type.
 
 The keys a text needs once an editor is loaded - `text.add`, `text.add_type`,
-`panel.editor` and `panel.kind_text` - are the text editor plugins' since 6.0, and come with any of them. The rest
+`panel.editor` and `panel.kind_text` - are the text editor plugins', and come with any of them. The rest
 are the main bundle's: what the editor shows with no text editor loaded.
 
 | Key | English | Where |
@@ -223,9 +223,7 @@ utility.*
 
 The Responsive section of a settings panel, which the utility plugins fill,
 and the per breakpoint fields of the style plugin's sections. The labels of
-each utility and its values are the plugins' own keys. The spacing,
-textalign, visibility and float fields were plugins of their own up to 7.2,
-and are the style plugin's now.
+each utility and its values are the plugins' own keys.
 
 | Key | English | Where |
 | --- | --- | --- |
@@ -373,13 +371,10 @@ all the same: the developer reading them is the one who chose the locale.
 | Key | English | Where |
 | --- | --- | --- |
 | `error.sortable_missing` | SortableJS not available! … | Logged once when the drag library is not on the page |
-| `warning.setting_removed` | The {setting} setting was removed in 4.0. Use {replacement} instead. | Logged once per removed setting a host still passes |
 | `warning.already_editing` | This element already has an editor: … | An editor asked for on an element that has one; the one it has is handed back |
 | `warning.destroyed` | {method}() was called on an editor that has been destroyed, … | Logged once per method called on a destroyed editor |
 | `warning.duplicate_build` | grideditor.js was loaded twice: … | A second copy of the classic script, which keeps the first `GridEditor` |
-| `warning.plugin_6x` | The "{name}" plugin is written for grid-editor 6 … | `grideditor.jquery.js`: a plugin registered on `$.fn.gridEditor.*`, which is left out |
 | `warning.adapter_no_jquery` | grideditor.jquery.js needs jQuery 4, … | `grideditor.jquery.js` loaded on a page with no jQuery |
-| `warning.oninit_removed` | tinyMCE's oninit option was removed in 7.0 … | A `tinymce.config` that still has `oninit`; `init_instance_callback` is called |
 | `error.tinymce_missing` | tinyMCE not available! … | `content_types: ['tinymce']` with no tinyMCE loaded |
 | `error.ckeditor_missing` | CKEditor 5 not available! … | `content_types: ['ckeditor']` with no CKEditor 5 loaded, CKEditor 4 included |
 | `error.ckeditor_start` | CKEditor could not start: {message} | `InlineEditor.create` failed: most likely no `licenseKey` in `ckeditor.config` |

@@ -45,11 +45,10 @@ package: an Angular CLI project, with a build step, unlike the pages above.
 Installation
 ------------
 
-* __Dependencies:__ Grid Editor depends on [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. It does not need jQuery since 7.0.
+* __Dependencies:__ Grid Editor depends on [SortableJS](https://sortablejs.github.io/Sortable/), Bootstrap Icons, and Bootstrap 5, so make sure you have included those in the page. It does not need jQuery.
     * If you want to use the tinyMCE integration, include tinyMCE 7 (7.9.3 or later) as well, and `dist/plugins/grideditor.tinymce.min.js` after the editor.
     * If you want to use the summernote integration, include summernote and `dist/plugins/grideditor.summernote.min.js`. Summernote needs jQuery itself, so that page loads jQuery too; nothing else does.
-    * If you want to use the CKEditor integration... you get the point: CKEditor 5's browser build (`ckeditor5.umd.js` and `ckeditor5.css`) and `dist/plugins/grideditor.ckeditor.min.js`. CKEditor 4 is no longer supported.
-    * Up to 5.x the main bundle carried a copy of the three; since 6.0 the plugin of the editor you use has to be loaded, as above. See [UPGRADING.md](UPGRADING.md).
+    * If you want to use the CKEditor integration... you get the point: CKEditor 5's browser build (`ckeditor5.umd.js` and `ckeditor5.css`) and `dist/plugins/grideditor.ckeditor.min.js`.
 * From npm:
 
 ```
@@ -111,7 +110,7 @@ Load the classic script *or* the module build on a page, never both.
 
 A page that uses the jQuery API of 6.x - `$(el).gridEditor(...)`, jQuery
 events, jQuery objects in the payloads - keeps it by loading jQuery 4 and the
-adapter after the editor, and the 7.x plugins after that:
+adapter after the editor, and the plugins after that:
 
 ```html
 <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
@@ -120,7 +119,8 @@ adapter after the editor, and the 7.x plugins after that:
 <script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
 ```
 
-Plugins written for 6.x are not kept working: see [UPGRADING.md](UPGRADING.md).
+Plugins written for 6.x do not work with it, and throw as they register on
+`$.fn.gridEditor`: [UPGRADING.md](UPGRADING.md) says how to port one.
 
 Usage
 -----
@@ -215,7 +215,7 @@ ge.settings.locale;   // 'en'
 A html string written into the canvas - through the source view,
 `source_textarea`, `createElement` or a paste - is parsed as `innerHTML`
 parses: a `<script>` in it is kept in the markup and does not run in the
-editor. Up to 6.x it did.
+editor.
 
 Events
 ------
@@ -306,7 +306,7 @@ which loses to `col-auto` and `col-N`. `row_cols: false` takes the field away.
 In a breakpoint view a size or an offset is written for that breakpoint. In the
 all view it is written once, as the class with no breakpoint (`col-4`,
 `offset-2`), and the breakpoints' own sizes or offsets are taken off: one value
-for every size. Up to 4.x the all view wrote all six breakpoints instead.
+for every size.
 
 The settings button on a row, a column, a container, a tab, an accordion item
 or an element opens a panel with two fields: the node's `id`, and its css
@@ -428,7 +428,7 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 | `'offcanvas'` | A Bootstrap offcanvas at the side of the window, from the bottom on a phone. It does not move the canvas, and has room for every field |
 | `'popover'` | A Bootstrap popover under the gear, or over it when there is more room there; a press anywhere else puts it away |
 | `'modal'` | A Bootstrap modal |
-| `'inline'` | Unfolded in the drawer itself, as up to 5.x |
+| `'inline'` | Unfolded in the drawer itself |
 
 Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
 
@@ -454,7 +454,7 @@ new GridEditor('#myGrid', {
 
 ### Breakpoints and sizing
 
-__`layout_modes`:__ Which views the toolbar dropdown offers. Default `['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl']`. Offer fewer to keep the feel of 2.x:
+__`layout_modes`:__ Which views the toolbar dropdown offers. Default `['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl']`. Offer fewer for a simpler dropdown:
 
 ```javascript
 new GridEditor('#myGrid', {
@@ -672,12 +672,6 @@ new GridEditor('#myGrid', {
     },
 });
 ```
-
-Up to 7.2 visibility, spacing, text alignment and float were plugins of
-their own, `grideditor.visibility.js`, `grideditor.spacing.js`,
-`grideditor.textalign.js` and `grideditor.float.js`, with their options in
-`utilities.visibility` and `utilities.spacing`. In 7.3 those files still work
-on their own, deprecated, and go in 8.0; see [UPGRADING.md](UPGRADING.md).
 
 See [example/utilities.html](example/utilities.html), and
 [docs/plugins.md](docs/plugins.md#utility-plugins) for writing one.

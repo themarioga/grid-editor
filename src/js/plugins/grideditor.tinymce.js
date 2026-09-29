@@ -10,11 +10,10 @@
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.tinymce.min.js"></script>
  *
- * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin. It imports what every text editor
- * shares - text blocks, the Text button, createText, making the host's plain
- * content a text - from src/js/text/grideditor.text.js, which the build puts
- * in its classic script, installed once however many editors a page loads.
+ * It imports what every text editor shares - text blocks, the Text button,
+ * createText, making the host's plain content a text - from
+ * src/js/text/grideditor.text.js, which the build puts in its classic
+ * script, installed once however many editors a page loads.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
@@ -22,7 +21,6 @@ import '../text/grideditor.text.js';
 
 Object.assign(GridEditor.locales.en, {
     'text.tinymce': 'tinyMCE',
-    'warning.oninit_removed': 'tinyMCE\'s oninit option was removed in 7.0 and is ignored: use init_instance_callback.',
 });
 
 // tinyMCE snapshots the target element's attributes when an inline editor is
@@ -42,9 +40,6 @@ var INITIAL_CONTENT = '<p>Lorem ipsum dolores</p>';
 var editors = new WeakMap();
 var pendingRemove = new WeakSet();
 
-// Said once per page, however many editors are on it
-var warnedOninit = false;
-
 GridEditor.texts.tinymce = function(ge) {
     return {
         labelKey: 'text.tinymce',
@@ -56,13 +51,6 @@ GridEditor.texts.tinymce = function(ge) {
         start: function(contentAreas) {
             var settings = ge.settings;
             var userConfig = (settings.tinymce && settings.tinymce.config) ? settings.tinymce.config : {};
-
-            // 'oninit' was the pre-6 name for init_instance_callback, honoured
-            // through 6.x and gone in 7.0
-            if (userConfig.oninit && !warnedOninit) {
-                warnedOninit = true;
-                ge.warn(ge.t('warning.oninit_removed'));
-            }
 
             contentAreas.forEach(function(contentArea) {
                 if (dom.hasClass(contentArea, 'active')) { return; }
@@ -147,7 +135,6 @@ GridEditor.texts.tinymce = function(ge) {
                 // We always edit the element we were handed, so a selector in the
                 // user config would only fight with target
                 delete configuration.selector;
-                delete configuration.oninit;
 
                 window.tinymce.init(configuration);
             });

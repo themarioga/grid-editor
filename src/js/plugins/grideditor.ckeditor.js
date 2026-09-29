@@ -11,15 +11,13 @@
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.ckeditor.min.js"></script>
  *
- * Up to 7.1 this was CKEditor 4, whose last open source release has known
- * vulnerabilities and no fixes to come. CKEditor 5 asks for a licenseKey:
- * 'GPL', or a commercial key, is the host's to pass in ckeditor.config.
+ * CKEditor 5 asks for a license key, GPL or a commercial one, which is the
+ * host's to pass in ckeditor.config.
  *
- * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin. It imports what every text editor
- * shares - text blocks, the Text button, createText, making the host's plain
- * content a text - from src/js/text/grideditor.text.js, which the build puts
- * in its classic script, installed once however many editors a page loads.
+ * It imports what every text editor shares - text blocks, the Text button,
+ * createText, making the host's plain content a text - from
+ * src/js/text/grideditor.text.js, which the build puts in its classic
+ * script, installed once however many editors a page loads.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
@@ -34,8 +32,8 @@ Object.assign(GridEditor.locales.en, {
 var INITIAL_CONTENT = '<p>Lorem initius... </p>';
 
 // What CKEditor 5 is started with when the host's config does not say. It
-// has no plugins of its own, so these are what a text can do: much what the
-// CKEditor 4 build 7.1 used offered. Names, looked up on window.CKEDITOR.
+// has no plugins of its own, so these are what a text can do. Names, looked
+// up on window.CKEDITOR.
 var PLUGINS = [
     'Essentials', 'Autoformat', 'Paragraph', 'Heading', 'Bold', 'Italic', 'Underline', 'Strikethrough',
     'Link', 'AutoLink', 'List', 'BlockQuote', 'Indent', 'HorizontalLine', 'Table', 'TableToolbar',
@@ -122,8 +120,8 @@ GridEditor.texts.ckeditor = function(ge) {
 
                 var configuration = Object.assign({}, DEFAULTS, userConfig);
                 configuration.plugins = pluginsFor(ge, userConfig.plugins || PLUGINS);
-                // on.instanceReady is CKEditor 4's, and CKEditor 5 has no
-                // such option: this file calls it, as it did in 7.1
+                // CKEditor 5 has no on.instanceReady option: this file
+                // calls it, below
                 delete configuration.on;
 
                 var ticket = {};
@@ -144,8 +142,8 @@ GridEditor.texts.ckeditor = function(ge) {
                     starting.delete(contentArea);
                     editors.set(contentArea, editor);
 
-                    // Call the original instanceReady function, if one was
-                    // passed in the config: 7.1's, with CKEditor 4's event
+                    // Call the instanceReady function, if one was passed in
+                    // the config, with the editor as this and as evt.editor
                     var callback = userConfig.on && userConfig.on.instanceReady;
                     if (callback) {
                         callback.call(editor, { editor: editor });
@@ -173,9 +171,8 @@ GridEditor.texts.ckeditor = function(ge) {
             contentAreas.filter(function(contentArea) {
                 return dom.hasClass(contentArea, 'active');
             }).forEach(function(contentArea) {
-                // This content area's editor, and no other: up to 5.x
-                // closing one content area destroyed every CKEditor on
-                // the page, other editors' and the host's own included
+                // This content area's editor, and no other: the other
+                // CKEditors on the page, the host's own included, stay
                 var editor = editors.get(contentArea);
                 editors.delete(contentArea);
                 // One still starting sees this and goes as it is ready

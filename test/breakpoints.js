@@ -304,7 +304,8 @@ async function writingTests(t) {
 }
 
 /**
- * 2.x callers passed a layout mode index, and their pages still work.
+ * A layout mode index, which 2.x callers passed, is not a view; and the
+ * dropdown offers what layout_modes says.
  */
 async function backCompatTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
@@ -331,9 +332,10 @@ async function backCompatTests(t) {
             canvasClass: document.querySelector('#myGrid').getAttribute('class').match(/ge-layout-\\w+/g),
         };
     `);
-    t.check('the 2.x layout mode indexes still mean desktop, tablet and phone',
-        legacy.views.join(',') === 'lg,sm,xs' && legacy.warnings.length === 1 &&
-        legacy.canvasClass.join() === 'ge-layout-xs',
+    t.check('a numeric layout mode index is not a view: each warns, and the view stays',
+        legacy.views.join(',') === 'all,all,all' && legacy.warnings.length === 3 &&
+        legacy.warnings.every(function(w) { return /no such layout mode/.test(w); }) &&
+        legacy.canvasClass.join() === 'ge-layout-all',
         legacy);
 
     var limited = await page.eval(`

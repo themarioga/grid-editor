@@ -3,7 +3,8 @@
  * a section of its own (panelSection), the dialog it opens in when the
  * panel has no room (ge.openDialog), utility fields that follow the view and
  * the classes wherever they are, the host's style under the preview
- * (ge.hostStyle, ge.setHostStyle), and a plugin that replaces others.
+ * (ge.hostStyle, ge.setHostStyle), and that `replaces`, gone in 8.0, does
+ * nothing.
  *
  * The plugins here are written in the page, so what is tested is the core
  * and not the style plugin, which is test/style.js.
@@ -272,26 +273,14 @@ async function replaces(t, page) {
         GridEditor.utilities.newprobe.replaces = ['oldprobe'];
         try {
             startWith({ plugins: window.fixture.plugins(['oldprobe', 'newprobe']) });
-            const both = { calls: calls.splice(0), warnings: window.warnings.slice() };
-            startWith({ plugins: window.fixture.plugins(['oldprobe']) });
-            const renamed = { calls: calls.splice(0), warnings: window.warnings.slice() };
-            startWith({ plugins: window.fixture.plugins(['newprobe']) });
-            const quiet = { calls: calls.splice(0), warnings: window.warnings.slice() };
-            return { both: both, renamed: renamed, quiet: quiet };
+            return { calls: calls.slice().sort().join(), warnings: window.warnings.filter(function(w) { return /probe/.test(w); }) };
         } finally {
             delete GridEditor.utilities.oldprobe;
             delete GridEditor.utilities.newprobe;
         }
     `);
-    t.check('a plugin loaded beside the one that replaces it stands down, with a warning (AC-64)',
-        result.both.calls.join() === 'new' &&
-        result.both.warnings.some(function(w) { return /"oldprobe" plugin is part of "newprobe", which is loaded: ignoring it/.test(w); }) &&
-        !result.both.warnings.some(function(w) { return /already declared/.test(w); }), result.both);
-    t.check('the old name in the plugins setting asks for the new plugin, and says the name is deprecated (AC-65)',
-        result.renamed.calls.join() === 'new' &&
-        result.renamed.warnings.some(function(w) { return /"oldprobe" plugin is part of "newprobe" now/.test(w); }), result.renamed);
-    t.check('naming only the new plugin warns about nothing', result.quiet.calls.join() === 'new' &&
-        !result.quiet.warnings.some(function(w) { return /probe/.test(w); }), result.quiet);
+    t.check('replaces on a factory does nothing: both plugins are used, and nothing is said (AC-03)',
+        result.calls === 'new,old' && result.warnings.length === 0, result);
 }
 
 module.exports = {

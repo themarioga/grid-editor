@@ -361,21 +361,37 @@ async function viewTests(t) {
 
     var numeric = await page.eval(`
         const ge = window.fixture.editor();
+        ge.changeView('all');
+        window.warnings = [];
+        const col = document.querySelector('#myGrid .column');
         const views = [0, 1, 2].map(function(index) {
             ge.changeView(index);
             return ge.getView();
         });
+        const before = col.getAttribute('class');
+        const read = ge.getUtility(col, 'col', 1);
+        ge.setUtility(col, 'col', 6, { view: 2 });
         return {
             views: views,
-            warnings: window.warnings.filter(w => /changeView/.test(w)),
+            read: read,
+            written: col.getAttribute('class') === before,
+            warnings: window.warnings.filter(w => /no such layout mode/.test(w)),
         };
     `);
-    t.check('a 2.x numeric layout mode index still works, with one deprecation warning',
-        numeric.views.join() === 'lg,sm,xs' && numeric.warnings.length === 1, numeric);
+    t.check('a numeric view is a view that does not exist: changeView warns and stays (AC-07)',
+        numeric.views.join() === 'all,all,all' &&
+        ['changeView(0)', 'changeView(1)', 'changeView(2)'].every(function(call) {
+            return numeric.warnings.some(function(w) { return w.indexOf(call + ': no such layout mode') !== -1; });
+        }), numeric);
+    t.check('getUtility with a numeric view warns and gives null (AC-08)',
+        numeric.read === null && numeric.warnings.some(function(w) { return /getUtility\(1\): no such layout mode/.test(w); }), numeric);
+    t.check('setUtility with a numeric view warns and writes nothing (AC-09)',
+        numeric.written && numeric.warnings.some(function(w) { return /setUtility\(2\): no such layout mode/.test(w); }), numeric);
 
     var unknown = await page.eval(`
         const ge = window.fixture.editor();
         ge.changeView('lg');
+        window.warnings = [];
         ge.changeView('nonsense');
         return {
             view: ge.getView(),
@@ -418,6 +434,20 @@ async function lifecycleTests(t) {
         idempotent.afterDeinits === 0 && idempotent.afterResets === idempotent.initial &&
         idempotent.editing,
         idempotent);
+
+    var dropped = await page.eval(`
+        window.warnings = [];
+        const ge = window.fixture.init({ sortable_options: {}, resizable_options: {} });
+        const result = {
+            warnings: window.warnings.slice(),
+            editing: ge.canvas.classList.contains('ge-editing'),
+            drawers: document.querySelectorAll('#myGrid .ge-tools-drawer').length,
+        };
+        window.fixture.init();
+        return result;
+    `);
+    t.check('sortable_options and resizable_options are options like any other the editor does not know: no warning (AC-10)',
+        dropped.warnings.length === 0 && dropped.editing && dropped.drawers > 0, dropped);
 
     var roundTrip = await page.eval(STRUCTURE);
     var exported = await page.eval(`

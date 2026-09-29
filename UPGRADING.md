@@ -1,3 +1,36 @@
+Upgrading from grid-editor `7.x` to `8.0`
+=========================================
+
+8.0 takes out what kept pages, plugins and options of earlier versions
+working. Nothing it removes warns: an option that is gone is ignored like any
+option the editor does not know. The jQuery adapter stays, and so does the
+conversion of markup 5.x saved. `8.0.0-beta.1` is the first beta; install it
+with `npm install @themarioga/grid-editor@next`.
+
+* __The spacing, textalign, visibility and float plugins are gone.__ Load
+  `grideditor.style.js`, which has carried them since 7.3, and name it in the
+  `plugins` setting: `'spacing'`, `'textalign'`, `'visibility'` and `'float'`
+  there are plugins that are not loaded now, and only get the usual warning.
+* __`utilities.spacing` and `utilities.visibility` are not read.__ They are
+  `style.spacing` and `style.visibility`.
+* __`replaces` on a plugin's factory does nothing.__ A plugin that stood in
+  for another is loaded beside it, like any two plugins.
+* __`changeView`, `getUtility` and `setUtility` take a view key only.__ The
+  numeric indexes of 2.x - `0`, `1`, `2` for desktop, tablet and phone - are
+  views that do not exist: `changeView(0)` warns that there is no such
+  layout mode and does nothing. Pass `'lg'`, `'sm'` or `'xs'`.
+* __`sortable_options` and `resizable_options` are ignored__, without the
+  warning 4.0 gave: use `drag` and `resize`.
+* __`tinymce.config.oninit` is passed to tinyMCE as it is__, without the
+  warning 7.0 gave: use `init_instance_callback`.
+* __The adapter has no `$.fn.gridEditor.containers`, `.features`,
+  `.utilities` or `.texts`.__ A plugin written for 6.x that registers there
+  throws as it loads, where 7.x warned and left it out. Port it: see
+  "Port a plugin written for 6.x" below.
+* __Gone from the locales:__ `warning.setting_removed`,
+  `warning.oninit_removed` and `warning.plugin_6x`. A locale of your own
+  can drop them.
+
 Upgrading from grid-editor `7.2` to `7.3`
 =========================================
 

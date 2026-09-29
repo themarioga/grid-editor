@@ -1,20 +1,18 @@
 /**
- * The jQuery API of grid-editor 6, on top of the 7.0 editor.
+ * The jQuery API of grid-editor 6, on top of the plain DOM editor.
  *
- * grid-editor is plain DOM since 7.0. A page written for 6.x - one that
- * calls $(el).gridEditor(...), listens with $(el).on('grideditor:...') and
- * reads jQuery objects out of the payloads - loads jQuery 4 and this file
- * after grideditor.js, and runs unchanged:
+ * A page written for 6.x - one that calls $(el).gridEditor(...), listens
+ * with $(el).on('grideditor:...') and reads jQuery objects out of the
+ * payloads - loads jQuery 4 and this file after grideditor.js, and runs
+ * unchanged:
  *
  *   <script src="jquery.min.js"></script>
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/grideditor.jquery.min.js"></script>
  *   <script src="dist/plugins/grideditor.tabs.min.js"></script>
  *
- * What it keeps is the host's side of 6.x. Plugins are not: a plugin
- * written for 6.x registered on $.fn.gridEditor.containers, .features,
- * .utilities or .texts, and is warned about and left out, since the plugin
- * contract hands out elements now. UPGRADING.md says how to port one.
+ * What it keeps is the host's side of 6.x. Plugins are not: they register
+ * on GridEditor, and the plugin contract hands out elements.
  *
  * Every value 6.x gave host code as a jQuery object is one again: the event
  * payloads and the callbacks' arguments, what the create* methods return,
@@ -250,15 +248,6 @@ function install() {
         };
     });
 
-    /** Plugins registered the 6.x way: said once each, and never called. */
-    function warnAboutLegacyPlugins() {
-        ['containers', 'features', 'utilities', 'texts'].forEach(function(registry) {
-            Object.keys(legacy[registry]).forEach(function(name) {
-                warnOnce('plugin-6x:' + registry + ':' + name, english('warning.plugin_6x', { name: name }));
-            });
-        });
-    }
-
     function dispatchMethod(set, name, args) {
         var descriptor = METHODS[name];
 
@@ -300,8 +289,6 @@ function install() {
             return dispatchMethod(this, optionsOrMethod, Array.prototype.slice.call(arguments, 1));
         }
 
-        warnAboutLegacyPlugins();
-
         var options = adaptOptions(optionsOrMethod);
 
         this.each(function() {
@@ -310,14 +297,6 @@ function install() {
 
         return this;
     };
-
-    // Where a 6.x plugin registers. Kept, so one does not throw as it
-    // loads, and read only to say it is not used.
-    var legacy = { containers: {}, features: {}, utilities: {}, texts: {} };
-    $.fn.gridEditor.containers = legacy.containers;
-    $.fn.gridEditor.features = legacy.features;
-    $.fn.gridEditor.utilities = legacy.utilities;
-    $.fn.gridEditor.texts = legacy.texts;
 
     // Strings are the same thing in both: a 6.x locale file loads unchanged
     $.fn.gridEditor.locales = GridEditor.locales;

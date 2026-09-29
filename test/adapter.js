@@ -228,20 +228,23 @@ async function dispatchTests(t, page) {
 
 async function legacyTests(t, page) {
     var legacy = await page.eval(`
-        let called = 0;
-        jQuery.fn.gridEditor.containers.legacy = function() { called++; return { labelKey: 'x', create: function() {}, mark: function() {}, unmark: function() {} }; };
+        let threw = null;
+        try {
+            jQuery.fn.gridEditor.containers.legacy = function() { return {}; };
+        } catch (error) {
+            threw = error.constructor.name;
+        }
         fresh();
-        const result = {
-            called: called,
-            warned: window.warnings.filter(function(w) { return /"legacy"/.test(w) && /UPGRADING\\.md/.test(w); }).length,
-            button: jQuery('.ge-add-container[data-ge-container-type="legacy"]').length,
+        return {
+            registries: ['containers', 'features', 'utilities', 'texts'].map(function(name) {
+                return typeof jQuery.fn.gridEditor[name];
+            }).join(','),
+            threw: threw,
             editing: jQuery('#myGrid').hasClass('ge-editing'),
         };
-        delete jQuery.fn.gridEditor.containers.legacy;
-        return result;
     `);
-    t.check('a plugin registered the 6.x way is never called, and named once in a warning pointing at UPGRADING.md',
-        legacy.called === 0 && legacy.warned === 1 && legacy.button === 0 && legacy.editing, legacy);
+    t.check('the adapter has no 6.x plugin registries: a plugin registering there throws, and the editor goes on (AC-12)',
+        legacy.registries === 'undefined,undefined,undefined,undefined' && legacy.threw === 'TypeError' && legacy.editing, legacy);
 
     var locale = await page.eval(`
         jQuery.fn.gridEditor.locales.fr = { 'tool.move': 'Déplacer' };

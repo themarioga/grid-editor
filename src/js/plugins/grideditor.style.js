@@ -12,17 +12,15 @@
  *   <script src="dist/grideditor.min.js"></script>
  *   <script src="dist/plugins/grideditor.style.min.js"></script>
  *
- * It carries what the spacing, textalign, visibility and float plugins
- * were up to 7.2: their per breakpoint fields are in its sections rather
- * than in Responsive, and those four files are deprecated. Loaded beside
- * it they stand down, and their names in the plugins setting ask for it.
+ * It also edits spacing, text alignment, visibility and float, Bootstrap's
+ * responsive classes, per breakpoint in its sections.
  *
  * Where the settings panel has no room for it - a popover, inline in the
  * drawer - the accordion opens in a dialog, from a Style button.
  *
  * style.sections chooses the sections, and in each the properties and
- * whether it has a catalog; style.spacing and style.visibility are what
- * utilities.spacing and utilities.visibility were.
+ * whether it has a catalog; style.spacing and style.visibility are the
+ * options of those two.
  */
 import { GridEditor } from '../grideditor.js';
 import { spacingPart } from '../style/spacing.js';
@@ -175,5 +173,3 @@ GridEditor.utilities.style = function(ge) {
         },
     };
 };
-
-GridEditor.utilities.style.replaces = PARTS;

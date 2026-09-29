@@ -210,7 +210,7 @@ if (!GridEditor.features.text) {
             var before = readBefore.get(block);
             var open = before ? attributesOf(block) : null;
 
-            // Every content area is told, as in 5.x: one whose editor never
+            // Every content area is told: one whose editor never
             // started is the plugin's to ignore
             if (text) { text.stop([block]); }
 

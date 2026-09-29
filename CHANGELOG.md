@@ -5,6 +5,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.0.0-beta.1] - 2026-09-29
+
+### Removed
+- **BREAKING:** `grideditor.spacing.js`, `grideditor.textalign.js`,
+  `grideditor.visibility.js` and `grideditor.float.js`, deprecated in 7.3:
+  the style plugin carries them. Their names in the `plugins` setting are
+  plugins that are not loaded.
+- **BREAKING:** `utilities.spacing` and `utilities.visibility` are no longer
+  read; they are `style.spacing` and `style.visibility`.
+- **BREAKING:** `replaces` on a plugin's factory, added in 7.3 for those
+  plugins.
+- **BREAKING:** The numeric layout mode indexes of 2.x in `changeView`,
+  `getUtility` and `setUtility`: they are views that do not exist.
+- **BREAKING:** The warnings about `sortable_options` and
+  `resizable_options`, removed in 4.0, and about `tinymce.config.oninit`,
+  removed in 7.0: they are ignored, and `oninit` is passed to tinyMCE as it
+  is.
+- **BREAKING:** The adapter's `$.fn.gridEditor.containers`, `.features`,
+  `.utilities` and `.texts`, which kept a plugin written for 6.x from
+  throwing: one throws as it loads now.
+- The locale keys `warning.setting_removed`, `warning.oninit_removed` and
+  `warning.plugin_6x`, and the words on CKEditor 4 in
+  `error.ckeditor_missing`.
+- Notes on earlier versions in the README, the docs and the code;
+  UPGRADING.md keeps them. See [UPGRADING.md](UPGRADING.md).
+
+
 ## [7.3.0] - 2026-09-29
 
 ### Added

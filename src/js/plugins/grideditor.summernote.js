@@ -16,11 +16,10 @@
  * nothing else. Towards the editor it is plain DOM, like every plugin, and
  * it needs no jQuery adapter.
  *
- * Up to 5.x the main bundle carried a copy of this file; since 6.0 it is
- * loaded on its own, like every plugin. It imports what every text editor
- * shares - text blocks, the Text button, createText, making the host's plain
- * content a text - from src/js/text/grideditor.text.js, which the build puts
- * in its classic script, installed once however many editors a page loads.
+ * It imports what every text editor shares - text blocks, the Text button,
+ * createText, making the host's plain content a text - from
+ * src/js/text/grideditor.text.js, which the build puts in its classic
+ * script, installed once however many editors a page loads.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
