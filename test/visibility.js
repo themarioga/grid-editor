@@ -42,7 +42,7 @@ var HELPERS = `
         document.querySelector('#myGrid').innerHTML =
             '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
             '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>';
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['visibility']) }, settings || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style']) }, settings || {}));
     };
 `;
 
@@ -55,7 +55,7 @@ async function toolTests(t, page) {
             '<div data-ge-container="tabs"><ul class="nav nav-tabs"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p1">One</button></li></ul>' +
             '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content" data-ge-content-type="tinymce"><p>in</p></div></div></div></div></div></div>'
         );
-        window.fixture.init({ plugins: window.fixture.plugins(['visibility']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
         const has = function(selector) { return eye(document.querySelector(selector)) ? 1 : 0; };
         const options = function(node) {
             return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="visibility"] select option'));
@@ -79,7 +79,7 @@ async function toolTests(t, page) {
         tools.choices === '=Default,none=Hidden,block=Shown' && tools.rowChoices === ',none,flex', tools);
 
     var off = await page.eval(`
-        start('', '', { utilities: { visibility: { drawer: false } } });
+        start('', '', { style: { visibility: { drawer: false } } });
         return { eyes: document.querySelectorAll('#myGrid .ge-visibility-tool').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="visibility"]').length };
     `);
     t.check('utilities.visibility.drawer false leaves the eye out and keeps the field',

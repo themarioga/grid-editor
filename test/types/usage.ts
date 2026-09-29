@@ -19,6 +19,11 @@ const options: GridEditorOptions = {
         after_utility: function(payload) { payload.tiers.forEach(function(tier) { tier.toUpperCase(); }); },
     },
     tinymce: { config: { toolbar: 'bold italic' } },
+    style: {
+        sections: { border: { properties: ['border-width'], catalog: false }, position: false },
+        spacing: { values: ['0', '2', '4'] },
+        visibility: { drawer: false },
+    },
 };
 
 const ge = new GridEditor('#myGrid', options);
@@ -59,6 +64,8 @@ ge.remove();
 ge.settings.locale = 'es';
 // @ts-expect-error a setting takes its own values
 new GridEditor('#myGrid', { settings_panel: 'window' });
+// @ts-expect-error the style plugin has no such section
+new GridEditor('#myGrid', { style: { sections: { colours: true } } });
 // @ts-expect-error an unknown callback name is a mistake
 const wrong: GridEditorOptions = { callbacks: { before_add_rows: function() {} } };
 

@@ -1,4 +1,7 @@
 // src/js/plugins/grideditor.textalign.js
+import { GridEditor as GridEditor2 } from "../grideditor.esm.js";
+
+// src/js/style/textalign.js
 import { GridEditor } from "../grideditor.esm.js";
 Object.assign(GridEditor.locales.en, {
   "utility.text_align": "Text alignment",
@@ -7,7 +10,7 @@ Object.assign(GridEditor.locales.en, {
   "utility.text_end": "End"
 });
 var CSS = { start: "left", center: "center", end: "right" };
-GridEditor.utilities.textalign = function(ge) {
+function textalignPart(ge) {
   function label(value) {
     if (value === "start") {
       return ge.t("utility.text_start");
@@ -37,4 +40,10 @@ GridEditor.utilities.textalign = function(ge) {
       }
     }]
   };
+}
+
+// src/js/plugins/grideditor.textalign.js
+GridEditor2.utilities.textalign = function(ge) {
+  ge.warn('the "textalign" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+  return textalignPart(ge);
 };

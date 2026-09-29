@@ -1,3 +1,34 @@
+Upgrading from grid-editor `7.2` to `7.3`
+=========================================
+
+Nothing breaks. The spacing, textalign, visibility and float plugins are now
+part of the **style plugin**, and deprecated on their own: they go in 8.0.
+A page that loads them keeps working as it did, with a warning in the
+console.
+
+* __Load the style plugin instead of the four.__ It edits the same classes
+  per breakpoint, in its Spacing, Text, Display and Position sections rather
+  than in *Responsive*, and adds inline css and Bootstrap's classes as
+  chips.
+
+  ```html
+  <script src="dist/plugins/grideditor.style.min.js"></script>
+  ```
+
+  As a module, `import '@themarioga/grid-editor/plugins/style'`. Loaded
+  beside it, the old files stand down.
+* __Name it in the `plugins` setting__, if the page names its plugins:
+  `plugins: ['style', …]` instead of `'spacing'`, `'textalign'`,
+  `'visibility'` or `'float'`. An old name still asks for the style plugin,
+  with a warning, until 8.0.
+* __Move the options.__ `utilities: { spacing: … }` is
+  `style: { spacing: … }`, and `utilities: { visibility: … }` is
+  `style: { visibility: … }`. The old ones are still read, with a warning,
+  until 8.0.
+* __Tests or code that look for the fields__ in the Responsive section find
+  them in the Style accordion now: `[data-ge-style-section="spacing"]` and
+  the others.
+
 Upgrading from grid-editor `7.1` to `7.2`
 =========================================
 

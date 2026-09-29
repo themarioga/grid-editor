@@ -5,6 +5,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [7.3.0] - 2026-09-29
+
+### Added
+- The style plugin, `grideditor.style.js`. Every row, column, container,
+  pane, element and section gets a *Style* accordion in its settings panel:
+  size, spacing, border, background, text, typography, display, position
+  and free css. It is written to the node's own `style` through the
+  browser, so a value the browser refuses is marked and not written, and
+  what the host wrote and nobody edits is kept. Each section offers
+  Bootstrap 5.3's classes for what it styles as chips, which put a class in
+  the classes field or take it off. A field whose property a Bootstrap
+  utility on the node also sets says that the class takes priority. Where
+  `settings_panel` is `popover` or `inline` the accordion opens in a
+  dialog, from a *Style* button. The `style` setting chooses the sections,
+  and in each the properties and whether it has chips. See the README and
+  [example/style.html](example/style.html).
+- The style plugin carries spacing, text alignment, visibility and float:
+  their per breakpoint fields are in its Spacing, Text, Display and
+  Position sections rather than in *Responsive*, and do what they did.
+  `style.spacing` and `style.visibility` take what `utilities.spacing` and
+  `utilities.visibility` took.
+- For plugins: `panelSection(node, kind)`, a section of a plugin's own in a
+  node's settings panel, between its general fields and *Responsive*;
+  `ge.openDialog`/`ge.closeDialog`, a modal of the editor's own over the
+  settings; `ge.hostStyle`/`ge.setHostStyle`, the host's own style under a
+  breakpoint preview; and `replaces` on a factory, for a plugin that takes
+  the place of others. A field made with `ge.utilityField` follows the view
+  and the classes field wherever the plugin puts it. See
+  [docs/plugins.md](docs/plugins.md).
+
+### Deprecated
+- `grideditor.spacing.js`, `grideditor.textalign.js`,
+  `grideditor.visibility.js` and `grideditor.float.js`, which go in 8.0.
+  Loaded on their own they do what they did, and say once per editor that
+  they are deprecated; loaded beside the style plugin they stand down, and
+  their names in the `plugins` setting ask for it. `utilities.spacing` and
+  `utilities.visibility` are still read, when `style.spacing` and
+  `style.visibility` are not there, and go in 8.0 too. See
+  [UPGRADING.md](UPGRADING.md).
+
+
 ## [7.2.0] - 2026-09-29
 
 ### Changed

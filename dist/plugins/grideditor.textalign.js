@@ -5,7 +5,7 @@
     throw new Error("grid-editor: load grideditor.js (or grideditor.bundle.min.js) before its plugins, its locales and grideditor.jquery.js");
   }
 
-  // src/js/plugins/grideditor.textalign.js
+  // src/js/style/textalign.js
   Object.assign(GridEditor.locales.en, {
     "utility.text_align": "Text alignment",
     "utility.text_start": "Start",
@@ -13,7 +13,7 @@
     "utility.text_end": "End"
   });
   var CSS = { start: "left", center: "center", end: "right" };
-  GridEditor.utilities.textalign = function(ge) {
+  function textalignPart(ge) {
     function label(value) {
       if (value === "start") {
         return ge.t("utility.text_start");
@@ -43,5 +43,11 @@
         }
       }]
     };
+  }
+
+  // src/js/plugins/grideditor.textalign.js
+  GridEditor.utilities.textalign = function(ge) {
+    ge.warn('the "textalign" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+    return textalignPart(ge);
   };
 })();

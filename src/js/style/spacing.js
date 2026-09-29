@@ -1,0 +1,286 @@
+/**
+ * Spacing, a part of the style plugin: padding and margin per breakpoint, with Bootstrap's p-{breakpoint}-*,
+ * pt-, px- … and m-{breakpoint}-*, mt-, mx- … classes.
+ *
+ * The part is what the spacing plugin was up to 7.2 - its families, and
+ * whatever it did on the canvas - as a function of the handle and its options.
+ * grideditor.style.js puts it in its sections; the deprecated
+ * grideditor.spacing.js still registers it on its own, as it always did.
+ */
+import { GridEditor } from '../grideditor.js';
+import * as dom from '../dom.js';
+
+Object.assign(GridEditor.locales.en, {
+    'utility.padding': 'Padding',
+    'utility.margin': 'Margin',
+    'utility.side_all': 'All sides',
+    'utility.side_x': 'Left and right',
+    'utility.side_y': 'Top and bottom',
+    'utility.side_t': 'Top',
+    'utility.side_b': 'Bottom',
+    'utility.side_s': 'Start',
+    'utility.side_e': 'End',
+    'utility.spacing_gutter': 'A column\'s side padding is its gutter: changing it changes the gutter',
+});
+
+var VALUES = ['0', '1', '2', '3', '4', '5'];
+
+/** Bootstrap's $spacers. */
+var SCALE = ['0', '.25rem', '.5rem', '1rem', '1.5rem', '3rem'];
+
+/**
+ * The sides, in the order Bootstrap's css writes their rules: within one
+ * breakpoint a later rule wins, so p-3 pt-1 has a top of .25rem.
+ */
+var SIDES = ['', 'x', 'y', 't', 'e', 'b', 's'];
+
+/** What each side sets. Start and end are left and right: Bootstrap's css is left to right. */
+var SET = {
+    '': ['top', 'right', 'bottom', 'left'],
+    x: ['left', 'right'],
+    y: ['top', 'bottom'],
+    t: ['top'],
+    e: ['right'],
+    b: ['bottom'],
+    s: ['left'],
+};
+
+var INFIXES = ['', 'sm', 'md', 'lg', 'xl', 'xxl'];
+
+var PROPERTIES = { p: 'padding', m: 'margin' };
+
+/** Every class of the plugin's, padding or margin. */
+function pattern(key) {
+    return new RegExp('^' + key + '[xytbse]?-(?:(?:sm|md|lg|xl|xxl)-)?(?:[0-5]|auto)$');
+}
+
+export function spacingPart(ge, given) {
+
+    var options = Object.assign({ values: VALUES, scale: SCALE }, given);
+    var patterns = { p: pattern('p'), m: pattern('m') };
+
+    function applies(node, kind) {
+        return kind === 'row' || kind === 'column' || kind === 'element' ||
+            dom.is(node, '[data-ge-container]');
+    }
+
+    function classes(node) {
+        return (node.getAttribute('class') || '').split(/\s+/);
+    }
+
+    function carries(node, key) {
+        return classes(node).some(function(name) { return patterns[key].test(name); });
+    }
+
+    /**
+     * The class of one family that decides a side at a breakpoint: the
+     * widest breakpoint up to it that has one, as { tier, value }.
+     */
+    function source(node, family, tier) {
+        var names = classes(node);
+        var values = family.charAt(0) === 'm' ? VALUES.concat(['auto']) : VALUES;
+
+        for (var i = tier; i >= 0; i--) {
+            for (var v = 0; v < values.length; v++) {
+                var name = family + (INFIXES[i] ? '-' + INFIXES[i] : '') + '-' + values[v];
+                if (names.indexOf(name) !== -1) { return { tier: i, value: values[v] }; }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * What padding or margin is on each side with none of the plugin's
+     * classes: the editor's frame for a row or a column, the host's css
+     * for anything else. Read by taking the classes off for a moment,
+     * since that is the only way to ask the browser.
+     */
+    function without(node, key) {
+        var original = node.getAttribute('class');
+        var style;
+        var bare = {};
+
+        node.setAttribute('class', classes(node).filter(function(name) { return !patterns[key].test(name); }).join(' '));
+        style = getComputedStyle(node);
+        ['top', 'right', 'bottom', 'left'].forEach(function(side) {
+            bare[side] = style.getPropertyValue(PROPERTIES[key] + '-' + side);
+        });
+        if (original === null) { node.removeAttribute('class'); } else { node.setAttribute('class', original); }
+
+        return bare;
+    }
+
+    /**
+     * Each side the way Bootstrap's css settles it: the class from the
+     * widest breakpoint wins, and within one breakpoint the side written
+     * later in the css. A side no class reaches shows what it is without
+     * any, over a wider breakpoint's class that is live in a wide window.
+     */
+    function sides(node, key, breakpoint) {
+        var tier = ge.breakpoints.indexOf(breakpoint);
+        var winners = {};
+        var styles = {};
+        var neutral = null;
+
+        SIDES.forEach(function(side, order) {
+            var found = source(node, key + side, tier);
+            if (!found) { return; }
+
+            SET[side].forEach(function(set) {
+                var current = winners[set];
+                if (!current || found.tier > current.tier || (found.tier === current.tier && order > current.order)) {
+                    winners[set] = { tier: found.tier, order: order, value: found.value };
+                }
+            });
+        });
+
+        ['top', 'right', 'bottom', 'left'].forEach(function(set) {
+            var winner = winners[set];
+
+            if (!winner) {
+                neutral = neutral || without(node, key);
+                styles[PROPERTIES[key] + '-' + set] = neutral[set];
+            } else {
+                styles[PROPERTIES[key] + '-' + set] = winner.value === 'auto' ? 'auto' : options.scale[winner.value];
+            }
+        });
+
+        return styles;
+    }
+
+    /** The side a group's select starts on: the first that has a class, or all. */
+    function startingSide(node, key) {
+        var names = classes(node).filter(function(name) { return patterns[key].test(name); });
+        var found = SIDES.filter(function(side) {
+            return names.some(function(name) { return name.indexOf(key + side + '-') === 0; });
+        });
+
+        return found.length ? found[0] : '';
+    }
+
+    function sideLabel(side) {
+        switch (side) {
+            case 'x': return ge.t('utility.side_x');
+            case 'y': return ge.t('utility.side_y');
+            case 't': return ge.t('utility.side_t');
+            case 'b': return ge.t('utility.side_b');
+            case 's': return ge.t('utility.side_s');
+            case 'e': return ge.t('utility.side_e');
+            default: return ge.t('utility.side_all');
+        }
+    }
+
+    /** A padding or margin group: its name, the side, and the field of that side's family. */
+    function group(node, key, labelText) {
+        var box = dom.element('div', { 'class': 'ge-spacing-group', 'data-ge-spacing': key });
+        var side = dom.element('select', { 'class': 'ge-spacing-side form-select form-select-sm' });
+
+        box.appendChild(dom.element('span', { 'class': 'ge-utility-label' }, labelText));
+
+        SIDES.forEach(function(value) {
+            side.appendChild(dom.element('option', { value: value }, sideLabel(value)));
+        });
+
+        var field = ge.utilityField(node, key + startingSide(node, key));
+
+        side.value = field.getAttribute('data-ge-family').slice(1);
+        side.addEventListener('change', function() {
+            var next = ge.utilityField(node, key + this.value);
+            field.replaceWith(next);
+            field = next;
+        });
+        box.appendChild(side);
+        box.appendChild(field);
+
+        return box;
+    }
+
+    var NODES = '.row, .column, .ge-element, [data-ge-container]';
+
+    /**
+     * Keep each drawer on its node's edges. A drawer is pulled out over the
+     * editor's frame by as much as the frame pads the node, and a padding
+     * class replaces the frame, so a padded node's drawer is pulled out by
+     * its real padding instead. And a column padded at the sides gets a word
+     * about what that does to its gutter.
+     */
+    function mark(scope) {
+        dom.selfAndAll(scope, NODES).forEach(function(node) {
+            var drawer = dom.child(node, '.ge-tools-drawer');
+
+            if (!drawer || !applies(node, ge.kindOf(node))) { return; }
+
+            if (carries(node, 'p')) {
+                var style = getComputedStyle(node);
+
+                dom.css(drawer, {
+                    'margin-top': '-' + style.paddingTop,
+                    'margin-left': '-' + style.paddingLeft,
+                    'margin-right': '-' + style.paddingRight,
+                    width: 'calc(100% + ' + style.paddingLeft + ' + ' + style.paddingRight + ')',
+                });
+            } else {
+                dom.css(drawer, { 'margin-top': '', 'margin-left': '', 'margin-right': '', width: '' });
+            }
+
+            if (dom.hasClass(node, 'column')) {
+                var padded = classes(node).some(function(name) {
+                    return /^p[xse]?-/.test(name) && patterns.p.test(name);
+                });
+                dom.all(drawer, '.ge-spacing-gutter').forEach(function(note) { dom.toggle(note, padded); });
+            }
+        });
+    }
+
+    function families(key, labelKey) {
+        var values = key === 'm' ? VALUES.concat(['auto']) : VALUES;
+        var offered = options.values.concat(key === 'm' ? ['auto'] : []);
+
+        return SIDES.map(function(side) {
+            return {
+                name: key + side,
+                prefix: key + side,
+                values: values,
+                appliesTo: ['row', 'column', 'text', 'element', 'container'],
+                labelKey: labelKey,
+                panel: false,
+                choices: function() {
+                    return values.filter(function(value) { return offered.indexOf(value) !== -1; });
+                },
+            };
+        });
+    }
+
+    return {
+        families: families('p', 'utility.padding').concat(families('m', 'utility.margin')),
+
+        panel: function(node, kind) {
+            if (!applies(node, kind)) { return null; }
+
+            var box = dom.element('div', { 'class': 'ge-spacing' });
+            box.appendChild(group(node, 'p', ge.t('utility.padding')));
+            box.appendChild(group(node, 'm', ge.t('utility.margin')));
+
+            if (kind === 'column') {
+                box.appendChild(dom.element('small', { 'class': 'ge-spacing-gutter' }, ge.t('utility.spacing_gutter')));
+            }
+
+            return box;
+        },
+
+        preview: function(node, kind, breakpoint) {
+            if (!applies(node, kind)) { return {}; }
+
+            var styles = {};
+
+            ['p', 'm'].forEach(function(key) {
+                if (carries(node, key)) { Object.assign(styles, sides(node, key, breakpoint)); }
+            });
+
+            return styles;
+        },
+
+        onRefresh: mark,
+    };
+}

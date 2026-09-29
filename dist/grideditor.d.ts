@@ -53,6 +53,22 @@ export interface PresetClass {
 }
 
 /** A content filter: run on init and deinit with the canvas. A string names a function on window. */
+/** A section of the style plugin's accordion. */
+export type StyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'text' | 'typography' | 'display' | 'position' | 'custom';
+
+/** A section on or off, or on with some of its properties and without its catalog. */
+export type StyleSection = boolean | { properties?: string[]; catalog?: boolean };
+
+/** The style plugin's settings. */
+export interface StyleOptions {
+    /** Every section is on unless it is turned off here. */
+    sections?: Partial<Record<StyleSectionKey, StyleSection>>;
+    /** What utilities.spacing was: the values offered, and what 0 to 5 come to. */
+    spacing?: { values?: string[]; scale?: string[] };
+    /** What utilities.visibility was: false leaves the eye out of the drawers. */
+    visibility?: { drawer?: boolean };
+}
+
 export type CustomFilter = ((canvas: HTMLElement, isInit: boolean) => void) | string;
 
 /** The settings. Every one is optional. */
@@ -79,6 +95,8 @@ export interface GridEditorOptions {
     content_types?: string[];
     row_cols?: boolean;
     utilities?: Record<string, unknown>;
+    /** The style plugin's sections, and the options of the utilities it carries. */
+    style?: StyleOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean };
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];

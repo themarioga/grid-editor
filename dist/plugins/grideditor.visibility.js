@@ -56,7 +56,7 @@
     return node;
   }
 
-  // src/js/plugins/grideditor.visibility.js
+  // src/js/style/visibility.js
   Object.assign(GridEditor.locales.en, {
     "utility.visibility": "Visibility",
     "utility.visibility_hidden": "Hidden",
@@ -67,8 +67,8 @@
   });
   var CLASS_PATTERN = /(?:^|\s)d-(?:(?:sm|md|lg|xl|xxl)-)?(?:none|block|flex)(?:\s|$)/;
   var NODES = ".row, .column, .ge-content, .ge-element, [data-ge-container]";
-  GridEditor.utilities.visibility = function(ge) {
-    var options = Object.assign({ drawer: true }, ge.settings.utilities.visibility);
+  function visibilityPart(ge, given) {
+    var options = Object.assign({ drawer: true }, given);
     function shown(kind) {
       return kind === "row" ? "flex" : "block";
     }
@@ -159,5 +159,11 @@
       onRefresh: mark,
       onDeinit: unmark
     };
+  }
+
+  // src/js/plugins/grideditor.visibility.js
+  GridEditor.utilities.visibility = function(ge) {
+    ge.warn('the "visibility" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+    return visibilityPart(ge, ge.settings.utilities.visibility);
   };
 })();

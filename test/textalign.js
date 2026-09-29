@@ -23,7 +23,7 @@ var HELPERS = `
             '<div class="column col-6 ' + colClasses + '"' + (colStyle ? ' style="' + colStyle + '"' : '') + '>' +
             '<div class="ge-content"><p>a</p><div data-ge-element="box">box</div></div></div>' +
             '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>');
-        window.fixture.init({ plugins: window.fixture.plugins(['textalign']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
     };
 `;
 

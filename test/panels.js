@@ -20,7 +20,7 @@ var HELPERS = `
             '<div class="row" id="the-row"><div class="col-md-6" id="first"><p>First</p></div>' +
             '<div class="col-md-6" id="second"><p>Second</p></div></div>'
         );
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['textalign']) }, overrides || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style']) }, overrides || {}));
     };
 
     /** A column's settings panel, wherever it is: in its drawer, or open outside the canvas. */

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+
+    <!-- The editor, the elements and tabs plugins so there is one of each
+         kind of node, and the style plugin. -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.elements.min.js"></script>
+    <script src="../dist/plugins/grideditor.tabs.min.js"></script>
+    <script src="../dist/plugins/grideditor.style.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var grid = document.getElementById('myGrid');
+            var panel = document.getElementById('panel');
+            var narrow = document.getElementById('narrow');
+            var editor;
+
+            function start() {
+                editor = new GridEditor(grid, {
+                    new_row_layouts: [[12], [6,6], [4,4,4], [8,4]],
+                    content_types: [],
+
+                    // Where a node's settings open. In a popover, or inline
+                    // in the drawer, the Style accordion opens in a dialog
+                    settings_panel: panel.value,
+
+                    // Every section, unless the host says otherwise: this
+                    // leaves out position and keeps the border section to
+                    // three fields with no chips
+                    style: narrow.checked ? {
+                        sections: {
+                            position: false,
+                            border: { properties: ['border-width', 'border-style', 'border-color'], catalog: false },
+                        },
+                    } : {},
+                });
+            }
+            start();
+
+            // The same canvas, started again with the other settings
+            function restart() {
+                var html = editor.getHtml();
+                editor.destroy();
+                grid.innerHTML = html;
+                start();
+            }
+            panel.addEventListener('change', restart);
+            narrow.addEventListener('change', restart);
+
+            document.getElementById('output').addEventListener('click', function() {
+                document.getElementById('html').textContent = editor.getHtml();
+            });
+        });
+    </script>
+
+    <title>Grid Editor style example</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container">
+
+        <div class="row my-3">
+            <div class="col-lg-8">
+                <h1 class="h4">Style</h1>
+                <p class="form-text">
+                    The gear of a row, a column, a container, a tab, an element
+                    or a section has a <strong>Style</strong> accordion: size,
+                    spacing, border, background, text, typography, display,
+                    position and free css. What you type is written to the
+                    node's own <code>style</code>; a value the browser does
+                    not take is marked and not written.
+                </p>
+                <p class="form-text">
+                    Each section also offers Bootstrap's classes for what it
+                    styles, as chips: one puts its class in the classes field,
+                    and pressing it again takes it off. Bootstrap's utilities
+                    are <code>!important</code>, so a field whose property a
+                    class on the node also sets says the class wins.
+                </p>
+                <p class="form-text">
+                    The inline style is the same at every size. Padding and
+                    margin, text alignment, visibility and float are
+                    Bootstrap's responsive classes, edited per breakpoint in
+                    their sections: pick a breakpoint in the dropdown.
+                </p>
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0" for="panel">A gear opens its settings in</label>
+                        <select class="form-select form-select-sm w-auto" id="panel">
+                            <option value="offcanvas">a side panel (offcanvas)</option>
+                            <option value="popover">a popover</option>
+                            <option value="modal">a modal</option>
+                            <option value="inline">the drawer itself (inline)</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="narrow">
+                        <label class="form-check-label" for="narrow">Fewer sections: no position, a shorter border</label>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
+                <pre id="html" class="form-text"></pre>
+            </div>
+        </div>
+
+        <div id="myGrid">
+
+            <div class="row" style="background-color: #f0f4ff; border-radius: 12px;">
+                <div class="col-12 col-md-8" style="padding-top: 1rem; padding-bottom: 1rem;">
+                    <h2 class="h5">Styled inline</h2>
+                    <p>This row has a background and a radius in its <code>style</code>; open its gear and look in Background and Border.</p>
+                </div>
+                <div class="col-12 col-md-4 shadow-sm rounded-3" style="box-shadow: 0 4px 12px rgba(0, 0, 0, .15)">
+                    <h2 class="h5">A class and a style</h2>
+                    <p>It has <code>shadow-sm</code> and an inline shadow: the class wins, and the Border section says so.</p>
+                </div>
+            </div>
+
+            <div class="row my-3">
+                <div class="col-6">
+                    <div data-ge-element="callout" data-ge-label="Callout" class="p-3 border-start border-4 bg-body-tertiary" style="font-style: italic; letter-spacing: .02em">
+                        An element, with a few classes from the catalog and some typography of its own.
+                    </div>
+                </div>
+                <div class="col-6">
+                    <p>Try Size on this column: it offers only the min- and max- widths and heights, since its width is the grid's.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

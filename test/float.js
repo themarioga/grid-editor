@@ -18,7 +18,7 @@ var HELPERS = `
         document.querySelector('#myGrid').innerHTML = ('<div class="row"><div class="column col-12"><div class="ge-content">' +
             '<div data-ge-element="aside" class="' + elementClasses + '"' + (elementStyle ? ' style="' + elementStyle + '"' : '') + '>aside</div>' +
             '<p>Text that flows round the element.</p></div></div></div>');
-        window.fixture.init({ plugins: window.fixture.plugins(['float']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
     };
 `;
 

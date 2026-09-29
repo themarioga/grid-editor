@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — visibility, order, alignment, gutters, spacing, text alignment and float — are edited per breakpoint too, and any row, column, container or element can be given inline css, with Bootstrap's classes for it offered as chips. It also edits tabs, accordions, popups and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
@@ -560,33 +560,98 @@ __`element_tools`:__ Extra tools on every element drawer, same shape as `row_too
 See [example/elements.html](example/elements.html), which also shows the
 pattern for an element with no visual output of its own.
 
-### Responsive utilities
+### Style
 
-Bootstrap's responsive utility classes, edited per breakpoint. Each family is
-a plugin in a file of its own:
+Inline css for rows, columns, containers, panes, elements and sections, and
+Bootstrap's classes for it. A plugin:
 
 ```html
-<script src="grid-editor/dist/plugins/grideditor.visibility.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.style.min.js"></script>   <!-- after grideditor.elements -->
+```
+
+Each of those nodes gets a *Style* accordion in its settings panel, between
+its id and classes and the *Responsive* section. One section is open at a
+time, and the one you opened last is open on the next node too.
+
+| Section | Inline fields | Per breakpoint |
+| --- | --- | --- |
+| Size | `width`, `height`, `min-*` and `max-*` (a column: `min-*` and `max-*` only, its width is the grid's) | |
+| Spacing | `margin-*` and `padding-*`, by side | padding and margin, `{p,m}{,x,y,t,b,s,e}-{bp}-{0–5}` |
+| Border | width, style, color, radius, and a shadow builder | |
+| Background | color, image, size, position, repeat | |
+| Text | color, size, alignment, and a text shadow builder | `text-{bp}-start`, `-center`, `-end` |
+| Typography | family, weight, style, line height, letter spacing, transform, decoration | |
+| Display | display, opacity, overflow, visibility | visibility, `d-{bp}-none` / `-block` / `-flex`, with the eye in the drawer |
+| Position | position, `top`, `right`, `bottom`, `left` (not on a column), `z-index` | float, `float-{bp}-*`, on an element |
+| Custom css | whatever no field stands for, as text | |
+
+What you type goes to the node's own `style`, through the browser: a value it
+does not take is marked and not written, and whatever the host wrote that you
+do not edit is kept, `!important` included. The style attribute is the same at
+every size, and in a breakpoint view the accordion says so; the per breakpoint
+fields are Bootstrap's responsive classes, and edit the view you are in.
+A text gets only Text and Display, with their per breakpoint fields: its
+editor owns what is inside it.
+
+Every section but Spacing and Custom css also offers Bootstrap's classes for
+what it styles - `rounded-3`, `shadow-sm`, `bg-primary`, `fs-4`, `fw-bold`,
+`opacity-50`, `position-relative`… - as chips. A chip puts its class in the
+classes field, and pressing it again takes it off; chips that are
+alternatives, like `rounded-2` and `rounded-pill`, take each other off.
+Bootstrap's utilities are `!important`, so a field whose property a class on
+the node also sets says which class takes priority.
+
+With `settings_panel: 'popover'` or `'inline'` the panel has a *Style* button
+instead, which opens the accordion in a dialog.
+
+__`style`:__ Every section, unless you say otherwise.
+
+```javascript
+new GridEditor('#myGrid', {
+    style: {
+        sections: {
+            position: false,                                                  // no Position section
+            border: { properties: ['border-width', 'border-color'], catalog: false },  // two fields, no chips
+        },
+        spacing: { values: ['0', '2', '4'], scale: [/* if you changed $spacers */] },
+        visibility: { drawer: false },   // no eye in the drawers, the field only
+    },
+});
+```
+
+The sections are `size`, `spacing`, `border`, `background`, `text`,
+`typography`, `display`, `position` and `custom`. `properties` chooses and
+orders a section's inline fields; the per breakpoint ones stay while the
+section does. What a section you left out or narrowed would have shown is in
+Custom css.
+
+Sanitizing what `getHtml` returns is the page's business, style attributes
+included.
+
+See [example/style.html](example/style.html).
+
+### Responsive utilities
+
+Bootstrap's responsive utility classes, edited per breakpoint. The grid's are
+plugins of their own; the ones that style a node are the style plugin's, above.
+
+```html
 <script src="grid-editor/dist/plugins/grideditor.order.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.alignment.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.gutters.min.js"></script>
-<script src="grid-editor/dist/plugins/grideditor.spacing.min.js"></script>
-<script src="grid-editor/dist/plugins/grideditor.textalign.min.js"></script>
-<script src="grid-editor/dist/plugins/grideditor.float.min.js"></script>   <!-- after grideditor.elements -->
+<script src="grid-editor/dist/plugins/grideditor.style.min.js"></script>
 ```
 
 | Plugin | Classes | On |
 | --- | --- | --- |
-| `visibility` | `d-{bp}-none`, `d-{bp}-block`, `d-{bp}-flex` | rows, columns, elements, containers |
 | `order` | `order-{bp}-{first,0–5,last}` | columns |
 | `alignment` | `justify-content-{bp}-*`, `align-items-{bp}-*`; `align-self-{bp}-*` | rows; columns |
 | `gutters` | `g-{bp}-{0–5}`, `gx-{bp}-*`, `gy-{bp}-*` | rows |
-| `spacing` | `{p,m}{,x,y,t,b,s,e}-{bp}-{0–5}`, and `auto` for margin | rows, columns, elements, containers |
-| `textalign` | `text-{bp}-start`, `-center`, `-end` | rows, columns, elements, containers |
-| `float` | `float-{bp}-start`, `-end`, `-none` | elements |
+| `style` | visibility, spacing, text alignment and float; see [Style](#style) | rows, columns, elements, containers, texts |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
-panel, and some add a tool to the drawer. In a breakpoint view a change is
+panel - or, for the style plugin, in its section of the *Style* accordion -
+and some add a tool to the drawer. In a breakpoint view a change is
 written for that breakpoint alone, and the field says what it inherits and from
 where. In the all view it is written once, as the class with no breakpoint, and
 replaces what the breakpoints said. While you edit, the canvas shows what the
@@ -602,13 +667,17 @@ __`utilities`:__ Options for each plugin, under its name.
 ```javascript
 new GridEditor('#myGrid', {
     utilities: {
-        visibility: { drawer: false },   // no eye in the drawers, the field only
         order: { drawer: false },        // no arrows in the column drawers
         gutters: { scale: ['0', '.25rem', '.5rem', '1rem', '1.5rem', '3rem'] },  // if you changed $spacers
-        spacing: { values: ['0', '2', '4'], scale: [/* the same */] },          // offer fewer steps
     },
 });
 ```
+
+Up to 7.2 visibility, spacing, text alignment and float were plugins of
+their own, `grideditor.visibility.js`, `grideditor.spacing.js`,
+`grideditor.textalign.js` and `grideditor.float.js`, with their options in
+`utilities.visibility` and `utilities.spacing`. In 7.3 those files still work
+on their own, deprecated, and go in 8.0; see [UPGRADING.md](UPGRADING.md).
 
 See [example/utilities.html](example/utilities.html), and
 [docs/plugins.md](docs/plugins.md#utility-plugins) for writing one.

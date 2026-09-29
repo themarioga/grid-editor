@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Grid editor test fixture: deprecated utility plugins</title>
+
+    <!--
+        The fixture of 7.3's deprecated utility plugins: the editor, the
+        elements plugin, and spacing, textalign, visibility and float on
+        their own, without the style plugin that carries them now. What
+        test/legacyutilities.js holds them to is that they still do what
+        they did in 7.2, and say they are deprecated.
+
+        Everything else is grid.html's: test/vendor only, no jQuery, and
+        ?init=manual to leave the canvas to the suite.
+    -->
+
+    <link rel="stylesheet" href="../vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../dist/grideditor.css">
+
+    <script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="../vendor/sortablejs/Sortable.min.js"></script>
+    <script src="../../dist/grideditor.js"></script>
+
+    <!-- The deprecated utility plugins, and elements for float -->
+    <script src="../../dist/plugins/grideditor.elements.js"></script>
+    <script src="../../dist/plugins/grideditor.visibility.js"></script>
+    <script src="../../dist/plugins/grideditor.spacing.js"></script>
+    <script src="../../dist/plugins/grideditor.textalign.js"></script>
+    <script src="../../dist/plugins/grideditor.float.js"></script>
+
+    <script>
+        window.fixture = {
+            grid: '#myGrid',
+
+            // No content_types: the content areas stay plain, so a suite can
+            // test the grid itself without an editor rewriting the DOM.
+            settings: {
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+                content_types: [],
+                // A suite names the utility plugins it wants on top of this
+                plugins: ['elements'],
+            },
+
+            /** The plugins setting with `names` on top of the fixture's own. */
+            plugins: function(names) {
+                return this.settings.plugins.concat(names);
+            },
+
+            /**
+             * Initialize the grid editor, with `overrides` on top of the
+             * defaults. A fresh one each time: an editor already on the grid
+             * is destroyed first, since asking for a second one hands back
+             * the first, options and all.
+             */
+            init: function(overrides) {
+                var running = GridEditor.get(this.grid);
+                if (running) { running.destroy(); }
+                return GridEditor.create(this.grid, Object.assign({}, this.settings, overrides || {}));
+            },
+
+            /** The editor on the grid, or null. */
+            editor: function() {
+                return GridEditor.get(this.grid);
+            },
+
+            /** Tear the editor down and hand back the markup it leaves behind. */
+            teardown: function() {
+                var running = GridEditor.get(this.grid);
+                if (running) { running.destroy(); }
+                return document.querySelector(this.grid).innerHTML;
+            },
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (new URLSearchParams(window.location.search).get('init') !== 'manual') {
+                window.fixture.init();
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <div id="myGrid">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1>Fixture heading</h1>
+                    <p>Fixture paragraph in a full width column.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <p>Fixture paragraph in the left column.</p>
+                </div>
+                <div class="col-lg-6">
+                    <p>Fixture paragraph in the right column.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#myGrid -->
+    </div> <!-- /.container -->
+
+</body>
+</html>

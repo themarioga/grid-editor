@@ -14,18 +14,19 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
 
     <!-- The editor, and the utility plugins. Each is a file of its own, and
-         loading it is what puts its field in the settings panels. -->
+         loading it is what puts its fields in the settings panels. The style
+         plugin carries visibility, spacing, text alignment and float, which
+         were plugins of their own up to 7.2, and edits them in its Style
+         accordion; order, alignment and gutters are the grid's, and stay in
+         the Responsive section. -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/grideditor.min.js"></script>
-    <script src="../dist/plugins/grideditor.visibility.min.js"></script>
     <script src="../dist/plugins/grideditor.order.min.js"></script>
     <script src="../dist/plugins/grideditor.alignment.min.js"></script>
     <script src="../dist/plugins/grideditor.gutters.min.js"></script>
-    <script src="../dist/plugins/grideditor.spacing.min.js"></script>
-    <script src="../dist/plugins/grideditor.textalign.min.js"></script>
     <!-- Float works on elements, so the elements plugin comes first -->
     <script src="../dist/plugins/grideditor.elements.min.js"></script>
-    <script src="../dist/plugins/grideditor.float.min.js"></script>
+    <script src="../dist/plugins/grideditor.style.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -89,9 +90,11 @@
                     breakpoint. Pick a breakpoint in the dropdown and every
                     change is written for that breakpoint alone; in
                     <strong>All sizes</strong> it is written once, for every
-                    size. Each drawer's gear has a <strong>Responsive</strong>
-                    section with a field per utility, which says what the
-                    breakpoint inherits and from where.
+                    size. Each drawer's gear has a <strong>Style</strong>
+                    accordion, whose sections hold visibility, spacing, text
+                    alignment and float, and a <strong>Responsive</strong>
+                    section for the grid's utilities. Every field says what
+                    the breakpoint inherits and from where.
                 </p>
                 <div class="d-flex align-items-center gap-2 mb-3">
                     <label class="form-label mb-0" for="panel">A gear opens its settings in</label>
@@ -129,13 +132,14 @@
                 </p>
                 <p class="form-text">
                     <strong>Spacing:</strong> a padding and a margin group in
-                    every panel, each a side and a value. The centred column
+                    the Style accordion's Spacing section, each a side and a
+                    value. The centred column
                     below gets more padding from small desktop up.
                 </p>
                 <p class="form-text">
-                    <strong>Text alignment:</strong> a field in every panel.
+                    <strong>Text alignment:</strong> a field in the Text section.
                     The centred column's text is centred from small desktop
-                    up. <strong>Float:</strong> a field in an element's panel;
+                    up. <strong>Float:</strong> a field in an element's Position section;
                     the quote in the last row floats to the end from tablet up,
                     with the text flowing round it.
                 </p>

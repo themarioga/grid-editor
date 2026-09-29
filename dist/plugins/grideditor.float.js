@@ -5,7 +5,7 @@
     throw new Error("grid-editor: load grideditor.js (or grideditor.bundle.min.js) before its plugins, its locales and grideditor.jquery.js");
   }
 
-  // src/js/plugins/grideditor.float.js
+  // src/js/style/float.js
   Object.assign(GridEditor.locales.en, {
     "utility.float": "Float",
     "utility.float_start": "Start",
@@ -13,7 +13,7 @@
     "utility.float_none": "None"
   });
   var CSS = { start: "left", end: "right", none: "none" };
-  GridEditor.utilities.float = function(ge) {
+  function floatPart(ge) {
     function label(value) {
       if (value === "start") {
         return ge.t("utility.float_start");
@@ -37,5 +37,11 @@
         }
       }]
     };
+  }
+
+  // src/js/plugins/grideditor.float.js
+  GridEditor.utilities.float = function(ge) {
+    ge.warn('the "float" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+    return floatPart(ge);
   };
 })();

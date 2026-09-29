@@ -14,41 +14,16 @@
  *
  * Elements only. A floated row or column stops being part of the grid, and a
  * container sits beside the content areas rather than in their text.
+ *
+ * Deprecated since 7.3, and gone in 8.0: grideditor.style.js carries this
+ * plugin's families, and edits them in its own sections. This file is that
+ * part on its own, as it was, and says so once per editor. Loaded beside
+ * the style plugin, it stands down.
  */
 import { GridEditor } from '../grideditor.js';
-
-Object.assign(GridEditor.locales.en, {
-    'utility.float': 'Float',
-    'utility.float_start': 'Start',
-    'utility.float_end': 'End',
-    'utility.float_none': 'None',
-});
-
-/** Start and end are left and right: Bootstrap's css is left to right. */
-var CSS = { start: 'left', end: 'right', none: 'none' };
+import { floatPart } from '../style/float.js';
 
 GridEditor.utilities.float = function(ge) {
-
-    function label(value) {
-        if (value === 'start') { return ge.t('utility.float_start'); }
-        if (value === 'end') { return ge.t('utility.float_end'); }
-
-        return ge.t('utility.float_none');
-    }
-
-    return {
-        families: [{
-            name: 'float',
-            prefix: 'float',
-            values: ['start', 'end', 'none'],
-            appliesTo: ['element'],
-            labelKey: 'utility.float',
-            label: label,
-
-            /** With no class applying here, whatever the host's css floats it as. */
-            preview: function(value, node) {
-                return { float: value === null ? ge.bareStyle(node, 'float', 'float') : CSS[value] };
-            },
-        }],
-    };
+    ge.warn('the "float" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+    return floatPart(ge);
 };

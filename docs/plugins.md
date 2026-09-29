@@ -160,6 +160,9 @@ array.
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
 | `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
+| `ge.hostStyle(node, property?)` | `{ value, priority }` of one property of the node's own style, as the host wrote it: never a breakpoint preview's. With no property, the whole of it as css text |
+| `ge.setHostStyle(node, property, value, priority?)` | Write one property of the node's own style, or take it off with `''`. Under a breakpoint preview it is the host's value that changes, and the preview goes back on top. False, and nothing written, for a value the browser refuses. A priority left out keeps the one the property had; no `style=""` is left behind |
+| `ge.openDialog(title, body, opener?)` / `ge.closeDialog()` | A modal of the editor's own, over whatever settings panel is open, which stays open under it. `body` is moved in, and back where it was when the dialog closes; `opener` has the focus back. Bootstrap's modal when Bootstrap's javascript is there, one of the editor's own when it is not. Escape closes the dialog and nothing else; `deinit`, `getHtml`, `setLocale`, `destroy` and closing the panel close it |
 
 The add, delete and move events for a container and its panes are fired by the
 editor, not by the plugin: `createPaneControls` handles a pane's delete, and
@@ -192,6 +195,7 @@ GridEditor.features.elements = function(ge) {
         accepts: function(region, node) { … },  // false turns a block away from a region
         toolbar: [{ labelKey: …, kind: …, create: function() { … } }],  // buttons beside the containers'
         drawerTools: function(drawer, node, kind) { … },  // tools beside the gear, in every drawer
+        panelSection: function(node, kind) { … },  // a section of the node's settings panel, see below
     };
 };
 ```
@@ -223,6 +227,43 @@ needs to put a new kind of block on the canvas:
   `kind: 'text'` with its content area as the node, and is not the node's
   child: it sits beside it, in a wrapper that only exists while editing, so
   `ge.drawerOf(node)` is how to find it.
+
+### A section of the settings panel
+
+**`panelSection(node, kind)`**, which any kind of plugin can have, returns a
+section for the node's settings panel - `{ labelKey, titleKey, body }` - or
+null where it has none. The editor puts the sections between the panel's
+general fields and *Responsive*, in the order the plugins were registered.
+Where the panel has room for it, in the offcanvas and the modal, `body` is in
+the panel. A popover, or a panel inline in the drawer, gets a button with the
+label instead, and `body` opens in the dialog, titled `titleKey` - with the
+node's kind as `{kind}` - or the label. `body` stays the panel's either way,
+so `ge.detailsOf(node)` finds what is in it.
+
+A field made with `ge.utilityField` in a section follows the view and the
+classes field as the Responsive section's do, wherever the section is at the
+time. The style plugin's accordion is a section, and what the spacing,
+textalign, visibility and float fields are in: its families are
+`panel: false`, and it makes their fields itself.
+
+A section that writes css should write it with `ge.setHostStyle` and read it
+with `ge.hostStyle`: in a breakpoint view the node's `style` holds the
+preview's `!important` values too, and they come off on `deinit` with
+whatever was written under them.
+
+### A plugin that takes the place of others
+
+A factory with **`replaces: ['old', …]`** on it - the function, not what it
+returns, since it is read before any factory is called - stands in for those
+plugins. Loaded beside it, they stand down, with a warning, and none of their
+families is declared twice; an old name in the `plugins` setting asks for it,
+with a warning that the name is deprecated. This is how the style plugin
+takes the spacing, textalign, visibility and float plugins' place:
+
+```javascript
+GridEditor.utilities.style = function(ge) { … };
+GridEditor.utilities.style.replaces = ['spacing', 'textalign', 'visibility', 'float'];
+```
 
 ### Settings of your own, saved on the node
 
@@ -477,19 +518,20 @@ tool does not belong. A tool writes with `ge.setUtility(node, family, value,
 `onRefresh(scope)` runs whenever the preview is redrawn — on `init`, on a view
 change, after a write, after the user types in a classes field — with the node
 whose utilities changed, or the canvas. It is for what a plugin marks the canvas
-with beyond inline styles: the visibility plugin keeps hidden nodes on the
+with beyond inline styles: the style plugin's visibility keeps hidden nodes on the
 canvas and fades them there. Whatever it adds, `onDeinit` takes away.
 
 ### A panel of your own
 
 A field per family is the right panel for most plugins and the wrong one for
-some: spacing has fourteen families, and fourteen fields. Such a plugin marks
+some: spacing, part of the style plugin, has fourteen families, and fourteen
+fields. Such a plugin marks
 its families `panel: false` and returns its own element from
 `panel(node, kind)` — or null where it does not apply — and the editor puts it
 in the Responsive section. Inside it, `ge.utilityField(node, family)` makes the
 same field the editor would, and the editor keeps every such field up to date
 with the view and the classes; swapping one field for another is the plugin's
-business. The spacing plugin's panel is a side and one field, and choosing a
+business. The spacing panel is a side and one field, and choosing a
 side swaps the field for that side's family.
 
 The same plugins tend to need the node as a whole for the preview, because
@@ -509,6 +551,8 @@ Two plugins cannot declare the same family name: the second one is ignored,
 with a warning.
 
 Plugin options live in the `utilities` setting, under the plugin's name:
-`utilities: { spacing: { values: ['0', '2', '4'] } }`. The editor passes the
-setting through as it is; each plugin fills in its own defaults.
+`utilities: { gutters: { scale: [...] } }`. The editor passes the
+setting through as it is; each plugin fills in its own defaults. The style
+plugin's are the `style` setting, since most of them are about its inline
+css; `utilities.spacing` and `utilities.visibility` are read there until 8.0.
 

@@ -475,6 +475,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
             removeConfirmModal();
             removeSettingsPanels();
+            removeDialog();
             mainControls.remove();
             createMainControls();
             reset();
@@ -1753,6 +1754,10 @@ function build(instance, baseElem, optionsOrMethod) {
             if (openSettingsState && !dom.attached(openSettingsState.node)) {
                 closeSettings();
             }
+            // And a dialog showing part of a panel that is gone
+            if (dialogState && dialogState.home && !dom.attached(dialogState.home)) {
+                closeDialog();
+            }
 
             runFilter(true);
             dom.addClass(canvas, 'ge-editing');
@@ -1781,7 +1786,10 @@ function build(instance, baseElem, optionsOrMethod) {
             plugins('onBeforeDeinit');
             closeSizePicker();
             hideDropMarker();
+            // In case a dialog was opened with no settings panel open
+            closeDialog();
             dom.all(canvas, '.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
+            pluginFields.clear();
             unwrapTexts();
             plugins('onDeinit');
             // After the rich text editors have let go of their content areas:
@@ -1836,6 +1844,7 @@ function build(instance, baseElem, optionsOrMethod) {
             deinit();
             removeConfirmModal();
             removeSettingsPanels();
+            removeDialog();
             mainControls.remove();
             htmlTextArea.remove();
             lifetime.abort();
@@ -1857,8 +1866,35 @@ function build(instance, baseElem, optionsOrMethod) {
 
             registerFamily('grid', {}, widthFamily());
             if (settings.row_cols !== false) { registerFamily('grid', {}, rowColsFamily()); }
-            var wanted = function(name) {
+            // A plugin whose factory says it `replaces` others has taken
+            // their place: an old name in the plugins setting asks for it,
+            // and the old plugin, loaded beside it, stands down
+            var replacedBy = {};
+            [GridEditor.containers, GridEditor.features, GridEditor.utilities].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    (registry[name].replaces || []).forEach(function(old) {
+                        if (!replacedBy[old]) { replacedBy[old] = name; }
+                    });
+                });
+            });
+            var named = function(name) {
                 return !settings.plugins || settings.plugins.indexOf(name) !== -1;
+            };
+            var namedAsOld = function(name) {
+                return !!settings.plugins && settings.plugins.some(function(old) { return replacedBy[old] === name; });
+            };
+            var standsDown = function(name) {
+                return !!replacedBy[name] && wanted(replacedBy[name]);
+            };
+            var wanted = function(name) {
+                return !standsDown(name) && (named(name) || namedAsOld(name));
+            };
+            var replaced = function(name) {
+                if (!standsDown(name) || !named(name)) { return false; }
+
+                warnOnceHere('replaced:' + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] +
+                    '", which is loaded: ignoring it');
+                return true;
             };
 
             // What the plugins setting does not choose: the text editors,
@@ -1869,16 +1905,16 @@ function build(instance, baseElem, optionsOrMethod) {
             };
 
             Object.keys(GridEditor.containers).forEach(function(type) {
-                if (wanted(type)) { CONTAINERS[type] = GridEditor.containers[type](api); }
+                if (!replaced(type) && wanted(type)) { CONTAINERS[type] = GridEditor.containers[type](api); }
             });
 
             Object.keys(GridEditor.features).forEach(function(name) {
                 var factory = GridEditor.features[name];
-                if (featureWanted(name, factory)) { FEATURES[name] = factory(api); }
+                if (!replaced(name) && featureWanted(name, factory)) { FEATURES[name] = factory(api); }
             });
 
             Object.keys(GridEditor.utilities).forEach(function(name) {
-                if (!wanted(name)) { return; }
+                if (replaced(name) || !wanted(name)) { return; }
 
                 UTILITIES[name] = GridEditor.utilities[name](api);
                 (UTILITIES[name].families || []).forEach(function(family) {
@@ -1895,6 +1931,12 @@ function build(instance, baseElem, optionsOrMethod) {
 
             (settings.plugins || []).forEach(function(name) {
                 if (CONTAINERS[name] || FEATURES[name] || UTILITIES[name]) { return; }
+
+                if (standsDown(name)) {
+                    warnOnceHere('renamed:' + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] +
+                        '" now: name "' + replacedBy[name] + '" in the plugins setting instead');
+                    return;
+                }
 
                 warnOnceHere('plugin:' + name, 'the "' + name + '" plugin is not loaded: ' +
                     'include dist/plugins/grideditor.' + name + '.js after the editor');
@@ -1948,6 +1990,12 @@ function build(instance, baseElem, optionsOrMethod) {
                 setUtility: setUtility,
                 utilityField: utilityField,
                 bareStyle: bareStyle,
+                // The host's own style, under the preview
+                hostStyle: hostStyle,
+                setHostStyle: setHostStyle,
+                // A modal of the editor's own, over the settings
+                openDialog: openDialog,
+                closeDialog: closeDialog,
                 rowFromLayout: rowFromLayoutValue,
                 nodeHtml: nodeHtml,
                 // A text editor has rewritten a content area, so whatever the
@@ -2266,6 +2314,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 if (classes) { classes.value = hostClasses(node).join(' '); }
                 dom.children(details, '.ge-utilities').forEach(function(section) { renderUtilities(section); });
             }
+            renderPluginFields(node);
             refreshPreviews(node);
         }
 
@@ -2362,6 +2411,84 @@ function build(instance, baseElem, optionsOrMethod) {
             });
         }
 
+        /* The host's own style, under the preview */
+
+        /**
+         * The node's style as the host wrote it: its declarations with every
+         * property the preview set put back to what the preview recorded.
+         * Held in a detached element's style, which parses and serializes it
+         * the way the node's own would.
+         */
+        function hostDeclaration(node) {
+            var scratch = document.createElement('div');
+            var was = {};
+
+            scratch.style.cssText = node.style.cssText;
+            try { was = JSON.parse(node.getAttribute(PREVIEW_ATTR)) || {}; } catch (error) { /* no record */ }
+
+            Object.keys(was).forEach(function(property) {
+                var before = was[property];
+
+                if (before && before[0]) {
+                    scratch.style.setProperty(property, before[0], before[1]);
+                } else {
+                    scratch.style.removeProperty(property);
+                }
+            });
+
+            return scratch.style;
+        }
+
+        /**
+         * ge.hostStyle(node, property): { value, priority } of one property
+         * of the host's style, never the preview's. With no property, the
+         * host's whole style as css text.
+         */
+        function hostStyle(node, property) {
+            var declaration = hostDeclaration(node);
+
+            if (property === undefined) { return declaration.cssText; }
+
+            return {
+                value: declaration.getPropertyValue(property),
+                priority: declaration.getPropertyPriority(property),
+            };
+        }
+
+        /**
+         * ge.setHostStyle(node, property, value, priority): write one property
+         * of the host's style, or take it off with an empty value. The
+         * preview comes off the node while it is written and goes back on
+         * after, so what the preview put back on deinit is the host's new
+         * value. False, and nothing written, when the browser refuses the
+         * value. `priority` left out keeps the one the property had.
+         */
+        function setHostStyle(node, property, value, priority) {
+            value = value === null || value === undefined ? '' : String(value).trim();
+
+            if (priority === undefined) { priority = hostStyle(node, property).priority; }
+
+            if (value !== '') {
+                var check = document.createElement('div').style;
+                check.setProperty(property, value, priority || '');
+                if (check.getPropertyValue(property) === '') { return false; }
+            }
+
+            var previewed = node.hasAttribute(PREVIEW_ATTR);
+            if (previewed) { clearPreviews(node); }
+
+            if (value === '') {
+                node.style.removeProperty(property);
+            } else {
+                node.style.setProperty(property, value, priority || '');
+            }
+            dom.dropEmptyStyle(node);
+
+            if (previewed) { refreshPreviews(node); }
+
+            return true;
+        }
+
         /* The panel */
 
         /**
@@ -2434,8 +2561,30 @@ function build(instance, baseElem, optionsOrMethod) {
 
             var field = createField(node, family);
             renderField(field, node);
+            pluginFields.set(field, node);
 
             return field;
+        }
+
+        /**
+         * The fields a plugin made, wherever it put them: a Responsive
+         * section renders its own, and these are the rest - in a plugin's
+         * section of the panel, or in the dialog. Each one's node's, or
+         * every node's; a field no longer on the page is forgotten.
+         */
+        var pluginFields = new Map(); // field -> the node it edits
+
+        function renderPluginFields(node) {
+            pluginFields.forEach(function(fieldNode, field) {
+                if (!field.isConnected) {
+                    pluginFields.delete(field);
+                    return;
+                }
+                if (node && fieldNode !== node) { return; }
+                if (dom.closest(field, '.ge-utilities')) { return; }
+
+                renderField(field, fieldNode);
+            });
         }
 
         /** Fill a section's fields, the families' and the plugins' own, for the view being edited. */
@@ -3170,10 +3319,57 @@ function build(instance, baseElem, optionsOrMethod) {
                 classGroup.appendChild(btn);
             });
 
+            pluginSections(container).forEach(function(section) { detailsDiv.appendChild(section); });
+
             var utilities = createUtilitiesSection(container);
             if (utilities) { detailsDiv.appendChild(utilities); }
 
             return detailsDiv;
+        }
+
+        /**
+         * What plugins add to a node's panel, between its general fields and
+         * the Responsive section: each plugin's panelSection(node, kind), in
+         * the order they were registered. Where the panel has room - the
+         * offcanvas, the modal - the section is in it. A popover or a panel
+         * inline in the drawer gets a button instead, and the section opens
+         * in the dialog.
+         */
+        function pluginSections(node) {
+            var kind = kindOf(node);
+            var mode = panelMode();
+            var sections = [];
+
+            [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    var plugin = registry[name];
+                    var section = plugin.panelSection ? plugin.panelSection(node, kind) : null;
+                    if (!section || !section.body) { return; }
+
+                    var holder = dom.element('div', { 'class': 'ge-panel-section', 'data-ge-plugin': name });
+
+                    if (mode === 'offcanvas' || mode === 'modal') {
+                        holder.appendChild(section.body);
+                    } else {
+                        var label = t(section.labelKey);
+                        var open = holder.appendChild(dom.element('button', {
+                            type: 'button',
+                            'class': 'btn btn-sm btn-outline-secondary ge-panel-section-open',
+                        }, label));
+
+                        dom.hide(section.body);
+                        holder.appendChild(section.body);
+                        open.addEventListener('click', function() {
+                            openDialog(section.titleKey ? t(section.titleKey, { kind: kindLabel(node) }) : label,
+                                section.body, open);
+                        });
+                    }
+
+                    sections.push(holder);
+                });
+            });
+
+            return sections;
         }
 
         /* --------------------------------------------------------------
@@ -3194,7 +3390,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var PANEL_MODES = ['offcanvas', 'popover', 'modal', 'inline'];
         var settingsPanels = {}; // One of each, built on first use, outside the canvas
         var openSettingsState = null; // What is open: { mode, node, details, home, next, gear }
-        var modalState = new WeakMap(); // modal panel -> { watched, wanted, busy }
+        var modalState = new WeakMap(); // modal panel -> { watched, wanted, busy, backdrop, dismissed }
 
         function panelMode() {
             if (PANEL_MODES.indexOf(settings.settings_panel) !== -1) { return settings.settings_panel; }
@@ -3251,7 +3447,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
             var signal = { signal: listening.signal };
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') { closeSettings(); }
+                // A dialog over the panel takes the Escape for itself
+                if (e.key === 'Escape' && !dialogState) { closeSettings(); }
             }, signal);
 
             if (mode === 'offcanvas') {
@@ -3274,15 +3471,20 @@ function build(instance, baseElem, optionsOrMethod) {
                 }
                 // A press anywhere else puts it away, as a popover does
                 dom.on(document, 'mousedown touchstart', function(e) {
-                    if (!panel.contains(e.target) && !gear.contains(e.target)) { closeSettings(); }
+                    if (!dialogState && !panel.contains(e.target) && !gear.contains(e.target)) { closeSettings(); }
                 }, signal);
             } else {
-                showModal(panel);
+                showModal(panel, function() {
+                    if (openSettingsState && openSettingsState.mode === 'modal') { closeSettings(); }
+                });
             }
         }
 
         /** Put what is open away, and its panel back in its drawer. */
         function closeSettings() {
+            // A dialog opened from the panel goes with it
+            closeDialog();
+
             var open = openSettingsState;
             if (!open) { return; }
             openSettingsState = null;
@@ -3381,7 +3583,7 @@ function build(instance, baseElem, optionsOrMethod) {
                     settingsPanels[mode].remove();
                 }
             });
-            if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
+            Object.keys(settingsPanels).forEach(function(mode) { removeBackdrop(settingsPanels[mode]); });
             settingsPanels = {};
         }
 
@@ -3424,23 +3626,34 @@ function build(instance, baseElem, optionsOrMethod) {
             });
         }
 
-        var settingsBackdrop = null; // The modal's backdrop, when Bootstrap's javascript is not there to make one
-
         /**
          * Bootstrap's modal ignores a hide while it is still fading in, and a
          * show while it is fading out, so the editor asks for what it wants
          * and has it done once the running transition ends: a panel closed as
          * it opens - getHtml, a second click - would otherwise stay open, and
          * empty. A hide Bootstrap starts itself, from Escape or the backdrop,
-         * closes the settings as the close button does.
+         * calls `dismissed`, as the close button does: the settings modal
+         * closes the settings, the dialog closes the dialog.
+         *
+         * Without Bootstrap's javascript the modal is shown by hand, over a
+         * backdrop of the editor's own that dismisses it when clicked.
          */
-        function showModal(panel) {
+        function showModal(panel, dismissed) {
             var Modal = modalLibrary();
+            var state = modalState.get(panel);
+
+            if (!state) {
+                state = { wanted: null, busy: false, backdrop: null, dismissed: dismissed };
+                modalState.set(panel, state);
+            }
+            state.dismissed = dismissed;
 
             if (!Modal) {
-                settingsBackdrop = dom.element('div', { 'class': 'modal-backdrop fade show ge-settings-backdrop' });
-                settingsBackdrop.addEventListener('click', function() { closeSettings(); });
-                document.body.appendChild(settingsBackdrop);
+                if (!state.backdrop) {
+                    state.backdrop = dom.element('div', { 'class': 'modal-backdrop fade show ge-settings-backdrop' });
+                    state.backdrop.addEventListener('click', function() { state.dismissed(); });
+                    document.body.appendChild(state.backdrop);
+                }
                 dom.addClass(panel, 'show');
                 panel.style.display = 'block';
                 panel.removeAttribute('aria-hidden');
@@ -3448,11 +3661,9 @@ function build(instance, baseElem, optionsOrMethod) {
             }
 
             var modal = Modal.getOrCreateInstance(panel);
-            var state = modalState.get(panel);
 
-            if (!state) {
-                state = { wanted: null, busy: false };
-                modalState.set(panel, state);
+            if (!state.watched) {
+                state.watched = true;
                 trackModal(panel);
 
                 panel.addEventListener('hide.bs.modal', function() {
@@ -3469,9 +3680,9 @@ function build(instance, baseElem, optionsOrMethod) {
                 panel.addEventListener('hidden.bs.modal', function() {
                     state.busy = false;
                     if (state.wanted === 'open') {
-                        showModal(panel);
-                    } else if (openSettingsState && openSettingsState.mode === 'modal') {
-                        closeSettings();
+                        showModal(panel, state.dismissed);
+                    } else {
+                        state.dismissed();
                     }
                 });
             }
@@ -3485,17 +3696,18 @@ function build(instance, baseElem, optionsOrMethod) {
 
         function hideModal(panel) {
             var Modal = modalLibrary();
+            var state = modalState.get(panel);
+
+            if (!state) { return; }
+            state.wanted = 'closed';
 
             if (!Modal) {
-                if (settingsBackdrop) { settingsBackdrop.remove(); settingsBackdrop = null; }
+                if (state.backdrop) { state.backdrop.remove(); state.backdrop = null; }
                 dom.removeClass(panel, 'show');
                 panel.style.removeProperty('display');
                 panel.setAttribute('aria-hidden', 'true');
                 return;
             }
-
-            var state = modalState.get(panel) || { wanted: null, busy: false };
-            state.wanted = 'closed';
 
             // Already out of sight - Bootstrap hid it itself, and this is its
             // hidden event closing the settings - and nothing is under way:
@@ -3504,6 +3716,131 @@ function build(instance, baseElem, optionsOrMethod) {
                 state.busy = true;
                 Modal.getOrCreateInstance(panel).hide();
             }
+        }
+
+        /** A modal's hand made backdrop goes with it. */
+        function removeBackdrop(panel) {
+            var state = modalState.get(panel);
+            if (state && state.backdrop) { state.backdrop.remove(); state.backdrop = null; }
+        }
+
+        /* --------------------------------------------------------------
+         * The dialog: a modal of the editor's own, over whatever settings
+         * panel is open, for what does not fit in one. A plugin's section
+         * of the panel opens in it when the panel is a popover or inline,
+         * and a plugin can open one itself through ge.openDialog.
+         *
+         * What it shows is borrowed: the body goes into the dialog when it
+         * opens and back where it was when it closes, so everything that
+         * finds it through its node keeps working. One per editor, built
+         * on first use, outside the canvas.
+         * -------------------------------------------------------------- */
+
+        var dialogPanel = null;
+        var dialogState = null; // What is open: { body, home, next, opener, listening }
+
+        function dialog() {
+            if (dialogPanel) { return dialogPanel; }
+
+            dialogPanel = dom.create('<div class="modal fade ge-dialog" tabindex="-1" role="dialog" aria-hidden="true">' +
+                '<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">' +
+                    '<div class="modal-content">' +
+                        '<div class="modal-header"><h5 class="modal-title ge-dialog-title"></h5></div>' +
+                        '<div class="modal-body ge-dialog-body"></div>' +
+                        '<div class="modal-footer"></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>');
+            dom.one(dialogPanel, '.modal-header').appendChild(dom.element('button', {
+                type: 'button',
+                'class': 'btn-close ge-dialog-close',
+                'aria-label': t('panel.close'),
+            }));
+            dom.one(dialogPanel, '.modal-footer').appendChild(dom.element('button', {
+                type: 'button',
+                'class': 'btn btn-primary ge-dialog-close',
+            }, t('panel.done')));
+
+            dom.delegate(dialogPanel, 'click', '.ge-dialog-close', function(e) {
+                e.preventDefault();
+                closeDialog();
+            });
+
+            return document.body.appendChild(dialogPanel);
+        }
+
+        /**
+         * ge.openDialog(title, body, opener): show `body` in the dialog. One
+         * already open closes first. `opener`, when given, has the focus back
+         * when it closes.
+         */
+        function openDialog(title, body, opener) {
+            closeDialog();
+
+            var panel = dialog();
+            var listening = new AbortController();
+
+            dialogState = {
+                body: body,
+                home: body.parentElement,
+                next: body.nextElementSibling,
+                opener: opener || document.activeElement,
+                listening: listening,
+            };
+
+            dom.one(panel, '.ge-dialog-title').textContent = title;
+            dom.one(panel, '.ge-dialog-body').appendChild(body);
+            dom.show(body);
+
+            // Bootstrap's modal takes its own Escape; a hand made one does not
+            if (!modalLibrary()) {
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') { closeDialog(); }
+                }, { signal: listening.signal });
+            }
+
+            // Bootstrap puts a popover over a modal: the panel the dialog was
+            // opened from goes under its backdrop while it is up
+            Object.keys(settingsPanels).forEach(function(mode) {
+                dom.addClass(settingsPanels[mode], 'ge-under-dialog');
+            });
+
+            showModal(panel, function() { closeDialog(); });
+        }
+
+        /** ge.closeDialog(): put the dialog away, and what it showed back where it was. */
+        function closeDialog() {
+            var open = dialogState;
+            if (!open) { return; }
+            dialogState = null;
+
+            open.listening.abort();
+            hideModal(dialogPanel);
+            Object.keys(settingsPanels).forEach(function(mode) {
+                dom.removeClass(settingsPanels[mode], 'ge-under-dialog');
+            });
+
+            dom.hide(open.body);
+            if (open.home && dom.attached(open.home)) {
+                if (open.next && open.next.parentElement === open.home) {
+                    open.home.insertBefore(open.body, open.next);
+                } else {
+                    open.home.appendChild(open.body);
+                }
+            } else {
+                open.body.remove();
+            }
+
+            if (open.opener && dom.attached(open.opener) && open.opener.focus) { open.opener.focus(); }
+        }
+
+        function removeDialog() {
+            closeDialog();
+            if (!dialogPanel) { return; }
+
+            removeBackdrop(dialogPanel);
+            retireModal(dialogPanel);
+            dialogPanel = null;
         }
 
         /** What a panel's title calls a node. */
@@ -4835,6 +5172,7 @@ function build(instance, baseElem, optionsOrMethod) {
             settingsScope().forEach(function(scope) {
                 dom.all(scope, '.ge-utilities').forEach(function(section) { renderUtilities(section); });
             });
+            renderPluginFields(null);
             refreshPreviews(canvas);
             plugins('onViewChange', key);
             emit('view-change', { canvas: canvas, breakpoint: key, from: from, to: key });

@@ -1,4 +1,7 @@
 // src/js/plugins/grideditor.spacing.js
+import { GridEditor as GridEditor2 } from "../grideditor.esm.js";
+
+// src/js/style/spacing.js
 import { GridEditor } from "../grideditor.esm.js";
 
 // src/js/dom.js
@@ -90,7 +93,7 @@ function visible(node) {
   return !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
 }
 
-// src/js/plugins/grideditor.spacing.js
+// src/js/style/spacing.js
 Object.assign(GridEditor.locales.en, {
   "utility.padding": "Padding",
   "utility.margin": "Margin",
@@ -120,8 +123,8 @@ var PROPERTIES = { p: "padding", m: "margin" };
 function pattern(key) {
   return new RegExp("^" + key + "[xytbse]?-(?:(?:sm|md|lg|xl|xxl)-)?(?:[0-5]|auto)$");
 }
-GridEditor.utilities.spacing = function(ge) {
-  var options = Object.assign({ values: VALUES, scale: SCALE }, ge.settings.utilities.spacing);
+function spacingPart(ge, given) {
+  var options = Object.assign({ values: VALUES, scale: SCALE }, given);
   var patterns = { p: pattern("p"), m: pattern("m") };
   function applies(node, kind) {
     return kind === "row" || kind === "column" || kind === "element" || is(node, "[data-ge-container]");
@@ -315,4 +318,10 @@ GridEditor.utilities.spacing = function(ge) {
     },
     onRefresh: mark
   };
+}
+
+// src/js/plugins/grideditor.spacing.js
+GridEditor2.utilities.spacing = function(ge) {
+  ge.warn('the "spacing" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+  return spacingPart(ge, ge.settings.utilities.spacing);
 };

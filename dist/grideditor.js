@@ -660,6 +660,7 @@
       instance.settings = settingsCopy();
       removeConfirmModal();
       removeSettingsPanels();
+      removeDialog();
       mainControls.remove();
       createMainControls();
       reset();
@@ -1610,6 +1611,9 @@
       if (openSettingsState && !attached(openSettingsState.node)) {
         closeSettings();
       }
+      if (dialogState && dialogState.home && !attached(dialogState.home)) {
+        closeDialog();
+      }
       runFilter(true);
       addClass(canvas, "ge-editing");
       toggleClass(canvas, "ge-drag-drawer", settings.drag_handle === "drawer");
@@ -1633,9 +1637,11 @@
       plugins("onBeforeDeinit");
       closeSizePicker();
       hideDropMarker();
+      closeDialog();
       all(canvas, ".ge-tools-drawer").forEach(function(drawer) {
         drawer.remove();
       });
+      pluginFields.clear();
       unwrapTexts();
       plugins("onDeinit");
       clearPreviews(canvas);
@@ -1671,6 +1677,7 @@
       deinit();
       removeConfirmModal();
       removeSettingsPanels();
+      removeDialog();
       mainControls.remove();
       htmlTextArea.remove();
       lifetime.abort();
@@ -1683,25 +1690,53 @@
       if (settings.row_cols !== false) {
         registerFamily("grid", {}, rowColsFamily());
       }
-      var wanted = function(name) {
+      var replacedBy = {};
+      [GridEditor.containers, GridEditor.features, GridEditor.utilities].forEach(function(registry) {
+        Object.keys(registry).forEach(function(name) {
+          (registry[name].replaces || []).forEach(function(old) {
+            if (!replacedBy[old]) {
+              replacedBy[old] = name;
+            }
+          });
+        });
+      });
+      var named = function(name) {
         return !settings.plugins || settings.plugins.indexOf(name) !== -1;
+      };
+      var namedAsOld = function(name) {
+        return !!settings.plugins && settings.plugins.some(function(old) {
+          return replacedBy[old] === name;
+        });
+      };
+      var standsDown = function(name) {
+        return !!replacedBy[name] && wanted(replacedBy[name]);
+      };
+      var wanted = function(name) {
+        return !standsDown(name) && (named(name) || namedAsOld(name));
+      };
+      var replaced = function(name) {
+        if (!standsDown(name) || !named(name)) {
+          return false;
+        }
+        warnOnceHere("replaced:" + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] + '", which is loaded: ignoring it');
+        return true;
       };
       var featureWanted = function(name, factory) {
         return factory.always === true || wanted(name);
       };
       Object.keys(GridEditor.containers).forEach(function(type) {
-        if (wanted(type)) {
+        if (!replaced(type) && wanted(type)) {
           CONTAINERS[type] = GridEditor.containers[type](api);
         }
       });
       Object.keys(GridEditor.features).forEach(function(name) {
         var factory = GridEditor.features[name];
-        if (featureWanted(name, factory)) {
+        if (!replaced(name) && featureWanted(name, factory)) {
           FEATURES[name] = factory(api);
         }
       });
       Object.keys(GridEditor.utilities).forEach(function(name) {
-        if (!wanted(name)) {
+        if (replaced(name) || !wanted(name)) {
           return;
         }
         UTILITIES[name] = GridEditor.utilities[name](api);
@@ -1717,6 +1752,10 @@
       });
       (settings.plugins || []).forEach(function(name) {
         if (CONTAINERS[name] || FEATURES[name] || UTILITIES[name]) {
+          return;
+        }
+        if (standsDown(name)) {
+          warnOnceHere("renamed:" + name, 'the "' + name + '" plugin is part of "' + replacedBy[name] + '" now: name "' + replacedBy[name] + '" in the plugins setting instead');
           return;
         }
         warnOnceHere("plugin:" + name, 'the "' + name + '" plugin is not loaded: include dist/plugins/grideditor.' + name + ".js after the editor");
@@ -1767,6 +1806,12 @@
         setUtility,
         utilityField,
         bareStyle,
+        // The host's own style, under the preview
+        hostStyle,
+        setHostStyle,
+        // A modal of the editor's own, over the settings
+        openDialog,
+        closeDialog,
         rowFromLayout: rowFromLayoutValue,
         nodeHtml,
         // A text editor has rewritten a content area, so whatever the
@@ -2003,6 +2048,7 @@
           renderUtilities(section);
         });
       }
+      renderPluginFields(node);
       refreshPreviews(node);
     }
     function utilityNodes(scope) {
@@ -2069,6 +2115,61 @@
         dropEmptyStyle(node);
       });
     }
+    function hostDeclaration(node) {
+      var scratch = document.createElement("div");
+      var was = {};
+      scratch.style.cssText = node.style.cssText;
+      try {
+        was = JSON.parse(node.getAttribute(PREVIEW_ATTR)) || {};
+      } catch (error) {
+      }
+      Object.keys(was).forEach(function(property) {
+        var before = was[property];
+        if (before && before[0]) {
+          scratch.style.setProperty(property, before[0], before[1]);
+        } else {
+          scratch.style.removeProperty(property);
+        }
+      });
+      return scratch.style;
+    }
+    function hostStyle(node, property) {
+      var declaration = hostDeclaration(node);
+      if (property === void 0) {
+        return declaration.cssText;
+      }
+      return {
+        value: declaration.getPropertyValue(property),
+        priority: declaration.getPropertyPriority(property)
+      };
+    }
+    function setHostStyle(node, property, value, priority) {
+      value = value === null || value === void 0 ? "" : String(value).trim();
+      if (priority === void 0) {
+        priority = hostStyle(node, property).priority;
+      }
+      if (value !== "") {
+        var check = document.createElement("div").style;
+        check.setProperty(property, value, priority || "");
+        if (check.getPropertyValue(property) === "") {
+          return false;
+        }
+      }
+      var previewed = node.hasAttribute(PREVIEW_ATTR);
+      if (previewed) {
+        clearPreviews(node);
+      }
+      if (value === "") {
+        node.style.removeProperty(property);
+      } else {
+        node.style.setProperty(property, value, priority || "");
+      }
+      dropEmptyStyle(node);
+      if (previewed) {
+        refreshPreviews(node);
+      }
+      return true;
+    }
     function createUtilitiesSection(node) {
       var kind = kindOf(node);
       var fields = familiesFor(kind).filter(function(family) {
@@ -2125,7 +2226,24 @@
       }
       var field = createField(node, family);
       renderField(field, node);
+      pluginFields.set(field, node);
       return field;
+    }
+    var pluginFields = /* @__PURE__ */ new Map();
+    function renderPluginFields(node) {
+      pluginFields.forEach(function(fieldNode, field) {
+        if (!field.isConnected) {
+          pluginFields.delete(field);
+          return;
+        }
+        if (node && fieldNode !== node) {
+          return;
+        }
+        if (closest(field, ".ge-utilities")) {
+          return;
+        }
+        renderField(field, fieldNode);
+      });
     }
     function renderUtilities(section) {
       var node = sectionNodes.get(section);
@@ -2670,11 +2788,49 @@
         });
         classGroup.appendChild(btn);
       });
+      pluginSections(container).forEach(function(section) {
+        detailsDiv.appendChild(section);
+      });
       var utilities = createUtilitiesSection(container);
       if (utilities) {
         detailsDiv.appendChild(utilities);
       }
       return detailsDiv;
+    }
+    function pluginSections(node) {
+      var kind = kindOf(node);
+      var mode = panelMode();
+      var sections = [];
+      [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+        Object.keys(registry).forEach(function(name) {
+          var plugin = registry[name];
+          var section = plugin.panelSection ? plugin.panelSection(node, kind) : null;
+          if (!section || !section.body) {
+            return;
+          }
+          var holder = element("div", { "class": "ge-panel-section", "data-ge-plugin": name });
+          if (mode === "offcanvas" || mode === "modal") {
+            holder.appendChild(section.body);
+          } else {
+            var label = t(section.labelKey);
+            var open = holder.appendChild(element("button", {
+              type: "button",
+              "class": "btn btn-sm btn-outline-secondary ge-panel-section-open"
+            }, label));
+            hide(section.body);
+            holder.appendChild(section.body);
+            open.addEventListener("click", function() {
+              openDialog(
+                section.titleKey ? t(section.titleKey, { kind: kindLabel(node) }) : label,
+                section.body,
+                open
+              );
+            });
+          }
+          sections.push(holder);
+        });
+      });
+      return sections;
     }
     var PANEL_MODES = ["offcanvas", "popover", "modal", "inline"];
     var settingsPanels = {};
@@ -2723,7 +2879,7 @@
       addClass(node, "ge-settings-target");
       var signal = { signal: listening.signal };
       document.addEventListener("keydown", function(e) {
-        if (e.key === "Escape") {
+        if (e.key === "Escape" && !dialogState) {
           closeSettings();
         }
       }, signal);
@@ -2746,15 +2902,20 @@
           openSettingsState.observer.observe(details);
         }
         on(document, "mousedown touchstart", function(e) {
-          if (!panel.contains(e.target) && !gear.contains(e.target)) {
+          if (!dialogState && !panel.contains(e.target) && !gear.contains(e.target)) {
             closeSettings();
           }
         }, signal);
       } else {
-        showModal(panel);
+        showModal(panel, function() {
+          if (openSettingsState && openSettingsState.mode === "modal") {
+            closeSettings();
+          }
+        });
       }
     }
     function closeSettings() {
+      closeDialog();
       var open = openSettingsState;
       if (!open) {
         return;
@@ -2832,10 +2993,9 @@
           settingsPanels[mode].remove();
         }
       });
-      if (settingsBackdrop) {
-        settingsBackdrop.remove();
-        settingsBackdrop = null;
-      }
+      Object.keys(settingsPanels).forEach(function(mode) {
+        removeBackdrop(settingsPanels[mode]);
+      });
       settingsPanels = {};
     }
     function placePopover(panel, gear) {
@@ -2866,25 +3026,30 @@
         left: Math.max(gap, Math.min(tool.left + tool.width / 2 - left - 8, width - 24))
       });
     }
-    var settingsBackdrop = null;
-    function showModal(panel) {
+    function showModal(panel, dismissed) {
       var Modal = modalLibrary();
+      var state = modalState.get(panel);
+      if (!state) {
+        state = { wanted: null, busy: false, backdrop: null, dismissed };
+        modalState.set(panel, state);
+      }
+      state.dismissed = dismissed;
       if (!Modal) {
-        settingsBackdrop = element("div", { "class": "modal-backdrop fade show ge-settings-backdrop" });
-        settingsBackdrop.addEventListener("click", function() {
-          closeSettings();
-        });
-        document.body.appendChild(settingsBackdrop);
+        if (!state.backdrop) {
+          state.backdrop = element("div", { "class": "modal-backdrop fade show ge-settings-backdrop" });
+          state.backdrop.addEventListener("click", function() {
+            state.dismissed();
+          });
+          document.body.appendChild(state.backdrop);
+        }
         addClass(panel, "show");
         panel.style.display = "block";
         panel.removeAttribute("aria-hidden");
         return;
       }
       var modal = Modal.getOrCreateInstance(panel);
-      var state = modalState.get(panel);
-      if (!state) {
-        state = { wanted: null, busy: false };
-        modalState.set(panel, state);
+      if (!state.watched) {
+        state.watched = true;
         trackModal(panel);
         panel.addEventListener("hide.bs.modal", function() {
           if (state.wanted === "open") {
@@ -2901,9 +3066,9 @@
         panel.addEventListener("hidden.bs.modal", function() {
           state.busy = false;
           if (state.wanted === "open") {
-            showModal(panel);
-          } else if (openSettingsState && openSettingsState.mode === "modal") {
-            closeSettings();
+            showModal(panel, state.dismissed);
+          } else {
+            state.dismissed();
           }
         });
       }
@@ -2915,22 +3080,116 @@
     }
     function hideModal(panel) {
       var Modal = modalLibrary();
+      var state = modalState.get(panel);
+      if (!state) {
+        return;
+      }
+      state.wanted = "closed";
       if (!Modal) {
-        if (settingsBackdrop) {
-          settingsBackdrop.remove();
-          settingsBackdrop = null;
+        if (state.backdrop) {
+          state.backdrop.remove();
+          state.backdrop = null;
         }
         removeClass(panel, "show");
         panel.style.removeProperty("display");
         panel.setAttribute("aria-hidden", "true");
         return;
       }
-      var state = modalState.get(panel) || { wanted: null, busy: false };
-      state.wanted = "closed";
       if (!state.busy && hasClass(panel, "show")) {
         state.busy = true;
         Modal.getOrCreateInstance(panel).hide();
       }
+    }
+    function removeBackdrop(panel) {
+      var state = modalState.get(panel);
+      if (state && state.backdrop) {
+        state.backdrop.remove();
+        state.backdrop = null;
+      }
+    }
+    var dialogPanel = null;
+    var dialogState = null;
+    function dialog() {
+      if (dialogPanel) {
+        return dialogPanel;
+      }
+      dialogPanel = create('<div class="modal fade ge-dialog" tabindex="-1" role="dialog" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title ge-dialog-title"></h5></div><div class="modal-body ge-dialog-body"></div><div class="modal-footer"></div></div></div></div>');
+      one(dialogPanel, ".modal-header").appendChild(element("button", {
+        type: "button",
+        "class": "btn-close ge-dialog-close",
+        "aria-label": t("panel.close")
+      }));
+      one(dialogPanel, ".modal-footer").appendChild(element("button", {
+        type: "button",
+        "class": "btn btn-primary ge-dialog-close"
+      }, t("panel.done")));
+      delegate(dialogPanel, "click", ".ge-dialog-close", function(e) {
+        e.preventDefault();
+        closeDialog();
+      });
+      return document.body.appendChild(dialogPanel);
+    }
+    function openDialog(title, body, opener) {
+      closeDialog();
+      var panel = dialog();
+      var listening = new AbortController();
+      dialogState = {
+        body,
+        home: body.parentElement,
+        next: body.nextElementSibling,
+        opener: opener || document.activeElement,
+        listening
+      };
+      one(panel, ".ge-dialog-title").textContent = title;
+      one(panel, ".ge-dialog-body").appendChild(body);
+      show(body);
+      if (!modalLibrary()) {
+        document.addEventListener("keydown", function(e) {
+          if (e.key === "Escape") {
+            closeDialog();
+          }
+        }, { signal: listening.signal });
+      }
+      Object.keys(settingsPanels).forEach(function(mode) {
+        addClass(settingsPanels[mode], "ge-under-dialog");
+      });
+      showModal(panel, function() {
+        closeDialog();
+      });
+    }
+    function closeDialog() {
+      var open = dialogState;
+      if (!open) {
+        return;
+      }
+      dialogState = null;
+      open.listening.abort();
+      hideModal(dialogPanel);
+      Object.keys(settingsPanels).forEach(function(mode) {
+        removeClass(settingsPanels[mode], "ge-under-dialog");
+      });
+      hide(open.body);
+      if (open.home && attached(open.home)) {
+        if (open.next && open.next.parentElement === open.home) {
+          open.home.insertBefore(open.body, open.next);
+        } else {
+          open.home.appendChild(open.body);
+        }
+      } else {
+        open.body.remove();
+      }
+      if (open.opener && attached(open.opener) && open.opener.focus) {
+        open.opener.focus();
+      }
+    }
+    function removeDialog() {
+      closeDialog();
+      if (!dialogPanel) {
+        return;
+      }
+      removeBackdrop(dialogPanel);
+      retireModal(dialogPanel);
+      dialogPanel = null;
     }
     function kindLabel(node) {
       var kind = kindOf(node);
@@ -3802,6 +4061,7 @@
           renderUtilities(section);
         });
       });
+      renderPluginFields(null);
       refreshPreviews(canvas);
       plugins("onViewChange", key);
       emit("view-change", { canvas, breakpoint: key, from, to: key });

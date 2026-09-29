@@ -70,7 +70,7 @@ var SETUP = `
         return window.fixture.init(Object.assign({
             content_types: ['tinymce'],
             confirm_delete: false,
-            plugins: window.fixture.plugins(['codemirror-inline', 'sections', 'clipboard', 'visibility']),
+            plugins: window.fixture.plugins(['codemirror-inline', 'sections', 'clipboard', 'style']),
         }, settings || {}));
     };
 

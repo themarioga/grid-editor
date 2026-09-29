@@ -1,4 +1,7 @@
 // src/js/plugins/grideditor.float.js
+import { GridEditor as GridEditor2 } from "../grideditor.esm.js";
+
+// src/js/style/float.js
 import { GridEditor } from "../grideditor.esm.js";
 Object.assign(GridEditor.locales.en, {
   "utility.float": "Float",
@@ -7,7 +10,7 @@ Object.assign(GridEditor.locales.en, {
   "utility.float_none": "None"
 });
 var CSS = { start: "left", end: "right", none: "none" };
-GridEditor.utilities.float = function(ge) {
+function floatPart(ge) {
   function label(value) {
     if (value === "start") {
       return ge.t("utility.float_start");
@@ -31,4 +34,10 @@ GridEditor.utilities.float = function(ge) {
       }
     }]
   };
+}
+
+// src/js/plugins/grideditor.float.js
+GridEditor2.utilities.float = function(ge) {
+  ge.warn('the "float" plugin is deprecated and will be removed in 8.0: load grideditor.style.js');
+  return floatPart(ge);
 };

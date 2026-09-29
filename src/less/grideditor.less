@@ -330,6 +330,117 @@
     }
 }
 
+/* A settings panel the dialog was opened from waits under its backdrop:
+   Bootstrap's popover would sit over the modal */
+.ge-settings-panel.ge-under-dialog {
+    z-index: 1040;
+}
+
+/* What plugins add to a panel, between its general fields and Responsive.
+   In a popover or inline, a button that opens it in the dialog. */
+.ge-details .ge-panel-section {
+    margin-top: 10px;
+}
+
+/* The style plugin's accordion: in a panel, or in the dialog, which is
+   outside any panel, so it carries the look of the fields it shares. */
+.ge-style {
+    font-size: 0.8125rem;
+
+    .accordion-button {
+        padding: 6px 10px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    .accordion-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 8px 10px;
+    }
+
+    .ge-style-label,
+    .ge-utility-label,
+    .ge-style-shadow-label {
+        color: var(--bs-secondary-color, #6c757d);
+        font-size: 0.75rem;
+    }
+    .ge-style-note,
+    .ge-utility-note,
+    .ge-spacing-gutter {
+        color: var(--bs-secondary-color, #666);
+        font-size: 0.6875rem;
+    }
+
+    .ge-style-fields,
+    .ge-spacing {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px 10px;
+    }
+    .ge-style-field,
+    .ge-utility,
+    .ge-spacing-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 0;
+    }
+    .ge-spacing-group .ge-utility > .ge-utility-label {
+        display: none;
+    }
+    .ge-spacing-gutter {
+        grid-column: 1 / -1;
+    }
+
+    .ge-style-color .form-control-color {
+        flex: 0 0 2.25rem;
+        padding: 2px;
+    }
+
+    .ge-style-shadow,
+    .ge-style-field:has(.ge-style-shadow) {
+        grid-column: 1 / -1;
+    }
+    .ge-style-shadow-builder {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 4px 8px;
+        align-items: end;
+    }
+    .ge-style-shadow-part {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 0;
+    }
+    .ge-style-shadow-color {
+        grid-column: span 2;
+    }
+    .ge-style-shadow-mode {
+        display: inline-block;
+        margin-top: 2px;
+        font-size: 0.6875rem;
+    }
+
+    .ge-style-catalog {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .ge-style-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+    .ge-style-chip {
+        --bs-btn-padding-y: 0;
+        --bs-btn-padding-x: 6px;
+        --bs-btn-font-size: 0.6875rem;
+        font-family: var(--bs-font-monospace, monospace);
+    }
+}
+
 /* In a drawer it is part of the drawer, compact */
 .ge-tools-drawer > .ge-details {
     font-size: 11px;

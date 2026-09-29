@@ -1,6 +1,7 @@
 /**
- * Browser tests for the spacing plugin: padding and margin, per side and per
- * breakpoint.
+ * Browser tests for spacing: padding and margin, per side and per
+ * breakpoint, as the style plugin edits them in its Spacing section. The
+ * deprecated spacing plugin on its own is test/legacyutilities.js.
  *
  * Two things set it apart from the other utility plugins, and they are what
  * is tested: a panel of its own, a side and a value per group rather than a
@@ -38,7 +39,7 @@ var HELPERS = `
         document.querySelector('#myGrid').innerHTML = '<div class="row">' +
             '<div class="column col-6 ' + colClasses + '"><div class="ge-content"><p>a</p><div data-ge-element="box">box</div></div></div>' +
             '<div class="column col-6"><div class="ge-content"><p>b</p></div></div></div>';
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['spacing']) }, settings || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style']) }, settings || {}));
     };
 `;
 
@@ -48,15 +49,16 @@ async function panelTests(t, page) {
         const side = function(key) { return group(col(), key).querySelector(':scope > .ge-spacing-side'); };
         return {
             groups: col().querySelectorAll(':scope > .ge-tools-drawer .ge-spacing-group').length,
-            fields: Array.from(col().querySelectorAll(':scope > .ge-tools-drawer .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(','),
+            fields: Array.from(col().querySelectorAll(':scope > .ge-tools-drawer [data-ge-style-section="spacing"] .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(','),
+            responsive: Array.from(col().querySelectorAll(':scope > .ge-tools-drawer .ge-utilities .ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(','),
             sides: Array.from(side('p').querySelectorAll('option')).map(function(option) { return option.value + '=' + option.textContent; }).join(','),
             startsOn: side('p').value + '|' + side('m').value,
             elementGroups: document.querySelectorAll('#myGrid .ge-element > .ge-tools-drawer .ge-spacing-group').length,
             rowGroups: group(row(), 'p') ? 1 : 0,
         };
     `);
-    t.check('the panel has a padding and a margin group, not a field per family',
-        panel.groups === 2 && panel.fields === 'col,p,mx' &&
+    t.check('the Spacing section has a padding and a margin group, not a field per family, and Responsive keeps only the grid\'s',
+        panel.groups === 2 && panel.fields === 'p,mx' && panel.responsive === 'col' &&
         panel.sides === '=All sides,x=Left and right,y=Top and bottom,t=Top,e=End,b=Bottom,s=Start',
         panel);
     t.check('a group starts on a side the node has a class for',
@@ -78,7 +80,7 @@ async function panelTests(t, page) {
         chosen.family === 'pt' && chosen.classes === 'm-md-auto pt-md-4' && chosen.value === '4', chosen);
 
     var narrowed = await page.eval(`
-        start('', { utilities: { spacing: { values: ['0', '2'] } } });
+        start('', { style: { spacing: { values: ['0', '2'] } } });
         const values = function(key) { return Array.from(group(col(), key).querySelectorAll('.ge-utility option')).map(function(option) { return option.value; }).join(','); };
         return { p: values('p'), m: values('m') };
     `);
@@ -147,7 +149,7 @@ async function previewTests(t, page) {
         edges.md === '1 1 1' && edges.xs === '1 1 1' && edges.plain === '1 1 1', edges);
 
     var scaled = await page.eval(`
-        start('p-1', { default_view: 'sm', utilities: { spacing: { scale: ['0', '10px', '20px', '30px', '40px', '50px'] } } });
+        start('p-1', { default_view: 'sm', style: { spacing: { scale: ['0', '10px', '20px', '30px', '40px', '50px'] } } });
         return padding(col());
     `);
     t.check('utilities.spacing.scale is what the values come to in the preview',
