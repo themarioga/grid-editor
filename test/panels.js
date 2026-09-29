@@ -191,6 +191,24 @@ async function popoverTests(t) {
     t.check('the popover opens under its gear, pointing at it, inside the window',
         placed.below && placed.overTool && placed.inWindow, placed);
 
+    // Bootstrap leaves the arrow's position to Popper, which puts it on as an
+    // inline style; with no Popper the arrow stays in the flow, a strip the
+    // height of the arrow above the header
+    var arrow = await page.eval(`
+        const panel = document.querySelector('body > .ge-settings-popover');
+        const pop = panel.getBoundingClientRect();
+        const header = panel.querySelector('.popover-header').getBoundingClientRect();
+        const arrow = panel.querySelector('.popover-arrow').getBoundingClientRect();
+        const border = parseFloat(getComputedStyle(panel).borderTopWidth);
+        return {
+            headerGap: Math.round(header.top - pop.top - border),
+            arrowAbove: arrow.bottom <= pop.top + border + 0.5,
+            arrowOverGap: arrow.left <= pop.left + 64,
+        };
+    `);
+    t.check('the popover has no gap above its header: the arrow hangs outside it',
+        arrow.headerGap === 0 && arrow.arrowAbove, arrow);
+
     await page.click('#second > .ge-text-block > .ge-content');
     await t.sleep(300);
     var away = await page.eval(`return state();`);

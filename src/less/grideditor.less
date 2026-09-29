@@ -474,6 +474,14 @@
     width: 360px;
     max-width: calc(100vw - 16px);
 
+    /* Bootstrap's css leaves the arrow's position to Popper, which puts it on
+       as an inline style. Without it the arrow stays in the flow, a strip as
+       tall as the arrow above the header; out of it, the top or bottom of
+       .bs-popover-bottom and .bs-popover-top hang it outside the edge */
+    > .popover-arrow {
+        position: absolute;
+    }
+
     > .popover-header {
         display: flex;
         align-items: center;
