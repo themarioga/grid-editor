@@ -33,7 +33,7 @@
     "comment": "A scoped package publishes restricted unless it is told otherwise.",
     "access": "public"
   },
-  "version": "7.0.0",
+  "version": "7.1.0",
   "main": "dist/grideditor.js",
   "module": "dist/grideditor.esm.js",
   "types": "dist/grideditor.d.ts",
