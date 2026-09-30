@@ -12,6 +12,8 @@ const options: GridEditorOptions = {
     content_types: ['tinymce'],
     plugins: ['tabs', 'elements'],
     settings_panel: 'modal',
+    resize: { enabled: true, tools: false, handles: 'e, w', balance: false },
+    indent: { tools: false },
     row_tools: [{ title: 'Mine', on: function(event) { event.preventDefault(); this.classList.add('x'); } }],
     custom_filter: function(canvas, isInit) { canvas.classList.toggle('filtered', isInit); },
     callbacks: {

@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.1.0] - 2026-09-30
+
+### Added
+- `resize.tools`: `false` takes the narrower and wider tools (− +) out of
+  the columns' drawers, leaving the handle on the edge. With
+  `resize.enabled: false`, which takes the handle out, a column is resized
+  with the tools only; the default keeps both.
+- `indent.tools`: `false` takes the indent tools out of the columns'
+  drawers. The offsets the markup has are kept, and `createColumn` still
+  takes one.
+
+### Fixed
+- A shadow in the inline-style plugin's Border and Text sections, turned to
+  text with *Edit as text*, can go back to the builder: *Edit with the
+  builder* (`inline_style.shadow_builder_mode`), when the value is one
+  shadow or none.
+
 ## [8.0.0] - 2026-09-30
 
 The first stable 8.0: what 8.0.0-beta.1 to 8.0.0-beta.3 below brought, and

@@ -395,10 +395,17 @@ var NESTED_SETTINGS = {
   },
   resize: {
     enabled: true,
+    // The handle on the column's edge
+    tools: true,
+    // The narrower and wider tools in the column's drawer
     handles: "e",
     // Which edges carry a handle: 'e', 'w', or 'e, w'
     balance: "next"
     // 'next' takes the units out of the following column
+  },
+  indent: {
+    tools: true
+    // The indent tools in the column's drawer
   },
   drag: {
     delay: 0,
@@ -595,6 +602,8 @@ function build(instance, baseElem, optionsOrMethod) {
     "default_view": ALL_VIEW,
     "resize": NESTED_SETTINGS.resize,
     // Resizing a column by dragging its edge
+    "indent": NESTED_SETTINGS.indent,
+    // Indenting a column, offset-*
     "source_textarea": "",
     "edit_source": true,
     // The toolbar's button to edit the canvas as html
@@ -2529,30 +2538,34 @@ function build(instance, baseElem, optionsOrMethod) {
       }
       var drawer = prependDrawer(col, "ge-tools-drawer");
       createMoveTool(drawer);
-      createTool(drawer, t("tool.column_narrower"), "ge-decrease-col-width", "bi bi-dash-lg", function(e) {
-        resizeColumn(
-          col,
-          e.shiftKey ? smallest(settings.valid_col_sizes) : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), -1),
-          "tool"
-        );
-      });
-      createTool(drawer, t("tool.column_wider"), "ge-increase-col-width", "bi bi-plus-lg", function(e) {
-        resizeColumn(
-          col,
-          e.shiftKey ? widestFor(col) : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), 1),
-          "tool"
-        );
-      });
-      createTool(drawer, t("tool.indent_decrease"), "ge-decrease-col-offset", "bi bi-text-indent-right", function(e) {
-        indentColumn(
-          col,
-          e.shiftKey ? smallest(settings.valid_col_offsets) : stepThrough(settings.valid_col_offsets, currentOffset(col), -1),
-          "tool"
-        );
-      });
-      createTool(drawer, t("tool.indent_increase"), "ge-increase-col-offset", "bi bi-text-indent-left", function(e) {
-        indentColumn(col, e.shiftKey ? deepestFor(col) : stepThrough(settings.valid_col_offsets, currentOffset(col), 1), "tool");
-      });
+      if (settings.resize.tools !== false) {
+        createTool(drawer, t("tool.column_narrower"), "ge-decrease-col-width", "bi bi-dash-lg", function(e) {
+          resizeColumn(
+            col,
+            e.shiftKey ? smallest(settings.valid_col_sizes) : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), -1),
+            "tool"
+          );
+        });
+        createTool(drawer, t("tool.column_wider"), "ge-increase-col-width", "bi bi-plus-lg", function(e) {
+          resizeColumn(
+            col,
+            e.shiftKey ? widestFor(col) : stepThrough(settings.valid_col_sizes.filter(isUnits), currentUnits(col), 1),
+            "tool"
+          );
+        });
+      }
+      if (settings.indent.tools !== false) {
+        createTool(drawer, t("tool.indent_decrease"), "ge-decrease-col-offset", "bi bi-text-indent-right", function(e) {
+          indentColumn(
+            col,
+            e.shiftKey ? smallest(settings.valid_col_offsets) : stepThrough(settings.valid_col_offsets, currentOffset(col), -1),
+            "tool"
+          );
+        });
+        createTool(drawer, t("tool.indent_increase"), "ge-increase-col-offset", "bi bi-text-indent-left", function(e) {
+          indentColumn(col, e.shiftKey ? deepestFor(col) : stepThrough(settings.valid_col_offsets, currentOffset(col), 1), "tool");
+        });
+      }
       addSettingsTool(drawer, col, settings.col_classes);
       hostTools(drawer, settings.col_tools);
       createTool(drawer, t("tool.delete_column"), "ge-delete-column", "bi bi-trash", function() {

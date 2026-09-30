@@ -253,6 +253,25 @@ async function viewTests(t) {
         announced.canceled.length === 2,
         announced);
 
+    var hidden = await page.eval(UNITS + `
+        window.fixture.editor().destroy();
+        ` + canvasOf([[6, 2], [4]]) + `
+        window.fixture.init({ default_view: 'xs', indent: { tools: false } });
+        const drawer = document.querySelector('#myGrid .column > .ge-tools-drawer');
+        const column = window.fixture.editor().createColumn(4, { offset: 1 });
+        return {
+            indent: drawer.querySelectorAll(':scope > .ge-decrease-col-offset, :scope > .ge-increase-col-offset').length,
+            width: drawer.querySelectorAll(':scope > .ge-decrease-col-width, :scope > .ge-increase-col-width').length,
+            kept: window.unitsOf('xs')[0],
+            created: /(?:^|\\s)offset-1(?:\\s|$)/.test(column.getAttribute('class')),
+            html: /offset-2/.test(window.fixture.editor().getHtml()),
+        };
+    `);
+    t.check('indent.tools false takes the indent tools out and leaves the width tools',
+        hidden.indent === 0 && hidden.width === 2, hidden);
+    t.check('with indent.tools false the markup keeps its offsets, and createColumn still takes one',
+        JSON.stringify(hidden.kept) === '[6,2]' && hidden.created && hidden.html, hidden);
+
     var errors = page.errors();
     t.check('the offset tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }

@@ -124,7 +124,10 @@ export interface GridEditorOptions {
     add_column?: { size?: ColumnSize | null; picker?: boolean; delay?: number };
     layout_modes?: View[];
     default_view?: View;
-    resize?: { enabled?: boolean; handles?: string; balance?: 'next' | false };
+    /** enabled is the handle on the column's edge, tools the narrower and wider tools in its drawer. */
+    resize?: { enabled?: boolean; tools?: boolean; handles?: string; balance?: 'next' | false };
+    /** tools is the indent tools in a column's drawer. */
+    indent?: { tools?: boolean };
     /** A textarea whose html the canvas starts with. */
     source_textarea?: Target | '';
     edit_source?: boolean;

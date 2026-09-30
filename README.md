@@ -398,6 +398,10 @@ new GridEditor('#myGrid', {
 
 __`valid_col_offsets`:__ The same, for the indent buttons. Default `[0, 1, … 11]`.
 
+__`indent`:__ The indent tools in a column's drawer. `indent: { tools: false }`
+takes them out; the offsets the markup has are kept, and
+`createColumn(size, { offset })` still indents. Default `{ tools: true }`.
+
 __`add_column`:__ What the add column tool in a row's drawer does. A click adds a column of `size`; holding the tool for `delay` milliseconds — with the pointer or with a finger — offers the widths in `valid_col_sizes` instead, marking the ones that no longer fit the row. Defaults:
 
 ```javascript
@@ -464,12 +468,14 @@ new GridEditor('#myGrid', {
 
 __`default_view`:__ The view the editor starts in. Default `'all'`, which writes one class for every breakpoint at once — what a layout that needs no per-device tuning wants.
 
-__`resize`:__ Resizing a column by dragging its edge. Defaults:
+__`resize`:__ Resizing a column: by dragging its edge, and with the
+narrower and wider tools (− +) in its drawer. Defaults:
 
 ```javascript
 new GridEditor('#myGrid', {
     resize: {
-        enabled: true,
+        enabled: true,     // the handle on the edge; false leaves the − + tools only
+        tools: true,       // the − + tools; false leaves the handle only
         handles: 'e',      // 'w' for a right to left page, 'e, w' for both
         balance: 'next',   // the following column absorbs the change; false lets the row wrap
     },

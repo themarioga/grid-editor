@@ -277,6 +277,34 @@ async function gestureTests(t) {
     t.check('the gesture tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+async function choiceTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    const COUNT = `
+        const col = document.querySelector('#myGrid .column');
+        return {
+            handle: col.querySelectorAll(':scope > .ge-resize-handle').length,
+            tools: col.querySelectorAll(':scope > .ge-tools-drawer > .ge-decrease-col-width, :scope > .ge-tools-drawer > .ge-increase-col-width').length,
+            indent: col.querySelectorAll(':scope > .ge-tools-drawer > .ge-decrease-col-offset').length,
+        };
+    `;
+    var seen = {};
+    var choices = { both: {}, tools: { resize: { enabled: false } }, handle: { resize: { tools: false } } };
+    for (var name of Object.keys(choices)) {
+        await page.eval(canvasOf([[6], [6]], choices[name]));
+        seen[name] = await page.eval(COUNT);
+    }
+    t.check('by default a column has both the edge handle and the − + tools',
+        seen.both.handle === 1 && seen.both.tools === 2, seen);
+    t.check('resize.enabled false leaves the − + tools only',
+        seen.tools.handle === 0 && seen.tools.tools === 2, seen);
+    t.check('resize.tools false leaves the edge handle only, and the indent tools',
+        seen.handle.handle === 1 && seen.handle.tools === 0 && seen.handle.indent === 1, seen);
+
+    await page.dragBy(HANDLE, Math.round(await page.eval('return window.unit;')), 0);
+    var dragged = await page.eval(SIZES);
+    t.check('with resize.tools false the handle still resizes', dragged.join(',') === '7,5', dragged);
+}
+
 module.exports = {
     name: 'resize',
     description: 'resizing a column by dragging its edge',
@@ -286,6 +314,7 @@ module.exports = {
         await eventTests(t);
         await artifactTests(t);
         await gestureTests(t);
+        await choiceTests(t);
     },
 };
 
