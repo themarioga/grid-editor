@@ -14,12 +14,12 @@
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
 
     <!-- The editor, the elements and tabs plugins so there is one of each
-         kind of node, and the style plugin. -->
+         kind of node, and the inline-style plugin. -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.elements.min.js"></script>
     <script src="../dist/plugins/grideditor.tabs.min.js"></script>
-    <script src="../dist/plugins/grideditor.style.min.js"></script>
+    <script src="../dist/plugins/grideditor.inline-style.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -40,7 +40,7 @@
                     // Every section, unless the host says otherwise: this
                     // leaves out position and keeps the border section to
                     // three fields with no chips
-                    style: narrow.checked ? {
+                    inline_style: narrow.checked ? {
                         sections: {
                             position: false,
                             border: { properties: ['border-width', 'border-style', 'border-color'], catalog: false },
@@ -66,7 +66,7 @@
         });
     </script>
 
-    <title>Grid Editor style example</title>
+    <title>Grid Editor inline style example</title>
 </head>
 <body>
     <!-- Back to the demo index -->
@@ -78,7 +78,7 @@
 
         <div class="row my-3">
             <div class="col-lg-8">
-                <h1 class="h4">Style</h1>
+                <h1 class="h4">Inline style</h1>
                 <p class="form-text">
                     The gear of a row, a column, a container, a tab, an element
                     or a section has a <strong>Style</strong> accordion: size,

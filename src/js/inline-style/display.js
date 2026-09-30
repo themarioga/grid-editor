@@ -1,10 +1,10 @@
 /**
- * Display, a part of the style plugin: how a node is displayed per
+ * Display, a part of the inline-style plugin: how a node is displayed per
  * breakpoint, hidden included, with Bootstrap's d-{breakpoint}-* classes,
  * and the eye in the drawers that hides and shows it.
  *
  * Its families, and whatever it does on the canvas, as a function of the
- * handle and its options: grideditor.style.js puts them in its sections.
+ * handle and its options: grideditor.inline-style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';

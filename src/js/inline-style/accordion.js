@@ -1,5 +1,5 @@
 /**
- * The style plugin's accordion for one node: a section per group of
+ * The inline-style plugin's accordion for one node: a section per group of
  * properties, each with the merged utilities' per breakpoint fields, the
  * inline fields and the catalog - as far as each applies to the node.
  *
@@ -46,7 +46,7 @@ function partContent(ge, part, node, kind) {
 
     if (fields.length < 2) { return fields[0] || null; }
 
-    var box = dom.element('div', { 'class': 'ge-style-part-fields' });
+    var box = dom.element('div', { 'class': 'ge-inline-style-part-fields' });
     fields.forEach(function(field) { box.appendChild(field); });
 
     return box;
@@ -59,7 +59,7 @@ function partContent(ge, part, node, kind) {
  */
 export function createAccordion(ge, node, kind, context) {
     var inline = takesInlineStyle(node, kind);
-    var accordion = dom.element('div', { 'class': 'accordion ge-style' });
+    var accordion = dom.element('div', { 'class': 'accordion ge-inline-style' });
     var fields = [];
     var catalogs = [];
     var notes = [];
@@ -68,7 +68,7 @@ export function createAccordion(ge, node, kind, context) {
     var changed = function() { render(); };
 
     function item(key, labelKey) {
-        var entry = accordion.appendChild(dom.element('div', { 'class': 'accordion-item', 'data-ge-style-section': key }));
+        var entry = accordion.appendChild(dom.element('div', { 'class': 'accordion-item', 'data-ge-inline-style-section': key }));
         var header = entry.appendChild(dom.element('h2', { 'class': 'accordion-header' }));
         var button = header.appendChild(dom.element('button', {
             type: 'button',
@@ -114,13 +114,13 @@ export function createAccordion(ge, node, kind, context) {
         if (!parts.length && !properties.length && !catalog) { return; }
 
         var body = item(key, section.labelKey).body;
-        parts.forEach(function(part) { body.appendChild(dom.addClass(part, 'ge-style-part')); });
+        parts.forEach(function(part) { body.appendChild(dom.addClass(part, 'ge-inline-style-part')); });
 
         if (properties.length) {
-            var note = body.appendChild(dom.element('small', { 'class': 'ge-style-note ge-style-all-sizes' }, ge.t('style.all_sizes')));
+            var note = body.appendChild(dom.element('small', { 'class': 'ge-inline-style-note ge-inline-style-all-sizes' }, ge.t('inline_style.all_sizes')));
             notes.push(note);
 
-            var grid = body.appendChild(dom.element('div', { 'class': 'ge-style-fields' }));
+            var grid = body.appendChild(dom.element('div', { 'class': 'ge-inline-style-fields' }));
             properties.forEach(function(property) {
                 var field = createStyleField(ge, node, property, changed);
                 fields.push(field);
@@ -137,7 +137,7 @@ export function createAccordion(ge, node, kind, context) {
     // Last, since it shows what the fields made above do not
     if (customItem) {
         custom = createCustom(ge, node, fields.map(function(field) {
-            return field.getAttribute('data-ge-style-property');
+            return field.getAttribute('data-ge-inline-style-property');
         }), changed);
         customItem.body.appendChild(custom.element);
         accordion.appendChild(customItem.entry);
@@ -148,7 +148,7 @@ export function createAccordion(ge, node, kind, context) {
     /** Open this section and no other; null closes them all. */
     function open(key) {
         dom.all(accordion, '.accordion-item').forEach(function(entry) {
-            toggle(entry, entry.getAttribute('data-ge-style-section') === key);
+            toggle(entry, entry.getAttribute('data-ge-inline-style-section') === key);
         });
     }
 

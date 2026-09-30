@@ -1,5 +1,5 @@
 /**
- * The drawer of a flex or grid node, a part of the style plugin.
+ * The drawer of a flex or grid node, a part of the inline-style plugin.
  *
  * A drawer is its node's first child, in the flow: in a row, which wraps,
  * it is a line of its own above the columns, but in anything else that

@@ -113,7 +113,7 @@ var SCENARIOS = {
         return G.result();
     `,
     'utilities': `
-        G.start(ORIGINAL, { plugins: window.fixture.plugins(['style', 'order', 'alignment', 'gutters']) });
+        G.start(ORIGINAL, { plugins: window.fixture.plugins(['inline-style', 'order', 'alignment', 'gutters']) });
         const second = document.querySelectorAll('#myGrid > .row')[1];
         const column = second.querySelector('.column');
         G.call('setUtility', column, 'order', '2', 'md');

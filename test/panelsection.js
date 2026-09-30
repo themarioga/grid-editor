@@ -7,7 +7,7 @@
  * nothing.
  *
  * The plugins here are written in the page, so what is tested is the core
- * and not the style plugin, which is test/style.js.
+ * and not the inline-style plugin, which is test/inlinestyle.js.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
  * changed anything under `src`.
@@ -21,7 +21,7 @@ var HELPERS = `
     console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
 
     // A feature plugin with a section for rows, holding a text-align field
-    // (the style plugin, which the fixture loads, declares the family)
+    // (the inline-style plugin, which the fixture loads, declares the family)
     GridEditor.features.probe = function(ge) {
         window.handle = ge;
         return {
@@ -42,7 +42,7 @@ var HELPERS = `
             '<div class="row" id="the-row"><div class="col-md-6" id="first"><p>First</p></div>' +
             '<div class="col-md-6" id="second"><p>Second</p></div></div>'
         );
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['probe', 'style']) }, overrides || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['probe', 'inline-style']) }, overrides || {}));
     };
 
     window.row = function() { return document.getElementById('the-row'); };
@@ -71,7 +71,8 @@ var HELPERS = `
     };
     window.order = function(details) {
         return Array.from(details.children).map(function(child) {
-            return child.classList.contains('ge-details-general') ? 'general' :
+            return child.classList.contains('ge-section-title') ? 'title' :
+                child.classList.contains('ge-details-general') ? 'general' :
                 child.getAttribute('data-ge-plugin') || (child.classList.contains('ge-utilities') ? 'responsive' : '?');
         }).join(',');
     };
@@ -90,12 +91,16 @@ async function placement(t, page) {
         return {
             order: order(details),
             embedded: !!section && !!section.querySelector(':scope > .probe-body'),
+            heading: section ? (section.querySelector(':scope > .ge-section-title') || {}).textContent : null,
+            general: (details.querySelector(':scope > .ge-section-title') || {}).textContent,
             button: !!details.querySelector('.ge-panel-section-open'),
             column: !!document.querySelector('#first > .ge-tools-drawer .ge-panel-section[data-ge-plugin="probe"]'),
         };
     `);
     t.check('offcanvas: the section sits between the general fields and Responsive, in registration order (AC-01)',
-        /^general,(probe,style|style,probe),responsive$/.test(offcanvas.order) && offcanvas.embedded && !offcanvas.button, offcanvas);
+        /^title,general,(probe,inline-style|inline-style,probe),responsive$/.test(offcanvas.order) && offcanvas.embedded && !offcanvas.button, offcanvas);
+    t.check('offcanvas: the general fields and each section have a heading',
+        offcanvas.general === 'Id and classes' && offcanvas.heading === 'Done', offcanvas);
     t.check('a plugin that answers null for a node adds nothing there (AC-11)',
         !offcanvas.column, offcanvas);
 
@@ -111,7 +116,11 @@ async function placement(t, page) {
         var closed = await page.eval(`
             const section = sectionOf(rowDetails());
             const body = section.querySelector('.probe-body');
-            return { button: !!section.querySelector(':scope > .ge-panel-section-open'), hidden: getComputedStyle(body).display === 'none' };
+            return {
+                button: !!section.querySelector(':scope > .ge-panel-section-open'),
+                hidden: getComputedStyle(body).display === 'none',
+                heading: !!section.querySelector('.ge-section-title'),
+            };
         `);
         await page.click('.ge-panel-section[data-ge-plugin="probe"] > .ge-panel-section-open');
         await page.waitFor('dialogShown()', { label: 'the dialog opening' });
@@ -123,7 +132,7 @@ async function placement(t, page) {
             };
         `);
         t.check(mode + ': a button stands for the section, which opens in the dialog (AC-0' + (mode === 'popover' ? '3' : '4') + ')',
-            closed.button && closed.hidden && open.body && open.title === 'Row settings' &&
+            closed.button && closed.hidden && !closed.heading && open.body && open.title === 'Row settings' &&
             (mode === 'inline' || open.popover), { closed: closed, open: open });
 
         await page.eval(`dialog().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return true;`);

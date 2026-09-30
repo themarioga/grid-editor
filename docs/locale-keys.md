@@ -76,6 +76,7 @@ title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
 | `panel.done` | Done | The modal's button that closes it |
 | `panel.id` | Id | Label of the id field |
 | `panel.classes` | Classes | Label of the classes field |
+| `panel.section_general` | Id and classes | Heading of the panel's section with the id, the classes and the preset toggles |
 | `panel.editor` | Editor | Label of a text's settings field that says which editor edits it |
 | `panel.kind_row` | Row | `{kind}` for a row |
 | `panel.kind_column` | Column | For a column |
@@ -96,7 +97,7 @@ The containers: tabs, accordions and popups, and the panes inside them.
 | `container.add_tabs` | Tabs | Toolbar button that adds a tabs container |
 | `container.add_tab` | Add tab | Container drawer, adds a pane |
 | `container.tab_label` | Tab {number} | Label of a new tab. `{number}` is its position |
-| `container.tabs_section` | Tabs | The tabs container's section of its settings panel |
+| `container.tabs_section` | Tabs | Heading of the tabs container's section of its settings panel |
 | `container.tabs_style` | Style | Its strip's style select |
 | `container.tabs_style_tabs` | Tabs | Its choice for `nav-tabs` |
 | `container.tabs_style_pills` | Pills | Its choice for `nav-pills` |
@@ -239,7 +240,7 @@ utility.*
 ---------
 
 The Responsive section of a settings panel, which the utility plugins fill,
-and the per breakpoint fields of the style plugin's sections. The labels of
+and the per breakpoint fields of the inline-style plugin's sections. The labels of
 each utility and its values are the plugins' own keys.
 
 | Key | English | Where |
@@ -253,9 +254,9 @@ each utility and its values are the plugins' own keys.
 | `utility.default` | Default | The empty choice of a field when nothing below the view sets the utility, and always in the all view |
 | `utility.inherit` | Inherit: {value} (from {breakpoint}) | The empty choice in a breakpoint view when a smaller breakpoint sets the utility. `{breakpoint}` is its key, `sm` |
 | `utility.varies` | Changes at {breakpoints}; choosing here replaces that | Note under a field in the all view when breakpoints set their own value. `{breakpoints}` is a list of keys |
-| `utility.display` | Display | Label of the display field, `d-*`, in the style plugin's Display section. Its other choices are the values themselves |
+| `utility.display` | Display | Label of the display field, `d-*`, in the inline-style plugin's Display section. Its other choices are the values themselves |
 | `utility.visibility_hidden` | Hidden | Its choice for `d-*-none` |
-| `tool.hide_in_view` | Hide in this view | The style plugin's eye, on a node shown in the view being edited |
+| `tool.hide_in_view` | Hide in this view | The inline-style plugin's eye, on a node shown in the view being edited |
 | `tool.show_in_view` | Show in this view | The same eye, on a node hidden there |
 | `utility.order` | Order | Label of the order plugin's field |
 | `utility.order_first` | First | Its choice for `order-*-first` |
@@ -266,7 +267,7 @@ each utility and its values are the plugins' own keys.
 | `utility.gutters` | Gutters | The gutters plugin's `g-*` field, on a row |
 | `utility.gutters_x` | Horizontal gutters | Its `gx-*` field |
 | `utility.gutters_y` | Vertical gutters | Its `gy-*` field |
-| `utility.padding` | Padding | The padding group, in the style plugin's Spacing section |
+| `utility.padding` | Padding | The padding group, in the inline-style plugin's Spacing section |
 | `utility.margin` | Margin | Its margin group |
 | `utility.side_all` | All sides | The side of `p-*` and `m-*` in a group's side choice |
 | `utility.side_x` | Left and right | The side of `px-*` and `mx-*` |
@@ -275,11 +276,11 @@ each utility and its values are the plugins' own keys.
 | `utility.side_b` | Bottom | The side of `pb-*` and `mb-*` |
 | `utility.side_s` | Start | The side of `ps-*` and `ms-*` |
 | `utility.side_e` | End | The side of `pe-*` and `me-*` |
-| `utility.text_align` | Text alignment | Label of the text alignment field, in the style plugin's Text section |
+| `utility.text_align` | Text alignment | Label of the text alignment field, in the inline-style plugin's Text section |
 | `utility.text_start` | Start | Its choice for `text-*-start` |
 | `utility.text_center` | Center | Its choice for `text-*-center` |
 | `utility.text_end` | End | Its choice for `text-*-end` |
-| `utility.flex_direction` | Direction | The `flex-*-row` / `-column` field, in the style plugin's Flex section |
+| `utility.flex_direction` | Direction | The `flex-*-row` / `-column` field, in the inline-style plugin's Flex section |
 | `utility.flex_wrap` | Wrap | Its `flex-*-wrap` / `-nowrap` field |
 | `utility.justify_content` | Justify columns | Its `justify-content-*` field |
 | `utility.align_items` | Align columns | Its `align-items-*` field |
@@ -290,89 +291,89 @@ each utility and its values are the plugins' own keys.
 | `utility.flex_fill` | Fill | Its `flex-*-fill` field, on anything but a row |
 | `utility.flex_grow` | Grow | Its `flex-*-grow-*` field |
 | `utility.flex_shrink` | Shrink | Its `flex-*-shrink-*` field |
-| `utility.sticky` | Sticky | The `sticky-*-top` / `-bottom` field, in the style plugin's Position section |
-| `utility.float` | Float | Label of the float field, in the style plugin's Position section, on an element |
+| `utility.sticky` | Sticky | The `sticky-*-top` / `-bottom` field, in the inline-style plugin's Position section |
+| `utility.float` | Float | Label of the float field, in the inline-style plugin's Position section, on an element |
 | `utility.float_start` | Start | Its choice for `float-*-start` |
 | `utility.float_end` | End | Its choice for `float-*-end` |
 | `utility.float_none` | None | Its choice for `float-*-none` |
 | `utility.spacing_gutter` | A column's side padding is its gutter: changing it changes the gutter | Note in a column's spacing group while it carries side padding |
 
 
-style.*
--------
+inline_style.*
+--------------
 
-The style plugin's accordion, in a node's settings panel or in the dialog.
+The inline-style plugin's accordion, in a node's settings panel or in the dialog.
 
 | Key | English | Where |
 | --- | --- | --- |
-| `style.section_title` | Style | The style plugin's accordion, and the button that opens it in the dialog when `settings_panel` is `popover` or `inline` |
-| `style.dialog_title` | Style: {kind} | Title of that dialog. `{kind}` is what the panel's title calls the node |
-| `style.section_size` | Size | The accordion's section header |
-| `style.section_spacing` | Spacing | The accordion's section header |
-| `style.section_border` | Border | The accordion's section header |
-| `style.section_background` | Background | The accordion's section header |
-| `style.section_text` | Text | The accordion's section header |
-| `style.section_typography` | Typography | The accordion's section header |
-| `style.section_display` | Display | The accordion's section header |
-| `style.section_flex` | Flex | The accordion's section header |
-| `style.section_position` | Position | The accordion's section header |
-| `style.section_custom` | Custom css | The accordion's section header |
-| `style.all_sizes` | Applies to every size | Note over a section's inline fields in a breakpoint view: the style attribute is not responsive |
-| `style.overridden` | The class {class} takes priority over this value | Note under an inline field whose property a Bootstrap utility on the node also sets. `{class}` is that class |
-| `style.invalid` | Not a value this property takes | Tooltip of an inline field holding a value the browser refused |
-| `style.catalog` | Bootstrap classes | Heading of a section's Bootstrap class chips |
-| `style.shadow_x` | X | A part of the shadow builder |
-| `style.shadow_y` | Y | A part of the shadow builder |
-| `style.shadow_blur` | Blur | A part of the shadow builder |
-| `style.shadow_spread` | Spread | A part of the shadow builder |
-| `style.shadow_color` | Color | A part of the shadow builder |
-| `style.shadow_inset` | Inset | The shadow builder's inset checkbox |
-| `style.shadow_text_mode` | Edit as text | Link under the shadow builder that edits the value as text |
-| `style.prop_width` | Width | Label of the `width` field |
-| `style.prop_height` | Height | Label of the `height` field |
-| `style.prop_min_width` | Min width | Label of the `min-width` field |
-| `style.prop_min_height` | Min height | Label of the `min-height` field |
-| `style.prop_max_width` | Max width | Label of the `max-width` field |
-| `style.prop_max_height` | Max height | Label of the `max-height` field |
-| `style.prop_margin_top` | Margin top | Label of the `margin-top` field |
-| `style.prop_margin_right` | Margin right | Label of the `margin-right` field |
-| `style.prop_margin_bottom` | Margin bottom | Label of the `margin-bottom` field |
-| `style.prop_margin_left` | Margin left | Label of the `margin-left` field |
-| `style.prop_padding_top` | Padding top | Label of the `padding-top` field |
-| `style.prop_padding_right` | Padding right | Label of the `padding-right` field |
-| `style.prop_padding_bottom` | Padding bottom | Label of the `padding-bottom` field |
-| `style.prop_padding_left` | Padding left | Label of the `padding-left` field |
-| `style.prop_border_width` | Border width | Label of the `border-width` field |
-| `style.prop_border_style` | Border style | Label of the `border-style` field |
-| `style.prop_border_color` | Border color | Label of the `border-color` field |
-| `style.prop_border_radius` | Border radius | Label of the `border-radius` field |
-| `style.prop_box_shadow` | Shadow | Label of the `box-shadow` field |
-| `style.prop_background_color` | Background color | Label of the `background-color` field |
-| `style.prop_background_image` | Background image | Label of the `background-image` field |
-| `style.prop_background_size` | Background size | Label of the `background-size` field |
-| `style.prop_background_position` | Background position | Label of the `background-position` field |
-| `style.prop_background_repeat` | Background repeat | Label of the `background-repeat` field |
-| `style.prop_color` | Color | Label of the `color` field |
-| `style.prop_font_size` | Font size | Label of the `font-size` field |
-| `style.prop_text_align` | Text align | Label of the `text-align` field |
-| `style.prop_text_shadow` | Text shadow | Label of the `text-shadow` field |
-| `style.prop_font_family` | Font family | Label of the `font-family` field |
-| `style.prop_font_weight` | Font weight | Label of the `font-weight` field |
-| `style.prop_font_style` | Font style | Label of the `font-style` field |
-| `style.prop_line_height` | Line height | Label of the `line-height` field |
-| `style.prop_letter_spacing` | Letter spacing | Label of the `letter-spacing` field |
-| `style.prop_text_transform` | Text transform | Label of the `text-transform` field |
-| `style.prop_text_decoration` | Text decoration | Label of the `text-decoration` field |
-| `style.prop_display` | Display | Label of the `display` field |
-| `style.prop_opacity` | Opacity | Label of the `opacity` field |
-| `style.prop_overflow` | Overflow | Label of the `overflow` field |
-| `style.prop_visibility` | Visibility | Label of the `visibility` field |
-| `style.prop_position` | Position | Label of the `position` field |
-| `style.prop_top` | Top | Label of the `top` field |
-| `style.prop_right` | Right | Label of the `right` field |
-| `style.prop_bottom` | Bottom | Label of the `bottom` field |
-| `style.prop_left` | Left | Label of the `left` field |
-| `style.prop_z_index` | Z-index | Label of the `z-index` field |
+| `inline_style.section_title` | Style | Heading of the inline-style plugin's section of the panel, and the button that opens it in the dialog when `settings_panel` is `popover` or `inline` |
+| `inline_style.dialog_title` | Style: {kind} | Title of that dialog. `{kind}` is what the panel's title calls the node |
+| `inline_style.section_size` | Size | The accordion's section header |
+| `inline_style.section_spacing` | Spacing | The accordion's section header |
+| `inline_style.section_border` | Border | The accordion's section header |
+| `inline_style.section_background` | Background | The accordion's section header |
+| `inline_style.section_text` | Text | The accordion's section header |
+| `inline_style.section_typography` | Typography | The accordion's section header |
+| `inline_style.section_display` | Display | The accordion's section header |
+| `inline_style.section_flex` | Flex | The accordion's section header |
+| `inline_style.section_position` | Position | The accordion's section header |
+| `inline_style.section_custom` | Custom css | The accordion's section header |
+| `inline_style.all_sizes` | Applies to every size | Note over a section's inline fields in a breakpoint view: the style attribute is not responsive |
+| `inline_style.overridden` | The class {class} takes priority over this value | Note under an inline field whose property a Bootstrap utility on the node also sets. `{class}` is that class |
+| `inline_style.invalid` | Not a value this property takes | Tooltip of an inline field holding a value the browser refused |
+| `inline_style.catalog` | Bootstrap classes | Heading of a section's Bootstrap class chips |
+| `inline_style.shadow_x` | X | A part of the shadow builder |
+| `inline_style.shadow_y` | Y | A part of the shadow builder |
+| `inline_style.shadow_blur` | Blur | A part of the shadow builder |
+| `inline_style.shadow_spread` | Spread | A part of the shadow builder |
+| `inline_style.shadow_color` | Color | A part of the shadow builder |
+| `inline_style.shadow_inset` | Inset | The shadow builder's inset checkbox |
+| `inline_style.shadow_text_mode` | Edit as text | Link under the shadow builder that edits the value as text |
+| `inline_style.prop_width` | Width | Label of the `width` field |
+| `inline_style.prop_height` | Height | Label of the `height` field |
+| `inline_style.prop_min_width` | Min width | Label of the `min-width` field |
+| `inline_style.prop_min_height` | Min height | Label of the `min-height` field |
+| `inline_style.prop_max_width` | Max width | Label of the `max-width` field |
+| `inline_style.prop_max_height` | Max height | Label of the `max-height` field |
+| `inline_style.prop_margin_top` | Margin top | Label of the `margin-top` field |
+| `inline_style.prop_margin_right` | Margin right | Label of the `margin-right` field |
+| `inline_style.prop_margin_bottom` | Margin bottom | Label of the `margin-bottom` field |
+| `inline_style.prop_margin_left` | Margin left | Label of the `margin-left` field |
+| `inline_style.prop_padding_top` | Padding top | Label of the `padding-top` field |
+| `inline_style.prop_padding_right` | Padding right | Label of the `padding-right` field |
+| `inline_style.prop_padding_bottom` | Padding bottom | Label of the `padding-bottom` field |
+| `inline_style.prop_padding_left` | Padding left | Label of the `padding-left` field |
+| `inline_style.prop_border_width` | Border width | Label of the `border-width` field |
+| `inline_style.prop_border_style` | Border style | Label of the `border-style` field |
+| `inline_style.prop_border_color` | Border color | Label of the `border-color` field |
+| `inline_style.prop_border_radius` | Border radius | Label of the `border-radius` field |
+| `inline_style.prop_box_shadow` | Shadow | Label of the `box-shadow` field |
+| `inline_style.prop_background_color` | Background color | Label of the `background-color` field |
+| `inline_style.prop_background_image` | Background image | Label of the `background-image` field |
+| `inline_style.prop_background_size` | Background size | Label of the `background-size` field |
+| `inline_style.prop_background_position` | Background position | Label of the `background-position` field |
+| `inline_style.prop_background_repeat` | Background repeat | Label of the `background-repeat` field |
+| `inline_style.prop_color` | Color | Label of the `color` field |
+| `inline_style.prop_font_size` | Font size | Label of the `font-size` field |
+| `inline_style.prop_text_align` | Text align | Label of the `text-align` field |
+| `inline_style.prop_text_shadow` | Text shadow | Label of the `text-shadow` field |
+| `inline_style.prop_font_family` | Font family | Label of the `font-family` field |
+| `inline_style.prop_font_weight` | Font weight | Label of the `font-weight` field |
+| `inline_style.prop_font_style` | Font style | Label of the `font-style` field |
+| `inline_style.prop_line_height` | Line height | Label of the `line-height` field |
+| `inline_style.prop_letter_spacing` | Letter spacing | Label of the `letter-spacing` field |
+| `inline_style.prop_text_transform` | Text transform | Label of the `text-transform` field |
+| `inline_style.prop_text_decoration` | Text decoration | Label of the `text-decoration` field |
+| `inline_style.prop_display` | Display | Label of the `display` field |
+| `inline_style.prop_opacity` | Opacity | Label of the `opacity` field |
+| `inline_style.prop_overflow` | Overflow | Label of the `overflow` field |
+| `inline_style.prop_visibility` | Visibility | Label of the `visibility` field |
+| `inline_style.prop_position` | Position | Label of the `position` field |
+| `inline_style.prop_top` | Top | Label of the `top` field |
+| `inline_style.prop_right` | Right | Label of the `right` field |
+| `inline_style.prop_bottom` | Bottom | Label of the `bottom` field |
+| `inline_style.prop_left` | Left | Label of the `left` field |
+| `inline_style.prop_z_index` | Z-index | Label of the `z-index` field |
 
 
 badge.*

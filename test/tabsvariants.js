@@ -284,13 +284,13 @@ async function canvas(t, page) {
         choose('vertical', 'true');
         return layout();
     `);
-    t.check('vertical, without style: the drawer on top and wide, the strip at the left and the pane beside it (AC-14)',
+    t.check('vertical, without inline-style: the drawer on top and wide, the strip at the left and the pane beside it (AC-14)',
         alone.drawerOnTop && alone.drawerWide && alone.beside, alone);
 
     var withStyle = await page.eval(`
         if (window.fixture.editor()) { window.fixture.teardown(); }
         document.querySelector('#myGrid').innerHTML = '<div class="row"><div class="column col-12"></div></div>';
-        window.fixture.init({ plugins: window.fixture.plugins(['tabs', 'style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['tabs', 'inline-style']) });
         ge().createContainer('tabs', { tabs: 2, vertical: true, appendTo: column() });
         const all = layout();
         ge().changeView('md');

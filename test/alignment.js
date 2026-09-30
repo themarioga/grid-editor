@@ -1,7 +1,7 @@
 /**
  * Browser tests for the alignment plugin, which is align-self on columns per
  * breakpoint, and for where a row's justify-content and align-items went: the
- * style plugin's Flex section.
+ * inline-style plugin's Flex section.
  *
  * The engine underneath is covered by test/utilities.js, and the Flex
  * section's families by test/flex.js.
@@ -25,7 +25,7 @@ var HELPERS = `
     };
     /** The families in a node's Style › Flex section. */
     window.flexFields = function(node) {
-        const section = node.querySelector(':scope > .ge-tools-drawer [data-ge-style-section="flex"]');
+        const section = node.querySelector(':scope > .ge-tools-drawer [data-ge-inline-style-section="flex"]');
         return section ? Array.from(section.querySelectorAll('.ge-utility')).map(function(field) { return field.getAttribute('data-ge-family'); }).join(',') : '';
     };
     window.css = function() {
@@ -61,7 +61,7 @@ async function run(t, page) {
         alone);
 
     var both = await page.eval(`
-        start('', '', ['style', 'alignment']);
+        start('', '', ['inline-style', 'alignment']);
         return {
             row: responsive(row()),
             flex: flexFields(row()),
@@ -69,12 +69,12 @@ async function run(t, page) {
             duplicates: window.warnings.filter(function(w) { return /already declared/.test(w); }),
         };
     `);
-    t.check('with style, a row\'s justify-content and align-items are in Style › Flex, not in Responsive (AC-40)',
+    t.check('with inline-style, a row\'s justify-content and align-items are in Style › Flex, not in Responsive (AC-40)',
         both.row === 'row-cols' && both.flex.indexOf('justify-content,align-items') !== -1 &&
         both.column === 'col,align-self' && both.duplicates.length === 0, both);
 
     var previews = await page.eval(`
-        start('justify-content-center justify-content-lg-between align-items-md-end', 'align-self-start align-self-xl-stretch', ['style', 'alignment']);
+        start('justify-content-center justify-content-lg-between align-items-md-end', 'align-self-start align-self-xl-stretch', ['inline-style', 'alignment']);
         const read = function(view) { ge().changeView(view); return css(); };
         return { xs: read('xs'), md: read('md'), lg: read('lg'), xl: read('xl') };
     `);
@@ -86,9 +86,9 @@ async function run(t, page) {
         previews);
 
     var written = await page.eval(`
-        start('', '', ['style', 'alignment']);
+        start('', '', ['inline-style', 'alignment']);
         ge().changeView('md');
-        const select = row().querySelector(':scope > .ge-tools-drawer [data-ge-style-section="flex"] .ge-utility[data-ge-family="justify-content"] select');
+        const select = row().querySelector(':scope > .ge-tools-drawer [data-ge-inline-style-section="flex"] .ge-utility[data-ge-family="justify-content"] select');
         select.value = 'evenly';
         select.dispatchEvent(new Event('change', { bubbles: true }));
         ge().setUtility(col(), 'align-self', 'center');
@@ -106,7 +106,7 @@ async function run(t, page) {
 
 module.exports = {
     name: 'alignment',
-    description: 'the alignment utility plugin, and justify and align in the style plugin',
+    description: 'the alignment utility plugin, and justify and align in the inline-style plugin',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

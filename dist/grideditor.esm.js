@@ -2692,6 +2692,7 @@ function build(instance, baseElem, optionsOrMethod) {
   }
   function createDetails(container, cssClasses) {
     var detailsDiv = element("div", { "class": "ge-details" });
+    detailsDiv.appendChild(sectionTitle(t("panel.section_general")));
     var general = detailsDiv.appendChild(element("div", { "class": "ge-details-general" }));
     var field = function(label) {
       var holder = element("label", { "class": "ge-field" });
@@ -2751,6 +2752,9 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     return detailsDiv;
   }
+  function sectionTitle(text) {
+    return element("h6", { "class": "ge-section-title" }, text);
+  }
   function pluginSections(node) {
     var kind = kindOf(node);
     var mode = panelMode();
@@ -2764,6 +2768,7 @@ function build(instance, baseElem, optionsOrMethod) {
         }
         var holder = element("div", { "class": "ge-panel-section", "data-ge-plugin": name });
         if (mode === "offcanvas" || mode === "modal") {
+          holder.appendChild(sectionTitle(t(section.labelKey)));
           holder.appendChild(section.body);
         } else {
           var label = t(section.labelKey);
@@ -4130,6 +4135,7 @@ GridEditor.locales = {
     "panel.done": "Done",
     "panel.id": "Id",
     "panel.classes": "Classes",
+    "panel.section_general": "Id and classes",
     "panel.kind_row": "Row",
     "panel.kind_column": "Column",
     "panel.kind_element": "Element",

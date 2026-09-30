@@ -1,12 +1,12 @@
 /**
- * Flex, a part of the style plugin: a flex container's direction, wrap,
+ * Flex, a part of the inline-style plugin: a flex container's direction, wrap,
  * alignment and gaps, and how its children grow, shrink and fill, per
  * breakpoint, with Bootstrap's flex-{breakpoint}-*, justify-content-*,
  * align-items-*, align-content-*, gap-* and row-/column-gap-* classes.
  *
  * Its families, and whatever it does on the canvas, as a function of the
  * handle and the spacing options, whose scale the gaps share:
- * grideditor.style.js puts them in its Flex section.
+ * grideditor.inline-style.js puts them in its Flex section.
  */
 import { GridEditor } from '../grideditor.js';
 

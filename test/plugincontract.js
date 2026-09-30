@@ -145,7 +145,7 @@ async function run(t) {
     var plugins = exercised.handles.map(function(handle) { return handle.plugin; }).sort();
     t.check('every plugin the fixture loads was made with a handle',
         ['accordion', 'alignment', 'card', 'ckeditor', 'clipboard', 'codemirror', 'codemirror-inline', 'elements',
-            'gutters', 'order', 'popup', 'sections', 'style', 'summernote', 'tabs', 'text', 'tinymce']
+            'gutters', 'inline-style', 'order', 'popup', 'sections', 'summernote', 'tabs', 'text', 'tinymce']
             .every(function(name) { return plugins.indexOf(name) !== -1; }),
         plugins);
     t.check('the handle gives elements: the canvas, a tool, a region, a row; an array of toolbar items; null for no panel or drawer',

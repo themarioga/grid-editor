@@ -527,7 +527,7 @@ async function utilityTests(t) {
     await page.eval(SETUP);
 
     var aligned = await page.eval(`
-        restart({ plugins: window.fixture.plugins(['style']) });
+        restart({ plugins: window.fixture.plugins(['inline-style']) });
         const area = firstArea();
         const field = area.parentElement.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="text-align"]').length;
         const written = ge().setUtility(area, 'text-align', 'center', 'all');

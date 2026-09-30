@@ -1,11 +1,11 @@
 /**
- * Browser tests for the style plugin's flex: a flex container's direction,
+ * Browser tests for the inline-style plugin's flex: a flex container's direction,
  * wrap, alignment and gaps, and how its children grow, shrink and fill, per
  * breakpoint.
  *
  * The part is families and their previews, so that is what is tested: which
  * class a choice writes, that families sharing the flex prefix keep apart,
- * and what each view shows. Which node gets which field is test/style.js;
+ * and what each view shows. Which node gets which field is test/inlinestyle.js;
  * the engine underneath is test/utilities.js.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
@@ -29,7 +29,7 @@ var HELPERS = `
     };
     /** Choose a value in a node's field, the way the user does. */
     window.choose = function(node, family, value) {
-        const select = node.querySelector(':scope > .ge-tools-drawer [data-ge-style-section="flex"] .ge-utility[data-ge-family="' + family + '"] select');
+        const select = node.querySelector(':scope > .ge-tools-drawer [data-ge-inline-style-section="flex"] .ge-utility[data-ge-family="' + family + '"] select');
         select.value = value;
         select.dispatchEvent(new Event('change', { bubbles: true }));
     };
@@ -38,7 +38,7 @@ var HELPERS = `
         window.log = [];
         document.querySelector('#myGrid').innerHTML = '<div class="row"><div class="column col-6 ' + colClasses + '">' +
             '<div class="ge-content"><p>a</p></div><div class="ge-content"><p>b</p></div></div></div>';
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style']) }, settings || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['inline-style']) }, settings || {}));
     };
 `;
 
@@ -85,7 +85,7 @@ async function previews(t, page) {
         ge().changeView('md');
         choose(col(), 'gap', '3');
         const md = { classes: flexClasses(col()), gap: col().style.getPropertyValue('gap'), computed: getComputedStyle(col()).rowGap };
-        start('d-md-flex', { style: { spacing: { scale: ['0', '.25rem', '.5rem', '2rem', '1.5rem', '3rem'] } } });
+        start('d-md-flex', { inline_style: { spacing: { scale: ['0', '.25rem', '.5rem', '2rem', '1.5rem', '3rem'] } } });
         ge().changeView('md');
         choose(col(), 'gap', '3');
         return { md: md, scaled: col().style.getPropertyValue('gap') };
@@ -118,7 +118,7 @@ async function previews(t, page) {
 
 module.exports = {
     name: 'flex',
-    description: 'the style plugin\'s flex families',
+    description: 'the inline-style plugin\'s flex families',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

@@ -1,7 +1,7 @@
-// src/js/plugins/grideditor.style.js
+// src/js/plugins/grideditor.inline-style.js
 import { GridEditor as GridEditor7 } from "../grideditor.esm.js";
 
-// src/js/style/spacing.js
+// src/js/inline-style/spacing.js
 import { GridEditor } from "../grideditor.esm.js";
 
 // src/js/dom.js
@@ -127,7 +127,7 @@ function visible(node) {
   return !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
 }
 
-// src/js/style/spacing.js
+// src/js/inline-style/spacing.js
 Object.assign(GridEditor.locales.en, {
   "utility.padding": "Padding",
   "utility.margin": "Margin",
@@ -354,7 +354,7 @@ function spacingPart(ge, given) {
   };
 }
 
-// src/js/style/textalign.js
+// src/js/inline-style/textalign.js
 import { GridEditor as GridEditor2 } from "../grideditor.esm.js";
 Object.assign(GridEditor2.locales.en, {
   "utility.text_align": "Text alignment",
@@ -395,7 +395,7 @@ function textalignPart(ge) {
   };
 }
 
-// src/js/style/display.js
+// src/js/inline-style/display.js
 import { GridEditor as GridEditor3 } from "../grideditor.esm.js";
 Object.assign(GridEditor3.locales.en, {
   "utility.display": "Display",
@@ -548,7 +548,7 @@ function displayPart(ge, given) {
   };
 }
 
-// src/js/style/flex.js
+// src/js/inline-style/flex.js
 import { GridEditor as GridEditor4 } from "../grideditor.esm.js";
 Object.assign(GridEditor4.locales.en, {
   "utility.flex_direction": "Direction",
@@ -684,7 +684,7 @@ function flexPart(ge, spacing2) {
   };
 }
 
-// src/js/style/float.js
+// src/js/inline-style/float.js
 import { GridEditor as GridEditor5 } from "../grideditor.esm.js";
 Object.assign(GridEditor5.locales.en, {
   "utility.float": "Float",
@@ -719,7 +719,7 @@ function floatPart(ge) {
   };
 }
 
-// src/js/style/sticky.js
+// src/js/inline-style/sticky.js
 import { GridEditor as GridEditor6 } from "../grideditor.esm.js";
 Object.assign(GridEditor6.locales.en, {
   "utility.sticky": "Sticky"
@@ -748,7 +748,7 @@ function stickyPart(ge) {
   };
 }
 
-// src/js/style/drawerflow.js
+// src/js/inline-style/drawerflow.js
 var NODES2 = ".row, .column, .ge-element, [data-ge-container]";
 var OUT_CLASS = "ge-drawer-out";
 var OUT_ATTR = "data-ge-drawer-out";
@@ -842,7 +842,7 @@ function drawerflowPart(ge) {
   };
 }
 
-// src/js/style/sections.js
+// src/js/inline-style/sections.js
 var COLORS = ["primary", "secondary", "success", "danger", "warning", "info", "light", "dark"];
 var SIDES2 = ["top", "end", "bottom", "start"];
 var OPACITIES = ["10", "25", "50", "75", "100"];
@@ -868,14 +868,14 @@ var ONLY_ON_ELEMENT = ["element"];
 var SECTIONS = [
   {
     key: "size",
-    labelKey: "style.section_size",
+    labelKey: "inline_style.section_size",
     properties: [
-      prop("width", { labelKey: "style.prop_width", notOn: NOT_ON_COLUMN }),
-      prop("height", { labelKey: "style.prop_height", notOn: NOT_ON_COLUMN }),
-      prop("min-width", { labelKey: "style.prop_min_width" }),
-      prop("min-height", { labelKey: "style.prop_min_height" }),
-      prop("max-width", { labelKey: "style.prop_max_width" }),
-      prop("max-height", { labelKey: "style.prop_max_height" })
+      prop("width", { labelKey: "inline_style.prop_width", notOn: NOT_ON_COLUMN }),
+      prop("height", { labelKey: "inline_style.prop_height", notOn: NOT_ON_COLUMN }),
+      prop("min-width", { labelKey: "inline_style.prop_min_width" }),
+      prop("min-height", { labelKey: "inline_style.prop_min_height" }),
+      prop("max-width", { labelKey: "inline_style.prop_max_width" }),
+      prop("max-height", { labelKey: "inline_style.prop_max_height" })
     ],
     catalog: [
       group(each("w-", ["25", "50", "75", "100", "auto"]), true, NOT_ON_COLUMN),
@@ -888,29 +888,29 @@ var SECTIONS = [
   },
   {
     key: "spacing",
-    labelKey: "style.section_spacing",
+    labelKey: "inline_style.section_spacing",
     properties: [
-      prop("margin-top", { labelKey: "style.prop_margin_top" }),
-      prop("margin-right", { labelKey: "style.prop_margin_right" }),
-      prop("margin-bottom", { labelKey: "style.prop_margin_bottom" }),
-      prop("margin-left", { labelKey: "style.prop_margin_left" }),
-      prop("padding-top", { labelKey: "style.prop_padding_top" }),
-      prop("padding-right", { labelKey: "style.prop_padding_right" }),
-      prop("padding-bottom", { labelKey: "style.prop_padding_bottom" }),
-      prop("padding-left", { labelKey: "style.prop_padding_left" })
+      prop("margin-top", { labelKey: "inline_style.prop_margin_top" }),
+      prop("margin-right", { labelKey: "inline_style.prop_margin_right" }),
+      prop("margin-bottom", { labelKey: "inline_style.prop_margin_bottom" }),
+      prop("margin-left", { labelKey: "inline_style.prop_margin_left" }),
+      prop("padding-top", { labelKey: "inline_style.prop_padding_top" }),
+      prop("padding-right", { labelKey: "inline_style.prop_padding_right" }),
+      prop("padding-bottom", { labelKey: "inline_style.prop_padding_bottom" }),
+      prop("padding-left", { labelKey: "inline_style.prop_padding_left" })
     ],
     catalog: [],
     parts: ["spacing"]
   },
   {
     key: "border",
-    labelKey: "style.section_border",
+    labelKey: "inline_style.section_border",
     properties: [
-      prop("border-width", { labelKey: "style.prop_border_width" }),
-      prop("border-style", { labelKey: "style.prop_border_style", type: "select", values: ["none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"] }),
-      prop("border-color", { labelKey: "style.prop_border_color", type: "color" }),
-      prop("border-radius", { labelKey: "style.prop_border_radius" }),
-      prop("box-shadow", { labelKey: "style.prop_box_shadow", type: "shadow" })
+      prop("border-width", { labelKey: "inline_style.prop_border_width" }),
+      prop("border-style", { labelKey: "inline_style.prop_border_style", type: "select", values: ["none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"] }),
+      prop("border-color", { labelKey: "inline_style.prop_border_color", type: "color" }),
+      prop("border-radius", { labelKey: "inline_style.prop_border_radius" }),
+      prop("box-shadow", { labelKey: "inline_style.prop_box_shadow", type: "shadow" })
     ],
     catalog: [
       group(["border", "border-0"].concat(each("border-", SIDES2), each("border-", SIDES2, "-0")), false),
@@ -925,13 +925,13 @@ var SECTIONS = [
   },
   {
     key: "background",
-    labelKey: "style.section_background",
+    labelKey: "inline_style.section_background",
     properties: [
-      prop("background-color", { labelKey: "style.prop_background_color", type: "color" }),
-      prop("background-image", { labelKey: "style.prop_background_image", type: "url" }),
-      prop("background-size", { labelKey: "style.prop_background_size" }),
-      prop("background-position", { labelKey: "style.prop_background_position" }),
-      prop("background-repeat", { labelKey: "style.prop_background_repeat", type: "select", values: ["repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round"] })
+      prop("background-color", { labelKey: "inline_style.prop_background_color", type: "color" }),
+      prop("background-image", { labelKey: "inline_style.prop_background_image", type: "url" }),
+      prop("background-size", { labelKey: "inline_style.prop_background_size" }),
+      prop("background-position", { labelKey: "inline_style.prop_background_position" }),
+      prop("background-repeat", { labelKey: "inline_style.prop_background_repeat", type: "select", values: ["repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round"] })
     ],
     catalog: [
       group(each("bg-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black", "transparent"])).concat(each("bg-", COLORS, "-subtle"), each("text-bg-", COLORS))),
@@ -942,12 +942,12 @@ var SECTIONS = [
   },
   {
     key: "text",
-    labelKey: "style.section_text",
+    labelKey: "inline_style.section_text",
     properties: [
-      prop("color", { labelKey: "style.prop_color", type: "color" }),
-      prop("font-size", { labelKey: "style.prop_font_size" }),
-      prop("text-align", { labelKey: "style.prop_text_align", type: "select", values: ["start", "center", "end", "left", "right", "justify"] }),
-      prop("text-shadow", { labelKey: "style.prop_text_shadow", type: "shadow" })
+      prop("color", { labelKey: "inline_style.prop_color", type: "color" }),
+      prop("font-size", { labelKey: "inline_style.prop_font_size" }),
+      prop("text-align", { labelKey: "inline_style.prop_text_align", type: "select", values: ["start", "center", "end", "left", "right", "justify"] }),
+      prop("text-shadow", { labelKey: "inline_style.prop_text_shadow", type: "shadow" })
     ],
     catalog: [
       group(each("text-", COLORS.concat(["body", "body-secondary", "body-tertiary", "white", "black"])).concat(each("text-", COLORS, "-emphasis"), ["text-body-emphasis"])),
@@ -959,15 +959,15 @@ var SECTIONS = [
   },
   {
     key: "typography",
-    labelKey: "style.section_typography",
+    labelKey: "inline_style.section_typography",
     properties: [
-      prop("font-family", { labelKey: "style.prop_font_family" }),
-      prop("font-weight", { labelKey: "style.prop_font_weight", type: "select", values: ["100", "200", "300", "400", "500", "600", "700", "800", "900", "normal", "bold", "lighter", "bolder"] }),
-      prop("font-style", { labelKey: "style.prop_font_style", type: "select", values: ["normal", "italic", "oblique"] }),
-      prop("line-height", { labelKey: "style.prop_line_height" }),
-      prop("letter-spacing", { labelKey: "style.prop_letter_spacing" }),
-      prop("text-transform", { labelKey: "style.prop_text_transform", type: "select", values: ["none", "uppercase", "lowercase", "capitalize"] }),
-      prop("text-decoration", { labelKey: "style.prop_text_decoration", type: "select", values: ["none", "underline", "line-through", "overline"] })
+      prop("font-family", { labelKey: "inline_style.prop_font_family" }),
+      prop("font-weight", { labelKey: "inline_style.prop_font_weight", type: "select", values: ["100", "200", "300", "400", "500", "600", "700", "800", "900", "normal", "bold", "lighter", "bolder"] }),
+      prop("font-style", { labelKey: "inline_style.prop_font_style", type: "select", values: ["normal", "italic", "oblique"] }),
+      prop("line-height", { labelKey: "inline_style.prop_line_height" }),
+      prop("letter-spacing", { labelKey: "inline_style.prop_letter_spacing" }),
+      prop("text-transform", { labelKey: "inline_style.prop_text_transform", type: "select", values: ["none", "uppercase", "lowercase", "capitalize"] }),
+      prop("text-decoration", { labelKey: "inline_style.prop_text_decoration", type: "select", values: ["none", "underline", "line-through", "overline"] })
     ],
     catalog: [
       group(each("fw-", ["lighter", "light", "normal", "medium", "semibold", "bold", "bolder"])),
@@ -982,12 +982,12 @@ var SECTIONS = [
   },
   {
     key: "display",
-    labelKey: "style.section_display",
+    labelKey: "inline_style.section_display",
     properties: [
-      prop("display", { labelKey: "style.prop_display", type: "select", values: ["none", "block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid"] }),
-      prop("opacity", { labelKey: "style.prop_opacity" }),
-      prop("overflow", { labelKey: "style.prop_overflow", type: "select", values: ["visible", "hidden", "auto", "scroll", "clip"] }),
-      prop("visibility", { labelKey: "style.prop_visibility", type: "select", values: ["visible", "hidden"] })
+      prop("display", { labelKey: "inline_style.prop_display", type: "select", values: ["none", "block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid"] }),
+      prop("opacity", { labelKey: "inline_style.prop_opacity" }),
+      prop("overflow", { labelKey: "inline_style.prop_overflow", type: "select", values: ["visible", "hidden", "auto", "scroll", "clip"] }),
+      prop("visibility", { labelKey: "inline_style.prop_visibility", type: "select", values: ["visible", "hidden"] })
     ],
     catalog: [
       group(each("opacity-", ["0", "25", "50", "75", "100"])),
@@ -998,7 +998,7 @@ var SECTIONS = [
   },
   {
     key: "flex",
-    labelKey: "style.section_flex",
+    labelKey: "inline_style.section_flex",
     properties: [],
     catalog: [
       group(["vstack", "hstack"], true, ["row"])
@@ -1007,14 +1007,14 @@ var SECTIONS = [
   },
   {
     key: "position",
-    labelKey: "style.section_position",
+    labelKey: "inline_style.section_position",
     properties: [
-      prop("position", { labelKey: "style.prop_position", type: "select", values: ["static", "relative", "absolute", "fixed", "sticky"] }),
-      prop("top", { labelKey: "style.prop_top", notOn: NOT_ON_COLUMN }),
-      prop("right", { labelKey: "style.prop_right", notOn: NOT_ON_COLUMN }),
-      prop("bottom", { labelKey: "style.prop_bottom", notOn: NOT_ON_COLUMN }),
-      prop("left", { labelKey: "style.prop_left", notOn: NOT_ON_COLUMN }),
-      prop("z-index", { labelKey: "style.prop_z_index" })
+      prop("position", { labelKey: "inline_style.prop_position", type: "select", values: ["static", "relative", "absolute", "fixed", "sticky"] }),
+      prop("top", { labelKey: "inline_style.prop_top", notOn: NOT_ON_COLUMN }),
+      prop("right", { labelKey: "inline_style.prop_right", notOn: NOT_ON_COLUMN }),
+      prop("bottom", { labelKey: "inline_style.prop_bottom", notOn: NOT_ON_COLUMN }),
+      prop("left", { labelKey: "inline_style.prop_left", notOn: NOT_ON_COLUMN }),
+      prop("z-index", { labelKey: "inline_style.prop_z_index" })
     ],
     catalog: [
       group(each("position-", ["static", "relative", "absolute", "fixed", "sticky"])),
@@ -1030,7 +1030,7 @@ var SECTIONS = [
   },
   {
     key: "custom",
-    labelKey: "style.section_custom",
+    labelKey: "inline_style.section_custom",
     properties: [],
     catalog: [],
     parts: [],
@@ -1114,12 +1114,12 @@ function overriding(property, classes) {
   })[0] || null;
 }
 
-// src/js/style/options.js
+// src/js/inline-style/options.js
 function resolveSections(ge, given) {
   var resolved = {};
   Object.keys(given || {}).forEach(function(key) {
     if (!section(key)) {
-      ge.warn('style.sections: there is no "' + key + '" section: ignored');
+      ge.warn('inline_style.sections: there is no "' + key + '" section: ignored');
     }
   });
   SECTIONS.forEach(function(each2) {
@@ -1136,7 +1136,7 @@ function resolveSections(ge, given) {
       if (Array.isArray(option.properties)) {
         option.properties.forEach(function(name) {
           if (own.indexOf(name) === -1) {
-            ge.warn("style.sections." + each2.key + ': "' + name + '" is not one of its properties: ignored');
+            ge.warn("inline_style.sections." + each2.key + ': "' + name + '" is not one of its properties: ignored');
           }
         });
         properties = option.properties.filter(function(name) {
@@ -1154,7 +1154,7 @@ function resolveSections(ge, given) {
   return resolved;
 }
 function resolveOptions(ge) {
-  var style = ge.settings.style || {};
+  var style = ge.settings.inline_style || {};
   return {
     sections: resolveSections(ge, style.sections),
     spacing: style.spacing,
@@ -1162,7 +1162,7 @@ function resolveOptions(ge) {
   };
 }
 
-// src/js/style/fields.js
+// src/js/inline-style/fields.js
 var renderers = /* @__PURE__ */ new WeakMap();
 var fieldCounter = 0;
 function classesOf(node) {
@@ -1183,7 +1183,7 @@ function mark(input, ok, ge) {
   if (ok) {
     input.removeAttribute("title");
   } else {
-    input.setAttribute("title", ge.t("style.invalid"));
+    input.setAttribute("title", ge.t("inline_style.invalid"));
   }
 }
 function fill(input, value) {
@@ -1209,7 +1209,7 @@ function pickable(value) {
   return "#" + hex.toLowerCase();
 }
 function colorControl(onValue) {
-  var box = element("div", { "class": "input-group input-group-sm ge-style-color" });
+  var box = element("div", { "class": "input-group input-group-sm ge-inline-style-color" });
   var picker = box.appendChild(element("input", { type: "color", "class": "form-control form-control-color" }));
   var text = box.appendChild(textInput());
   picker.addEventListener("input", function() {
@@ -1281,10 +1281,10 @@ function tokens(value) {
 }
 var LENGTH = /^-?(?:\d*\.)?\d+(?:[a-z%]+)?$/i;
 var SHADOW_PARTS = [
-  { name: "x", labelKey: "style.shadow_x" },
-  { name: "y", labelKey: "style.shadow_y" },
-  { name: "blur", labelKey: "style.shadow_blur" },
-  { name: "spread", labelKey: "style.shadow_spread" }
+  { name: "x", labelKey: "inline_style.shadow_x" },
+  { name: "y", labelKey: "inline_style.shadow_y" },
+  { name: "blur", labelKey: "inline_style.shadow_blur" },
+  { name: "spread", labelKey: "inline_style.shadow_spread" }
 ];
 function parseShadow(value, box) {
   value = value.trim();
@@ -1336,7 +1336,7 @@ function composeShadow(parts, box) {
 }
 function shadowControl(ge, node, property, changed) {
   var box = property === "box-shadow";
-  var holder = element("div", { "class": "ge-style-shadow" });
+  var holder = element("div", { "class": "ge-inline-style-shadow" });
   var textMode = false;
   function writeValue(value, input) {
     var ok = write(ge, node, property, value);
@@ -1348,17 +1348,17 @@ function shadowControl(ge, node, property, changed) {
   }
   function builder(parts) {
     holder.innerHTML = "";
-    var grid = holder.appendChild(element("div", { "class": "ge-style-shadow-builder" }));
+    var grid = holder.appendChild(element("div", { "class": "ge-inline-style-shadow-builder" }));
     var names = box ? SHADOW_PARTS : SHADOW_PARTS.slice(0, 3);
     var inputs = names.map(function(part, i) {
-      var cell = grid.appendChild(element("label", { "class": "ge-style-shadow-part" }));
-      cell.appendChild(element("span", { "class": "ge-style-shadow-label" }, ge.t(part.labelKey)));
-      var input = cell.appendChild(textInput("ge-style-shadow-" + part.name));
+      var cell = grid.appendChild(element("label", { "class": "ge-inline-style-shadow-part" }));
+      cell.appendChild(element("span", { "class": "ge-inline-style-shadow-label" }, ge.t(part.labelKey)));
+      var input = cell.appendChild(textInput("ge-inline-style-shadow-" + part.name));
       input.value = parts.lengths[i] || "";
       return input;
     });
-    var colorCell = grid.appendChild(element("label", { "class": "ge-style-shadow-part ge-style-shadow-color" }));
-    colorCell.appendChild(element("span", { "class": "ge-style-shadow-label" }, ge.t("style.shadow_color")));
+    var colorCell = grid.appendChild(element("label", { "class": "ge-inline-style-shadow-part ge-inline-style-shadow-color" }));
+    colorCell.appendChild(element("span", { "class": "ge-inline-style-shadow-label" }, ge.t("inline_style.shadow_color")));
     var color = colorControl(function() {
       update();
     });
@@ -1366,9 +1366,9 @@ function shadowControl(ge, node, property, changed) {
     color.set(parts.color);
     var inset = null;
     if (box) {
-      var insetCell = grid.appendChild(element("label", { "class": "form-check ge-style-shadow-inset" }));
+      var insetCell = grid.appendChild(element("label", { "class": "form-check ge-inline-style-shadow-inset" }));
       inset = insetCell.appendChild(element("input", { type: "checkbox", "class": "form-check-input" }));
-      insetCell.appendChild(element("span", { "class": "form-check-label" }, ge.t("style.shadow_inset")));
+      insetCell.appendChild(element("span", { "class": "form-check-label" }, ge.t("inline_style.shadow_inset")));
       inset.checked = parts.inset;
       inset.addEventListener("change", function() {
         update();
@@ -1379,7 +1379,7 @@ function shadowControl(ge, node, property, changed) {
         update();
       });
     });
-    var toText = holder.appendChild(element("a", { href: "#", "class": "ge-style-shadow-mode" }, ge.t("style.shadow_text_mode")));
+    var toText = holder.appendChild(element("a", { href: "#", "class": "ge-inline-style-shadow-mode" }, ge.t("inline_style.shadow_text_mode")));
     toText.addEventListener("click", function(e) {
       e.preventDefault();
       textMode = true;
@@ -1398,7 +1398,7 @@ function shadowControl(ge, node, property, changed) {
   }
   function text(value) {
     holder.innerHTML = "";
-    var input = holder.appendChild(textInput("ge-style-shadow-text"));
+    var input = holder.appendChild(textInput("ge-inline-style-shadow-text"));
     input.value = value;
     input.addEventListener("change", function() {
       if (input.value.trim() === "") {
@@ -1418,7 +1418,7 @@ function shadowControl(ge, node, property, changed) {
     }
     var value = ge.hostStyle(node, property).value;
     var parts = parseShadow(value, box);
-    if (value === shown && holder.firstChild && textMode === !!holder.querySelector(".ge-style-shadow-text")) {
+    if (value === shown && holder.firstChild && textMode === !!holder.querySelector(".ge-inline-style-shadow-text")) {
       return;
     }
     shown = value;
@@ -1434,8 +1434,8 @@ function shadowControl(ge, node, property, changed) {
   } };
 }
 function createStyleField(ge, node, property, changed) {
-  var field = element("div", { "class": "ge-style-field", "data-ge-style-property": property.name });
-  var label = field.appendChild(element("label", { "class": "ge-style-label" }, ge.t(property.labelKey)));
+  var field = element("div", { "class": "ge-inline-style-field", "data-ge-inline-style-property": property.name });
+  var label = field.appendChild(element("label", { "class": "ge-inline-style-label" }, ge.t(property.labelKey)));
   var render;
   function current() {
     return ge.hostStyle(node, property.name).value;
@@ -1496,15 +1496,15 @@ function createStyleField(ge, node, property, changed) {
   }
   var control = field.querySelector("input, select");
   if (control) {
-    control.id = "ge-style-field-" + ++fieldCounter;
+    control.id = "ge-inline-style-field-" + ++fieldCounter;
     label.setAttribute("for", control.id);
   }
-  field.appendChild(element("small", { "class": "ge-style-note ge-style-overridden" }));
+  field.appendChild(element("small", { "class": "ge-inline-style-note ge-inline-style-overridden" }));
   renderers.set(field, function() {
     render();
     var winner = current() ? overriding(property.name, classesOf(node)) : null;
-    var note = child(field, ".ge-style-overridden");
-    note.textContent = winner ? ge.t("style.overridden", { "class": winner }) : "";
+    var note = child(field, ".ge-inline-style-overridden");
+    note.textContent = winner ? ge.t("inline_style.overridden", { "class": winner }) : "";
     toggle(note, !!winner);
   });
   renderStyleField(field);
@@ -1517,7 +1517,7 @@ function renderStyleField(field) {
   }
 }
 
-// src/js/style/catalog.js
+// src/js/inline-style/catalog.js
 function classesOf2(node) {
   return (node.getAttribute("class") || "").split(/\s+/).filter(Boolean);
 }
@@ -1547,14 +1547,14 @@ function createCatalog(ge, node, kind, groups) {
   if (!offered.length) {
     return null;
   }
-  var box = element("div", { "class": "ge-style-catalog" });
-  box.appendChild(element("span", { "class": "ge-style-label" }, ge.t("style.catalog")));
+  var box = element("div", { "class": "ge-inline-style-catalog" });
+  box.appendChild(element("span", { "class": "ge-inline-style-label" }, ge.t("inline_style.catalog")));
   offered.forEach(function(group2) {
-    var row = box.appendChild(element("div", { "class": "ge-style-chips" }));
+    var row = box.appendChild(element("div", { "class": "ge-inline-style-chips" }));
     group2.classes.forEach(function(name) {
       var chip = row.appendChild(element("button", {
         type: "button",
-        "class": "btn btn-sm btn-outline-secondary ge-style-chip",
+        "class": "btn btn-sm btn-outline-secondary ge-inline-style-chip",
         "data-ge-class": name,
         "aria-pressed": "false"
       }, name));
@@ -1568,14 +1568,14 @@ function createCatalog(ge, node, kind, groups) {
 }
 function renderCatalog(box, node) {
   var classes = classesOf2(node);
-  all(box, ".ge-style-chip").forEach(function(chip) {
+  all(box, ".ge-inline-style-chip").forEach(function(chip) {
     var on = classes.indexOf(chip.getAttribute("data-ge-class")) !== -1;
     toggleClass(chip, "active", on);
     chip.setAttribute("aria-pressed", on ? "true" : "false");
   });
 }
 
-// src/js/style/custom.js
+// src/js/inline-style/custom.js
 function longhands(property) {
   var probe = document.createElement("div").style;
   var list = [];
@@ -1597,12 +1597,12 @@ function createCustom(ge, node, properties, changed) {
       covered[longhand] = true;
     });
   });
-  var box = element("div", { "class": "ge-style-custom" });
+  var box = element("div", { "class": "ge-inline-style-custom" });
   var textarea = box.appendChild(element("textarea", {
-    "class": "form-control form-control-sm font-monospace ge-style-custom-css",
+    "class": "form-control form-control-sm font-monospace ge-inline-style-custom-css",
     rows: "4",
     spellcheck: "false",
-    "aria-label": ge.t("style.section_custom")
+    "aria-label": ge.t("inline_style.section_custom")
   }));
   function free() {
     var style = declaration(ge.hostStyle(node));
@@ -1640,7 +1640,7 @@ function createCustom(ge, node, properties, changed) {
   return { element: box, render };
 }
 
-// src/js/style/accordion.js
+// src/js/inline-style/accordion.js
 function takesInlineStyle(node, kind) {
   if (kind === "row" || kind === "column" || kind === "element" || kind === "section") {
     return true;
@@ -1671,7 +1671,7 @@ function partContent(ge, part, node, kind) {
   if (fields.length < 2) {
     return fields[0] || null;
   }
-  var box = element("div", { "class": "ge-style-part-fields" });
+  var box = element("div", { "class": "ge-inline-style-part-fields" });
   fields.forEach(function(field) {
     box.appendChild(field);
   });
@@ -1679,7 +1679,7 @@ function partContent(ge, part, node, kind) {
 }
 function createAccordion(ge, node, kind, context) {
   var inline = takesInlineStyle(node, kind);
-  var accordion = element("div", { "class": "accordion ge-style" });
+  var accordion = element("div", { "class": "accordion ge-inline-style" });
   var fields = [];
   var catalogs = [];
   var notes = [];
@@ -1689,7 +1689,7 @@ function createAccordion(ge, node, kind, context) {
     render();
   };
   function item(key, labelKey) {
-    var entry = accordion.appendChild(element("div", { "class": "accordion-item", "data-ge-style-section": key }));
+    var entry = accordion.appendChild(element("div", { "class": "accordion-item", "data-ge-inline-style-section": key }));
     var header = entry.appendChild(element("h2", { "class": "accordion-header" }));
     var button = header.appendChild(element("button", {
       type: "button",
@@ -1732,12 +1732,12 @@ function createAccordion(ge, node, kind, context) {
     }
     var body = item(key, section2.labelKey).body;
     parts.forEach(function(part) {
-      body.appendChild(addClass(part, "ge-style-part"));
+      body.appendChild(addClass(part, "ge-inline-style-part"));
     });
     if (properties.length) {
-      var note = body.appendChild(element("small", { "class": "ge-style-note ge-style-all-sizes" }, ge.t("style.all_sizes")));
+      var note = body.appendChild(element("small", { "class": "ge-inline-style-note ge-inline-style-all-sizes" }, ge.t("inline_style.all_sizes")));
       notes.push(note);
-      var grid = body.appendChild(element("div", { "class": "ge-style-fields" }));
+      var grid = body.appendChild(element("div", { "class": "ge-inline-style-fields" }));
       properties.forEach(function(property) {
         var field = createStyleField(ge, node, property, changed);
         fields.push(field);
@@ -1751,7 +1751,7 @@ function createAccordion(ge, node, kind, context) {
   });
   if (customItem) {
     custom = createCustom(ge, node, fields.map(function(field) {
-      return field.getAttribute("data-ge-style-property");
+      return field.getAttribute("data-ge-inline-style-property");
     }), changed);
     customItem.body.appendChild(custom.element);
     accordion.appendChild(customItem.entry);
@@ -1761,7 +1761,7 @@ function createAccordion(ge, node, kind, context) {
   }
   function open(key) {
     all(accordion, ".accordion-item").forEach(function(entry) {
-      toggle2(entry, entry.getAttribute("data-ge-style-section") === key);
+      toggle2(entry, entry.getAttribute("data-ge-inline-style-section") === key);
     });
   }
   open(context.state.open);
@@ -1781,79 +1781,79 @@ function createAccordion(ge, node, kind, context) {
   return { element: accordion, render, open };
 }
 
-// src/js/plugins/grideditor.style.js
+// src/js/plugins/grideditor.inline-style.js
 Object.assign(GridEditor7.locales.en, {
-  "style.section_title": "Style",
-  "style.dialog_title": "Style: {kind}",
-  "style.section_size": "Size",
-  "style.section_spacing": "Spacing",
-  "style.section_border": "Border",
-  "style.section_background": "Background",
-  "style.section_text": "Text",
-  "style.section_typography": "Typography",
-  "style.section_display": "Display",
-  "style.section_flex": "Flex",
-  "style.section_position": "Position",
-  "style.section_custom": "Custom css",
-  "style.all_sizes": "Applies to every size",
-  "style.overridden": "The class {class} takes priority over this value",
-  "style.invalid": "Not a value this property takes",
-  "style.catalog": "Bootstrap classes",
-  "style.shadow_x": "X",
-  "style.shadow_y": "Y",
-  "style.shadow_blur": "Blur",
-  "style.shadow_spread": "Spread",
-  "style.shadow_color": "Color",
-  "style.shadow_inset": "Inset",
-  "style.shadow_text_mode": "Edit as text",
-  "style.prop_width": "Width",
-  "style.prop_height": "Height",
-  "style.prop_min_width": "Min width",
-  "style.prop_min_height": "Min height",
-  "style.prop_max_width": "Max width",
-  "style.prop_max_height": "Max height",
-  "style.prop_margin_top": "Margin top",
-  "style.prop_margin_right": "Margin right",
-  "style.prop_margin_bottom": "Margin bottom",
-  "style.prop_margin_left": "Margin left",
-  "style.prop_padding_top": "Padding top",
-  "style.prop_padding_right": "Padding right",
-  "style.prop_padding_bottom": "Padding bottom",
-  "style.prop_padding_left": "Padding left",
-  "style.prop_border_width": "Border width",
-  "style.prop_border_style": "Border style",
-  "style.prop_border_color": "Border color",
-  "style.prop_border_radius": "Border radius",
-  "style.prop_box_shadow": "Shadow",
-  "style.prop_background_color": "Background color",
-  "style.prop_background_image": "Background image",
-  "style.prop_background_size": "Background size",
-  "style.prop_background_position": "Background position",
-  "style.prop_background_repeat": "Background repeat",
-  "style.prop_color": "Color",
-  "style.prop_font_size": "Font size",
-  "style.prop_text_align": "Text align",
-  "style.prop_text_shadow": "Text shadow",
-  "style.prop_font_family": "Font family",
-  "style.prop_font_weight": "Font weight",
-  "style.prop_font_style": "Font style",
-  "style.prop_line_height": "Line height",
-  "style.prop_letter_spacing": "Letter spacing",
-  "style.prop_text_transform": "Text transform",
-  "style.prop_text_decoration": "Text decoration",
-  "style.prop_display": "Display",
-  "style.prop_opacity": "Opacity",
-  "style.prop_overflow": "Overflow",
-  "style.prop_visibility": "Visibility",
-  "style.prop_position": "Position",
-  "style.prop_top": "Top",
-  "style.prop_right": "Right",
-  "style.prop_bottom": "Bottom",
-  "style.prop_left": "Left",
-  "style.prop_z_index": "Z-index"
+  "inline_style.section_title": "Style",
+  "inline_style.dialog_title": "Style: {kind}",
+  "inline_style.section_size": "Size",
+  "inline_style.section_spacing": "Spacing",
+  "inline_style.section_border": "Border",
+  "inline_style.section_background": "Background",
+  "inline_style.section_text": "Text",
+  "inline_style.section_typography": "Typography",
+  "inline_style.section_display": "Display",
+  "inline_style.section_flex": "Flex",
+  "inline_style.section_position": "Position",
+  "inline_style.section_custom": "Custom css",
+  "inline_style.all_sizes": "Applies to every size",
+  "inline_style.overridden": "The class {class} takes priority over this value",
+  "inline_style.invalid": "Not a value this property takes",
+  "inline_style.catalog": "Bootstrap classes",
+  "inline_style.shadow_x": "X",
+  "inline_style.shadow_y": "Y",
+  "inline_style.shadow_blur": "Blur",
+  "inline_style.shadow_spread": "Spread",
+  "inline_style.shadow_color": "Color",
+  "inline_style.shadow_inset": "Inset",
+  "inline_style.shadow_text_mode": "Edit as text",
+  "inline_style.prop_width": "Width",
+  "inline_style.prop_height": "Height",
+  "inline_style.prop_min_width": "Min width",
+  "inline_style.prop_min_height": "Min height",
+  "inline_style.prop_max_width": "Max width",
+  "inline_style.prop_max_height": "Max height",
+  "inline_style.prop_margin_top": "Margin top",
+  "inline_style.prop_margin_right": "Margin right",
+  "inline_style.prop_margin_bottom": "Margin bottom",
+  "inline_style.prop_margin_left": "Margin left",
+  "inline_style.prop_padding_top": "Padding top",
+  "inline_style.prop_padding_right": "Padding right",
+  "inline_style.prop_padding_bottom": "Padding bottom",
+  "inline_style.prop_padding_left": "Padding left",
+  "inline_style.prop_border_width": "Border width",
+  "inline_style.prop_border_style": "Border style",
+  "inline_style.prop_border_color": "Border color",
+  "inline_style.prop_border_radius": "Border radius",
+  "inline_style.prop_box_shadow": "Shadow",
+  "inline_style.prop_background_color": "Background color",
+  "inline_style.prop_background_image": "Background image",
+  "inline_style.prop_background_size": "Background size",
+  "inline_style.prop_background_position": "Background position",
+  "inline_style.prop_background_repeat": "Background repeat",
+  "inline_style.prop_color": "Color",
+  "inline_style.prop_font_size": "Font size",
+  "inline_style.prop_text_align": "Text align",
+  "inline_style.prop_text_shadow": "Text shadow",
+  "inline_style.prop_font_family": "Font family",
+  "inline_style.prop_font_weight": "Font weight",
+  "inline_style.prop_font_style": "Font style",
+  "inline_style.prop_line_height": "Line height",
+  "inline_style.prop_letter_spacing": "Letter spacing",
+  "inline_style.prop_text_transform": "Text transform",
+  "inline_style.prop_text_decoration": "Text decoration",
+  "inline_style.prop_display": "Display",
+  "inline_style.prop_opacity": "Opacity",
+  "inline_style.prop_overflow": "Overflow",
+  "inline_style.prop_visibility": "Visibility",
+  "inline_style.prop_position": "Position",
+  "inline_style.prop_top": "Top",
+  "inline_style.prop_right": "Right",
+  "inline_style.prop_bottom": "Bottom",
+  "inline_style.prop_left": "Left",
+  "inline_style.prop_z_index": "Z-index"
 });
 var PARTS = ["spacing", "textalign", "display", "flex", "float", "sticky", "drawerflow"];
-GridEditor7.utilities.style = function(ge) {
+GridEditor7.utilities["inline-style"] = function(ge) {
   var options = resolveOptions(ge);
   var parts = {
     spacing: spacingPart(ge, options.spacing),
@@ -1899,7 +1899,7 @@ GridEditor7.utilities.style = function(ge) {
         return null;
       }
       accordions.push({ node, accordion });
-      return { labelKey: "style.section_title", titleKey: "style.dialog_title", body: accordion.element };
+      return { labelKey: "inline_style.section_title", titleKey: "inline_style.dialog_title", body: accordion.element };
     },
     preview: function(node, kind, breakpoint) {
       return parts.spacing.preview(node, kind, breakpoint);

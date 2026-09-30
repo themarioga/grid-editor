@@ -1,5 +1,5 @@
 /**
- * The style plugin's free css: a textarea with every declaration of the
+ * The inline-style plugin's free css: a textarea with every declaration of the
  * node's own style that no field on show stands for - whatever the host
  * wrote that the sections have no field for, and what a section the host
  * turned off or narrowed would have shown.
@@ -36,12 +36,12 @@ export function createCustom(ge, node, properties, changed) {
         longhands(property).forEach(function(longhand) { covered[longhand] = true; });
     });
 
-    var box = dom.element('div', { 'class': 'ge-style-custom' });
+    var box = dom.element('div', { 'class': 'ge-inline-style-custom' });
     var textarea = box.appendChild(dom.element('textarea', {
-        'class': 'form-control form-control-sm font-monospace ge-style-custom-css',
+        'class': 'form-control form-control-sm font-monospace ge-inline-style-custom-css',
         rows: '4',
         spellcheck: 'false',
-        'aria-label': ge.t('style.section_custom'),
+        'aria-label': ge.t('inline_style.section_custom'),
     }));
 
     /** The declarations of the host's style no field stands for. */

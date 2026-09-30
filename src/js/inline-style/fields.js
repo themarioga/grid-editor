@@ -1,5 +1,5 @@
 /**
- * The style plugin's inline fields: one per css property, each writing the
+ * The inline-style plugin's inline fields: one per css property, each writing the
  * node's own style through ge.setHostStyle, never by hand, so the preview
  * of a breakpoint view neither shows in them nor eats what they write.
  *
@@ -40,7 +40,7 @@ function mark(input, ok, ge) {
     if (ok) {
         input.removeAttribute('title');
     } else {
-        input.setAttribute('title', ge.t('style.invalid'));
+        input.setAttribute('title', ge.t('inline_style.invalid'));
     }
 }
 
@@ -70,7 +70,7 @@ function pickable(value) {
 
 /** A picker and a text beside it, which takes what a picker cannot: rgba, var(), transparent. */
 function colorControl(onValue) {
-    var box = dom.element('div', { 'class': 'input-group input-group-sm ge-style-color' });
+    var box = dom.element('div', { 'class': 'input-group input-group-sm ge-inline-style-color' });
     var picker = box.appendChild(dom.element('input', { type: 'color', 'class': 'form-control form-control-color' }));
     var text = box.appendChild(textInput());
 
@@ -146,10 +146,10 @@ var LENGTH = /^-?(?:\d*\.)?\d+(?:[a-z%]+)?$/i;
 
 /** The lengths of a shadow, in the order css writes them; a text shadow has no spread. */
 var SHADOW_PARTS = [
-    { name: 'x', labelKey: 'style.shadow_x' },
-    { name: 'y', labelKey: 'style.shadow_y' },
-    { name: 'blur', labelKey: 'style.shadow_blur' },
-    { name: 'spread', labelKey: 'style.shadow_spread' },
+    { name: 'x', labelKey: 'inline_style.shadow_x' },
+    { name: 'y', labelKey: 'inline_style.shadow_y' },
+    { name: 'blur', labelKey: 'inline_style.shadow_blur' },
+    { name: 'spread', labelKey: 'inline_style.shadow_spread' },
 ];
 
 /**
@@ -206,7 +206,7 @@ function composeShadow(parts, box) {
  */
 function shadowControl(ge, node, property, changed) {
     var box = property === 'box-shadow';
-    var holder = dom.element('div', { 'class': 'ge-style-shadow' });
+    var holder = dom.element('div', { 'class': 'ge-inline-style-shadow' });
     var textMode = false;
 
     function writeValue(value, input) {
@@ -218,34 +218,34 @@ function shadowControl(ge, node, property, changed) {
 
     function builder(parts) {
         holder.innerHTML = '';
-        var grid = holder.appendChild(dom.element('div', { 'class': 'ge-style-shadow-builder' }));
+        var grid = holder.appendChild(dom.element('div', { 'class': 'ge-inline-style-shadow-builder' }));
         var names = box ? SHADOW_PARTS : SHADOW_PARTS.slice(0, 3);
         var inputs = names.map(function(part, i) {
-            var cell = grid.appendChild(dom.element('label', { 'class': 'ge-style-shadow-part' }));
-            cell.appendChild(dom.element('span', { 'class': 'ge-style-shadow-label' }, ge.t(part.labelKey)));
-            var input = cell.appendChild(textInput('ge-style-shadow-' + part.name));
+            var cell = grid.appendChild(dom.element('label', { 'class': 'ge-inline-style-shadow-part' }));
+            cell.appendChild(dom.element('span', { 'class': 'ge-inline-style-shadow-label' }, ge.t(part.labelKey)));
+            var input = cell.appendChild(textInput('ge-inline-style-shadow-' + part.name));
             input.value = parts.lengths[i] || '';
             return input;
         });
 
-        var colorCell = grid.appendChild(dom.element('label', { 'class': 'ge-style-shadow-part ge-style-shadow-color' }));
-        colorCell.appendChild(dom.element('span', { 'class': 'ge-style-shadow-label' }, ge.t('style.shadow_color')));
+        var colorCell = grid.appendChild(dom.element('label', { 'class': 'ge-inline-style-shadow-part ge-inline-style-shadow-color' }));
+        colorCell.appendChild(dom.element('span', { 'class': 'ge-inline-style-shadow-label' }, ge.t('inline_style.shadow_color')));
         var color = colorControl(function() { update(); });
         colorCell.appendChild(color.element);
         color.set(parts.color);
 
         var inset = null;
         if (box) {
-            var insetCell = grid.appendChild(dom.element('label', { 'class': 'form-check ge-style-shadow-inset' }));
+            var insetCell = grid.appendChild(dom.element('label', { 'class': 'form-check ge-inline-style-shadow-inset' }));
             inset = insetCell.appendChild(dom.element('input', { type: 'checkbox', 'class': 'form-check-input' }));
-            insetCell.appendChild(dom.element('span', { 'class': 'form-check-label' }, ge.t('style.shadow_inset')));
+            insetCell.appendChild(dom.element('span', { 'class': 'form-check-label' }, ge.t('inline_style.shadow_inset')));
             inset.checked = parts.inset;
             inset.addEventListener('change', function() { update(); });
         }
 
         inputs.forEach(function(input) { input.addEventListener('change', function() { update(); }); });
 
-        var toText = holder.appendChild(dom.element('a', { href: '#', 'class': 'ge-style-shadow-mode' }, ge.t('style.shadow_text_mode')));
+        var toText = holder.appendChild(dom.element('a', { href: '#', 'class': 'ge-inline-style-shadow-mode' }, ge.t('inline_style.shadow_text_mode')));
         toText.addEventListener('click', function(e) {
             e.preventDefault();
             textMode = true;
@@ -264,7 +264,7 @@ function shadowControl(ge, node, property, changed) {
 
     function text(value) {
         holder.innerHTML = '';
-        var input = holder.appendChild(textInput('ge-style-shadow-text'));
+        var input = holder.appendChild(textInput('ge-inline-style-shadow-text'));
         input.value = value;
         input.addEventListener('change', function() {
             if (input.value.trim() === '') {
@@ -288,7 +288,7 @@ function shadowControl(ge, node, property, changed) {
 
         // Built again only when the value changed under it: building takes
         // the focus from whichever of its inputs the user moved on to
-        if (value === shown && holder.firstChild && textMode === !!holder.querySelector('.ge-style-shadow-text')) { return; }
+        if (value === shown && holder.firstChild && textMode === !!holder.querySelector('.ge-inline-style-shadow-text')) { return; }
         shown = value;
 
         if (textMode || !parts) {
@@ -308,8 +308,8 @@ function shadowControl(ge, node, property, changed) {
  * sections up to date.
  */
 export function createStyleField(ge, node, property, changed) {
-    var field = dom.element('div', { 'class': 'ge-style-field', 'data-ge-style-property': property.name });
-    var label = field.appendChild(dom.element('label', { 'class': 'ge-style-label' }, ge.t(property.labelKey)));
+    var field = dom.element('div', { 'class': 'ge-inline-style-field', 'data-ge-inline-style-property': property.name });
+    var label = field.appendChild(dom.element('label', { 'class': 'ge-inline-style-label' }, ge.t(property.labelKey)));
     var render;
 
     function current() {
@@ -355,19 +355,19 @@ export function createStyleField(ge, node, property, changed) {
 
     var control = field.querySelector('input, select');
     if (control) {
-        control.id = 'ge-style-field-' + (++fieldCounter);
+        control.id = 'ge-inline-style-field-' + (++fieldCounter);
         label.setAttribute('for', control.id);
     }
 
-    field.appendChild(dom.element('small', { 'class': 'ge-style-note ge-style-overridden' }));
+    field.appendChild(dom.element('small', { 'class': 'ge-inline-style-note ge-inline-style-overridden' }));
 
     renderers.set(field, function() {
         render();
 
         // A Bootstrap utility on the node wins over the value: every one is !important
         var winner = current() ? overriding(property.name, classesOf(node)) : null;
-        var note = dom.child(field, '.ge-style-overridden');
-        note.textContent = winner ? ge.t('style.overridden', { 'class': winner }) : '';
+        var note = dom.child(field, '.ge-inline-style-overridden');
+        note.textContent = winner ? ge.t('inline_style.overridden', { 'class': winner }) : '';
         dom.toggle(note, !!winner);
     });
     renderStyleField(field);

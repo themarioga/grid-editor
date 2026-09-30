@@ -241,7 +241,7 @@ so `ge.detailsOf(node)` finds what is in it.
 
 A field made with `ge.utilityField` in a section follows the view and the
 classes field as the Responsive section's do, wherever the section is at the
-time. The style plugin's accordion is a section, and what the spacing,
+time. The inline-style plugin's accordion is a section, and what the spacing,
 textalign, display, flex, sticky and float fields are in: its families are
 `panel: false`, and it makes their fields itself.
 
@@ -497,14 +497,14 @@ tool does not belong. A tool writes with `ge.setUtility(node, family, value,
 `onRefresh(scope)` runs whenever the preview is redrawn — on `init`, on a view
 change, after a write, after the user types in a classes field — with the node
 whose utilities changed, or the canvas. It is for what a plugin marks the canvas
-with beyond inline styles: the style plugin's display keeps hidden nodes on the
+with beyond inline styles: the inline-style plugin's display keeps hidden nodes on the
 canvas and fades them there, and takes the drawer of a flex node out of the
 flow. Whatever it adds, `onDeinit` takes away.
 
 ### A panel of your own
 
 A field per family is the right panel for most plugins and the wrong one for
-some: spacing, part of the style plugin, has fourteen families, and fourteen
+some: spacing, part of the inline-style plugin, has fourteen families, and fourteen
 fields. Such a plugin marks
 its families `panel: false` and returns its own element from
 `panel(node, kind)` — or null where it does not apply — and the editor puts it
@@ -532,7 +532,7 @@ with a warning.
 
 Plugin options live in the `utilities` setting, under the plugin's name:
 `utilities: { gutters: { scale: [...] } }`. The editor passes the
-setting through as it is; each plugin fills in its own defaults. The style
-plugin's are the `style` setting, since most of them are about its inline
+setting through as it is; each plugin fills in its own defaults. The
+inline-style plugin's are the `inline_style` setting, since most of them are about its inline
 css.
 

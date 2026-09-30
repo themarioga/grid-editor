@@ -1,5 +1,5 @@
 /**
- * The style plugin's catalog: Bootstrap's classes for what a section
+ * The inline-style plugin's catalog: Bootstrap's classes for what a section
  * styles, as chips that put a class on the node or take it off.
  *
  * A chip never touches the node itself. It writes the panel's classes
@@ -41,16 +41,16 @@ export function createCatalog(ge, node, kind, groups) {
     var offered = groups.filter(function(group) { return offeredOn(group, kind); });
     if (!offered.length) { return null; }
 
-    var box = dom.element('div', { 'class': 'ge-style-catalog' });
-    box.appendChild(dom.element('span', { 'class': 'ge-style-label' }, ge.t('style.catalog')));
+    var box = dom.element('div', { 'class': 'ge-inline-style-catalog' });
+    box.appendChild(dom.element('span', { 'class': 'ge-inline-style-label' }, ge.t('inline_style.catalog')));
 
     offered.forEach(function(group) {
-        var row = box.appendChild(dom.element('div', { 'class': 'ge-style-chips' }));
+        var row = box.appendChild(dom.element('div', { 'class': 'ge-inline-style-chips' }));
 
         group.classes.forEach(function(name) {
             var chip = row.appendChild(dom.element('button', {
                 type: 'button',
-                'class': 'btn btn-sm btn-outline-secondary ge-style-chip',
+                'class': 'btn btn-sm btn-outline-secondary ge-inline-style-chip',
                 'data-ge-class': name,
                 'aria-pressed': 'false',
             }, name));
@@ -68,7 +68,7 @@ export function createCatalog(ge, node, kind, groups) {
 export function renderCatalog(box, node) {
     var classes = classesOf(node);
 
-    dom.all(box, '.ge-style-chip').forEach(function(chip) {
+    dom.all(box, '.ge-inline-style-chip').forEach(function(chip) {
         var on = classes.indexOf(chip.getAttribute('data-ge-class')) !== -1;
         dom.toggleClass(chip, 'active', on);
         chip.setAttribute('aria-pressed', on ? 'true' : 'false');

@@ -4,16 +4,26 @@ Upgrading from grid-editor `7.x` to `8.0`
 8.0 takes out what kept pages, plugins and options of earlier versions
 working. Nothing it removes warns: an option that is gone is ignored like any
 option the editor does not know. The jQuery adapter stays, and so does the
-conversion of markup 5.x saved. `8.0.0-beta.2` is the first beta published
-(`8.0.0-beta.1` never was); install it with
-`npm install @themarioga/grid-editor@next`.
+conversion of markup 5.x saved. From the `8.0.0` betas (on npm's `next`
+tag), the one change to make is the first point below, the rename of the
+style plugin.
 
+* __The style plugin is `inline-style`.__ Its file is
+  `grideditor.inline-style.js` (`@themarioga/grid-editor/plugins/inline-style`
+  as a module), its name in `plugins` is `'inline-style'`, its setting is
+  `inline_style`, its locale keys are `inline_style.*` rather than `style.*`,
+  and its css classes and attributes are `ge-inline-style-*` rather than
+  `ge-style-*` - `[data-ge-inline-style-section="spacing"]` and the others.
+  What it does is the same. The old names are not an alias: `'style'` in
+  `plugins` is a plugin that is not loaded, and a `style` setting is not
+  read. This came in `8.0.0`, after the betas; the points below use the new
+  names.
 * __The spacing, textalign, visibility and float plugins are gone.__ Load
-  `grideditor.style.js`, which has carried them since 7.3, and name it in the
+  `grideditor.inline-style.js`, which has carried them since 7.3, and name it in the
   `plugins` setting: `'spacing'`, `'textalign'`, `'visibility'` and `'float'`
   there are plugins that are not loaded now, and only get the usual warning.
 * __`utilities.spacing` and `utilities.visibility` are not read.__ They are
-  `style.spacing` and `style.visibility`.
+  `inline_style.spacing` and `inline_style.visibility`.
 * __`replaces` on a plugin's factory does nothing.__ A plugin that stood in
   for another is loaded beside it, like any two plugins.
 * __`changeView`, `getUtility` and `setUtility` take a view key only.__ The
@@ -36,20 +46,20 @@ conversion of markup 5.x saved. `8.0.0-beta.2` is the first beta published
   `warning.oninit_removed` and `warning.plugin_6x`. A locale of your own
   can drop them.
 
-What `8.0.0-beta.2` adds to that:
+8.0 also changes what the inline-style plugin edits:
 
 * __The `visibility` utility is `display`.__ It edits every `d-{bp}-*`
   value now, not only hidden and shown: `setUtility(node, 'display', 'none',
   'md')`, and `before-utility` and `after-utility` say `family: 'display'`.
   `'visibility'` is a family no plugin declares, and gets the usual warning.
-  The eye and `style.visibility.drawer` are as they were.
-* __A row's `justify-content-*` and `align-items-*` are the style plugin's.__
+  The eye and `inline_style.visibility.drawer` are as they were.
+* __A row's `justify-content-*` and `align-items-*` are the inline-style plugin's.__
   They are in its Flex section, on rows and on anything made flex, and the
   alignment plugin keeps `align-self-*` only. A page that loads alignment
-  without style has no field for them: load `grideditor.style.js`.
+  without inline-style has no field for them: load `grideditor.inline-style.js`.
 * __Locale keys:__ `utility.visibility` and `utility.visibility_shown` are
   gone, and `utility.display` is new; `utility.justify_content` and
-  `utility.align_items` come with the style plugin now. The Flex section and
+  `utility.align_items` come with the inline-style plugin now. The Flex section and
   sticky bring keys of their own, listed in
   [docs/locale-keys.md](docs/locale-keys.md).
 

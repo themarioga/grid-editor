@@ -53,11 +53,11 @@ export interface PresetClass {
 }
 
 /** A content filter: run on init and deinit with the canvas. A string names a function on window. */
-/** A section of the style plugin's accordion. */
-export type StyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'text' | 'typography' | 'display' | 'flex' | 'position' | 'custom';
+/** A section of the inline-style plugin's accordion. */
+export type InlineStyleSectionKey = 'size' | 'spacing' | 'border' | 'background' | 'text' | 'typography' | 'display' | 'flex' | 'position' | 'custom';
 
 /** A section on or off, or on with some of its properties and without its catalog. */
-export type StyleSection = boolean | { properties?: string[]; catalog?: boolean };
+export type InlineStyleSection = boolean | { properties?: string[]; catalog?: boolean };
 
 /**
  * A tabs container's variant: its strip's style, width and alignment, and
@@ -77,10 +77,10 @@ export interface CreateTabsOptions extends Placement, TabsOptions {
     labels?: string[];
 }
 
-/** The style plugin's settings. */
-export interface StyleOptions {
+/** The inline-style plugin's settings. */
+export interface InlineStyleOptions {
     /** Every section is on unless it is turned off here. */
-    sections?: Partial<Record<StyleSectionKey, StyleSection>>;
+    sections?: Partial<Record<InlineStyleSectionKey, InlineStyleSection>>;
     /** The spacing section: the values offered, and what 0 to 5 come to - for the gaps too. */
     spacing?: { values?: string[]; scale?: string[] };
     /** The eye that hides and shows a node, the display family's: false leaves it out of the drawers. */
@@ -113,8 +113,8 @@ export interface GridEditorOptions {
     content_types?: string[];
     row_cols?: boolean;
     utilities?: Record<string, unknown>;
-    /** The style plugin's sections, and the options of the utilities it carries. */
-    style?: StyleOptions;
+    /** The inline-style plugin's sections, and the options of the utilities it carries. */
+    inline_style?: InlineStyleOptions;
     /** The tabs plugin: the variant of the tabs containers made new. */
     tabs?: TabsOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean };

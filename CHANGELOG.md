@@ -5,6 +5,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.0.0] - 2026-09-30
+
+The first stable 8.0: what 8.0.0-beta.1 to 8.0.0-beta.3 below brought, and
+these changes on top of beta.3. See [UPGRADING.md](UPGRADING.md).
+
+### Changed
+- **BREAKING:** The style plugin is renamed `inline-style`, with the same
+  behaviour: `grideditor.inline-style.js` (`plugins/inline-style` as a
+  module), `'inline-style'` in `plugins`, `GridEditor.utilities['inline-style']`,
+  the `inline_style` setting (`InlineStyleOptions` in the types), the
+  `inline_style.*` locale keys and the `ge-inline-style-*` classes and
+  attributes. There is no alias for the old names. `example/style.html` is
+  `example/inline-style.html`.
+- A node's settings panel names each of its sections: a heading over the id,
+  the classes and the presets (`panel.section_general`, "Id and classes"),
+  and over each plugin's section - Style, Tabs - where it is in the panel
+  rather than behind a button. The sections are set off by a line.
+
+### Fixed
+- A row's drawer starts at the row's edge, as a column's does: Bootstrap's
+  gutter padding for a row's children no longer pushes its tools in, nor its
+  max width keeps the drawer from reaching the other side.
+
 ## [8.0.0-beta.3] - 2026-09-30
 
 ### Added

@@ -1,10 +1,10 @@
 /**
- * Sticky, a part of the style plugin: sticking a node to the top or the
+ * Sticky, a part of the inline-style plugin: sticking a node to the top or the
  * bottom of the page as it scrolls, per breakpoint, with Bootstrap's
  * sticky-{breakpoint}-top and -bottom classes.
  *
  * Its families, and whatever it does on the canvas, as a function of the
- * handle: grideditor.style.js puts them in its sections.
+ * handle: grideditor.inline-style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 

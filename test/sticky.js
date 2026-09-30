@@ -1,5 +1,5 @@
 /**
- * Browser tests for the style plugin's sticky: sticking a node to the top or
+ * Browser tests for the inline-style plugin's sticky: sticking a node to the top or
  * the bottom as the page scrolls, per breakpoint.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
@@ -13,13 +13,13 @@ var HELPERS = `
     window.row = function() { return document.querySelector('#myGrid > .row'); };
     window.col = function() { return row().querySelector(':scope > .column'); };
     window.stickyField = function(node) {
-        return node.querySelector(':scope > .ge-tools-drawer [data-ge-style-section="position"] .ge-utility[data-ge-family="sticky"]');
+        return node.querySelector(':scope > .ge-tools-drawer [data-ge-inline-style-section="position"] .ge-utility[data-ge-family="sticky"]');
     };
     window.start = function(colClasses) {
         if (window.fixture.editor()) { window.fixture.teardown(); }
         document.querySelector('#myGrid').innerHTML = '<div class="row"><div class="column col-6 ' + colClasses + '">' +
             '<div class="ge-content"><p>a</p></div></div></div>';
-        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['inline-style']) });
     };
 `;
 
@@ -53,7 +53,7 @@ async function run(t, page) {
 
 module.exports = {
     name: 'sticky',
-    description: 'the style plugin\'s sticky family',
+    description: 'the inline-style plugin\'s sticky family',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

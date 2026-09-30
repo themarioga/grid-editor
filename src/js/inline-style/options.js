@@ -1,7 +1,7 @@
 /**
- * The style plugin's settings, `style` in the editor's options:
+ * The inline-style plugin's settings, `inline_style` in the editor's options:
  *
- *   style: {
+ *   inline_style: {
  *       sections: { border: { properties: [...], catalog: false }, position: false, … },
  *       spacing: { values, scale },   // the values offered, and what 0 to 5 come to
  *       visibility: { drawer },       // false leaves the eye out of the drawers
@@ -19,7 +19,7 @@ function resolveSections(ge, given) {
     var resolved = {};
 
     Object.keys(given || {}).forEach(function(key) {
-        if (!section(key)) { ge.warn('style.sections: there is no "' + key + '" section: ignored'); }
+        if (!section(key)) { ge.warn('inline_style.sections: there is no "' + key + '" section: ignored'); }
     });
 
     SECTIONS.forEach(function(each) {
@@ -34,7 +34,7 @@ function resolveSections(ge, given) {
             if (Array.isArray(option.properties)) {
                 option.properties.forEach(function(name) {
                     if (own.indexOf(name) === -1) {
-                        ge.warn('style.sections.' + each.key + ': "' + name + '" is not one of its properties: ignored');
+                        ge.warn('inline_style.sections.' + each.key + ': "' + name + '" is not one of its properties: ignored');
                     }
                 });
                 properties = option.properties.filter(function(name) { return own.indexOf(name) !== -1; })
@@ -50,7 +50,7 @@ function resolveSections(ge, given) {
 }
 
 export function resolveOptions(ge) {
-    var style = ge.settings.style || {};
+    var style = ge.settings.inline_style || {};
 
     return {
         sections: resolveSections(ge, style.sections),

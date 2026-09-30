@@ -248,6 +248,19 @@
         flex-direction: column;
         gap: 8px;
     }
+    /* Each section's heading: the general fields, and what plugins add */
+    .ge-section-title {
+        margin: 0 0 6px;
+        color: var(--bs-body-color, #333);
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    /* Every section after the first, set off from the one above */
+    .ge-panel-section,
+    .ge-utilities {
+        padding-top: 10px;
+        border-top: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
+    }
     .ge-field {
         display: flex;
         flex-direction: column;
@@ -270,7 +283,7 @@
         > .ge-utilities-toggle {
             display: block;
             color: var(--bs-body-color, #333);
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             text-decoration: none;
 
@@ -342,9 +355,9 @@
     margin-top: 10px;
 }
 
-/* The style plugin's accordion: in a panel, or in the dialog, which is
+/* The inline-style plugin's accordion: in a panel, or in the dialog, which is
    outside any panel, so it carries the look of the fields it shares. */
-.ge-style {
+.ge-inline-style {
     font-size: 0.8125rem;
 
     .accordion-button {
@@ -359,26 +372,26 @@
         padding: 8px 10px;
     }
 
-    .ge-style-label,
+    .ge-inline-style-label,
     .ge-utility-label,
-    .ge-style-shadow-label {
+    .ge-inline-style-shadow-label {
         color: var(--bs-secondary-color, #6c757d);
         font-size: 0.75rem;
     }
-    .ge-style-note,
+    .ge-inline-style-note,
     .ge-utility-note,
     .ge-spacing-gutter {
         color: var(--bs-secondary-color, #666);
         font-size: 0.6875rem;
     }
 
-    .ge-style-fields,
+    .ge-inline-style-fields,
     .ge-spacing {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 8px 10px;
     }
-    .ge-style-field,
+    .ge-inline-style-field,
     .ge-utility,
     .ge-spacing-group {
         display: flex;
@@ -393,47 +406,47 @@
         grid-column: 1 / -1;
     }
 
-    .ge-style-color .form-control-color {
+    .ge-inline-style-color .form-control-color {
         flex: 0 0 2.25rem;
         padding: 2px;
     }
 
-    .ge-style-shadow,
-    .ge-style-field:has(.ge-style-shadow) {
+    .ge-inline-style-shadow,
+    .ge-inline-style-field:has(.ge-inline-style-shadow) {
         grid-column: 1 / -1;
     }
-    .ge-style-shadow-builder {
+    .ge-inline-style-shadow-builder {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
         gap: 4px 8px;
         align-items: end;
     }
-    .ge-style-shadow-part {
+    .ge-inline-style-shadow-part {
         display: flex;
         flex-direction: column;
         gap: 2px;
         margin: 0;
     }
-    .ge-style-shadow-color {
+    .ge-inline-style-shadow-color {
         grid-column: span 2;
     }
-    .ge-style-shadow-mode {
+    .ge-inline-style-shadow-mode {
         display: inline-block;
         margin-top: 2px;
         font-size: 0.6875rem;
     }
 
-    .ge-style-catalog {
+    .ge-inline-style-catalog {
         display: flex;
         flex-direction: column;
         gap: 4px;
     }
-    .ge-style-chips {
+    .ge-inline-style-chips {
         display: flex;
         flex-wrap: wrap;
         gap: 3px;
     }
-    .ge-style-chip {
+    .ge-inline-style-chip {
         --bs-btn-padding-y: 0;
         --bs-btn-padding-x: 6px;
         --bs-btn-font-size: 0.6875rem;
@@ -523,7 +536,6 @@
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
-        background: blue;
         margin: 0 -@editGutter @editGutter;
         display: block;
         width: calc(~"100% +" 2 * @editGutter);
@@ -547,6 +559,10 @@
             text-align: left;
             cursor: auto;
 
+            /* The one line a drawer has room for needs no heading */
+            > .ge-section-title {
+                display: none;
+            }
             .ge-details-general {
                 flex-direction: row;
                 align-items: flex-end;
@@ -568,6 +584,12 @@
         margin-right: 0;
         
         > .ge-tools-drawer {
+            /* Bootstrap pads every child of a row by half its gutter, and
+               caps it at the row's width: the drawer is not a column */
+            padding-left: 0;
+            padding-right: 0;
+            max-width: none;
+
             > a {
                 color: #666;
             }
@@ -1143,7 +1165,7 @@
 .ge-layout-modes();
 
 /*
- * The style plugin's display. A node Bootstrap would hide is kept on the
+ * The inline-style plugin's display. A node Bootstrap would hide is kept on the
  * canvas - there would be nothing left to click to show it again - and shown
  * as it would be if it were not hidden, which data-ge-display says. The
  * selectors outweigh Bootstrap's d-* classes, which are !important too.
@@ -1186,7 +1208,7 @@
 }
 
 /*
- * The style plugin's drawer on a flex or grid node: out of the flow, on top
+ * The inline-style plugin's drawer on a flex or grid node: out of the flow, on top
  * and as wide as the node, over a transparent top border as tall as it is.
  * The border's width comes with the node's data-ge-drawer-out, from a rule
  * per height the plugin writes. The selectors outweigh Bootstrap's border
@@ -1236,10 +1258,6 @@
     > .ge-tools-drawer {
         margin-top: 0;
         margin-bottom: calc(@editGutter - var(--bs-gutter-y));
-        /* Bootstrap pads every child of a row by half its gutter, the drawer
-           too; it keeps the padding a row with no gutter class gives it */
-        padding-left: .75rem;
-        padding-right: .75rem;
     }
 
     > .column {

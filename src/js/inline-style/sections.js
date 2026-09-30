@@ -1,5 +1,5 @@
 /**
- * What the style plugin's sections are made of: for each, its inline
+ * What the inline-style plugin's sections are made of: for each, its inline
  * properties and the field each one gets, the Bootstrap 5.3 classes its
  * catalog offers, and which of the merged utility parts it shows.
  *
@@ -48,14 +48,14 @@ var ONLY_ON_ELEMENT = ['element'];
 export var SECTIONS = [
     {
         key: 'size',
-        labelKey: 'style.section_size',
+        labelKey: 'inline_style.section_size',
         properties: [
-            prop('width', { labelKey: 'style.prop_width', notOn: NOT_ON_COLUMN }),
-            prop('height', { labelKey: 'style.prop_height', notOn: NOT_ON_COLUMN }),
-            prop('min-width', { labelKey: 'style.prop_min_width' }),
-            prop('min-height', { labelKey: 'style.prop_min_height' }),
-            prop('max-width', { labelKey: 'style.prop_max_width' }),
-            prop('max-height', { labelKey: 'style.prop_max_height' }),
+            prop('width', { labelKey: 'inline_style.prop_width', notOn: NOT_ON_COLUMN }),
+            prop('height', { labelKey: 'inline_style.prop_height', notOn: NOT_ON_COLUMN }),
+            prop('min-width', { labelKey: 'inline_style.prop_min_width' }),
+            prop('min-height', { labelKey: 'inline_style.prop_min_height' }),
+            prop('max-width', { labelKey: 'inline_style.prop_max_width' }),
+            prop('max-height', { labelKey: 'inline_style.prop_max_height' }),
         ],
         catalog: [
             group(each('w-', ['25', '50', '75', '100', 'auto']), true, NOT_ON_COLUMN),
@@ -68,23 +68,23 @@ export var SECTIONS = [
     },
     {
         key: 'spacing',
-        labelKey: 'style.section_spacing',
+        labelKey: 'inline_style.section_spacing',
         properties: [
-            prop('margin-top', { labelKey: 'style.prop_margin_top' }), prop('margin-right', { labelKey: 'style.prop_margin_right' }), prop('margin-bottom', { labelKey: 'style.prop_margin_bottom' }), prop('margin-left', { labelKey: 'style.prop_margin_left' }),
-            prop('padding-top', { labelKey: 'style.prop_padding_top' }), prop('padding-right', { labelKey: 'style.prop_padding_right' }), prop('padding-bottom', { labelKey: 'style.prop_padding_bottom' }), prop('padding-left', { labelKey: 'style.prop_padding_left' }),
+            prop('margin-top', { labelKey: 'inline_style.prop_margin_top' }), prop('margin-right', { labelKey: 'inline_style.prop_margin_right' }), prop('margin-bottom', { labelKey: 'inline_style.prop_margin_bottom' }), prop('margin-left', { labelKey: 'inline_style.prop_margin_left' }),
+            prop('padding-top', { labelKey: 'inline_style.prop_padding_top' }), prop('padding-right', { labelKey: 'inline_style.prop_padding_right' }), prop('padding-bottom', { labelKey: 'inline_style.prop_padding_bottom' }), prop('padding-left', { labelKey: 'inline_style.prop_padding_left' }),
         ],
         catalog: [],
         parts: ['spacing'],
     },
     {
         key: 'border',
-        labelKey: 'style.section_border',
+        labelKey: 'inline_style.section_border',
         properties: [
-            prop('border-width', { labelKey: 'style.prop_border_width' }),
-            prop('border-style', { labelKey: 'style.prop_border_style', type: 'select', values: ['none', 'solid', 'dashed', 'dotted', 'double', 'groove', 'ridge', 'inset', 'outset'] }),
-            prop('border-color', { labelKey: 'style.prop_border_color', type: 'color' }),
-            prop('border-radius', { labelKey: 'style.prop_border_radius' }),
-            prop('box-shadow', { labelKey: 'style.prop_box_shadow', type: 'shadow' }),
+            prop('border-width', { labelKey: 'inline_style.prop_border_width' }),
+            prop('border-style', { labelKey: 'inline_style.prop_border_style', type: 'select', values: ['none', 'solid', 'dashed', 'dotted', 'double', 'groove', 'ridge', 'inset', 'outset'] }),
+            prop('border-color', { labelKey: 'inline_style.prop_border_color', type: 'color' }),
+            prop('border-radius', { labelKey: 'inline_style.prop_border_radius' }),
+            prop('box-shadow', { labelKey: 'inline_style.prop_box_shadow', type: 'shadow' }),
         ],
         catalog: [
             group(['border', 'border-0'].concat(each('border-', SIDES), each('border-', SIDES, '-0')), false),
@@ -99,13 +99,13 @@ export var SECTIONS = [
     },
     {
         key: 'background',
-        labelKey: 'style.section_background',
+        labelKey: 'inline_style.section_background',
         properties: [
-            prop('background-color', { labelKey: 'style.prop_background_color', type: 'color' }),
-            prop('background-image', { labelKey: 'style.prop_background_image', type: 'url' }),
-            prop('background-size', { labelKey: 'style.prop_background_size' }),
-            prop('background-position', { labelKey: 'style.prop_background_position' }),
-            prop('background-repeat', { labelKey: 'style.prop_background_repeat', type: 'select', values: ['repeat', 'no-repeat', 'repeat-x', 'repeat-y', 'space', 'round'] }),
+            prop('background-color', { labelKey: 'inline_style.prop_background_color', type: 'color' }),
+            prop('background-image', { labelKey: 'inline_style.prop_background_image', type: 'url' }),
+            prop('background-size', { labelKey: 'inline_style.prop_background_size' }),
+            prop('background-position', { labelKey: 'inline_style.prop_background_position' }),
+            prop('background-repeat', { labelKey: 'inline_style.prop_background_repeat', type: 'select', values: ['repeat', 'no-repeat', 'repeat-x', 'repeat-y', 'space', 'round'] }),
         ],
         catalog: [
             group(each('bg-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black', 'transparent']))
@@ -117,12 +117,12 @@ export var SECTIONS = [
     },
     {
         key: 'text',
-        labelKey: 'style.section_text',
+        labelKey: 'inline_style.section_text',
         properties: [
-            prop('color', { labelKey: 'style.prop_color', type: 'color' }),
-            prop('font-size', { labelKey: 'style.prop_font_size' }),
-            prop('text-align', { labelKey: 'style.prop_text_align', type: 'select', values: ['start', 'center', 'end', 'left', 'right', 'justify'] }),
-            prop('text-shadow', { labelKey: 'style.prop_text_shadow', type: 'shadow' }),
+            prop('color', { labelKey: 'inline_style.prop_color', type: 'color' }),
+            prop('font-size', { labelKey: 'inline_style.prop_font_size' }),
+            prop('text-align', { labelKey: 'inline_style.prop_text_align', type: 'select', values: ['start', 'center', 'end', 'left', 'right', 'justify'] }),
+            prop('text-shadow', { labelKey: 'inline_style.prop_text_shadow', type: 'shadow' }),
         ],
         catalog: [
             group(each('text-', COLORS.concat(['body', 'body-secondary', 'body-tertiary', 'white', 'black']))
@@ -135,15 +135,15 @@ export var SECTIONS = [
     },
     {
         key: 'typography',
-        labelKey: 'style.section_typography',
+        labelKey: 'inline_style.section_typography',
         properties: [
-            prop('font-family', { labelKey: 'style.prop_font_family' }),
-            prop('font-weight', { labelKey: 'style.prop_font_weight', type: 'select', values: ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold', 'lighter', 'bolder'] }),
-            prop('font-style', { labelKey: 'style.prop_font_style', type: 'select', values: ['normal', 'italic', 'oblique'] }),
-            prop('line-height', { labelKey: 'style.prop_line_height' }),
-            prop('letter-spacing', { labelKey: 'style.prop_letter_spacing' }),
-            prop('text-transform', { labelKey: 'style.prop_text_transform', type: 'select', values: ['none', 'uppercase', 'lowercase', 'capitalize'] }),
-            prop('text-decoration', { labelKey: 'style.prop_text_decoration', type: 'select', values: ['none', 'underline', 'line-through', 'overline'] }),
+            prop('font-family', { labelKey: 'inline_style.prop_font_family' }),
+            prop('font-weight', { labelKey: 'inline_style.prop_font_weight', type: 'select', values: ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold', 'lighter', 'bolder'] }),
+            prop('font-style', { labelKey: 'inline_style.prop_font_style', type: 'select', values: ['normal', 'italic', 'oblique'] }),
+            prop('line-height', { labelKey: 'inline_style.prop_line_height' }),
+            prop('letter-spacing', { labelKey: 'inline_style.prop_letter_spacing' }),
+            prop('text-transform', { labelKey: 'inline_style.prop_text_transform', type: 'select', values: ['none', 'uppercase', 'lowercase', 'capitalize'] }),
+            prop('text-decoration', { labelKey: 'inline_style.prop_text_decoration', type: 'select', values: ['none', 'underline', 'line-through', 'overline'] }),
         ],
         catalog: [
             group(each('fw-', ['lighter', 'light', 'normal', 'medium', 'semibold', 'bold', 'bolder'])),
@@ -158,12 +158,12 @@ export var SECTIONS = [
     },
     {
         key: 'display',
-        labelKey: 'style.section_display',
+        labelKey: 'inline_style.section_display',
         properties: [
-            prop('display', { labelKey: 'style.prop_display', type: 'select', values: ['none', 'block', 'inline', 'inline-block', 'flex', 'inline-flex', 'grid', 'inline-grid'] }),
-            prop('opacity', { labelKey: 'style.prop_opacity' }),
-            prop('overflow', { labelKey: 'style.prop_overflow', type: 'select', values: ['visible', 'hidden', 'auto', 'scroll', 'clip'] }),
-            prop('visibility', { labelKey: 'style.prop_visibility', type: 'select', values: ['visible', 'hidden'] }),
+            prop('display', { labelKey: 'inline_style.prop_display', type: 'select', values: ['none', 'block', 'inline', 'inline-block', 'flex', 'inline-flex', 'grid', 'inline-grid'] }),
+            prop('opacity', { labelKey: 'inline_style.prop_opacity' }),
+            prop('overflow', { labelKey: 'inline_style.prop_overflow', type: 'select', values: ['visible', 'hidden', 'auto', 'scroll', 'clip'] }),
+            prop('visibility', { labelKey: 'inline_style.prop_visibility', type: 'select', values: ['visible', 'hidden'] }),
         ],
         catalog: [
             group(each('opacity-', ['0', '25', '50', '75', '100'])),
@@ -174,7 +174,7 @@ export var SECTIONS = [
     },
     {
         key: 'flex',
-        labelKey: 'style.section_flex',
+        labelKey: 'inline_style.section_flex',
         properties: [],
         catalog: [
             group(['vstack', 'hstack'], true, ['row']),
@@ -183,14 +183,14 @@ export var SECTIONS = [
     },
     {
         key: 'position',
-        labelKey: 'style.section_position',
+        labelKey: 'inline_style.section_position',
         properties: [
-            prop('position', { labelKey: 'style.prop_position', type: 'select', values: ['static', 'relative', 'absolute', 'fixed', 'sticky'] }),
-            prop('top', { labelKey: 'style.prop_top', notOn: NOT_ON_COLUMN }),
-            prop('right', { labelKey: 'style.prop_right', notOn: NOT_ON_COLUMN }),
-            prop('bottom', { labelKey: 'style.prop_bottom', notOn: NOT_ON_COLUMN }),
-            prop('left', { labelKey: 'style.prop_left', notOn: NOT_ON_COLUMN }),
-            prop('z-index', { labelKey: 'style.prop_z_index' }),
+            prop('position', { labelKey: 'inline_style.prop_position', type: 'select', values: ['static', 'relative', 'absolute', 'fixed', 'sticky'] }),
+            prop('top', { labelKey: 'inline_style.prop_top', notOn: NOT_ON_COLUMN }),
+            prop('right', { labelKey: 'inline_style.prop_right', notOn: NOT_ON_COLUMN }),
+            prop('bottom', { labelKey: 'inline_style.prop_bottom', notOn: NOT_ON_COLUMN }),
+            prop('left', { labelKey: 'inline_style.prop_left', notOn: NOT_ON_COLUMN }),
+            prop('z-index', { labelKey: 'inline_style.prop_z_index' }),
         ],
         catalog: [
             group(each('position-', ['static', 'relative', 'absolute', 'fixed', 'sticky'])),
@@ -206,7 +206,7 @@ export var SECTIONS = [
     },
     {
         key: 'custom',
-        labelKey: 'style.section_custom',
+        labelKey: 'inline_style.section_custom',
         properties: [],
         catalog: [],
         parts: [],

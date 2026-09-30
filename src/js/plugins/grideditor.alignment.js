@@ -10,7 +10,7 @@
  *   <script src="dist/plugins/grideditor.alignment.min.js"></script>
  *
  * How a row justifies and aligns its columns - justify-content-* and
- * align-items-* - is a flex container's, and the style plugin's Flex section
+ * align-items-* - is a flex container's, and the inline-style plugin's Flex section
  * edits it, on a row and on anything else made flex.
  *
  * A field only, in the settings panel: alignment is set now and then, not

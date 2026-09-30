@@ -161,7 +161,7 @@ async function drawerTests(t) {
     var drawer = await page.eval(`
         start(${JSON.stringify(TWO_COLUMNS)}, {
             content_types: ['tinymce'],
-            plugins: window.fixture.plugins(['clipboard', 'style']),
+            plugins: window.fixture.plugins(['clipboard', 'inline-style']),
             text_tools: [{ title: 'Host tool', className: 'host-tool' }],
         });
         const block = document.querySelector('#left > .ge-plain-block');
@@ -372,7 +372,7 @@ async function previewTests(t) {
 
     var hidden = await page.eval(`
         const ge = start('<div class="row"><div class="col-12" id="only"><div class="ge-content d-md-none"><p>H</p></div></div></div>',
-            { content_types: [], plugins: window.fixture.plugins(['style']) });
+            { content_types: [], plugins: window.fixture.plugins(['inline-style']) });
         ge.changeView('md');
         const area = document.querySelector('#only .ge-content');
         return {

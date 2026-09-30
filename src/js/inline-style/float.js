@@ -1,9 +1,9 @@
 /**
- * Float, a part of the style plugin: floating an element per breakpoint, with Bootstrap's
+ * Float, a part of the inline-style plugin: floating an element per breakpoint, with Bootstrap's
  * float-{breakpoint}-start, -end and -none classes.
  *
  * Its families, and whatever it does on the canvas, as a function of the
- * handle: grideditor.style.js puts them in its sections.
+ * handle: grideditor.inline-style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 

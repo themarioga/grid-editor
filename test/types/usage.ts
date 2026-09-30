@@ -66,8 +66,8 @@ ge.remove();
 ge.settings.locale = 'es';
 // @ts-expect-error a setting takes its own values
 new GridEditor('#myGrid', { settings_panel: 'window' });
-// @ts-expect-error the style plugin has no such section
-new GridEditor('#myGrid', { style: { sections: { colours: true } } });
+// @ts-expect-error the inline-style plugin has no such section
+new GridEditor('#myGrid', { inline_style: { sections: { colours: true } } });
 // @ts-expect-error an unknown callback name is a mistake
 const wrong: GridEditorOptions = { callbacks: { before_add_rows: function() {} } };
 

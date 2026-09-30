@@ -1,9 +1,9 @@
 /**
- * Spacing, a part of the style plugin: padding and margin per breakpoint, with Bootstrap's p-{breakpoint}-*,
+ * Spacing, a part of the inline-style plugin: padding and margin per breakpoint, with Bootstrap's p-{breakpoint}-*,
  * pt-, px- … and m-{breakpoint}-*, mt-, mx- … classes.
  *
  * Its families, and whatever it does on the canvas, as a function of the
- * handle and its options: grideditor.style.js puts them in its sections.
+ * handle and its options: grideditor.inline-style.js puts them in its sections.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';

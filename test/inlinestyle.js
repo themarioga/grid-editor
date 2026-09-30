@@ -1,7 +1,7 @@
 /**
- * Browser tests for the style plugin: the Style accordion in a node's
+ * Browser tests for the inline-style plugin: the Style accordion in a node's
  * settings panel, its inline fields writing the node's own style, the
- * catalog of Bootstrap classes, free css, and the style setting.
+ * catalog of Bootstrap classes, free css, and the inline_style setting.
  *
  * What the merged utilities do in its sections - spacing, text alignment,
  * display, flex, sticky, float and the drawer - is test/spacing.js,
@@ -30,7 +30,7 @@ var HELPERS = `
         document.querySelector('#myGrid').innerHTML = html || (
             '<div class="row"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>'
         );
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style', 'sections']) }, settings || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['inline-style', 'sections']) }, settings || {}));
     };
 
     /** A node's accordion, in its drawer's panel: the fixture's panel is offcanvas, and closed. */
@@ -38,40 +38,40 @@ var HELPERS = `
         const drawer = node.classList.contains('ge-content')
             ? node.parentElement.querySelector(':scope > .ge-tools-drawer')
             : node.querySelector(':scope > .ge-tools-drawer');
-        return drawer ? drawer.querySelector(':scope > .ge-details .ge-style') : null;
+        return drawer ? drawer.querySelector(':scope > .ge-details .ge-inline-style') : null;
     };
     window.sections = function(node) {
         const accordion = acc(node);
         return accordion ? Array.from(accordion.querySelectorAll(':scope > .accordion-item')).map(function(item) {
-            return item.getAttribute('data-ge-style-section');
+            return item.getAttribute('data-ge-inline-style-section');
         }).join(',') : null;
     };
-    window.section = function(node, key) { return acc(node).querySelector('[data-ge-style-section="' + key + '"]'); };
+    window.section = function(node, key) { return acc(node).querySelector('[data-ge-inline-style-section="' + key + '"]'); };
     window.opened = function(node) {
         return Array.from(acc(node).querySelectorAll('.accordion-collapse.show')).map(function(collapse) {
-            return collapse.parentElement.getAttribute('data-ge-style-section');
+            return collapse.parentElement.getAttribute('data-ge-inline-style-section');
         }).join(',');
     };
     window.openSection = function(node, key) { section(node, key).querySelector('.accordion-button').click(); };
-    window.field = function(node, property) { return acc(node).querySelector('[data-ge-style-property="' + property + '"]'); };
+    window.field = function(node, property) { return acc(node).querySelector('[data-ge-inline-style-property="' + property + '"]'); };
     /** A field's value input: the text of a color, the select of a list, the input of the rest. */
     window.input = function(node, property) { return field(node, property).querySelector('input[type="text"], select'); };
     window.fields = function(node, key) {
-        return Array.from(section(node, key).querySelectorAll('.ge-style-field')).map(function(each) {
-            return each.getAttribute('data-ge-style-property');
+        return Array.from(section(node, key).querySelectorAll('.ge-inline-style-field')).map(function(each) {
+            return each.getAttribute('data-ge-inline-style-property');
         }).join(',');
     };
-    window.chip = function(node, name) { return acc(node).querySelector('.ge-style-chip[data-ge-class="' + name + '"]'); };
+    window.chip = function(node, name) { return acc(node).querySelector('.ge-inline-style-chip[data-ge-class="' + name + '"]'); };
     window.chips = function(node, key) {
-        return section(node, key).querySelectorAll('.ge-style-chip').length;
+        return section(node, key).querySelectorAll('.ge-inline-style-chip').length;
     };
     window.active = function(node) {
-        return Array.from(acc(node).querySelectorAll('.ge-style-chip.active')).map(function(each) {
+        return Array.from(acc(node).querySelectorAll('.ge-inline-style-chip.active')).map(function(each) {
             return each.getAttribute('data-ge-class');
         }).join(',');
     };
     window.note = function(node, property) {
-        const small = field(node, property).querySelector('.ge-style-overridden');
+        const small = field(node, property).querySelector('.ge-inline-style-overridden');
         return getComputedStyle(small).display === 'none' ? '' : small.textContent;
     };
     window.type = function(element, value) {
@@ -107,13 +107,13 @@ async function structure(t, page) {
             pane: sections(document.querySelector('#myGrid .ge-tab')),
             section: sections(document.querySelector('#myGrid .ge-section')),
             text: sections(text),
-            textFields: acc(text).querySelectorAll('.ge-style-field, .ge-style-chip').length,
+            textFields: acc(text).querySelectorAll('.ge-inline-style-field, .ge-inline-style-chip').length,
             textParts: Array.from(acc(text).querySelectorAll('.ge-utility')).map(function(each) { return each.getAttribute('data-ge-family'); }).join(','),
             all: all,
         };
     `);
     t.check('the panel has the general fields, then the Style accordion, then Responsive, all sections closed (AC-01)',
-        built.order === 'ge-details-general,ge-panel-section,ge-utilities' && built.row === built.all && built.closed === '', built);
+        built.order === 'ge-section-title,ge-details-general,ge-panel-section,ge-utilities' && built.row === built.all && built.closed === '', built);
     t.check('rows, columns, elements, containers, panes and sections all get the accordion (AC-09)',
         [built.column, built.element, built.container, built.pane, built.section].every(function(each) {
             return each === built.all;
@@ -123,7 +123,7 @@ async function structure(t, page) {
 
     var none = await page.eval(`
         start('<div class="row"><div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>',
-            { style: { sections: { text: false, display: false } } });
+            { inline_style: { sections: { text: false, display: false } } });
         const text = document.querySelector('#myGrid .ge-content');
         const drawer = text.parentElement.querySelector(':scope > .ge-tools-drawer');
         return { accordion: !!acc(text), section: !!drawer.querySelector('.ge-panel-section') };
@@ -152,7 +152,7 @@ async function structure(t, page) {
         other.id = 'otherGrid';
         other.innerHTML = '<div class="row"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>';
         document.body.appendChild(other);
-        const second = GridEditor.create('#otherGrid', Object.assign({}, window.fixture.settings, { plugins: window.fixture.plugins(['style']) }));
+        const second = GridEditor.create('#otherGrid', Object.assign({}, window.fixture.settings, { plugins: window.fixture.plugins(['inline-style']) }));
         const otherRow = other.querySelector('.row');
         openSection(row(), 'border');
         openSection(otherRow, 'text');
@@ -302,12 +302,12 @@ async function extras(t, page) {
             '</div></div>');
         ge().createSection({ appendTo: '#myGrid' });
         const rows = function(node, key) {
-            return Array.from(section(node, key).querySelectorAll('.ge-style-chips')).map(function(line) {
-                return Array.from(line.querySelectorAll('.ge-style-chip')).map(function(each) { return each.getAttribute('data-ge-class'); }).join(' ');
+            return Array.from(section(node, key).querySelectorAll('.ge-inline-style-chips')).map(function(line) {
+                return Array.from(line.querySelectorAll('.ge-inline-style-chip')).map(function(each) { return each.getAttribute('data-ge-class'); }).join(' ');
             });
         };
         const images = function(node) {
-            return node ? Array.from(acc(node).querySelectorAll('.ge-style-chip')).map(function(each) {
+            return node ? Array.from(acc(node).querySelectorAll('.ge-inline-style-chip')).map(function(each) {
                 return each.getAttribute('data-ge-class');
             }).filter(function(name) { return /^(img-|object-fit-)/.test(name); }).join(' ') : '';
         };
@@ -406,7 +406,7 @@ async function extras(t, page) {
         priority.stickyTop === says('sticky-top') && priority.fixedBottom === says('fixed-bottom'), priority);
 
     var off = await page.eval(`
-        start('', { style: { sections: { background: { catalog: false } } } });
+        start('', { inline_style: { sections: { background: { catalog: false } } } });
         const none = chips(row(), 'background');
         start();
         ge().changeView('md');
@@ -424,7 +424,7 @@ async function extras(t, page) {
             }).join(',');
         };
         const stacks = function(node) {
-            return Array.from(section(node, 'flex').querySelectorAll('.ge-style-chip')).map(function(each) {
+            return Array.from(section(node, 'flex').querySelectorAll('.ge-inline-style-chip')).map(function(each) {
                 return each.getAttribute('data-ge-class');
             }).join(',');
         };
@@ -440,7 +440,7 @@ async function extras(t, page) {
         chip(col(), 'vstack').click();
         chip(col(), 'hstack').click();
         result.swapped = hostClasses(col());
-        start('', { style: { sections: { flex: false } } });
+        start('', { inline_style: { sections: { flex: false } } });
         result.off = sections(col());
         ge().setUtility(col(), 'flex-direction', 'column');
         result.written = col().classList.contains('flex-column');
@@ -462,12 +462,12 @@ async function views(t, page) {
     var shown = await page.eval(`
         start();
         const visible = function() {
-            const small = section(row(), 'border').querySelector('.ge-style-all-sizes');
+            const small = section(row(), 'border').querySelector('.ge-inline-style-all-sizes');
             return getComputedStyle(small).display !== 'none';
         };
         const all = visible();
         ge().changeView('md');
-        return { all: all, md: visible(), text: section(row(), 'border').querySelector('.ge-style-all-sizes').textContent };
+        return { all: all, md: visible(), text: section(row(), 'border').querySelector('.ge-inline-style-all-sizes').textContent };
     `);
     t.check('a breakpoint view says the inline style applies to every size (AC-31)',
         shown.md && shown.text === 'Applies to every size', shown);
@@ -480,7 +480,7 @@ async function columns(t, page) {
         return {
             column: fields(col(), 'size'),
             columnChips: chips(col(), 'size'),
-            catalog: !!section(col(), 'size').querySelector('.ge-style-catalog'),
+            catalog: !!section(col(), 'size').querySelector('.ge-inline-style-catalog'),
             position: fields(col(), 'position'),
             positionChips: chips(col(), 'position') > 0,
             row: fields(row(), 'size'),
@@ -500,21 +500,21 @@ async function shadows(t, page) {
     var built = await page.eval(`
         start();
         const shadow = field(row(), 'box-shadow');
-        const part = function(name) { return shadow.querySelector('.ge-style-shadow-' + name); };
+        const part = function(name) { return shadow.querySelector('.ge-inline-style-shadow-' + name); };
         part('x').value = '2px';
         part('y').value = '4px';
         type(part('blur'), '6px');
-        type(shadow.querySelector('.ge-style-color input[type="text"]'), '#000000');
+        type(shadow.querySelector('.ge-inline-style-color input[type="text"]'), '#000000');
         const first = row().style.boxShadow;
-        const inset = shadow.querySelector('.ge-style-shadow-inset input');
+        const inset = shadow.querySelector('.ge-inline-style-shadow-inset input');
         inset.checked = true;
         inset.dispatchEvent(new Event('change', { bubbles: true }));
         const text = field(row(), 'text-shadow');
         return {
             first: first,
             inset: row().style.boxShadow,
-            textParts: !!text.querySelector('.ge-style-shadow-spread') + '|' + !!text.querySelector('.ge-style-shadow-inset'),
-            textBlur: !!text.querySelector('.ge-style-shadow-blur'),
+            textParts: !!text.querySelector('.ge-inline-style-shadow-spread') + '|' + !!text.querySelector('.ge-inline-style-shadow-inset'),
+            textBlur: !!text.querySelector('.ge-inline-style-shadow-blur'),
         };
     `);
     t.check('the builder writes one shadow (AC-39)', /^(?:2px 4px 6px (?:#000000|rgb\(0, 0, 0\))|rgb\(0, 0, 0\) 2px 4px 6px)$/.test(built.first), built);
@@ -524,10 +524,10 @@ async function shadows(t, page) {
     var several = await page.eval(`
         start('<div class="row" style="box-shadow: 1px 1px red, 2px 2px blue"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
         const shadow = field(row(), 'box-shadow');
-        const text = shadow.querySelector('.ge-style-shadow-text');
+        const text = shadow.querySelector('.ge-inline-style-shadow-text');
         const shown = text ? text.value : null;
         type(text, '');
-        return { shown: shown, style: row().hasAttribute('style'), builder: !!field(row(), 'box-shadow').querySelector('.ge-style-shadow-builder') };
+        return { shown: shown, style: row().hasAttribute('style'), builder: !!field(row(), 'box-shadow').querySelector('.ge-inline-style-shadow-builder') };
     `);
     t.check('several shadows show as text (AC-41)', /1px 1px/.test(several.shown) && /2px 2px/.test(several.shown), several);
     t.check('emptying the text takes the shadow off and brings the builder back (AC-42)',
@@ -574,7 +574,7 @@ async function custom(t, page) {
 
     var narrowed = await page.eval(`
         start('<div class="row" style="border-style: solid; top: 0px"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>',
-            { style: { sections: { border: { properties: ['border-width'] }, position: false } } });
+            { inline_style: { sections: { border: { properties: ['border-width'] }, position: false } } });
         return { custom: section(row(), 'custom').querySelector('textarea').value, sections: sections(row()) };
     `);
     t.check('what a narrowed section has no field for is in free css (AC-51)', /border-style: solid/.test(narrowed.custom), narrowed);
@@ -584,7 +584,7 @@ async function custom(t, page) {
 
 async function settings(t, page) {
     var chosen = await page.eval(`
-        start('', { style: { sections: { border: { properties: ['border-radius', 'border-width'], catalog: false }, foo: true, text: { properties: ['border-color'] } } } });
+        start('', { inline_style: { sections: { border: { properties: ['border-radius', 'border-width'], catalog: false }, foo: true, text: { properties: ['border-color'] } } } });
         return { border: fields(row(), 'border'), chips: chips(row(), 'border'), warnings: window.warnings.slice() };
     `);
     t.check('a section can be narrowed, in an order of the host\'s, and lose its catalog (AC-53)',
@@ -602,13 +602,13 @@ async function settings(t, page) {
         const old = { values: values(), warnings: window.warnings.slice() };
         start('', { utilities: { visibility: { drawer: false } } });
         const eye = { eye: !!row().querySelector(':scope > .ge-tools-drawer > .ge-visibility-tool'), warnings: window.warnings.slice() };
-        start('', { style: { spacing: { values: ['0', '4'] } } });
+        start('', { inline_style: { spacing: { values: ['0', '4'] } } });
         return { old: old, eye: eye, style: values() };
     `);
     t.check('utilities.spacing is not read, and nothing is said about it (AC-04)',
         options.old.values === '0,1,2,3,4,5' && options.old.warnings.length === 0, options);
     t.check('nor utilities.visibility: the eye is there (AC-05)', options.eye.eye && options.eye.warnings.length === 0, options);
-    t.check('style.spacing is (AC-06)', options.style === '0,4', options);
+    t.check('inline_style.spacing is (AC-06)', options.style === '0,4', options);
 
     var named = await page.eval(`
         start('', { plugins: window.fixture.plugins(['spacing']) });
@@ -637,8 +637,8 @@ async function locale(t, page) {
         return {
             sections: Array.from(acc(row()).querySelectorAll('.accordion-button')).map(function(button) { return button.textContent; }).join(','),
             note: note(row(), 'margin-top'),
-            sizes: section(row(), 'spacing').querySelector('.ge-style-all-sizes').textContent,
-            label: field(row(), 'margin-top').querySelector('.ge-style-label').textContent,
+            sizes: section(row(), 'spacing').querySelector('.ge-inline-style-all-sizes').textContent,
+            label: field(row(), 'margin-top').querySelector('.ge-inline-style-label').textContent,
         };
     `);
     t.check('the accordion speaks the editor\'s locale (AC-72)',
@@ -648,8 +648,8 @@ async function locale(t, page) {
 }
 
 module.exports = {
-    name: 'style',
-    description: 'the style plugin: inline style, the catalog and free css',
+    name: 'inlinestyle',
+    description: 'the inline-style plugin: inline style, the catalog and free css',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

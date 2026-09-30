@@ -1,5 +1,5 @@
 /**
- * Browser tests for the style plugin's display: how a node is displayed at
+ * Browser tests for the inline-style plugin's display: how a node is displayed at
  * each breakpoint, hiding it and showing it again, without ever hiding it
  * from the editor.
  *
@@ -53,7 +53,7 @@ var HELPERS = `
         document.querySelector('#myGrid').innerHTML =
             '<div class="row ' + rowClasses + '"><div class="column col-6 ' + colClasses + '"><div class="ge-content" data-ge-content-type="tinymce"><p>a</p></div></div>' +
             '<div class="column col-6"><div class="ge-content" data-ge-content-type="tinymce"><p>b</p></div></div></div>';
-        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['style']) }, settings || {}));
+        window.fixture.init(Object.assign({ plugins: window.fixture.plugins(['inline-style']) }, settings || {}));
     };
 `;
 
@@ -66,7 +66,7 @@ async function toolTests(t, page) {
             '<div data-ge-container="tabs"><ul class="nav nav-tabs"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p1">One</button></li></ul>' +
             '<div class="tab-content"><div class="tab-pane active" id="p1"><div class="row"><div class="column col-12"><div class="ge-content" data-ge-content-type="tinymce"><p>in</p></div></div></div></div></div></div>'
         );
-        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['inline-style']) });
         const has = function(selector) { return eye(document.querySelector(selector)) ? 1 : 0; };
         const options = function(node) {
             return Array.from(node.querySelectorAll(':scope > .ge-tools-drawer .ge-utility[data-ge-family="display"] select option'));
@@ -99,10 +99,10 @@ async function toolTests(t, page) {
     t.check('a text is offered hidden or block (AC-20)', tools.textChoices === ',none,block', tools);
 
     var off = await page.eval(`
-        start('', '', { style: { visibility: { drawer: false } } });
+        start('', '', { inline_style: { visibility: { drawer: false } } });
         return { eyes: document.querySelectorAll('#myGrid .ge-visibility-tool').length, fields: document.querySelectorAll('#myGrid .ge-utility[data-ge-family="display"]').length };
     `);
-    t.check('style.visibility.drawer false leaves the eye out and keeps the field (AC-30)',
+    t.check('inline_style.visibility.drawer false leaves the eye out and keeps the field (AC-30)',
         off.eyes === 0 && off.fields === 5, off);
 }
 
@@ -214,7 +214,7 @@ async function breakpointTests(t, page) {
         start('', '');
         window.fixture.editor().destroy();
         col().insertAdjacentHTML('beforeend', '<div data-ge-element="box" class="d-inline-flex d-md-none">box</div>');
-        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['inline-style']) });
         ge().changeView('md');
         const hidden = state(document.querySelector('#myGrid .ge-element'));
         start('', 'd-md-flex');
@@ -281,7 +281,7 @@ async function markupTests(t, page) {
 
 module.exports = {
     name: 'display',
-    description: 'the style plugin\'s display, and its eye',
+    description: 'the inline-style plugin\'s display, and its eye',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

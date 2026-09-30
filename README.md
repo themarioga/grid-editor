@@ -560,13 +560,13 @@ __`element_tools`:__ Extra tools on every element drawer, same shape as `row_too
 See [example/elements.html](example/elements.html), which also shows the
 pattern for an element with no visual output of its own.
 
-### Style
+### Inline style
 
 Inline css for rows, columns, containers, panes, elements and sections, and
 Bootstrap's classes for it. A plugin:
 
 ```html
-<script src="grid-editor/dist/plugins/grideditor.style.min.js"></script>   <!-- after grideditor.elements -->
+<script src="grid-editor/dist/plugins/grideditor.inline-style.min.js"></script>   <!-- after grideditor.elements -->
 ```
 
 Each of those nodes gets a *Style* accordion in its settings panel, between
@@ -606,11 +606,11 @@ the node also sets says which class takes priority.
 With `settings_panel: 'popover'` or `'inline'` the panel has a *Style* button
 instead, which opens the accordion in a dialog.
 
-__`style`:__ Every section, unless you say otherwise.
+__`inline_style`:__ Every section, unless you say otherwise.
 
 ```javascript
 new GridEditor('#myGrid', {
-    style: {
+    inline_style: {
         sections: {
             position: false,                                                  // no Position section
             border: { properties: ['border-width', 'border-color'], catalog: false },  // two fields, no chips
@@ -634,18 +634,18 @@ A node that is flex or grid in the view you are in - a column with `d-flex`,
 a row with `flex-nowrap` - has its drawer on top, out of the flow, so the
 canvas lays out its content as the page will.
 
-See [example/style.html](example/style.html).
+See [example/inline-style.html](example/inline-style.html).
 
 ### Responsive utilities
 
 Bootstrap's responsive utility classes, edited per breakpoint. The grid's are
-plugins of their own; the ones that style a node are the style plugin's, above.
+plugins of their own; the ones that style a node are the inline-style plugin's, above.
 
 ```html
 <script src="grid-editor/dist/plugins/grideditor.order.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.alignment.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.gutters.min.js"></script>
-<script src="grid-editor/dist/plugins/grideditor.style.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.inline-style.min.js"></script>
 ```
 
 | Plugin | Classes | On |
@@ -653,10 +653,10 @@ plugins of their own; the ones that style a node are the style plugin's, above.
 | `order` | `order-{bp}-{first,0–5,last}` | columns |
 | `alignment` | `align-self-{bp}-*` | columns |
 | `gutters` | `g-{bp}-{0–5}`, `gx-{bp}-*`, `gy-{bp}-*` | rows |
-| `style` | display, flex (a row's `justify-content-*` and `align-items-*` among it), spacing, text alignment, sticky and float; see [Style](#style) | rows, columns, elements, containers, texts |
+| `inline-style` | display, flex (a row's `justify-content-*` and `align-items-*` among it), spacing, text alignment, sticky and float; see [Inline style](#inline-style) | rows, columns, elements, containers, texts |
 
 A plugin puts a field in the *Responsive* section of each drawer's settings
-panel - or, for the style plugin, in its section of the *Style* accordion -
+panel - or, for the inline-style plugin, in its section of the *Style* accordion -
 and some add a tool to the drawer. In a breakpoint view a change is
 written for that breakpoint alone, and the field says what it inherits and from
 where. In the all view it is written once, as the class with no breakpoint, and

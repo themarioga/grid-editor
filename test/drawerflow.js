@@ -48,7 +48,7 @@ var HELPERS = `
     window.start = function(html) {
         if (window.fixture.editor()) { window.fixture.teardown(); }
         document.querySelector('#myGrid').innerHTML = html;
-        window.fixture.init({ plugins: window.fixture.plugins(['style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['inline-style']) });
     };
     window.column = function(classes) {
         return '<div class="row"><div class="column col-12 ' + classes + '">' +
@@ -145,7 +145,7 @@ async function run(t, page) {
 
 module.exports = {
     name: 'drawerflow',
-    description: 'the style plugin\'s drawer on a flex or grid node',
+    description: 'the inline-style plugin\'s drawer on a flex or grid node',
     run: async function(t) {
         var page = await t.page(FIXTURE, `window.fixture`);
         await page.eval(HELPERS);

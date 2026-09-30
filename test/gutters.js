@@ -25,6 +25,18 @@ var HELPERS = `
             marked: row().classList.contains('ge-gutters'),
         };
     };
+    // Where the row's drawer and its first tool sit, against the inside of
+    // the row's border
+    window.drawerEdges = function() {
+        const box = row().getBoundingClientRect();
+        const drawer = row().querySelector(':scope > .ge-tools-drawer');
+        const edges = drawer.getBoundingClientRect();
+        return {
+            left: Math.round(edges.left - box.left - row().clientLeft),
+            right: Math.round(box.right - row().clientLeft - edges.right),
+            tool: Math.round(drawer.querySelector(':scope > a').getBoundingClientRect().left - edges.left),
+        };
+    };
     window.classes = function() {
         return (row().getAttribute('class') || '').split(/\\s+/).filter(function(name) { return /^g[xy]?-/.test(name); }).sort().join(' ');
     };
@@ -54,6 +66,15 @@ async function run(t) {
         plain.fields === 'row-cols,g,gx,gy' && plain.columnFields === 0, plain);
     t.check('a row with no gutter class keeps the editor\'s own frame',
         !plain.gutters.marked && plain.gutters.padding === '5px', plain.gutters);
+
+    var edges = await page.eval(`
+        start('');
+        const plainRow = drawerEdges();
+        start('g-3');
+        return { plain: plainRow, gutters: drawerEdges() };
+    `);
+    t.check('a row\'s drawer spans the row, and its first tool is at its start, with or without gutter classes',
+        [edges.plain, edges.gutters].every(function(at) { return at.left === 0 && at.right === 0 && at.tool === 0; }), edges);
 
     var perView = await page.eval(`
         start('g-2 g-md-5');
