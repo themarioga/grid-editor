@@ -13,7 +13,7 @@ import '@themarioga/grid-editor/plugins/tabs';
 import '@themarioga/grid-editor/plugins/accordion';
 import '@themarioga/grid-editor/plugins/card';
 import '@themarioga/grid-editor/plugins/elements';
-import '@themarioga/grid-editor/plugins/style';
+import '@themarioga/grid-editor/plugins/inline-style';
 import '@themarioga/grid-editor/plugins/tinymce';
 import '@themarioga/grid-editor/locales/es';
 
