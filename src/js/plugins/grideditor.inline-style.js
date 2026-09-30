@@ -59,6 +59,7 @@ Object.assign(GridEditor.locales.en, {
     'inline_style.shadow_color': 'Color',
     'inline_style.shadow_inset': 'Inset',
     'inline_style.shadow_text_mode': 'Edit as text',
+    'inline_style.shadow_builder_mode': 'Edit with the builder',
     'inline_style.prop_width': 'Width',
     'inline_style.prop_height': 'Height',
     'inline_style.prop_min_width': 'Min width',

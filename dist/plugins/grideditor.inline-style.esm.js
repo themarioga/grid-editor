@@ -1410,6 +1410,14 @@ function shadowControl(ge, node, property, changed) {
       }
       writeValue(input.value, input);
     });
+    if (parseShadow(value, box)) {
+      var toBuilder = holder.appendChild(element("a", { href: "#", "class": "ge-inline-style-shadow-mode" }, ge.t("inline_style.shadow_builder_mode")));
+      toBuilder.addEventListener("click", function(e) {
+        e.preventDefault();
+        textMode = false;
+        render();
+      });
+    }
   }
   var shown = null;
   function render() {
@@ -1806,6 +1814,7 @@ Object.assign(GridEditor7.locales.en, {
   "inline_style.shadow_color": "Color",
   "inline_style.shadow_inset": "Inset",
   "inline_style.shadow_text_mode": "Edit as text",
+  "inline_style.shadow_builder_mode": "Edit with the builder",
   "inline_style.prop_width": "Width",
   "inline_style.prop_height": "Height",
   "inline_style.prop_min_width": "Min width",

@@ -329,6 +329,7 @@ The inline-style plugin's accordion, in a node's settings panel or in the dialog
 | `inline_style.shadow_color` | Color | A part of the shadow builder |
 | `inline_style.shadow_inset` | Inset | The shadow builder's inset checkbox |
 | `inline_style.shadow_text_mode` | Edit as text | Link under the shadow builder that edits the value as text |
+| `inline_style.shadow_builder_mode` | Edit with the builder | Link under a shadow edited as text that goes back to the builder, when the value is one shadow or none |
 | `inline_style.prop_width` | Width | Label of the `width` field |
 | `inline_style.prop_height` | Height | Label of the `height` field |
 | `inline_style.prop_min_width` | Min width | Label of the `min-width` field |

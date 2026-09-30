@@ -532,6 +532,23 @@ async function shadows(t, page) {
     t.check('several shadows show as text (AC-41)', /1px 1px/.test(several.shown) && /2px 2px/.test(several.shown), several);
     t.check('emptying the text takes the shadow off and brings the builder back (AC-42)',
         !several.style && several.builder, several);
+
+    var back = await page.eval(`
+        start('<div class="row" style="box-shadow: 2px 4px 6px red"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+        const shadow = function() { return field(row(), 'box-shadow'); };
+        const link = function() { return shadow().querySelector('.ge-inline-style-shadow-mode'); };
+        link().click();
+        const asText = { text: !!shadow().querySelector('.ge-inline-style-shadow-text'), link: link() ? link().textContent : null };
+        link().click();
+        const builder = shadow().querySelector('.ge-inline-style-shadow-builder');
+        const again = { builder: !!builder, x: builder ? shadow().querySelector('.ge-inline-style-shadow-x').value : null, style: row().style.boxShadow };
+        start('<div class="row" style="box-shadow: 1px 1px red, 2px 2px blue"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+        return { asText: asText, again: again, several: !!link() };
+    `);
+    t.check('a shadow edited as text by choice can go back to the builder, with its value (AC-75)',
+        back.asText.text && back.asText.link === 'Edit with the builder' &&
+        back.again.builder && back.again.x === '2px' && /2px 4px 6px/.test(back.again.style), back);
+    t.check('several shadows, which the builder cannot hold, offer no way back to it (AC-76)', !back.several, back);
 }
 
 async function values(t, page) {

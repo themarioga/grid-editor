@@ -276,6 +276,16 @@ function shadowControl(ge, node, property, changed) {
             }
             writeValue(input.value, input);
         });
+
+        // Back to the builder, when it can hold the value: one shadow, or none
+        if (parseShadow(value, box)) {
+            var toBuilder = holder.appendChild(dom.element('a', { href: '#', 'class': 'ge-inline-style-shadow-mode' }, ge.t('inline_style.shadow_builder_mode')));
+            toBuilder.addEventListener('click', function(e) {
+                e.preventDefault();
+                textMode = false;
+                render();
+            });
+        }
     }
 
     var shown = null; // The value the builder or the text was last built for

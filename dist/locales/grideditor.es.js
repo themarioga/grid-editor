@@ -199,6 +199,7 @@
     "inline_style.shadow_color": "Color",
     "inline_style.shadow_inset": "Interior",
     "inline_style.shadow_text_mode": "Editar como texto",
+    "inline_style.shadow_builder_mode": "Editar con el constructor",
     "inline_style.prop_width": "Ancho",
     "inline_style.prop_height": "Alto",
     "inline_style.prop_min_width": "Ancho m\xEDnimo",
