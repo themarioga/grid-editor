@@ -45,7 +45,9 @@
       addAccordionItem: { value: true },
       setLocale: {},
       getUtility: { value: true },
-      setUtility: { value: true }
+      setUtility: { value: true },
+      getActiveTarget: { value: true },
+      setActiveTarget: {}
     };
     var TOOL_SETTINGS = [
       "row_tools",

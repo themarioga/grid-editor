@@ -112,6 +112,22 @@ async function hostTests(t, page) {
     t.check('the create* methods hand back jQuery objects, and take one as the place',
         created.row && created.columns === 2 && created.placed, created);
 
+    var targeted = await page.eval(`
+        fresh({ active_target: true });
+        const chained = jQuery('#myGrid').gridEditor('setActiveTarget', jQuery('#right'));
+        const got = jQuery('#myGrid').gridEditor('getActiveTarget');
+        const result = {
+            chained: chained.is('#myGrid'),
+            got: got instanceof jQuery && got.is('#right'),
+            same: GridEditor.get('#myGrid').getActiveTarget() === document.querySelector('#right'),
+        };
+        jQuery('#myGrid').gridEditor('setActiveTarget', null);
+        result.cleared = jQuery('#myGrid').gridEditor('getActiveTarget');
+        return result;
+    `);
+    t.check('getActiveTarget and setActiveTarget go through $(el).gridEditor(), with jQuery objects (AC-30)',
+        targeted.chained && targeted.got && targeted.same && targeted.cleared === null, targeted);
+
     var handle = await page.eval(`
         fresh();
         const ge = jQuery('#myGrid').data('grideditor');

@@ -107,6 +107,8 @@ export interface GridEditorOptions {
     text_tools?: HostTool[];
     drag_handle?: 'tool' | 'drawer';
     toolbar_drag?: 'auto' | boolean;
+    /** A click in a column or a section makes it where the toolbar's buttons add. Default false. */
+    active_target?: boolean;
     /** The plugins to use, of any kind; null is every one loaded. */
     plugins?: string[] | null;
     /** The text editors offered, in order. */
@@ -218,6 +220,13 @@ export interface ViewChangePayload {
     to: View;
 }
 
+/** The active target changed: the column or region the toolbar adds to, or null for the canvas. */
+export interface TargetChangePayload {
+    canvas: HTMLElement;
+    target: HTMLElement | null;
+    from: HTMLElement | null;
+}
+
 /** The events, by name, with their payloads. Adding fires a specific name and the generic one. */
 export interface GridEditorEventMap {
     'grideditor:before-add': Payload;
@@ -255,6 +264,7 @@ export interface GridEditorEventMap {
     'grideditor:after-copy': Payload;
     'grideditor:popup-orphan': PopupOrphanPayload;
     'grideditor:view-change': ViewChangePayload;
+    'grideditor:target-change': TargetChangePayload;
 }
 
 /** An event the editor dispatches on its canvas: a CustomEvent whose detail is the payload. */
@@ -343,6 +353,10 @@ export declare class GridEditor {
     /** Take the editor off: the markup stays, everything else goes. */
     destroy(): this;
     changeView(view: View): this;
+    /** The column or region the toolbar adds to, or null. Null without active_target. */
+    getActiveTarget(): HTMLElement | null;
+    /** Make a column or region, or the first a selector matches, where the toolbar adds; null for none. */
+    setActiveTarget(target: HTMLElement | string | null): this;
     getView(): View;
     setLocale(code: string): this;
     createRow(layout?: RowLayout, options?: Placement): HTMLElement | null;

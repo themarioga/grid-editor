@@ -325,7 +325,9 @@ var METHODS = {
   addAccordionItem: { value: true },
   setLocale: {},
   getUtility: { value: true },
-  setUtility: { value: true }
+  setUtility: { value: true },
+  getActiveTarget: { value: true },
+  setActiveTarget: {}
 };
 var PLACEMENTS = ["appendTo", "prependTo", "insertAfter", "insertBefore"];
 var BREAKPOINTS = [
@@ -568,6 +570,8 @@ function build(instance, baseElem, optionsOrMethod) {
     // 'tool' for the move tool, 'drawer' for the whole drawer
     "toolbar_drag": "auto",
     // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
+    "active_target": false,
+    // A click in a column makes it where the toolbar's buttons add
     "element_tools": [],
     // Host tools on element drawers, same shape as row_tools
     "element_classes": [],
@@ -629,6 +633,7 @@ function build(instance, baseElem, optionsOrMethod) {
   var sizePicker = null;
   var sourceOpen = false;
   var dropMarker = null;
+  var activeTarget = null;
   var warnedHere = {};
   var sortables = [];
   var instanceId = ++editorCounter;
@@ -1033,6 +1038,34 @@ function build(instance, baseElem, optionsOrMethod) {
         e.preventDefault();
       }
     }, signal);
+    if (settings.active_target) {
+      var pressed = null;
+      canvas.addEventListener("pointerdown", function(e) {
+        pressed = { x: e.clientX, y: e.clientY };
+      }, signal);
+      canvas.addEventListener("click", function(e) {
+        var from = pressed;
+        pressed = null;
+        if (!hasClass(canvas, "ge-editing")) {
+          return;
+        }
+        if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) {
+          return;
+        }
+        var region = closest(e.target, targetSelector());
+        changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+      }, signal);
+      document.addEventListener("keydown", function(e) {
+        if (e.key !== "Escape" || !activeTarget || openSettingsState || dialogState) {
+          return;
+        }
+        var focus = document.activeElement;
+        if (focus && (is(focus, "input, textarea, select") || focus.isContentEditable)) {
+          return;
+        }
+        changeTarget(null);
+      }, signal);
+    }
   }
   function textReady(block) {
     if (!is(block, ".ge-content") || !canvas.contains(block)) {
@@ -1058,6 +1091,10 @@ function build(instance, baseElem, optionsOrMethod) {
         "data-ge-layout": grouped ? JSON.stringify(layout) : layout.join(",")
       });
       btn.addEventListener("click", function() {
+        if (activeTarget) {
+          addToTarget(btn, "tool");
+          return;
+        }
         var row = rowFromLayoutValue(layout);
         var added = addNode("row", row, function() {
           canvas.appendChild(row);
@@ -1086,6 +1123,10 @@ function build(instance, baseElem, optionsOrMethod) {
       );
       attr(button, { "data-ge-toolbar": "container", "data-ge-container-type": type });
       button.addEventListener("click", function() {
+        if (activeTarget) {
+          addToTarget(button, "tool");
+          return;
+        }
         var row = createRow();
         var column = row.appendChild(createColumn(MAX_COL_SIZE));
         var container = column.appendChild(definition.create({}));
@@ -1179,6 +1220,10 @@ function build(instance, baseElem, optionsOrMethod) {
       "data-ge-item": index
     });
     button.addEventListener("click", function() {
+      if (activeTarget) {
+        addToTarget(button, item.source || "tool");
+        return;
+      }
       var made = item.create();
       var placed = item.inColumn ? inRowOfItsOwn(made) : made;
       var added = addNode(item.kind, made, function() {
@@ -1284,7 +1329,7 @@ function build(instance, baseElem, optionsOrMethod) {
     });
     return { region, before };
   }
-  function insertFeatureFromToolbar(button, where) {
+  function insertFeatureFromToolbar(button, where, source) {
     var item = FEATURES[button.getAttribute("data-ge-feature")].toolbar[parseInt(button.getAttribute("data-ge-item"), 10)];
     var made = item.create();
     var placed = made;
@@ -1303,7 +1348,7 @@ function build(instance, baseElem, optionsOrMethod) {
       } else {
         where.region.appendChild(placed);
       }
-    }, { parent: where.region, source: item.source || "dragdrop" });
+    }, { parent: where.region, source: item.source || source || "dragdrop" });
   }
   function inRowOfItsOwn(node) {
     var row = createRow();
@@ -1330,9 +1375,9 @@ function build(instance, baseElem, optionsOrMethod) {
       dropMarker.remove();
     }
   }
-  function insertFromToolbar(button, where) {
+  function insertFromToolbar(button, where, source) {
     if (button.getAttribute("data-ge-toolbar") === "feature") {
-      return insertFeatureFromToolbar(button, where);
+      return insertFeatureFromToolbar(button, where, source);
     }
     var container = button.getAttribute("data-ge-toolbar") === "container";
     var type = button.getAttribute("data-ge-container-type");
@@ -1347,7 +1392,7 @@ function build(instance, baseElem, optionsOrMethod) {
       } else {
         where.region.appendChild(placed);
       }
-    }, { parent: where.region, source: "dragdrop" });
+    }, { parent: where.region, source: source || "dragdrop" });
   }
   function widthFamily() {
     var values = [];
@@ -1587,6 +1632,7 @@ function build(instance, baseElem, optionsOrMethod) {
   }
   function openSource() {
     deinit();
+    changeTarget(null);
     htmlTextArea.style.height = 0.8 * document.documentElement.clientHeight + "px";
     htmlTextArea.value = canvas.innerHTML;
     show(htmlTextArea);
@@ -1601,6 +1647,32 @@ function build(instance, baseElem, optionsOrMethod) {
     show(canvas);
     init();
     hide(htmlTextArea);
+  }
+  function targetSelector() {
+    return [".column"].concat(pluginHooks("regions")).join(", ");
+  }
+  function isTarget(node) {
+    return !!node && node !== canvas && canvas.contains(node) && is(node, targetSelector());
+  }
+  function changeTarget(node) {
+    if (node === activeTarget) {
+      return;
+    }
+    var from = activeTarget;
+    if (from) {
+      removeClass(from, "ge-active-target");
+    }
+    activeTarget = node;
+    if (node && hasClass(canvas, "ge-editing")) {
+      addClass(node, "ge-active-target");
+    }
+    emit("target-change", { canvas, target: node, from });
+  }
+  function addToTarget(button, source) {
+    var made = insertFromToolbar(button, { region: activeTarget, before: null }, source);
+    if (made && made.scrollIntoView) {
+      made.scrollIntoView({ behavior: "smooth" });
+    }
   }
   function init() {
     if (openSettingsState && !attached(openSettingsState.node)) {
@@ -1625,10 +1697,18 @@ function build(instance, baseElem, optionsOrMethod) {
     makeResizable();
     switchLayout(curView);
     refreshPreviews(canvas);
+    if (activeTarget && !canvas.contains(activeTarget)) {
+      changeTarget(null);
+    } else if (activeTarget) {
+      addClass(activeTarget, "ge-active-target");
+    }
   }
   function deinit() {
     closeSettings();
     removeClass(canvas, "ge-editing ge-drag-drawer ge-dropping");
+    if (activeTarget) {
+      removeClass(activeTarget, "ge-active-target");
+    }
     plugins("onBeforeDeinit");
     closeSizePicker();
     hideDropMarker();
@@ -1670,6 +1750,7 @@ function build(instance, baseElem, optionsOrMethod) {
       closeSource();
     }
     deinit();
+    activeTarget = null;
     removeConfirmModal();
     removeSettingsPanels();
     removeDialog();
@@ -4046,6 +4127,23 @@ function build(instance, baseElem, optionsOrMethod) {
       return featureMethods[name].apply(null, arguments);
     };
   }
+  function apiSetActiveTarget(value) {
+    if (!settings.active_target) {
+      warnOnceHere("active_target", "setActiveTarget needs the active_target setting: without it, it does nothing");
+      return;
+    }
+    if (value === null || value === void 0) {
+      changeTarget(null);
+      return;
+    }
+    var node = nodeFrom(value);
+    if (!isTarget(node)) {
+      var named = typeof value === "string" ? value : node ? "<" + node.tagName.toLowerCase() + ">" : String(value);
+      warn("setActiveTarget: " + named + " is not a column or a region of the canvas");
+      return;
+    }
+    changeTarget(node);
+  }
   var own = {
     getHtml,
     getPlainHtml,
@@ -4079,7 +4177,11 @@ function build(instance, baseElem, optionsOrMethod) {
     },
     setLocale,
     getUtility,
-    setUtility
+    setUtility,
+    getActiveTarget: function() {
+      return settings.active_target ? activeTarget : null;
+    },
+    setActiveTarget: apiSetActiveTarget
   };
   Object.keys(own).forEach(function(name) {
     var value = !!(METHODS[name] && METHODS[name].value);

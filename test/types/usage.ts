@@ -5,13 +5,14 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { GridEditorOptions, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { GridEditorOptions, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
     content_types: ['tinymce'],
     plugins: ['tabs', 'elements'],
     settings_panel: 'modal',
+    active_target: true,
     resize: { enabled: true, tools: false, handles: 'e, w', balance: false },
     indent: { tools: false },
     row_tools: [{ title: 'Mine', on: function(event) { event.preventDefault(); this.classList.add('x'); } }],
@@ -45,6 +46,12 @@ ge.createContainer('tabs', { variant: 'underline', width: 'fill', vertical: 'xl'
 if (tabs) { ge.addTab(tabs, { label: 'More' }); }
 const changed: boolean = ge.setUtility('#col', 'order', 2, 'md');
 const value: string | null = ge.getUtility('#col', 'order');
+const active: HTMLElement | null = ge.getActiveTarget();
+ge.setActiveTarget('#col').setActiveTarget(active).setActiveTarget(null);
+ge.canvas.addEventListener('grideditor:target-change', function(event) {
+    const payload: TargetChangePayload = event.detail;
+    if (payload.target) { payload.target.classList.contains('column'); }
+});
 
 ge.canvas.addEventListener('grideditor:before-delete', function(event) {
     if (event.detail.node.classList.contains('locked')) { event.preventDefault(); }

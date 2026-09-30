@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.2.0] - 2026-09-30
+
+### Added
+- `active_target`: with `true`, a click in a column or a section makes it
+  where the toolbar's buttons add, marked with a dashed outline, instead of
+  the end of the canvas. What a button makes goes where a drop at the
+  target's end would put it: a row into a column as a nested row, a text or
+  a container as it is, a section after the block the target is in. The
+  toolbar's paste button pastes there too. Escape, a click on no column or
+  section, or deleting the target clears it. `getActiveTarget()`,
+  `setActiveTarget(node | selector | null)` and the `grideditor:target-change`
+  event (`callbacks.target_change`). Off by default.
+
 ## [8.1.0] - 2026-09-30
 
 ### Added

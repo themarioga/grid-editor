@@ -516,6 +516,16 @@
     outline-offset: 1px;
 }
 
+/* Where the toolbar's buttons add, with active_target. A node that is both
+   shows both: this one a little further out */
+.ge-canvas.ge-editing .ge-active-target {
+    outline: 2px dashed var(--bs-success, #198754);
+    outline-offset: -2px;
+}
+.ge-canvas.ge-editing .ge-active-target.ge-settings-target {
+    box-shadow: 0 0 0 4px var(--bs-success, #198754);
+}
+
 /* While editing */
 .ge-canvas.ge-editing {
     

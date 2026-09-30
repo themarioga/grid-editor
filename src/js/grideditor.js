@@ -35,6 +35,8 @@ var METHODS = {
     setLocale:        {},
     getUtility:       { value: true },
     setUtility:       { value: true },
+    getActiveTarget:  { value: true },
+    setActiveTarget:  {},
 };
 
 /**
@@ -364,6 +366,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'row_tools'         : [],
             'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
+            'active_target'     : false, // A click in a column makes it where the toolbar's buttons add
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
             // content_types, text_tools and text_classes are the text editor
@@ -416,6 +419,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var sizePicker = null; // The open column size picker, if there is one
         var sourceOpen = false; // Whether the canvas is being edited as html
         var dropMarker = null; // The line showing where a dragged toolbar button would land
+        var activeTarget = null; // The column or region the toolbar adds to, with active_target
         var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
@@ -979,6 +983,35 @@ function build(instance, baseElem, optionsOrMethod) {
             dom.delegate(canvas, 'click', '.ge-popup-trigger, [data-ge-popup-target]', function(e) {
                 if (dom.hasClass(canvas, 'ge-editing')) { e.preventDefault(); }
             }, signal);
+
+            if (settings.active_target) {
+                // Whatever the click was for - a text, a tool - it also says
+                // where the toolbar adds next. A click on no column or region
+                // says nowhere, and the toolbar adds to the canvas again.
+                // The click a drag ends in - a resize, a move - is not one:
+                // it comes where the pointer let go, not where it pressed
+                var pressed = null;
+                canvas.addEventListener('pointerdown', function(e) {
+                    pressed = { x: e.clientX, y: e.clientY };
+                }, signal);
+                canvas.addEventListener('click', function(e) {
+                    var from = pressed;
+                    pressed = null;
+                    if (!dom.hasClass(canvas, 'ge-editing')) { return; }
+                    if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) { return; }
+                    var region = dom.closest(e.target, targetSelector());
+                    changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+                }, signal);
+
+                // Escape is the panel's, the dialog's, and a field's or a
+                // text's while one has the focus; after those, it is this
+                document.addEventListener('keydown', function(e) {
+                    if (e.key !== 'Escape' || !activeTarget || openSettingsState || dialogState) { return; }
+                    var focus = document.activeElement;
+                    if (focus && (dom.is(focus, 'input, textarea, select') || focus.isContentEditable)) { return; }
+                    changeTarget(null);
+                }, signal);
+            }
         }
 
         /**
@@ -1019,6 +1052,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 });
 
                 btn.addEventListener('click', function() {
+                    if (activeTarget) { addToTarget(btn, 'tool'); return; }
+
                     var row = rowFromLayoutValue(layout);
 
                     var added = addNode('row', row, function() {
@@ -1055,6 +1090,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
                 dom.attr(button, { 'data-ge-toolbar': 'container', 'data-ge-container-type': type });
                 button.addEventListener('click', function() {
+                    if (activeTarget) { addToTarget(button, 'tool'); return; }
+
                     var row = createRow();
                     var column = row.appendChild(createColumn(MAX_COL_SIZE));
                     var container = column.appendChild(definition.create({}));
@@ -1184,6 +1221,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 'data-ge-item': index,
             });
             button.addEventListener('click', function() {
+                if (activeTarget) { addToTarget(button, item.source || 'tool'); return; }
+
                 var made = item.create();
 
                 // One that belongs in a column brings a row and a column
@@ -1339,7 +1378,7 @@ function build(instance, baseElem, optionsOrMethod) {
          * not have what it makes - a section dropped on a column - gives way
          * to the canvas, just after the top level block the pointer was in.
          */
-        function insertFeatureFromToolbar(button, where) {
+        function insertFeatureFromToolbar(button, where, source) {
             var item = FEATURES[button.getAttribute('data-ge-feature')].toolbar[parseInt(button.getAttribute('data-ge-item'), 10)];
             var made = item.create();
             var placed = made;
@@ -1360,7 +1399,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 } else {
                     where.region.appendChild(placed);
                 }
-            }, { parent: where.region, source: item.source || 'dragdrop' });
+            }, { parent: where.region, source: item.source || source || 'dragdrop' });
         }
 
         /** A detached row with one full width column holding `node`. */
@@ -1396,9 +1435,9 @@ function build(instance, baseElem, optionsOrMethod) {
          * The row or container a toolbar button stands for, made and put where
          * the pointer left it.
          */
-        function insertFromToolbar(button, where) {
+        function insertFromToolbar(button, where, source) {
             if (button.getAttribute('data-ge-toolbar') === 'feature') {
-                return insertFeatureFromToolbar(button, where);
+                return insertFeatureFromToolbar(button, where, source);
             }
 
             var container = button.getAttribute('data-ge-toolbar') === 'container';
@@ -1418,7 +1457,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 } else {
                     where.region.appendChild(placed);
                 }
-            }, { parent: where.region, source: 'dragdrop' });
+            }, { parent: where.region, source: source || 'dragdrop' });
         }
 
         /**
@@ -1710,6 +1749,8 @@ function build(instance, baseElem, optionsOrMethod) {
          */
         function openSource() {
             deinit();
+            // The canvas is made again from the html when it comes back
+            changeTarget(null);
             htmlTextArea.style.height = (0.8 * document.documentElement.clientHeight) + 'px';
             htmlTextArea.value = canvas.innerHTML;
             dom.show(htmlTextArea);
@@ -1730,6 +1771,39 @@ function build(instance, baseElem, optionsOrMethod) {
             dom.show(canvas);
             init();
             dom.hide(htmlTextArea);
+        }
+
+        /**
+         * What can be the active target: a column, or a plugin's region - a
+         * section. Not the canvas, which is where the toolbar adds without one.
+         */
+        function targetSelector() {
+            return ['.column'].concat(pluginHooks('regions')).join(', ');
+        }
+
+        function isTarget(node) {
+            return !!node && node !== canvas && canvas.contains(node) && dom.is(node, targetSelector());
+        }
+
+        /** The one way the active target changes, told only when it does. */
+        function changeTarget(node) {
+            if (node === activeTarget) { return; }
+
+            var from = activeTarget;
+            if (from) { dom.removeClass(from, 'ge-active-target'); }
+            activeTarget = node;
+            if (node && dom.hasClass(canvas, 'ge-editing')) { dom.addClass(node, 'ge-active-target'); }
+
+            emit('target-change', { canvas: canvas, target: node, from: from });
+        }
+
+        /**
+         * A toolbar button's click with an active target: what it makes goes
+         * where a drop at the target's end would put it.
+         */
+        function addToTarget(button, source) {
+            var made = insertFromToolbar(button, { region: activeTarget, before: null }, source);
+            if (made && made.scrollIntoView) { made.scrollIntoView({ behavior: 'smooth' }); }
         }
 
         function init() {
@@ -1759,12 +1833,21 @@ function build(instance, baseElem, optionsOrMethod) {
             makeResizable();
             switchLayout(curView);
             refreshPreviews(canvas);
+
+            // Deleted, or taken out some other way, it is a target no more
+            if (activeTarget && !canvas.contains(activeTarget)) {
+                changeTarget(null);
+            } else if (activeTarget) {
+                dom.addClass(activeTarget, 'ge-active-target');
+            }
         }
 
         function deinit() {
             // Its panel goes home to its drawer first, and both go together
             closeSettings();
             dom.removeClass(canvas, 'ge-editing ge-drag-drawer ge-dropping');
+            // The mark goes, the target stays: getHtml comes straight back
+            if (activeTarget) { dom.removeClass(activeTarget, 'ge-active-target'); }
             // Before the drawers and the text blocks come off: an editor
             // plugin closes its editors here, and finds them where it left them
             plugins('onBeforeDeinit');
@@ -1826,6 +1909,7 @@ function build(instance, baseElem, optionsOrMethod) {
             // The html being edited is what the canvas is left with
             if (sourceOpen) { closeSource(); }
             deinit();
+            activeTarget = null;
             removeConfirmModal();
             removeSettingsPanels();
             removeDialog();
@@ -5150,6 +5234,23 @@ function build(instance, baseElem, optionsOrMethod) {
          * finishes before the canvas is rebuilt. The ones that do something,
          * rather than answer something, hand back the instance, to chain.
          */
+        function apiSetActiveTarget(value) {
+            if (!settings.active_target) {
+                warnOnceHere('active_target', 'setActiveTarget needs the active_target setting: without it, it does nothing');
+                return;
+            }
+            if (value === null || value === undefined) { changeTarget(null); return; }
+
+            var node = nodeFrom(value);
+            if (!isTarget(node)) {
+                var named = typeof value === 'string' ? value : (node ? '<' + node.tagName.toLowerCase() + '>' : String(value));
+                warn('setActiveTarget: ' + named + ' is not a column or a region of the canvas');
+                return;
+            }
+
+            changeTarget(node);
+        }
+
         var own = {
             getHtml: getHtml,
             getPlainHtml: getPlainHtml,
@@ -5180,6 +5281,8 @@ function build(instance, baseElem, optionsOrMethod) {
             setLocale: setLocale,
             getUtility: getUtility,
             setUtility: setUtility,
+            getActiveTarget: function() { return settings.active_target ? activeTarget : null; },
+            setActiveTarget: apiSetActiveTarget,
         };
 
         Object.keys(own).forEach(function(name) {

@@ -174,6 +174,8 @@ has, with the options it was made with, and warns once.
 | `destroy` | — | `this` | Deinit, drop the controls, unbind, forget the instance |
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once, with one class |
 | `getView` | — | `String` | The view the editor is in |
+| `getActiveTarget` | — | `Element` | With `active_target`, the column or section the toolbar adds to, or `null` |
+| `setActiveTarget` | `node` | `this` | Make a column or section - an element or a selector - the one the toolbar adds to, or `null` for none |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
 | `createRow` | `layout?`, `options?` | `Element` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
 | `createColumn` | `size`, `options?` | `Element` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
@@ -358,6 +360,15 @@ __`toolbar_drag`:__ Whether the toolbar's buttons are a palette: drag one onto t
 new GridEditor('#myGrid', {
     drag_handle: 'drawer',
     toolbar_drag: 'auto',
+});
+```
+
+__`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
+
+```javascript
+const ge = new GridEditor('#myGrid', { active_target: true });
+ge.canvas.addEventListener('grideditor:target-change', function(e) {
+    console.log('the toolbar adds to', e.detail.target || 'the end of the canvas');
 });
 ```
 

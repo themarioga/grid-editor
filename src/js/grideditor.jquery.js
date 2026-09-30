@@ -67,6 +67,8 @@ function install() {
         setLocale:        {},
         getUtility:       { value: true },
         setUtility:       { value: true },
+        getActiveTarget:  { value: true },
+        setActiveTarget:  {},
     };
 
     /** The *_tools settings, whose handlers 6.x bound with jQuery. */

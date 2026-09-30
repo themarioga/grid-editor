@@ -89,6 +89,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-utility` | — | yes | before a utility class is written, from the panel, a plugin's tool or `setUtility` |
 | `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
+| `grideditor:target-change` | — | no | with `active_target`, after the column or section the toolbar adds to changes, only if it actually changed |
 | `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied |
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
@@ -159,6 +160,12 @@ with the generic pair.
 view), `from` and `to`. A utility's `breakpoint` is the view it was written
 in, which `setUtility` can be asked to make a different one from the view on
 screen, and its `source` is `panel`, `tool` or `api`.
+
+`target-change` carries no node either: its payload is `canvas`, `target` - the
+column or section the toolbar adds to now, or `null` for the end of the canvas
+- and `from`, the one before. What a toolbar button then adds fires its add
+events as any click does, with `source: 'tool'` (or `'paste'`) and the target,
+or the canvas for a section, as the `parent`.
 
 `source` matters to a host that both drives the editor from its own palette and
 listens for what the user does: `api` is your own call coming back to you,
