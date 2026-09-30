@@ -53,15 +53,18 @@ async function main() {
     `);
     check('the toolbar adds a row, and the component tells the app, which renders it', added.rows === 2 && added.changes === 'Changes: 1', added);
 
-    await page.drag('.ge-canvas > .row:last-child > .ge-tools-drawer .ge-move', '.ge-canvas > .row:first-child', { yRatio: 0.1 });
+    // Onto the first row's drawer: lower down, the point is in one of its
+    // columns, and the row lands in there, nested
+    await page.drag('.ge-canvas > .row:last-child > .ge-tools-drawer .ge-move', '.ge-canvas > .row:first-child > .ge-tools-drawer', { yRatio: 0.25 });
     await cdp.sleep(400);
     const moved = await page.eval(`
       return {
+        rows: document.querySelectorAll('.ge-canvas > .row').length,
         first: document.querySelector('.ge-canvas > .row').querySelectorAll(':scope > .column').length,
         changes: document.querySelector('#changes').textContent.trim(),
       };
     `);
-    check('a row drags with the SortableJS the app handed over', moved.first === 2 && moved.changes === 'Changes: 2', moved);
+    check('a row drags with the SortableJS the app handed over', moved.rows === 2 && moved.first === 2 && moved.changes === 'Changes: 2', moved);
 
     await page.click('.ge-canvas > .row:first-child > .ge-tools-drawer .ge-delete-row');
     await page.waitFor(`document.querySelector('body > .ge-confirm.show')`, { label: 'the confirmation' });
