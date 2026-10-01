@@ -13,6 +13,7 @@ const options: GridEditorOptions = {
     plugins: ['tabs', 'elements'],
     settings_panel: 'modal',
     active_target: true,
+    toolbar_groups: true,
     resize: { enabled: true, tools: false, handles: 'e, w', balance: false },
     indent: { tools: false },
     row_tools: [{ title: 'Mine', on: function(event) { event.preventDefault(); this.classList.add('x'); } }],

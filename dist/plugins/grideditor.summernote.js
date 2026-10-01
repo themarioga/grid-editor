@@ -365,6 +365,7 @@
             iconClass: TEXTS[type].iconClass,
             className: "ge-add-text-button",
             kind: "text",
+            group: "content",
             inColumn: true,
             create: function() {
               return makeText(type);

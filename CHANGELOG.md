@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sections keep their tools to one line. The tools that don't fit are hidden
   from the end, behind a `⋯` tool that unfolds the drawer to show them all,
   and come back when there is room. `'wrap'` keeps the old behaviour.
+- `toolbar_groups`: with `true`, the toolbar's add buttons are sorted into
+  categories, with tabs at the start of the toolbar choosing which one shows:
+  *Rows* and *Content* from the core, and a plugin's own. A `toolbar` item or
+  a container names its category with `group`; one that names none has its
+  plugin's. The label is the `group.<name>` locale string. Off by default.
 
 ### Fixed
 - `toolbar_overflow`: squeezed, the toolbar's buttons wrapped their labels

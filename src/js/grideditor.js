@@ -198,6 +198,15 @@ function translate(settings, key, params) {
     });
 }
 
+/** Whether some locale has a string for the key, asked without the warning a missing one gets. */
+function hasString(settings, key) {
+    var locales = GridEditor.locales;
+
+    return (settings.locale_strings || {})[key] !== undefined ||
+        (locales[settings.locale] || {})[key] !== undefined ||
+        locales.en[key] !== undefined;
+}
+
 function warn(message) {
     if (window.console && window.console.warn) {
         window.console.warn('grid-editor: ' + message);
@@ -368,6 +377,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
             'toolbar_overflow'  : 'menu', // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
             'drawer_overflow'   : 'menu', // The same for the drawers' tools: 'menu' behind a button, 'wrap' onto another line
+            'toolbar_groups'    : false, // The add buttons in categories, one shown at a time, picked with tabs
             'active_target'     : false, // A click in a column makes it where the toolbar's buttons add
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
@@ -424,6 +434,9 @@ function build(instance, baseElem, optionsOrMethod) {
         var activeTarget = null; // The column or region the toolbar adds to, with active_target
         var toolbarLifetime = null; // Aborted when the toolbar is rebuilt or taken away
         var closeOverflowMenu = function() {}; // Folds the toolbar's overflow menu away, when it has one
+        var refitToolbar = function() {}; // Works out again what the toolbar's overflow menu holds, when it has one
+        var addButtons = []; // The toolbar's add buttons, in toolbar order: { button, home, group }
+        var toolbarGroup = null; // The category shown, with toolbar_groups. Kept when the toolbar is rebuilt
         var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
@@ -1049,6 +1062,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 start = wrapper.appendChild(dom.element('div', { 'class': 'ge-toolbar-start' }));
             }
 
+            addButtons = [];
+
             // Add row
             addRowGroup = start.appendChild(dom.element('div', { 'class': 'ge-addRowGroup btn-group' }));
             addContainerGroup = dom.element('div', { 'class': 'ge-addContainerGroup btn-group ms-1' });
@@ -1079,6 +1094,7 @@ function build(instance, baseElem, optionsOrMethod) {
                     }
                 });
                 addRowGroup.appendChild(btn);
+                addButtons.push({ button: btn, home: addRowGroup, group: 'rows' });
 
                 btn.appendChild(dom.create('<i class="bi bi-plus"></i>'));
 
@@ -1115,6 +1131,7 @@ function build(instance, baseElem, optionsOrMethod) {
                     }, { parent: canvas, source: 'tool' });
                 });
                 addContainerGroup.appendChild(button);
+                addButtons.push({ button: button, home: addContainerGroup, group: toolbarGroupOf(definition.group) || 'content' });
             });
 
             // A feature plugin's own buttons, beside the containers': what
@@ -1130,6 +1147,8 @@ function build(instance, baseElem, optionsOrMethod) {
                         endItems.push(button);
                     } else {
                         addContainerGroup.appendChild(button);
+                        // One that names no category of its own has its plugin's
+                        addButtons.push({ button: button, home: addContainerGroup, group: toolbarGroupOf(item.group) || name });
                     }
                 });
             });
@@ -1200,9 +1219,88 @@ function build(instance, baseElem, optionsOrMethod) {
                 endItems.forEach(function(button) { end.appendChild(button); });
             }
 
+            if (settings.toolbar_groups) { createGroupTabs(start); }
             if (overflowMenu) { createOverflowMenu(start); }
 
             makeToolbarDraggable();
+        }
+
+        /** The core's categories, ahead of the plugins' own. */
+        var CORE_GROUPS = [
+            { name: 'rows', labelKey: 'group.rows' },
+            { name: 'content', labelKey: 'group.content' },
+        ];
+
+        /** A plugin's category, when it names one. */
+        function toolbarGroupOf(value) {
+            return typeof value === 'string' && value.trim() !== '' ? value : null;
+        }
+
+        /**
+         * toolbar_groups: tabs at the start of the toolbar, one per category
+         * of add buttons, and only the chosen one's buttons on it. The rest
+         * wait in a hidden stash inside the toolbar, so toolbarItems still
+         * finds them and the btn-groups round the corners of what shows. With
+         * a single category there is nothing to choose, and no tabs.
+         */
+        function createGroupTabs(start) {
+            // The core's two first, then the rest as their first button comes
+            var names = CORE_GROUPS.map(function(group) { return group.name; });
+            addButtons.forEach(function(entry) {
+                if (names.indexOf(entry.group) < 0) { names.push(entry.group); }
+            });
+            names = names.filter(function(name) {
+                return addButtons.some(function(entry) { return entry.group === name; });
+            });
+
+            if (names.length < 2) { return; }
+
+            var tabs = dom.element('div', { 'class': 'ge-toolbar-groups btn-group', role: 'tablist', 'aria-label': t('group.select') });
+            start.insertBefore(tabs, start.firstChild);
+            var stash = mainControls.appendChild(dom.element('div', { 'class': 'ge-toolbar-stash', hidden: 'hidden' }));
+
+            names.forEach(function(name) {
+                var tab = tabs.appendChild(dom.element('button', {
+                    type: 'button',
+                    'class': 'btn btn-sm btn-outline-primary',
+                    role: 'tab',
+                    'data-ge-group': name,
+                }, groupLabel(name)));
+
+                tab.addEventListener('click', function() { showGroup(name); });
+            });
+
+            showGroup(names.indexOf(toolbarGroup) >= 0 ? toolbarGroup : names[0]);
+
+            function showGroup(name) {
+                toolbarGroup = name;
+
+                addButtons.forEach(function(entry) {
+                    (entry.group === name ? entry.home : stash).appendChild(entry.button);
+                });
+
+                dom.children(tabs).forEach(function(tab) {
+                    var chosen = tab.getAttribute('data-ge-group') === name;
+                    dom.toggleClass(tab, 'active', chosen);
+                    tab.setAttribute('aria-selected', chosen ? 'true' : 'false');
+                });
+
+                refitToolbar();
+            }
+        }
+
+        /** A category's label: its group.<name> string, or its first button's when it has none. */
+        function groupLabel(name) {
+            var key = 'group.' + name;
+            if (hasString(settings, key)) { return t(key); }
+
+            var first = addButtons.filter(function(entry) { return entry.group === name; })[0];
+            return first.button.getAttribute('title') || name;
+        }
+
+        /** The add buttons on the toolbar's line: all of them, or the chosen category's. */
+        function shownAddButtons() {
+            return addButtons.filter(function(entry) { return !dom.closest(entry.button, '.ge-toolbar-stash'); });
         }
 
         /** The toolbar off the page, with what keeps its overflow menu up to date. */
@@ -1210,6 +1308,7 @@ function build(instance, baseElem, optionsOrMethod) {
             if (toolbarLifetime) { toolbarLifetime.abort(); }
             toolbarLifetime = null;
             closeOverflowMenu = function() {};
+            refitToolbar = function() {};
             mainControls.remove();
         }
 
@@ -1233,13 +1332,10 @@ function build(instance, baseElem, optionsOrMethod) {
             var toggle = dom.one(more, 'button');
             var panel = dom.one(more, '.ge-toolbar-overflow');
             var spares = dom.all(panel, '.btn-group');
-            // Every add button with the group it belongs in, in toolbar order
-            var homes = [];
-            [addRowGroup, addContainerGroup].forEach(function(group, index) {
-                Array.prototype.slice.call(group.children).forEach(function(button) {
-                    homes.push({ button: button, home: group, spare: spares[index] });
-                });
-            });
+            // The spare group in the menu for each group on the line
+            function spareOf(home) {
+                return home === addRowGroup ? spares[0] : spares[1];
+            }
 
             toggle.setAttribute('title', t('tool.more'));
             toggle.setAttribute('aria-haspopup', 'true');
@@ -1260,6 +1356,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 if (e.key === 'Escape') { openOverflow(false); }
             }, signal);
             closeOverflowMenu = function() { openOverflow(false); };
+            // A category chosen: another set of buttons to fit
+            refitToolbar = fit;
 
             fit();
 
@@ -1290,6 +1388,9 @@ function build(instance, baseElem, optionsOrMethod) {
 
             /** Back on the line, then the last ones off it until the rest fit. */
             function fit() {
+                // Only the chosen category's, with toolbar_groups: the others
+                // wait in their stash
+                var homes = shownAddButtons();
                 homes.forEach(function(entry) { entry.home.appendChild(entry.button); });
                 dom.removeClass(more, 'ge-needed');
 
@@ -1300,7 +1401,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
                 dom.addClass(more, 'ge-needed');
                 for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
-                    homes[i].spare.insertBefore(homes[i].button, homes[i].spare.firstChild);
+                    var into = spareOf(homes[i].home);
+                    into.insertBefore(homes[i].button, into.firstChild);
                 }
             }
         }
@@ -5656,6 +5758,9 @@ GridEditor.locales = {
         'tool.edit_source': 'Edit Source Code',
         'tool.preview': 'Preview',
         'tool.more': 'More',
+        'group.rows': 'Rows',
+        'group.content': 'Content',
+        'group.select': 'Add',
         'panel.title': '{kind} settings',
         'panel.close': 'Close',
         'panel.done': 'Done',

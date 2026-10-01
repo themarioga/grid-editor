@@ -445,6 +445,10 @@
       return params && params[name] !== void 0 ? params[name] : placeholder;
     });
   }
+  function hasString(settings, key) {
+    var locales = GridEditor.locales;
+    return (settings.locale_strings || {})[key] !== void 0 || (locales[settings.locale] || {})[key] !== void 0 || locales.en[key] !== void 0;
+  }
   function warn(message) {
     if (window.console && window.console.warn) {
       window.console.warn("grid-editor: " + message);
@@ -575,6 +579,8 @@
       // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
       "drawer_overflow": "menu",
       // The same for the drawers' tools: 'menu' behind a button, 'wrap' onto another line
+      "toolbar_groups": false,
+      // The add buttons in categories, one shown at a time, picked with tabs
       "active_target": false,
       // A click in a column makes it where the toolbar's buttons add
       "element_tools": [],
@@ -642,6 +648,10 @@
     var toolbarLifetime = null;
     var closeOverflowMenu = function() {
     };
+    var refitToolbar = function() {
+    };
+    var addButtons = [];
+    var toolbarGroup = null;
     var warnedHere = {};
     var sortables = [];
     var instanceId = ++editorCounter;
@@ -1093,6 +1103,7 @@
         addClass(wrapper, "ge-toolbar-menu");
         start = wrapper.appendChild(element("div", { "class": "ge-toolbar-start" }));
       }
+      addButtons = [];
       addRowGroup = start.appendChild(element("div", { "class": "ge-addRowGroup btn-group" }));
       addContainerGroup = element("div", { "class": "ge-addContainerGroup btn-group ms-1" });
       settings.new_row_layouts.forEach(function(layout) {
@@ -1119,6 +1130,7 @@
           }
         });
         addRowGroup.appendChild(btn);
+        addButtons.push({ button: btn, home: addRowGroup, group: "rows" });
         btn.appendChild(create('<i class="bi bi-plus"></i>'));
         var sizes = grouped ? rowColsIcon(layout) : layout;
         var icon = '<div class="row ge-row-icon">';
@@ -1150,6 +1162,7 @@
           }, { parent: canvas, source: "tool" });
         });
         addContainerGroup.appendChild(button);
+        addButtons.push({ button, home: addContainerGroup, group: toolbarGroupOf(definition.group) || "content" });
       });
       var endItems = [];
       Object.keys(FEATURES).forEach(function(name) {
@@ -1159,6 +1172,7 @@
             endItems.push(button);
           } else {
             addContainerGroup.appendChild(button);
+            addButtons.push({ button, home: addContainerGroup, group: toolbarGroupOf(item.group) || name });
           }
         });
       });
@@ -1212,10 +1226,80 @@
           end.appendChild(button);
         });
       }
+      if (settings.toolbar_groups) {
+        createGroupTabs(start);
+      }
       if (overflowMenu) {
         createOverflowMenu(start);
       }
       makeToolbarDraggable();
+    }
+    var CORE_GROUPS = [
+      { name: "rows", labelKey: "group.rows" },
+      { name: "content", labelKey: "group.content" }
+    ];
+    function toolbarGroupOf(value) {
+      return typeof value === "string" && value.trim() !== "" ? value : null;
+    }
+    function createGroupTabs(start) {
+      var names = CORE_GROUPS.map(function(group) {
+        return group.name;
+      });
+      addButtons.forEach(function(entry) {
+        if (names.indexOf(entry.group) < 0) {
+          names.push(entry.group);
+        }
+      });
+      names = names.filter(function(name) {
+        return addButtons.some(function(entry) {
+          return entry.group === name;
+        });
+      });
+      if (names.length < 2) {
+        return;
+      }
+      var tabs = element("div", { "class": "ge-toolbar-groups btn-group", role: "tablist", "aria-label": t("group.select") });
+      start.insertBefore(tabs, start.firstChild);
+      var stash = mainControls.appendChild(element("div", { "class": "ge-toolbar-stash", hidden: "hidden" }));
+      names.forEach(function(name) {
+        var tab = tabs.appendChild(element("button", {
+          type: "button",
+          "class": "btn btn-sm btn-outline-primary",
+          role: "tab",
+          "data-ge-group": name
+        }, groupLabel(name)));
+        tab.addEventListener("click", function() {
+          showGroup(name);
+        });
+      });
+      showGroup(names.indexOf(toolbarGroup) >= 0 ? toolbarGroup : names[0]);
+      function showGroup(name) {
+        toolbarGroup = name;
+        addButtons.forEach(function(entry) {
+          (entry.group === name ? entry.home : stash).appendChild(entry.button);
+        });
+        children(tabs).forEach(function(tab) {
+          var chosen = tab.getAttribute("data-ge-group") === name;
+          toggleClass(tab, "active", chosen);
+          tab.setAttribute("aria-selected", chosen ? "true" : "false");
+        });
+        refitToolbar();
+      }
+    }
+    function groupLabel(name) {
+      var key = "group." + name;
+      if (hasString(settings, key)) {
+        return t(key);
+      }
+      var first = addButtons.filter(function(entry) {
+        return entry.group === name;
+      })[0];
+      return first.button.getAttribute("title") || name;
+    }
+    function shownAddButtons() {
+      return addButtons.filter(function(entry) {
+        return !closest(entry.button, ".ge-toolbar-stash");
+      });
     }
     function removeMainControls() {
       if (toolbarLifetime) {
@@ -1223,6 +1307,8 @@
       }
       toolbarLifetime = null;
       closeOverflowMenu = function() {
+      };
+      refitToolbar = function() {
       };
       mainControls.remove();
     }
@@ -1232,12 +1318,9 @@
       var toggle2 = one(more, "button");
       var panel = one(more, ".ge-toolbar-overflow");
       var spares = all(panel, ".btn-group");
-      var homes = [];
-      [addRowGroup, addContainerGroup].forEach(function(group, index) {
-        Array.prototype.slice.call(group.children).forEach(function(button) {
-          homes.push({ button, home: group, spare: spares[index] });
-        });
-      });
+      function spareOf(home) {
+        return home === addRowGroup ? spares[0] : spares[1];
+      }
       toggle2.setAttribute("title", t("tool.more"));
       toggle2.setAttribute("aria-haspopup", "true");
       toggle2.setAttribute("aria-expanded", "false");
@@ -1264,6 +1347,7 @@
       closeOverflowMenu = function() {
         openOverflow(false);
       };
+      refitToolbar = fit;
       fit();
       if (window.ResizeObserver) {
         var pending = false;
@@ -1291,6 +1375,7 @@
         toggle2.setAttribute("aria-expanded", open ? "true" : "false");
       }
       function fit() {
+        var homes = shownAddButtons();
         homes.forEach(function(entry) {
           entry.home.appendChild(entry.button);
         });
@@ -1301,7 +1386,8 @@
         }
         addClass(more, "ge-needed");
         for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
-          homes[i].spare.insertBefore(homes[i].button, homes[i].spare.firstChild);
+          var into = spareOf(homes[i].home);
+          into.insertBefore(homes[i].button, into.firstChild);
         }
       }
     }
@@ -4449,6 +4535,9 @@
       "tool.edit_source": "Edit Source Code",
       "tool.preview": "Preview",
       "tool.more": "More",
+      "group.rows": "Rows",
+      "group.content": "Content",
+      "group.select": "Add",
       "panel.title": "{kind} settings",
       "panel.close": "Close",
       "panel.done": "Done",

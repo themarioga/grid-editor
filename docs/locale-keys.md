@@ -47,6 +47,9 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.edit_source` | Edit Source Code | Toolbar, swaps the canvas for its html |
 | `tool.preview` | Preview | Toolbar, hides the editing furniture while held |
 | `tool.more` | More | Toolbar, the button that opens the add buttons that don't fit on its line; drawers, the tool that unfolds the ones that don't fit on theirs |
+| `group.rows` | Rows | Toolbar, with `toolbar_groups`: the tab of the add row buttons |
+| `group.content` | Content | Toolbar, with `toolbar_groups`: the tab of the texts, the containers and the plugins' buttons that join it |
+| `group.select` | Add | Toolbar, with `toolbar_groups`: the accessible name of the tabs |
 | `tool.id_placeholder` | id | Placeholder of the id input in the settings panel |
 | `tool.id_title` | Set a unique identifier | Tooltip of that input |
 | `tool.classes_placeholder` | classes | Placeholder of the css class input beside it |

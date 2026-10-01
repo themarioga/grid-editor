@@ -379,6 +379,14 @@ new GridEditor('#myGrid', {
 });
 ```
 
+__`toolbar_groups`:__ Whether the toolbar's add buttons are sorted into categories, with tabs at the start of the toolbar choosing which one shows. Default `false`. With `true` the core's categories are *Rows*, the add row buttons, and *Content*, the texts, the containers and the sections; a plugin's buttons go in the category they name with `group` (see [docs/plugins.md](docs/plugins.md)), or in one of their own. The tab chosen is kept while the editor lives, through `setLocale` too. With a single category there is nothing to choose and no tabs. The buttons on the right - the view, source and preview, paste - are never grouped. The more button of `toolbar_overflow` holds what doesn't fit of the category shown; the tabs themselves never go behind it, so with a great many categories they can run out of room.
+
+```javascript
+new GridEditor('#myGrid', {
+    toolbar_groups: true,
+});
+```
+
 __`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
 
 ```javascript

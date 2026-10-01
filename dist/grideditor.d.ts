@@ -111,6 +111,8 @@ export interface GridEditorOptions {
     toolbar_overflow?: 'menu' | 'wrap';
     /** The drawers' tools that don't fit on one line: behind a more tool, or onto more lines. Default 'menu'. */
     drawer_overflow?: 'menu' | 'wrap';
+    /** The add buttons in categories - rows, content, and a plugin's own - one shown at a time, chosen with tabs. Default false. */
+    toolbar_groups?: boolean;
     /** A click in a column or a section makes it where the toolbar's buttons add. Default false. */
     active_target?: boolean;
     /** The plugins to use, of any kind; null is every one loaded. */

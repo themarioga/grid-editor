@@ -62,6 +62,7 @@ GridEditor.containers.carousel = function(ge) {
     return {
         labelKey: 'container.add_carousel',   // the toolbar button's label
         iconClass: 'bi bi-images',            // optional: the button shows it in place of the label
+        group: 'media',                       // optional: its toolbar tab, with toolbar_groups
         addPaneKey: 'container.add_slide',    // the drawer's add pane tool
         paneKind: 'slide',                    // the kind its panes report
 
@@ -100,6 +101,10 @@ written for 6.x.
 - **`iconClass`**, when given, is the toolbar button's face: the icon alone,
   with the label as its title. Without one the button shows a plus and the
   label.
+- **`group`**, when given, is the toolbar tab the button goes in when the
+  host turns on `toolbar_groups`. Without one a container goes in `content`,
+  with the texts. See the `toolbar` item's `group` below for how tabs are
+  named and labelled.
 - **`create(options)`** returns a detached container. It must carry
   `data-ge-container="<type>"`: that attribute, and never a class, is how the
   editor recognises one.
@@ -280,6 +285,23 @@ rather than remembering anything about it.
   container or a text does: a click puts it in a row and a column of its own
   at the end of the canvas, and a drop anywhere but in a column does the
   same where it was dropped.
+- A **`toolbar`** item's **`group`** is the tab it goes in when the host turns
+  on `toolbar_groups`. The core has two, `rows` - the add row buttons - and
+  `content` - the texts, the containers and the sections - and an item may
+  join either. Any other name is a tab of its own, shared by every item, of
+  any plugin, that names it. An item without a `group` goes in a tab named
+  after its plugin. A tab's label is the `group.<name>` locale string, which
+  the plugin registers with its others, or its first button's label when
+  there is none. Tabs come in this order: `rows`, `content`, then the others
+  as their first button comes. `group` is ignored with `align: 'end'`: the
+  buttons on the right are not grouped.
+
+  ```javascript
+  Object.assign(GridEditor.locales.en, { 'group.media': 'Media' });
+  GridEditor.features.gallery = function(ge) {
+      return { toolbar: [{ labelKey: 'gallery.add', kind: 'gallery', group: 'media', create: … }] };
+  };
+  ```
 
 - **`onSortable(sortable)`** is handed the function the editor makes all of its
   own lists with. A plugin describes a list; it never touches the drag toolkit

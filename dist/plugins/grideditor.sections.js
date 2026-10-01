@@ -262,6 +262,7 @@
       toolbar: [{
         labelKey: "section.add",
         kind: "section",
+        group: "content",
         create: function() {
           return createSection();
         }

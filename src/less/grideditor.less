@@ -67,6 +67,18 @@
         margin-left: 5px;
     }
 
+    /* toolbar_groups: the tabs choosing which category of add buttons
+       shows, at the start of the line. Never squeezed, and never behind the
+       more button */
+    .ge-toolbar-groups {
+        flex: none;
+        margin-right: 8px;
+
+        > .btn {
+            white-space: nowrap;
+        }
+    }
+
     /* toolbar_overflow: 'menu'. The add buttons keep to one line, and the
        ones that don't fit go behind a button at its end. The right-hand
        buttons come before in the markup, so they are ordered back to how
