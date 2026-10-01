@@ -34,6 +34,7 @@ GridEditor.locales.es = {
   "tool.indent_increase": "Aumentar sangr\xEDa\n(May\xFAs para el m\xE1ximo)",
   "tool.edit_source": "Editar el c\xF3digo fuente",
   "tool.preview": "Vista previa",
+  "tool.more": "M\xE1s",
   "panel.title": "Ajustes: {kind}",
   "panel.close": "Cerrar",
   "panel.done": "Hecho",

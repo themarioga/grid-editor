@@ -366,6 +366,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'row_tools'         : [],
             'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
+            'toolbar_overflow'  : 'menu', // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
             'active_target'     : false, // A click in a column makes it where the toolbar's buttons add
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
@@ -420,6 +421,8 @@ function build(instance, baseElem, optionsOrMethod) {
         var sourceOpen = false; // Whether the canvas is being edited as html
         var dropMarker = null; // The line showing where a dragged toolbar button would land
         var activeTarget = null; // The column or region the toolbar adds to, with active_target
+        var toolbarLifetime = null; // Aborted when the toolbar is rebuilt or taken away
+        var closeOverflowMenu = function() {}; // Folds the toolbar's overflow menu away, when it has one
         var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
@@ -464,7 +467,7 @@ function build(instance, baseElem, optionsOrMethod) {
             removeConfirmModal();
             removeSettingsPanels();
             removeDialog();
-            mainControls.remove();
+            removeMainControls();
             createMainControls();
             reset();
         }
@@ -1035,8 +1038,17 @@ function build(instance, baseElem, optionsOrMethod) {
             htmlTextArea.parentNode.insertBefore(mainControls, htmlTextArea);
             wrapper = mainControls.appendChild(dom.element('div', { 'class': 'ge-wrapper ge-top' }));
 
+            // With the overflow menu, the add buttons stand in a line of
+            // their own that keeps to one line, beside the menu's button
+            var overflowMenu = settings.toolbar_overflow !== 'wrap';
+            var start = wrapper;
+            if (overflowMenu) {
+                dom.addClass(wrapper, 'ge-toolbar-menu');
+                start = wrapper.appendChild(dom.element('div', { 'class': 'ge-toolbar-start' }));
+            }
+
             // Add row
-            addRowGroup = wrapper.appendChild(dom.element('div', { 'class': 'ge-addRowGroup btn-group' }));
+            addRowGroup = start.appendChild(dom.element('div', { 'class': 'ge-addRowGroup btn-group' }));
             addContainerGroup = dom.element('div', { 'class': 'ge-addContainerGroup btn-group ms-1' });
             settings.new_row_layouts.forEach(function(layout) {
                 var grouped = !Array.isArray(layout);
@@ -1079,7 +1091,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 btn.appendChild(dom.create(icon));
             });
 
-            wrapper.appendChild(addContainerGroup);
+            start.appendChild(addContainerGroup);
 
             // A container starts in a row of its own, the way the add row
             // buttons next to these ones do
@@ -1186,7 +1198,109 @@ function build(instance, baseElem, optionsOrMethod) {
                 endItems.forEach(function(button) { end.appendChild(button); });
             }
 
+            if (overflowMenu) { createOverflowMenu(start); }
+
             makeToolbarDraggable();
+        }
+
+        /** The toolbar off the page, with what keeps its overflow menu up to date. */
+        function removeMainControls() {
+            if (toolbarLifetime) { toolbarLifetime.abort(); }
+            toolbarLifetime = null;
+            closeOverflowMenu = function() {};
+            mainControls.remove();
+        }
+
+        /**
+         * The add buttons that don't fit on the toolbar's line, behind a
+         * button at its end. They are the same buttons, moved rather than
+         * copied, so a click, a drag or a plugin finding them with
+         * toolbarItems works as it does on the line. Which ones go is worked
+         * out again whenever the toolbar or what is on it changes size.
+         */
+        function createOverflowMenu(start) {
+            var more = dom.create('<div class="ge-toolbar-more">' +
+                '<button type="button" class="btn btn-sm btn-primary"><i class="bi bi-three-dots"></i></button>' +
+                '<div class="ge-toolbar-overflow">' +
+                    '<div class="ge-addRowGroup btn-group"></div>' +
+                    '<div class="ge-addContainerGroup btn-group"></div>' +
+                '</div>' +
+            '</div>');
+            start.parentNode.insertBefore(more, start.nextSibling);
+
+            var toggle = dom.one(more, 'button');
+            var panel = dom.one(more, '.ge-toolbar-overflow');
+            var spares = dom.all(panel, '.btn-group');
+            // Every add button with the group it belongs in, in toolbar order
+            var homes = [];
+            [addRowGroup, addContainerGroup].forEach(function(group, index) {
+                Array.prototype.slice.call(group.children).forEach(function(button) {
+                    homes.push({ button: button, home: group, spare: spares[index] });
+                });
+            });
+
+            toggle.setAttribute('title', t('tool.more'));
+            toggle.setAttribute('aria-haspopup', 'true');
+            toggle.setAttribute('aria-expanded', 'false');
+
+            var menuLifetime = toolbarLifetime = new AbortController();
+            var signal = { signal: menuLifetime.signal };
+
+            toggle.addEventListener('click', function() { openOverflow(!dom.hasClass(more, 'ge-open')); });
+            // A button in the menu has done its job once it is clicked
+            panel.addEventListener('click', function(e) {
+                if (dom.closest(e.target, '[data-ge-toolbar]')) { openOverflow(false); }
+            });
+            document.addEventListener('pointerdown', function(e) {
+                if (!more.contains(e.target)) { openOverflow(false); }
+            }, signal);
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') { openOverflow(false); }
+            }, signal);
+            closeOverflowMenu = function() { openOverflow(false); };
+
+            fit();
+
+            if (window.ResizeObserver) {
+                // Not in the callback itself: moving buttons there would
+                // resize what is being observed before the frame is drawn
+                var pending = false;
+                var observer = new window.ResizeObserver(function() {
+                    if (pending) { return; }
+                    pending = true;
+                    window.requestAnimationFrame(function() {
+                        pending = false;
+                        if (!menuLifetime.signal.aborted) { fit(); }
+                    });
+                });
+                // The toolbar's width, and the buttons on the right of it
+                // showing and hiding, as the paste button does
+                observer.observe(wrapper);
+                observer.observe(start);
+                menuLifetime.signal.addEventListener('abort', function() { observer.disconnect(); });
+            }
+
+            function openOverflow(open) {
+                open = open && dom.hasClass(more, 'ge-needed');
+                dom.toggleClass(more, 'ge-open', open);
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+
+            /** Back on the line, then the last ones off it until the rest fit. */
+            function fit() {
+                homes.forEach(function(entry) { entry.home.appendChild(entry.button); });
+                dom.removeClass(more, 'ge-needed');
+
+                if (start.scrollWidth <= start.clientWidth) {
+                    openOverflow(false);
+                    return;
+                }
+
+                dom.addClass(more, 'ge-needed');
+                for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
+                    homes[i].spare.insertBefore(homes[i].button, homes[i].spare.firstChild);
+                }
+            }
         }
 
         /**
@@ -1298,6 +1412,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
                     helper = dom.addClass(button.cloneNode(true), 'ge-toolbar-helper');
                     document.body.appendChild(helper);
+                    // The menu a button came from would hide where it lands
+                    closeOverflowMenu();
                     dom.addClass(canvas, 'ge-dropping');
                 }
 
@@ -1913,7 +2029,7 @@ function build(instance, baseElem, optionsOrMethod) {
             removeConfirmModal();
             removeSettingsPanels();
             removeDialog();
-            mainControls.remove();
+            removeMainControls();
             htmlTextArea.remove();
             lifetime.abort();
             instances.delete(canvas);
@@ -5416,6 +5532,7 @@ GridEditor.locales = {
         'tool.indent_increase': 'Increase indent\n(hold shift for max)',
         'tool.edit_source': 'Edit Source Code',
         'tool.preview': 'Preview',
+        'tool.more': 'More',
         'panel.title': '{kind} settings',
         'panel.close': 'Close',
         'panel.done': 'Done',

@@ -363,6 +363,14 @@ new GridEditor('#myGrid', {
 });
 ```
 
+__`toolbar_overflow`:__ What the toolbar does with the add buttons that don't fit on its line. `'menu'`, the default, keeps it to one line: the last add buttons go behind a `⋯` button at its end, which opens them in a panel, and they come back onto the line when there is room again. They are the same buttons, so a click, a drag or `toolbarItems` work on them as on the line. `'wrap'` lets the toolbar wrap onto another line, as it did before 8.3.
+
+```javascript
+new GridEditor('#myGrid', {
+    toolbar_overflow: 'wrap',
+});
+```
+
 __`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
 
 ```javascript

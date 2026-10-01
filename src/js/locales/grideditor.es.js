@@ -51,6 +51,7 @@ GridEditor.locales.es = {
     'tool.indent_increase': 'Aumentar sangría\n(Mayús para el máximo)',
     'tool.edit_source': 'Editar el código fuente',
     'tool.preview': 'Vista previa',
+    'tool.more': 'Más',
     'panel.title': 'Ajustes: {kind}',
     'panel.close': 'Cerrar',
     'panel.done': 'Hecho',

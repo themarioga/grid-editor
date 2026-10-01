@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.3.0] - 2026-10-01
+
+### Added
+- `toolbar_overflow`: the toolbar keeps to one line. The add buttons that
+  don't fit go behind a `⋯` button at its end, which opens them in a panel,
+  and come back onto the line when there is room. `'wrap'` keeps the old
+  behaviour of wrapping onto another line. The `tool.more` locale key is the
+  button's title.
+
 ## [8.2.0] - 2026-09-30
 
 ### Added

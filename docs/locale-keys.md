@@ -46,6 +46,7 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.indent_increase` | Increase indent\n(hold shift for max) | Column drawer, adds offset units |
 | `tool.edit_source` | Edit Source Code | Toolbar, swaps the canvas for its html |
 | `tool.preview` | Preview | Toolbar, hides the editing furniture while held |
+| `tool.more` | More | Toolbar, the button that opens the add buttons that don't fit on its line |
 | `tool.id_placeholder` | id | Placeholder of the id input in the settings panel |
 | `tool.id_title` | Set a unique identifier | Tooltip of that input |
 | `tool.classes_placeholder` | classes | Placeholder of the css class input beside it |

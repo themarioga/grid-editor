@@ -2,6 +2,10 @@
   position: relative;
   min-height: 22px;
   margin-bottom: 10px;
+  /* toolbar_overflow: 'menu'. The add buttons keep to one line, and the
+       ones that don't fit go behind a button at its end. The right-hand
+       buttons come before in the markup, so they are ordered back to how
+       floating them puts them. */
 }
 .ge-mainControls .ge-wrapper {
   padding-top: 5px;
@@ -44,6 +48,69 @@
 }
 .ge-mainControls .ge-layout-mode {
   margin-left: 5px;
+}
+.ge-mainControls .ge-wrapper.ge-toolbar-menu {
+  display: flex;
+  align-items: flex-start;
+}
+.ge-mainControls .ge-wrapper.ge-toolbar-menu > .pull-right {
+  float: none;
+}
+.ge-mainControls .ge-wrapper.ge-toolbar-menu > .ge-toolbar-end {
+  order: 1;
+}
+.ge-mainControls .ge-wrapper.ge-toolbar-menu > .btn-group.pull-right {
+  order: 2;
+}
+.ge-mainControls .ge-wrapper.ge-toolbar-menu > .ge-layout-mode {
+  order: 3;
+}
+.ge-mainControls .ge-toolbar-start {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.ge-mainControls .ge-toolbar-more {
+  display: none;
+  position: relative;
+  flex: none;
+  margin: 0 5px 0 4px;
+}
+.ge-mainControls .ge-toolbar-more.ge-needed {
+  display: block;
+}
+.ge-mainControls .ge-toolbar-overflow {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  right: 0;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 6px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  /* Wrapped onto several lines, a group's buttons stand apart */
+}
+.ge-mainControls .ge-toolbar-overflow > .btn-group {
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+.ge-mainControls .ge-toolbar-overflow > .btn-group:empty {
+  display: none;
+}
+.ge-mainControls .ge-toolbar-overflow > .btn-group > .btn.btn {
+  margin-left: 0;
+  border-radius: 4px;
+}
+.ge-mainControls .ge-toolbar-more.ge-open > .ge-toolbar-overflow {
+  display: flex;
 }
 .ge-mainControls .ge-toolbar-end {
   margin-right: 5px;

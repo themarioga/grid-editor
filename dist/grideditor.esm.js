@@ -570,6 +570,8 @@ function build(instance, baseElem, optionsOrMethod) {
     // 'tool' for the move tool, 'drawer' for the whole drawer
     "toolbar_drag": "auto",
     // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
+    "toolbar_overflow": "menu",
+    // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
     "active_target": false,
     // A click in a column makes it where the toolbar's buttons add
     "element_tools": [],
@@ -634,6 +636,9 @@ function build(instance, baseElem, optionsOrMethod) {
   var sourceOpen = false;
   var dropMarker = null;
   var activeTarget = null;
+  var toolbarLifetime = null;
+  var closeOverflowMenu = function() {
+  };
   var warnedHere = {};
   var sortables = [];
   var instanceId = ++editorCounter;
@@ -661,7 +666,7 @@ function build(instance, baseElem, optionsOrMethod) {
     removeConfirmModal();
     removeSettingsPanels();
     removeDialog();
-    mainControls.remove();
+    removeMainControls();
     createMainControls();
     reset();
   }
@@ -1078,7 +1083,13 @@ function build(instance, baseElem, optionsOrMethod) {
     mainControls = element("div", { "class": "ge-mainControls" });
     htmlTextArea.parentNode.insertBefore(mainControls, htmlTextArea);
     wrapper = mainControls.appendChild(element("div", { "class": "ge-wrapper ge-top" }));
-    addRowGroup = wrapper.appendChild(element("div", { "class": "ge-addRowGroup btn-group" }));
+    var overflowMenu = settings.toolbar_overflow !== "wrap";
+    var start = wrapper;
+    if (overflowMenu) {
+      addClass(wrapper, "ge-toolbar-menu");
+      start = wrapper.appendChild(element("div", { "class": "ge-toolbar-start" }));
+    }
+    addRowGroup = start.appendChild(element("div", { "class": "ge-addRowGroup btn-group" }));
     addContainerGroup = element("div", { "class": "ge-addContainerGroup btn-group ms-1" });
     settings.new_row_layouts.forEach(function(layout) {
       var grouped = !Array.isArray(layout);
@@ -1113,7 +1124,7 @@ function build(instance, baseElem, optionsOrMethod) {
       icon += "</div>";
       btn.appendChild(create(icon));
     });
-    wrapper.appendChild(addContainerGroup);
+    start.appendChild(addContainerGroup);
     Object.keys(CONTAINERS).forEach(function(type) {
       var definition = CONTAINERS[type];
       var button = labelButton(
@@ -1197,7 +1208,98 @@ function build(instance, baseElem, optionsOrMethod) {
         end.appendChild(button);
       });
     }
+    if (overflowMenu) {
+      createOverflowMenu(start);
+    }
     makeToolbarDraggable();
+  }
+  function removeMainControls() {
+    if (toolbarLifetime) {
+      toolbarLifetime.abort();
+    }
+    toolbarLifetime = null;
+    closeOverflowMenu = function() {
+    };
+    mainControls.remove();
+  }
+  function createOverflowMenu(start) {
+    var more = create('<div class="ge-toolbar-more"><button type="button" class="btn btn-sm btn-primary"><i class="bi bi-three-dots"></i></button><div class="ge-toolbar-overflow"><div class="ge-addRowGroup btn-group"></div><div class="ge-addContainerGroup btn-group"></div></div></div>');
+    start.parentNode.insertBefore(more, start.nextSibling);
+    var toggle2 = one(more, "button");
+    var panel = one(more, ".ge-toolbar-overflow");
+    var spares = all(panel, ".btn-group");
+    var homes = [];
+    [addRowGroup, addContainerGroup].forEach(function(group, index) {
+      Array.prototype.slice.call(group.children).forEach(function(button) {
+        homes.push({ button, home: group, spare: spares[index] });
+      });
+    });
+    toggle2.setAttribute("title", t("tool.more"));
+    toggle2.setAttribute("aria-haspopup", "true");
+    toggle2.setAttribute("aria-expanded", "false");
+    var menuLifetime = toolbarLifetime = new AbortController();
+    var signal = { signal: menuLifetime.signal };
+    toggle2.addEventListener("click", function() {
+      openOverflow(!hasClass(more, "ge-open"));
+    });
+    panel.addEventListener("click", function(e) {
+      if (closest(e.target, "[data-ge-toolbar]")) {
+        openOverflow(false);
+      }
+    });
+    document.addEventListener("pointerdown", function(e) {
+      if (!more.contains(e.target)) {
+        openOverflow(false);
+      }
+    }, signal);
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        openOverflow(false);
+      }
+    }, signal);
+    closeOverflowMenu = function() {
+      openOverflow(false);
+    };
+    fit();
+    if (window.ResizeObserver) {
+      var pending = false;
+      var observer = new window.ResizeObserver(function() {
+        if (pending) {
+          return;
+        }
+        pending = true;
+        window.requestAnimationFrame(function() {
+          pending = false;
+          if (!menuLifetime.signal.aborted) {
+            fit();
+          }
+        });
+      });
+      observer.observe(wrapper);
+      observer.observe(start);
+      menuLifetime.signal.addEventListener("abort", function() {
+        observer.disconnect();
+      });
+    }
+    function openOverflow(open) {
+      open = open && hasClass(more, "ge-needed");
+      toggleClass(more, "ge-open", open);
+      toggle2.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    function fit() {
+      homes.forEach(function(entry) {
+        entry.home.appendChild(entry.button);
+      });
+      removeClass(more, "ge-needed");
+      if (start.scrollWidth <= start.clientWidth) {
+        openOverflow(false);
+        return;
+      }
+      addClass(more, "ge-needed");
+      for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
+        homes[i].spare.insertBefore(homes[i].button, homes[i].spare.firstChild);
+      }
+    }
   }
   function labelButton(button, label, iconClass) {
     button.setAttribute("title", label);
@@ -1273,6 +1375,7 @@ function build(instance, baseElem, optionsOrMethod) {
         }
         helper = addClass(button.cloneNode(true), "ge-toolbar-helper");
         document.body.appendChild(helper);
+        closeOverflowMenu();
         addClass(canvas, "ge-dropping");
       }
       css(helper, { left: move.pageX - 14, top: move.pageY - 14 });
@@ -1754,7 +1857,7 @@ function build(instance, baseElem, optionsOrMethod) {
     removeConfirmModal();
     removeSettingsPanels();
     removeDialog();
-    mainControls.remove();
+    removeMainControls();
     htmlTextArea.remove();
     lifetime.abort();
     instances.delete(canvas);
@@ -4245,6 +4348,7 @@ GridEditor.locales = {
     "tool.indent_increase": "Increase indent\n(hold shift for max)",
     "tool.edit_source": "Edit Source Code",
     "tool.preview": "Preview",
+    "tool.more": "More",
     "panel.title": "{kind} settings",
     "panel.close": "Close",
     "panel.done": "Done",

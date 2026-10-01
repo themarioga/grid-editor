@@ -297,14 +297,95 @@ async function iconTests(t) {
     t.check('the toolbar icon tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** What does not fit on the toolbar's line goes behind its more button, and comes back when there is room. */
+async function overflowTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var STATE = `
+        const more = document.querySelector('.ge-toolbar-more');
+        const start = document.querySelector('.ge-toolbar-start');
+        const wrapper = document.querySelector('.ge-wrapper');
+        const tops = Array.from(wrapper.children).filter(function(node) { return node.offsetParent; })
+            .map(function(node) { return node.getBoundingClientRect().top; });
+        return {
+            needed: more.classList.contains('ge-needed'),
+            open: more.classList.contains('ge-open'),
+            inMenu: Array.from(document.querySelectorAll('.ge-toolbar-overflow [data-ge-toolbar]')).map(function(b) { return b.getAttribute('title'); }),
+            onLine: Array.from(start.querySelectorAll('[data-ge-toolbar]')).map(function(b) { return b.getAttribute('title'); }),
+            oneLine: tops.every(function(top) { return Math.abs(top - tops[0]) < 2; }),
+            fits: start.scrollWidth <= start.clientWidth,
+            total: document.querySelectorAll('.ge-mainControls .ge-addRowGroup [data-ge-toolbar], .ge-mainControls .ge-addContainerGroup [data-ge-toolbar]').length,
+        };
+    `;
+    // The resize is seen after a frame's layout, and the buttons move in the frame after that
+    var frame = 'await new Promise(function(resolve) { setTimeout(resolve, 150); });';
+
+    var wide = await page.eval(canvasWith() + frame + STATE);
+    t.check('with room for every button there is no more button',
+        !wide.needed && wide.inMenu.length === 0 && wide.oneLine, wide);
+
+    var narrow = await page.eval(`document.querySelector('.container').style.width = '480px';` + frame + STATE);
+    t.check('narrower, the toolbar keeps to one line and the last add buttons go behind the more button',
+        narrow.needed && narrow.inMenu.length > 0 && narrow.oneLine && narrow.fits &&
+        narrow.total === wide.total && narrow.onLine.concat(narrow.inMenu).join() === wide.onLine.join(), narrow);
+
+    await page.click('.ge-toolbar-more > button');
+    var opened = await page.eval(STATE + '');
+    var menuShown = await page.eval(`return document.querySelector('.ge-toolbar-overflow').getBoundingClientRect().height > 0;`);
+    t.check('the more button opens the menu', opened.open && menuShown, opened);
+    await page.screenshot(require('path').join(t.screenshots, 'toolbar-overflow.png'));
+
+    var added = await page.eval(`
+        const before = document.querySelectorAll('#myGrid > .row').length;
+        Array.from(document.querySelectorAll('.ge-toolbar-overflow [data-ge-toolbar]')).pop().click();
+        return {
+            added: document.querySelectorAll('#myGrid > .row').length === before + 1,
+            open: document.querySelector('.ge-toolbar-more').classList.contains('ge-open'),
+        };
+    `);
+    t.check('a button in the menu adds as it does on the line, and closes the menu',
+        added.added && !added.open, added);
+
+    await page.click('.ge-toolbar-more > button');
+    var escaped = await page.eval(`
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        return document.querySelector('.ge-toolbar-more').classList.contains('ge-open');
+    `);
+    t.check('Escape closes the menu', escaped === false);
+
+    var back = await page.eval(`document.querySelector('.container').style.width = '';` + frame + STATE);
+    t.check('with room again, every button is back on the line in its place',
+        !back.needed && back.inMenu.length === 0 && back.onLine.join() === wide.onLine.join(), back);
+
+    var relocated = await page.eval(`
+        document.querySelector('.container').style.width = '480px';
+        window.fixture.editor().setLocale('es');
+    ` + frame + STATE);
+    t.check('a toolbar rebuilt by setLocale fits again',
+        relocated.needed && relocated.oneLine && relocated.fits, relocated);
+
+    var wrapped = await page.eval(canvasWith({ toolbar_overflow: 'wrap' }) + frame + `
+        return {
+            more: document.querySelectorAll('.ge-toolbar-more, .ge-toolbar-start').length,
+            rowsInGroup: document.querySelectorAll('.ge-wrapper > .ge-addRowGroup [data-ge-toolbar]').length,
+        };
+    `);
+    t.check('toolbar_overflow wrap leaves the toolbar as it was, wrapping onto another line',
+        wrapped.more === 0 && wrapped.rowsInGroup === 3, wrapped);
+
+    var errors = page.errors();
+    t.check('the toolbar overflow tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'toolbar',
-    description: 'dragging the toolbar buttons onto the canvas, and their icons',
+    description: 'dragging the toolbar buttons onto the canvas, their icons, and the overflow menu',
     run: async function(t) {
         await paletteTests(t);
         await markerTests(t);
         await settingTests(t);
         await iconTests(t);
+        await overflowTests(t);
     },
 };
 
