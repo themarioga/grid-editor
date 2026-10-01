@@ -61,7 +61,9 @@ var STATE = `
 
 var ROWS = ['Add row 12', 'Add row 6-6', 'Add row 4-4-4'];
 // Today's order: the containers, then the plugins' items as the plugins load
-var CONTENT = ['Tabs', 'Accordion', 'Popup', 'Card', 'Section', 'Text'];
+var CONTENT = ['Tabs', 'Accordion', 'Popup', 'Card', 'Section'];
+// The texts go with the elements since element-buttons
+var ELEMENTS = ['Text'];
 
 function same(list, expected) {
     return JSON.stringify(list) === JSON.stringify(expected);
@@ -78,16 +80,21 @@ async function structureTests(t) {
     var off = await page.eval(start() + STATE);
     t.check('AC-01 off by default: no tabs, every add button on the line as before',
         off.tabs === null && !(await page.eval(`return !!document.querySelector('.ge-toolbar-stash');`)) &&
-        sameSet(off.shown, ROWS.concat(CONTENT)), off);
+        sameSet(off.shown, ROWS.concat(CONTENT, ELEMENTS)), off);
 
     var on = await page.eval(start({ toolbar_groups: true }) + STATE);
-    t.check('AC-02 with toolbar_groups, tabs Rows and Content, Rows chosen, only the row buttons showing',
-        same(on.tabs, ['Rows', 'Content']) && same(on.chosen, ['Rows']) && same(on.shown, ROWS) && on.total === off.total, on);
+    t.check('AC-02 (rev v2) with toolbar_groups, tabs Rows, Content and Elements, Rows chosen, only the row buttons showing',
+        same(on.tabs, ['Rows', 'Content', 'Elements']) && same(on.chosen, ['Rows']) && same(on.shown, ROWS) && on.total === off.total, on);
 
     await page.click('.ge-toolbar-groups [data-ge-group="content"]');
     var content = await page.eval(STATE);
-    t.check('AC-03 the Content tab shows the containers, then the section and the text, in today\'s order',
+    t.check('AC-03 (rev v2) the Content tab shows the containers, then the section, in today\'s order; the text is not there',
         same(content.chosen, ['Content']) && same(content.shown, CONTENT), content);
+
+    await page.click('.ge-toolbar-groups [data-ge-group="elements"]');
+    var elements = await page.eval(STATE);
+    t.check('the Elements tab shows the text', same(elements.chosen, ['Elements']) && same(elements.shown, ELEMENTS), elements);
+    await page.click('.ge-toolbar-groups [data-ge-group="content"]');
 
     await page.screenshot(path.join(t.screenshots, 'toolbar-groups.png'));
 
@@ -102,7 +109,7 @@ async function structureTests(t) {
         window.fixture.editor().setLocale('es');
     ` + STATE);
     t.check('AC-07 setLocale rebuilds the toolbar in Spanish, on the same tab',
-        same(relocated.tabs, ['Filas', 'Contenido']) && same(relocated.chosen, ['Contenido']) &&
+        same(relocated.tabs, ['Filas', 'Contenido', 'Elementos']) && same(relocated.chosen, ['Contenido']) &&
         relocated.shown.length === CONTENT.length, relocated);
 
     var recreated = await page.eval(start({ toolbar_groups: true }) + STATE);
@@ -138,7 +145,7 @@ async function structureTests(t) {
     ` + STATE);
     var warned = page.errors().filter(function(error) { return /group\.stamp/.test(error); });
     t.check('AC-10 a plugin naming no group has a tab of its own, labelled by its first button, with only its buttons',
-        same(stamp.tabs, ['Rows', 'Content', 'Stamp']) && same(stamp.shown, ['Stamp', 'Stamp again']) && warned.length === 0, stamp);
+        same(stamp.tabs, ['Rows', 'Content', 'Elements', 'Stamp']) && same(stamp.shown, ['Stamp', 'Stamp again']) && warned.length === 0, stamp);
 
     var media = await page.eval(start({ toolbar_groups: true, extraPlugins: ['mediaA', 'mediaB'] }, `
         GridEditor.features.mediaA = function() {
@@ -152,7 +159,7 @@ async function structureTests(t) {
         document.querySelector('.ge-toolbar-groups [data-ge-group="media"]').click();
     ` + STATE);
     t.check('AC-11 two plugins naming the same group share its tab, in the order they load',
-        same(media.tabs, ['Rows', 'Content', 'Media']) && same(media.shown, ['Photo', 'Video']), media);
+        same(media.tabs, ['Rows', 'Content', 'Elements', 'Media']) && same(media.shown, ['Photo', 'Video']), media);
 
     var joined = await page.eval(start({ toolbar_groups: true, extraPlugins: ['stamp'] }, `
         GridEditor.features.stamp = function() {
@@ -161,7 +168,7 @@ async function structureTests(t) {
         Object.assign(GridEditor.locales.en, { 'stamp.add': 'Stamp' });
     `) + STATE);
     t.check('AC-12 a plugin\'s item in rows comes after the row buttons',
-        same(joined.tabs, ['Rows', 'Content']) && same(joined.shown, ROWS.concat(['Stamp'])), joined);
+        same(joined.tabs, ['Rows', 'Content', 'Elements']) && same(joined.shown, ROWS.concat(['Stamp'])), joined);
 
     var carousel = await page.eval(start({ toolbar_groups: true, extraPlugins: ['carousel'] }, `
         GridEditor.containers.carousel = function() {
@@ -178,7 +185,7 @@ async function structureTests(t) {
         document.querySelector('.ge-toolbar-groups [data-ge-group="slides"]').click();
     ` + `const state = (function() { ${STATE} })(); state.inContent = inContent; return state;`);
     t.check('AC-13 a container with a group is in that tab, not in Content',
-        same(carousel.tabs, ['Rows', 'Content', 'Carousel']) && same(carousel.shown, ['Carousel']) &&
+        same(carousel.tabs, ['Rows', 'Content', 'Elements', 'Carousel']) && same(carousel.shown, ['Carousel']) &&
         carousel.inContent.indexOf('Carousel') < 0, carousel);
 
     var end = await page.eval(start({ toolbar_groups: true, extraPlugins: ['paster'] }, `
@@ -193,7 +200,7 @@ async function structureTests(t) {
         return state;
     `);
     t.check('AC-14 an item with align end stays on the right and makes no tab',
-        same(end.tabs, ['Rows', 'Content']) && end.inEnd, end);
+        same(end.tabs, ['Rows', 'Content', 'Elements']) && end.inEnd, end);
 
     var invalid = await page.eval(start({ toolbar_groups: true, extraPlugins: ['stamp', 'mediaA'] }, `
         GridEditor.features.stamp = function() {
@@ -207,7 +214,26 @@ async function structureTests(t) {
         return Array.from(document.querySelectorAll('.ge-toolbar-groups > button')).map(function(tab) { return tab.getAttribute('data-ge-group'); });
     `);
     t.check('AC-19 an empty or non-string group counts as none: the plugin\'s own tab',
-        same(invalid, ['rows', 'content', 'stamp', 'mediaA']), invalid);
+        same(invalid, ['rows', 'content', 'elements', 'stamp', 'mediaA']), invalid);
+
+    var typed = await page.eval(start({ toolbar_groups: true, elements: { types: [
+        { type: 'quote', label: 'Quote', html: '<blockquote></blockquote>' },
+        { type: 'figure', label: 'Figure', html: '<figure></figure>' },
+        { type: 'video', label: 'Video', group: 'media', html: '<video></video>' },
+    ] } }) + `
+        const shownIn = function(name) {
+            document.querySelector('.ge-toolbar-groups [data-ge-group="' + name + '"]').click();
+            return (function() { ${STATE} })().shown;
+        };
+        const state = (function() { ${STATE} })();
+        return { tabs: state.tabs, elements: shownIn('elements'), media: shownIn('media'), content: shownIn('content') };
+    `);
+    t.check('element-buttons AC-18 the Elements tab has the text and the types that name no group; Content keeps the containers and the section',
+        // In the order the plugins load: elements before text. The label of
+        // media is the group.media string an earlier check registered
+        same(typed.tabs, ['Rows', 'Content', 'Elements', 'Media']) && same(typed.elements, ['Quote', 'Figure', 'Text']) &&
+        same(typed.content, CONTENT), typed);
+    t.check('element-buttons AC-19 a type with a group is in that tab, not in Elements', same(typed.media, ['Video']), typed);
 
     await page.eval(start({ toolbar_groups: true }) + 'return true;');
     var keyboard = await page.eval(`

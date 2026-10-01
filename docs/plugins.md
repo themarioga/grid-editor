@@ -223,7 +223,8 @@ needs to put a new kind of block on the canvas:
 - **`toolbar`** adds buttons beside the containers'. A click appends what
   `create()` returns to the canvas, announced as `kind`; a drop puts it where it
   was dropped, or, when that region will not have it, on the canvas just after
-  the block it was dropped in.
+  the block it was dropped in. A `create()` that returns `null` adds nothing:
+  that is how a plugin says it could not make one this time.
 
 - **`drawerTools(drawer, node, kind)`** runs for every drawer that has a gear,
   as a utility plugin's does, so a tool can go on any node. The clipboard
@@ -286,13 +287,13 @@ rather than remembering anything about it.
   at the end of the canvas, and a drop anywhere but in a column does the
   same where it was dropped.
 - A **`toolbar`** item's **`group`** is the tab it goes in when the host turns
-  on `toolbar_groups`. The core has two, `rows` - the add row buttons - and
-  `content` - the texts, the containers and the sections - and an item may
-  join either. Any other name is a tab of its own, shared by every item, of
+  on `toolbar_groups`. The core has three: `rows` - the add row buttons -,
+  `content` - the containers and the sections - and `elements` - the texts
+  and the elements of `elements.types` - and an item may join any of them. Any other name is a tab of its own, shared by every item, of
   any plugin, that names it. An item without a `group` goes in a tab named
   after its plugin. A tab's label is the `group.<name>` locale string, which
   the plugin registers with its others, or its first button's label when
-  there is none. Tabs come in this order: `rows`, `content`, then the others
+  there is none. Tabs come in this order: `rows`, `content`, `elements`, then the others
   as their first button comes. `group` is ignored with `align: 'end'`: the
   buttons on the right are not grouped.
 

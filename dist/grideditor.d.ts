@@ -125,7 +125,7 @@ export interface GridEditorOptions {
     inline_style?: InlineStyleOptions;
     /** The tabs plugin: the variant of the tabs containers made new. */
     tabs?: TabsOptions;
-    elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean };
+    elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];
     valid_col_offsets?: number[];
@@ -286,6 +286,22 @@ export type GridEditorCallbacks = {
 };
 
 /** A plugin's factory: called once per editor with the handle in docs/plugins.md. */
+/** An element the toolbar offers, from elements.types. */
+export interface ElementType {
+    /** What it is: its data-ge-element. */
+    type: string;
+    /** Its markup: html, or a function called for each one made that returns html or a node. */
+    html: string | (() => string | Node);
+    /** Its button's label, as it is. */
+    label?: string;
+    /** Its button's label, a locale key: wins over label, and follows setLocale. */
+    labelKey?: string;
+    /** The button shows this icon alone, with the label as its title. */
+    iconClass?: string;
+    /** Its toolbar_groups category. Default 'elements'. */
+    group?: string;
+}
+
 export type PluginFactory = ((ge: any) => Record<string, unknown>) & { always?: boolean };
 
 export interface CreateColumnOptions extends Placement {

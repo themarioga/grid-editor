@@ -392,8 +392,10 @@ var NESTED_SETTINGS = {
     // 'auto' turns them on when the page has any
     selector: "[data-ge-element]",
     // What the host marks an element with
-    auto: false
+    auto: false,
     // Treat every child of a content area as an element
+    types: []
+    // The elements the toolbar offers: { type, html, label | labelKey, iconClass, group }
   },
   resize: {
     enabled: true,
@@ -1239,7 +1241,8 @@ function build(instance, baseElem, optionsOrMethod) {
   }
   var CORE_GROUPS = [
     { name: "rows", labelKey: "group.rows" },
-    { name: "content", labelKey: "group.content" }
+    { name: "content", labelKey: "group.content" },
+    { name: "elements", labelKey: "group.elements" }
   ];
   function toolbarGroupOf(value) {
     return typeof value === "string" && value.trim() !== "" ? value : null;
@@ -1420,6 +1423,9 @@ function build(instance, baseElem, optionsOrMethod) {
         return;
       }
       var made = item.create();
+      if (!made) {
+        return;
+      }
       var placed = item.inColumn ? inRowOfItsOwn(made) : made;
       var added = addNode(item.kind, made, function() {
         canvas.appendChild(placed);
@@ -1528,6 +1534,9 @@ function build(instance, baseElem, optionsOrMethod) {
   function insertFeatureFromToolbar(button, where, source) {
     var item = FEATURES[button.getAttribute("data-ge-feature")].toolbar[parseInt(button.getAttribute("data-ge-item"), 10)];
     var made = item.create();
+    if (!made) {
+      return null;
+    }
     var placed = made;
     if (item.inColumn) {
       if (!is(where.region, ".column")) {
@@ -4540,6 +4549,7 @@ GridEditor.locales = {
     "tool.more": "More",
     "group.rows": "Rows",
     "group.content": "Content",
+    "group.elements": "Elements",
     "group.select": "Add",
     "panel.title": "{kind} settings",
     "panel.close": "Close",

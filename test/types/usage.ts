@@ -14,6 +14,7 @@ const options: GridEditorOptions = {
     settings_panel: 'modal',
     active_target: true,
     toolbar_groups: true,
+    elements: { types: [{ type: 'quote', label: 'Quote', html: '<blockquote></blockquote>' }, { type: 'figure', labelKey: 'element.figure', group: 'media', html: function() { return document.createElement('figure'); } }] },
     resize: { enabled: true, tools: false, handles: 'e, w', balance: false },
     indent: { tools: false },
     row_tools: [{ title: 'Mine', on: function(event) { event.preventDefault(); this.classList.add('x'); } }],

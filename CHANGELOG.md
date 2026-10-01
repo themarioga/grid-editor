@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- `elements.types`: the elements the toolbar offers, a button each. A type
+  has its `type`, its `html` - a string, or a function called for each one
+  made - a `label` or `labelKey`, an `iconClass` and a `group`. A button
+  makes the html's root, marked with `data-ge-element` and `data-ge-label`
+  the way a host marks its own elements, or a `div` around html with no
+  single root. Declaring a type turns `enabled: 'auto'` on.
+- `toolbar_groups`: a third core category, *Elements*, after *Content*. The
+  element buttons go there unless they name another `group`.
+- A feature plugin's `toolbar` item whose `create()` returns `null` adds
+  nothing, rather than failing.
+
+### Changed
+- `toolbar_groups`: the *Text* buttons are in *Elements* now, not in
+  *Content*, which keeps the containers and the sections.
+
 ## [8.4.0] - 2026-10-01
 
 ### Added

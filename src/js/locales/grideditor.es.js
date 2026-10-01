@@ -54,6 +54,7 @@ GridEditor.locales.es = {
     'tool.more': 'Más',
     'group.rows': 'Filas',
     'group.content': 'Contenido',
+    'group.elements': 'Elementos',
     'group.select': 'Añadir',
     'panel.title': 'Ajustes: {kind}',
     'panel.close': 'Cerrar',

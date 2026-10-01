@@ -379,7 +379,7 @@ new GridEditor('#myGrid', {
 });
 ```
 
-__`toolbar_groups`:__ Whether the toolbar's add buttons are sorted into categories, with tabs at the start of the toolbar choosing which one shows. Default `false`. With `true` the core's categories are *Rows*, the add row buttons, and *Content*, the texts, the containers and the sections; a plugin's buttons go in the category they name with `group` (see [docs/plugins.md](docs/plugins.md)), or in one of their own. The tab chosen is kept while the editor lives, through `setLocale` too. With a single category there is nothing to choose and no tabs. The buttons on the right - the view, source and preview, paste - are never grouped. The more button of `toolbar_overflow` holds what doesn't fit of the category shown; the tabs themselves never go behind it, so with a great many categories they can run out of room.
+__`toolbar_groups`:__ Whether the toolbar's add buttons are sorted into categories, with tabs at the start of the toolbar choosing which one shows. Default `false`. With `true` the core's categories are *Rows*, the add row buttons, *Content*, the containers and the sections, and *Elements*, the texts and the elements of `elements.types`; a plugin's buttons go in the category they name with `group` (see [docs/plugins.md](docs/plugins.md)), or in one of their own. The tab chosen is kept while the editor lives, through `setLocale` too. With a single category there is nothing to choose and no tabs. The buttons on the right - the view, source and preview, paste - are never grouped. The more button of `toolbar_overflow` holds what doesn't fit of the category shown; the tabs themselves never go behind it, so with a great many categories they can run out of room.
 
 ```javascript
 new GridEditor('#myGrid', {
@@ -592,6 +592,32 @@ new GridEditor('#myGrid', {
         enabled: 'auto',                 // on when the page has any; true or false to decide yourself
         selector: '[data-ge-element]',   // what counts as an element
         auto: false,                     // true treats every loose node of a column as one
+        types: [],                       // the elements the toolbar offers, see below
+    },
+});
+```
+
+__`elements.types`:__ The elements the toolbar offers, a button each, in this order. A click makes one in a row and column of its own at the end of the canvas - or at the end of the active target, with `active_target` - and a drag drops it in the column it lands in, as a text or a container. Declaring a type turns `enabled: 'auto'` on, so the buttons are there on a page with no elements yet; `enabled: false` takes them away too.
+
+| Field | | |
+| --- | --- | --- |
+| `type` | required | what it is: its `data-ge-element` |
+| `html` | required | its markup: html, or a function called for each one made, which returns html or a node |
+| `label` / `labelKey` | | the button's label, as it is or as a locale key, which wins and follows `setLocale`. Without either, the `type` |
+| `iconClass` | | the button shows the icon alone, with the label as its title |
+| `group` | | its `toolbar_groups` category. Default `elements` |
+
+What a button makes is the html's root, marked the way you mark your own elements - `data-ge-element`, and `data-ge-label` with the label unless the html has one - so `getHtml` gives it back as you would have written it. Html with more than one root, or none, is wrapped in a `div`. A `<script>` in html given as a string does not run. A type with no `type` or no `html` is left off the toolbar, and one whose function throws or gives nothing adds nothing; both with a warning in the console, as is a type whose markup does not match your `elements.selector`.
+
+```javascript
+new GridEditor('#myGrid', {
+    elements: {
+        types: [
+            { type: 'quote', label: 'Pull quote', iconClass: 'bi bi-quote',
+              html: '<blockquote class="my-quote"><p>Quote</p></blockquote>' },
+            { type: 'figure', labelKey: 'element.figure', group: 'media',
+              html: function() { return '<figure id="fig-' + Date.now() + '"><img src="…"></figure>'; } },
+        ],
     },
 });
 ```

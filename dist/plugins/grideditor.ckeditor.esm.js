@@ -362,7 +362,7 @@ if (!GridEditor.features.text) {
           iconClass: TEXTS[type].iconClass,
           className: "ge-add-text-button",
           kind: "text",
-          group: "content",
+          group: "elements",
           inColumn: true,
           create: function() {
             return makeText(type);

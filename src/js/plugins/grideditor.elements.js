@@ -28,11 +28,95 @@ var NOT_ELEMENTS = '.row, .ge-content, .ge-text-block, [data-ge-container], .ge-
 GridEditor.features.elements = function(ge) {
 
     var warnedIntoText = false;
+    var types = validTypes();
 
     function elementsEnabled() {
         if (ge.settings.elements.enabled !== 'auto') { return !!ge.settings.elements.enabled; }
 
-        return ge.settings.elements.auto || !!ge.canvas.querySelector(ge.settings.elements.selector);
+        // A host that offers elements on the toolbar uses them, even on a
+        // page that has none yet
+        return ge.settings.elements.auto || types.length > 0 ||
+            !!ge.canvas.querySelector(ge.settings.elements.selector);
+    }
+
+    /** The elements.types the toolbar can offer. One that can't be made is left out, with a word to the host. */
+    function validTypes() {
+        return (ge.settings.elements.types || []).filter(function(type, index) {
+            var named = type && typeof type.type === 'string' && type.type.trim() !== '';
+            var html = type && (typeof type.html === 'function' || (typeof type.html === 'string' && type.html.trim() !== ''));
+
+            if (!named || !html) {
+                ge.warn('elements.types[' + index + ']: a type needs a type name and its html, as a string or a ' +
+                    'function; it is left off the toolbar.');
+            }
+
+            return named && html;
+        });
+    }
+
+    /** A type's toolbar button. */
+    function typeItem(type) {
+        var mismatched = false;
+
+        return {
+            // Asked again whenever the toolbar is built, so setLocale
+            // translates a labelKey
+            label: function() { return labelOf(type); },
+            iconClass: type.iconClass,
+            group: type.group || 'elements',
+            kind: 'element',
+            inColumn: true,
+            create: function() {
+                var element = makeElement(type);
+
+                if (element && !mismatched && !ge.settings.elements.auto && !element.matches(ge.settings.elements.selector)) {
+                    mismatched = true;
+                    ge.warn('elements.types "' + type.type + '": what it makes does not match elements.selector "' +
+                        ge.settings.elements.selector + '", so it will not be an element once the editor looks again.');
+                }
+
+                return element;
+            },
+        };
+    }
+
+    function labelOf(type) {
+        if (type.labelKey) { return ge.t(type.labelKey); }
+
+        return type.label || type.type;
+    }
+
+    /**
+     * What a type's button makes: the root of its html, marked as the host
+     * marks its own, or a div around it when it has no single root. Null,
+     * with a word to the host, when there is nothing to make.
+     */
+    function makeElement(type) {
+        var made;
+
+        try {
+            made = typeof type.html === 'function' ? type.html() : type.html;
+        } catch (error) {
+            ge.warn('elements.types "' + type.type + '": its html function threw (' + error.message + '); nothing was added.');
+            return null;
+        }
+
+        var nodes = typeof made === 'string' ? dom.parse(made) : (made && made.nodeType ? [made] : []);
+        // Whitespace between tags is not content
+        nodes = nodes.filter(function(node) { return node.nodeType !== 3 || node.textContent.trim() !== ''; });
+
+        if (!nodes.length) {
+            ge.warn('elements.types "' + type.type + '": its html came out empty; nothing was added.');
+            return null;
+        }
+
+        var element = nodes.length === 1 && nodes[0].nodeType === 1 ? nodes[0] : dom.element('div');
+        if (element !== nodes[0] || nodes.length > 1) { fill(element, nodes); }
+
+        element.setAttribute('data-ge-element', type.type);
+        if (!element.hasAttribute('data-ge-label')) { element.setAttribute('data-ge-label', labelOf(type)); }
+
+        return element;
     }
 
     /** Whether a child of a column is an element. */
@@ -121,6 +205,11 @@ GridEditor.features.elements = function(ge) {
         return placed;
     }
 
+    /** enabled: false takes the toolbar's element buttons away too. */
+    function elementsOff() {
+        return ge.settings.elements.enabled === false;
+    }
+
     /** A place a caller named: an element, or the first one a selector matches. */
     function nodeFrom(node) {
         if (typeof node === 'string') { return document.querySelector(node); }
@@ -162,6 +251,10 @@ GridEditor.features.elements = function(ge) {
         methods: {
             createElement: apiCreateElement,
         },
+
+        // A button for each type the host offers, in the elements category
+        // unless the type names another
+        toolbar: elementsOff() ? [] : types.map(typeItem),
 
         /** A node this plugin marked is an element, whatever else it is. */
         kindOf: function(node) {

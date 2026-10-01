@@ -37,6 +37,7 @@ GridEditor.locales.es = {
   "tool.more": "M\xE1s",
   "group.rows": "Filas",
   "group.content": "Contenido",
+  "group.elements": "Elementos",
   "group.select": "A\xF1adir",
   "panel.title": "Ajustes: {kind}",
   "panel.close": "Cerrar",
