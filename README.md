@@ -371,6 +371,14 @@ new GridEditor('#myGrid', {
 });
 ```
 
+__`drawer_overflow`:__ The same for the drawers of rows, columns, containers, elements and sections. `'menu'`, the default, keeps a drawer's tools to one line: the ones that don't fit are hidden from the end, behind a `⋯` tool that unfolds the drawer to show them all, and they come back when there is room. They stay in their drawer, so whatever finds a tool there still does. A text's drawer and a pane's are left alone. `'wrap'` lets the drawers wrap onto more lines, as they did before 8.4.
+
+```javascript
+new GridEditor('#myGrid', {
+    drawer_overflow: 'wrap',
+});
+```
+
 __`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
 
 ```javascript

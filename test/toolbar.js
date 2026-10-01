@@ -314,6 +314,8 @@ async function overflowTests(t) {
             onLine: Array.from(start.querySelectorAll('[data-ge-toolbar]')).map(function(b) { return b.getAttribute('title'); }),
             oneLine: tops.every(function(top) { return Math.abs(top - tops[0]) < 2; }),
             fits: start.scrollWidth <= start.clientWidth,
+            // No label wrapped onto a second line inside its button
+            unsqueezed: Array.from(start.querySelectorAll('.btn')).every(function(b) { return b.offsetHeight <= 40; }),
             total: document.querySelectorAll('.ge-mainControls .ge-addRowGroup [data-ge-toolbar], .ge-mainControls .ge-addContainerGroup [data-ge-toolbar]').length,
         };
     `;
@@ -326,7 +328,7 @@ async function overflowTests(t) {
 
     var narrow = await page.eval(`document.querySelector('.container').style.width = '480px';` + frame + STATE);
     t.check('narrower, the toolbar keeps to one line and the last add buttons go behind the more button',
-        narrow.needed && narrow.inMenu.length > 0 && narrow.oneLine && narrow.fits &&
+        narrow.needed && narrow.inMenu.length > 0 && narrow.oneLine && narrow.fits && narrow.unsqueezed &&
         narrow.total === wide.total && narrow.onLine.concat(narrow.inMenu).join() === wide.onLine.join(), narrow);
 
     await page.click('.ge-toolbar-more > button');

@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- `drawer_overflow`: the drawers of rows, columns, containers, elements and
+  sections keep their tools to one line. The tools that don't fit are hidden
+  from the end, behind a `⋯` tool that unfolds the drawer to show them all,
+  and come back when there is room. `'wrap'` keeps the old behaviour.
+
+### Fixed
+- `toolbar_overflow`: squeezed, the toolbar's buttons wrapped their labels
+  onto a second line instead of going behind the more button.
+
 ## [8.3.0] - 2026-10-01
 
 ### Added

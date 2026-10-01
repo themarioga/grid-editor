@@ -109,6 +109,8 @@ export interface GridEditorOptions {
     toolbar_drag?: 'auto' | boolean;
     /** The add buttons that don't fit on the toolbar's line: behind a more button, or onto another line. Default 'menu'. */
     toolbar_overflow?: 'menu' | 'wrap';
+    /** The drawers' tools that don't fit on one line: behind a more tool, or onto more lines. Default 'menu'. */
+    drawer_overflow?: 'menu' | 'wrap';
     /** A click in a column or a section makes it where the toolbar's buttons add. Default false. */
     active_target?: boolean;
     /** The plugins to use, of any kind; null is every one loaded. */

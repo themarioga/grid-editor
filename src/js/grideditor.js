@@ -367,6 +367,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'drag_handle'       : 'tool', // 'tool' for the move tool, 'drawer' for the whole drawer
             'toolbar_drag'      : 'auto', // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
             'toolbar_overflow'  : 'menu', // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
+            'drawer_overflow'   : 'menu', // The same for the drawers' tools: 'menu' behind a button, 'wrap' onto another line
             'active_target'     : false, // A click in a column makes it where the toolbar's buttons add
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
@@ -972,6 +973,7 @@ function build(instance, baseElem, optionsOrMethod) {
             canvas.parentNode.insertBefore(htmlTextArea, canvas);
 
             createMainControls();
+            watchDrawers();
 
             var signal = { signal: lifetime.signal };
 
@@ -3328,6 +3330,127 @@ function build(instance, baseElem, optionsOrMethod) {
             if (settings.drag_handle === 'drawer') { return null; }
 
             return createTool(drawer, t('tool.move'), 'ge-move', 'bi bi-arrows-move');
+        }
+
+        /**
+         * The drawers that span their node - a row's, a column's, a
+         * container's, an element's, a section's - keep their tools to one
+         * line. The tools that don't fit are hidden from the end, and a more
+         * tool at the drawer's end unfolds it to show them all, wrapping as
+         * it would otherwise. They stay where they are, so whatever finds a
+         * tool in its drawer, or hangs a picker off it, still does.
+         *
+         * A text's drawer sits over the text, as wide as its tools, and a
+         * pane's sits by its label: neither is one of them.
+         */
+        var FITTED_DRAWERS = '.ge-tools-drawer:not(.ge-text-drawer):not(.ge-pane-drawer):not(.ge-code-inline)';
+
+        /**
+         * Fit every drawer as it comes onto the canvas, and again when it
+         * changes width or a tool is added to it, shown or hidden. Plugins
+         * add tools at their own moments, so this watches rather than
+         * waiting to be told.
+         */
+        function watchDrawers() {
+            if (settings.drawer_overflow === 'wrap' || !window.ResizeObserver || !window.MutationObserver) { return; }
+
+            var due = new Set();
+            var frame = null;
+
+            // Once a frame, after the layout: moving tools in the observers'
+            // callbacks would resize what they are watching
+            function schedule(drawer) {
+                due.add(drawer);
+                if (frame === null) { frame = window.requestAnimationFrame(flush); }
+            }
+
+            function flush() {
+                frame = null;
+                var drawers = Array.from(due);
+                due.clear();
+                drawers.forEach(function(drawer) {
+                    if (!drawer.isConnected) {
+                        drawerResizes.unobserve(drawer);
+                        return;
+                    }
+                    fitDrawer(drawer);
+                });
+            }
+
+            var drawerResizes = new window.ResizeObserver(function(entries) {
+                entries.forEach(function(entry) { schedule(entry.target); });
+            });
+
+            var mutations = new window.MutationObserver(function(records) {
+                records.forEach(function(record) {
+                    var target = record.target;
+
+                    // A tool shown or hidden
+                    if (record.type === 'attributes') {
+                        var parent = target.parentNode;
+                        if (parent && parent.nodeType === 1 && parent.matches(FITTED_DRAWERS)) { schedule(parent); }
+                        return;
+                    }
+
+                    // A tool added
+                    if (target.nodeType === 1 && target.matches(FITTED_DRAWERS)) {
+                        schedule(target);
+                        return;
+                    }
+
+                    record.addedNodes.forEach(function(node) {
+                        if (node.nodeType !== 1) { return; }
+                        dom.selfAndAll(node, FITTED_DRAWERS).forEach(function(drawer) {
+                            dom.addClass(drawer, 'ge-drawer-fit');
+                            drawerResizes.observe(drawer);
+                            schedule(drawer);
+                        });
+                    });
+                });
+            });
+            mutations.observe(canvas, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+
+            lifetime.signal.addEventListener('abort', function() {
+                mutations.disconnect();
+                drawerResizes.disconnect();
+                if (frame !== null) { window.cancelAnimationFrame(frame); }
+            });
+        }
+
+        /** Hide the tools that don't fit on the drawer's line, from the end, behind its more tool. */
+        function fitDrawer(drawer) {
+            var tools = dom.children(drawer, 'a').filter(function(tool) { return !dom.hasClass(tool, 'ge-drawer-more'); });
+            var expanded = dom.hasClass(drawer, 'ge-drawer-expanded');
+
+            // Measured on one line, with every tool back on it
+            dom.removeClass(drawer, 'ge-drawer-overflow ge-drawer-expanded');
+            tools.forEach(function(tool) { dom.removeClass(tool, 'ge-tool-overflow'); });
+
+            if (!drawerOverflows(drawer, tools)) { return; }
+
+            dom.addClass(drawer, 'ge-drawer-overflow');
+            if (!dom.child(drawer, '.ge-drawer-more')) {
+                createTool(drawer, t('tool.more'), 'ge-drawer-more', 'bi bi-three-dots', function() {
+                    dom.toggleClass(drawer, 'ge-drawer-expanded');
+                });
+            }
+
+            for (var i = tools.length - 1; i >= 0 && drawerOverflows(drawer, tools); i--) {
+                dom.addClass(tools[i], 'ge-tool-overflow');
+            }
+
+            dom.toggleClass(drawer, 'ge-drawer-expanded', expanded);
+        }
+
+        function drawerOverflows(drawer, tools) {
+            var style = window.getComputedStyle(drawer);
+            var limit = drawer.getBoundingClientRect().right -
+                parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+
+            return tools.some(function(tool) {
+                var rects = tool.getClientRects();
+                return rects.length > 0 && rects[0].right > limit + 0.5;
+            });
         }
 
         /**

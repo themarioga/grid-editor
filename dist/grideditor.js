@@ -573,6 +573,8 @@
       // Drag the toolbar's buttons onto the canvas. 'auto' follows drag_handle
       "toolbar_overflow": "menu",
       // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
+      "drawer_overflow": "menu",
+      // The same for the drawers' tools: 'menu' behind a button, 'wrap' onto another line
       "active_target": false,
       // A click in a column makes it where the toolbar's buttons add
       "element_tools": [],
@@ -1036,6 +1038,7 @@
       htmlTextArea = element("textarea", { "class": "ge-html-output" });
       canvas.parentNode.insertBefore(htmlTextArea, canvas);
       createMainControls();
+      watchDrawers();
       var signal = { signal: lifetime.signal };
       window.addEventListener("scroll", onScroll, signal);
       delegate(canvas, "click", ".ge-content", onContentClick, signal);
@@ -2824,6 +2827,102 @@
         return null;
       }
       return createTool(drawer, t("tool.move"), "ge-move", "bi bi-arrows-move");
+    }
+    var FITTED_DRAWERS = ".ge-tools-drawer:not(.ge-text-drawer):not(.ge-pane-drawer):not(.ge-code-inline)";
+    function watchDrawers() {
+      if (settings.drawer_overflow === "wrap" || !window.ResizeObserver || !window.MutationObserver) {
+        return;
+      }
+      var due = /* @__PURE__ */ new Set();
+      var frame = null;
+      function schedule(drawer) {
+        due.add(drawer);
+        if (frame === null) {
+          frame = window.requestAnimationFrame(flush);
+        }
+      }
+      function flush() {
+        frame = null;
+        var drawers = Array.from(due);
+        due.clear();
+        drawers.forEach(function(drawer) {
+          if (!drawer.isConnected) {
+            drawerResizes.unobserve(drawer);
+            return;
+          }
+          fitDrawer(drawer);
+        });
+      }
+      var drawerResizes = new window.ResizeObserver(function(entries) {
+        entries.forEach(function(entry) {
+          schedule(entry.target);
+        });
+      });
+      var mutations = new window.MutationObserver(function(records) {
+        records.forEach(function(record) {
+          var target = record.target;
+          if (record.type === "attributes") {
+            var parent = target.parentNode;
+            if (parent && parent.nodeType === 1 && parent.matches(FITTED_DRAWERS)) {
+              schedule(parent);
+            }
+            return;
+          }
+          if (target.nodeType === 1 && target.matches(FITTED_DRAWERS)) {
+            schedule(target);
+            return;
+          }
+          record.addedNodes.forEach(function(node) {
+            if (node.nodeType !== 1) {
+              return;
+            }
+            selfAndAll(node, FITTED_DRAWERS).forEach(function(drawer) {
+              addClass(drawer, "ge-drawer-fit");
+              drawerResizes.observe(drawer);
+              schedule(drawer);
+            });
+          });
+        });
+      });
+      mutations.observe(canvas, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+      lifetime.signal.addEventListener("abort", function() {
+        mutations.disconnect();
+        drawerResizes.disconnect();
+        if (frame !== null) {
+          window.cancelAnimationFrame(frame);
+        }
+      });
+    }
+    function fitDrawer(drawer) {
+      var tools = children(drawer, "a").filter(function(tool) {
+        return !hasClass(tool, "ge-drawer-more");
+      });
+      var expanded = hasClass(drawer, "ge-drawer-expanded");
+      removeClass(drawer, "ge-drawer-overflow ge-drawer-expanded");
+      tools.forEach(function(tool) {
+        removeClass(tool, "ge-tool-overflow");
+      });
+      if (!drawerOverflows(drawer, tools)) {
+        return;
+      }
+      addClass(drawer, "ge-drawer-overflow");
+      if (!child(drawer, ".ge-drawer-more")) {
+        createTool(drawer, t("tool.more"), "ge-drawer-more", "bi bi-three-dots", function() {
+          toggleClass(drawer, "ge-drawer-expanded");
+        });
+      }
+      for (var i = tools.length - 1; i >= 0 && drawerOverflows(drawer, tools); i--) {
+        addClass(tools[i], "ge-tool-overflow");
+      }
+      toggleClass(drawer, "ge-drawer-expanded", expanded);
+    }
+    function drawerOverflows(drawer, tools) {
+      var style = window.getComputedStyle(drawer);
+      var limit = drawer.getBoundingClientRect().right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+      return tools.some(function(tool) {
+        var rects = tool.getClientRects();
+        return rects.length > 0 && rects[0].right > limit + 0.5;
+      });
     }
     function createTool(drawer, title, className, iconClass, eventHandlers) {
       var tool = element("a", { title, "class": className });

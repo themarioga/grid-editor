@@ -94,6 +94,15 @@
         flex: 1 1 auto;
         min-width: 0;
         overflow: hidden;
+
+        /* A group as wide as its buttons and a button as wide as its label:
+           squeezed, they would wrap their labels rather than overflow */
+        > .btn-group {
+            flex: none;
+        }
+        .btn {
+            white-space: nowrap;
+        }
     }
 
     .ge-toolbar-more {
@@ -1111,6 +1120,43 @@
     }
     .column.ge-resizing > .ge-tools-drawer > .ge-resize-size {
         display: block;
+    }
+}
+
+/* drawer_overflow: 'menu'. A drawer keeps its tools to one line; the ones
+   that don't fit are hidden behind a more tool at its end, which unfolds it
+   to show them all */
+.ge-canvas.ge-editing .ge-tools-drawer.ge-drawer-fit {
+    white-space: nowrap;
+
+    > .ge-details {
+        white-space: normal;
+    }
+    > a.ge-tool-overflow,
+    > a.ge-drawer-more {
+        display: none;
+    }
+
+    &.ge-drawer-overflow {
+        padding-right: 26px;
+
+        > a.ge-drawer-more {
+            display: inline-block;
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+    }
+
+    &.ge-drawer-expanded {
+        white-space: normal;
+
+        > a.ge-tool-overflow {
+            display: inline-block;
+        }
+        > a.ge-drawer-more {
+            background: rgba(0, 0, 0, 0.08);
+        }
     }
 }
 
