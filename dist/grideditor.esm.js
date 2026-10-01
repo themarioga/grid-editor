@@ -1071,6 +1071,10 @@ function build(instance, baseElem, optionsOrMethod) {
           return;
         }
         var region = closest(e.target, targetSelector());
+        if (region && region === activeTarget && (e.target === region || e.target === child(region, ".ge-tools-drawer"))) {
+          changeTarget(null);
+          return;
+        }
         changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
       }, signal);
       document.addEventListener("keydown", function(e) {

@@ -412,11 +412,34 @@ async function apiTests(t) {
     var same = await page.eval(`
         start();
         clickIn('b');
-        clickIn('b');
+        q('#b .ge-content').click();
         ge().setActiveTarget('#b');
         return changes.length;
     `);
-    t.check('the same target again, by click or by setActiveTarget, says nothing (AC-25)', same === 1, same);
+    t.check('the same target again, by a click in what it holds or by setActiveTarget, says nothing (AC-25 rev v2)', same === 1, same);
+
+    var toggled = await page.eval(`
+        start();
+        clickIn('b');
+        clickIn('b');
+        const byDrawer = { target: target(), marked: marked(), changes: changes.length };
+        clickIn('b');
+        q('#b').click();
+        const byBackground = { target: target(), marked: marked(), changes: changes.length };
+        clickIn('s');
+        clickIn('s');
+        const section = { target: target(), changes: changes.length };
+        clickIn('b');
+        q('#b > .ge-tools-drawer > a').click();
+        const byTool = target();
+        return { byDrawer: byDrawer, byBackground: byBackground, section: section, byTool: byTool,
+            last: changes[changes.length - 1] && changes[changes.length - 1].target };
+    `);
+    t.check('the target\'s drawer or background clicked again takes it back; a tool in its drawer keeps it (AC-31)',
+        toggled.byDrawer.target === null && toggled.byDrawer.marked === '' && toggled.byDrawer.changes === 2 &&
+        toggled.byBackground.target === null && toggled.byBackground.changes === 4 &&
+        toggled.section.target === null && toggled.section.changes === 6 &&
+        toggled.byTool === 'b', toggled);
 
     var errors = page.errors();
     t.check('the api tests logged no errors', errors.length === 0, errors.slice(0, 5));

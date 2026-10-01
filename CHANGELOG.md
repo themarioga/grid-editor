@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a container names its category with `group`; one that names none has its
   plugin's. The label is the `group.<name>` locale string. Off by default.
 
+### Changed
+- `active_target`: a click again on the target's own background or on its
+  drawer, away from its tools, clears it. A click on what it holds - a text,
+  a tool, a nested column - works as before.
+
 ### Fixed
 - `toolbar_overflow`: squeezed, the toolbar's buttons wrapped their labels
   onto a second line instead of going behind the more button.

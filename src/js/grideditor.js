@@ -1018,6 +1018,16 @@ function build(instance, baseElem, optionsOrMethod) {
                     if (!dom.hasClass(canvas, 'ge-editing')) { return; }
                     if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) { return; }
                     var region = dom.closest(e.target, targetSelector());
+
+                    // The target's own background, or its drawer's, clicked
+                    // again takes it back. What is in it - a text, a tool, a
+                    // nested column - keeps it, or makes that the target
+                    if (region && region === activeTarget &&
+                        (e.target === region || e.target === dom.child(region, '.ge-tools-drawer'))) {
+                        changeTarget(null);
+                        return;
+                    }
+
                     changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
                 }, signal);
 
