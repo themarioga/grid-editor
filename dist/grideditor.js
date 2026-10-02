@@ -653,6 +653,7 @@
     var refitToolbar = function() {
     };
     var addButtons = [];
+    var shownToolbar = {};
     var toolbarGroup = null;
     var warnedHere = {};
     var sortables = [];
@@ -1197,8 +1198,10 @@
         addButtons.push({ button, home: addContainerGroup, group: toolbarGroupOf(definition.group) || "content" });
       });
       var endItems = [];
+      shownToolbar = {};
       Object.keys(FEATURES).forEach(function(name) {
-        (FEATURES[name].toolbar || []).forEach(function(item, index) {
+        shownToolbar[name] = toolbarOf(FEATURES[name]);
+        shownToolbar[name].forEach(function(item, index) {
           var button = featureButton(name, item, index);
           if (item.align === "end") {
             endItems.push(button);
@@ -1333,6 +1336,22 @@
       return addButtons.filter(function(entry) {
         return !closest(entry.button, ".ge-toolbar-stash");
       });
+    }
+    function toolbarOf(feature) {
+      var items = typeof feature.toolbar === "function" ? feature.toolbar() : feature.toolbar;
+      return Array.isArray(items) ? items : [];
+    }
+    function refreshToolbar() {
+      if (!mainControls || destroyed) {
+        return;
+      }
+      var previewing = !!one(mainControls, ".gm-preview.active");
+      removeMainControls();
+      createMainControls();
+      if (previewing) {
+        addClass(one(mainControls, ".gm-preview"), "active btn-danger");
+      }
+      onScroll();
     }
     function removeMainControls() {
       if (toolbarLifetime) {
@@ -1560,7 +1579,10 @@
       return { region, before };
     }
     function insertFeatureFromToolbar(button, where, source) {
-      var item = FEATURES[button.getAttribute("data-ge-feature")].toolbar[parseInt(button.getAttribute("data-ge-item"), 10)];
+      var item = (shownToolbar[button.getAttribute("data-ge-feature")] || [])[parseInt(button.getAttribute("data-ge-item"), 10)];
+      if (!item) {
+        return null;
+      }
       var made = item.create();
       if (!made) {
         return null;
@@ -2222,6 +2244,8 @@
         // A node's drawer: its first child, or for a content area the
         // one beside it in its text block
         drawerOf,
+        // The toolbar built again, from the plugins' toolbars as they are now
+        refreshToolbar,
         toolbarItems: function(name) {
           return mainControls ? all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]') : [];
         }

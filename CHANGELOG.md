@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- For plugins: `ge.refreshToolbar()` builds the toolbar again, and a feature
+  plugin's `toolbar` can be a function, read each time the toolbar is built -
+  for buttons that come and go, a user's saved widgets. A toolbar button
+  makes the item it was built from, even if the plugin's list has changed
+  since.
+
+### Changed
+- `package.json`'s `publishConfig` loses its `comment`, which npm warned
+  about.
+
 ## [8.6.0] - 2026-10-02
 
 ### Added

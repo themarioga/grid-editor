@@ -437,6 +437,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var closeOverflowMenu = function() {}; // Folds the toolbar's overflow menu away, when it has one
         var refitToolbar = function() {}; // Works out again what the toolbar's overflow menu holds, when it has one
         var addButtons = []; // The toolbar's add buttons, in toolbar order: { button, home, group }
+        var shownToolbar = {}; // Each feature plugin's toolbar items, as the toolbar was last built with them
         var toolbarGroup = null; // The category shown, with toolbar_groups. Kept when the toolbar is rebuilt
         var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
@@ -1189,8 +1190,10 @@ function build(instance, baseElem, optionsOrMethod) {
             // One with align 'end' goes on the right instead, as an icon,
             // beside the source and preview buttons.
             var endItems = [];
+            shownToolbar = {};
             Object.keys(FEATURES).forEach(function(name) {
-                (FEATURES[name].toolbar || []).forEach(function(item, index) {
+                shownToolbar[name] = toolbarOf(FEATURES[name]);
+                shownToolbar[name].forEach(function(item, index) {
                     var button = featureButton(name, item, index);
 
                     if (item.align === 'end') {
@@ -1355,6 +1358,34 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /** The toolbar off the page, with what keeps its overflow menu up to date. */
+        /** A feature plugin's toolbar items: its array, or what its function returns now. */
+        function toolbarOf(feature) {
+            var items = typeof feature.toolbar === 'function' ? feature.toolbar() : feature.toolbar;
+            return Array.isArray(items) ? items : [];
+        }
+
+        /**
+         * ge.refreshToolbar(): the toolbar built again, from what the plugins'
+         * toolbars hold now - a plugin whose buttons come and go calls it when
+         * they have. The category shown, the preview and the source view stay
+         * as they are; an open overflow menu folds away.
+         */
+        function refreshToolbar() {
+            // Not built yet - the first one reads the toolbars as they are
+            // then - or taken away for good
+            if (!mainControls || destroyed) { return; }
+
+            var previewing = !!dom.one(mainControls, '.gm-preview.active');
+
+            removeMainControls();
+            createMainControls();
+
+            if (previewing) {
+                dom.addClass(dom.one(mainControls, '.gm-preview'), 'active btn-danger');
+            }
+            onScroll();
+        }
+
         function removeMainControls() {
             if (toolbarLifetime) { toolbarLifetime.abort(); }
             toolbarLifetime = null;
@@ -1655,7 +1686,10 @@ function build(instance, baseElem, optionsOrMethod) {
          * to the canvas, just after the top level block the pointer was in.
          */
         function insertFeatureFromToolbar(button, where, source) {
-            var item = FEATURES[button.getAttribute('data-ge-feature')].toolbar[parseInt(button.getAttribute('data-ge-item'), 10)];
+            // The item the button was built from, whatever the plugin's list
+            // says now: it may have changed since, and the toolbar not yet
+            var item = (shownToolbar[button.getAttribute('data-ge-feature')] || [])[parseInt(button.getAttribute('data-ge-item'), 10)];
+            if (!item) { return null; }
             var made = item.create();
             if (!made) { return null; }
             var placed = made;
@@ -2470,6 +2504,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 // A node's drawer: its first child, or for a content area the
                 // one beside it in its text block
                 drawerOf: drawerOf,
+                // The toolbar built again, from the plugins' toolbars as they are now
+                refreshToolbar: refreshToolbar,
                 toolbarItems: function(name) {
                     return mainControls
                         ? dom.all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')

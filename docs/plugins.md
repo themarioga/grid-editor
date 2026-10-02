@@ -166,6 +166,7 @@ element, and where there may be several, an array.
 | `ge.snapshotHtml()` | The canvas's markup as `getHtml` gives it, read on a copy so the canvas never leaves editing: what `getHtml({ keepEditing: true })` is. See [Reading on a copy](#reading-on-a-copy) |
 | `ge.setHtml(html)` | The canvas made of other markup, and edited again: the source view closed if it is open, `deinit`, the markup in, `init`. No add or delete events: it is replaced as a whole. A `<script>` in it does not run in the editor |
 | `ge.confirm(message, options, answer)` | A question in the editor's confirm modal, the one deleting asks in. `options`: `title`, `ok`, `cancel` - the texts, the locale's by default - and `danger`, a red ok button. `answer(true)` for ok, `answer(false)` for cancel, the close button or Escape, `answer(null)` when the modal is taken away unanswered: `setLocale`, `destroy`, or another question. The browser's `confirm` without Bootstrap's javascript |
+| `ge.refreshToolbar()` | The toolbar built again, from what the feature plugins' `toolbar`s hold now: for a plugin whose buttons come and go. The category shown with `toolbar_groups`, the preview and the source view stay as they are. Does nothing before the toolbar is first built, and after `destroy` |
 | `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 | `ge.hostStyle(node, property?)` | `{ value, priority }` of one property of the node's own style, as the host wrote it: never a breakpoint preview's. With no property, the whole of it as css text |
@@ -231,6 +232,37 @@ needs to put a new kind of block on the canvas:
   was dropped, or, when that region will not have it, on the canvas just after
   the block it was dropped in. A `create()` that returns `null` adds nothing:
   that is how a plugin says it could not make one this time.
+- **`toolbar`** can also be a function returning those items, called whenever
+  the toolbar is built - when the editor starts, on `setLocale`, and on
+  `ge.refreshToolbar()`. That is how a plugin offers buttons that change: a
+  user's saved widgets, each a button that adds it again. Change the list,
+  then call `ge.refreshToolbar()`. A button not yet built again still makes
+  what it was built from.
+
+  ```javascript
+  GridEditor.features.widgets = function(ge) {
+      var saved = loadWidgets();   // the plugin's own: wherever it keeps them
+      return {
+          methods: {
+              saveWidget: function(widget) {
+                  saved.push(widget);
+                  ge.refreshToolbar();
+              },
+          },
+          toolbar: function() {
+              return saved.map(function(widget) {
+                  return {
+                      label: widget.name,
+                      kind: 'element',
+                      group: 'widgets',
+                      inColumn: true,
+                      create: function() { return widgetFrom(widget.html); },
+                  };
+              });
+          },
+      };
+  };
+  ```
 
 - **`drawerTools(drawer, node, kind)`** runs for every drawer that has a gear,
   as a utility plugin's does, so a tool can go on any node. The clipboard
