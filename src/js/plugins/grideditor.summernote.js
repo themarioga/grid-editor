@@ -120,6 +120,20 @@ GridEditor.texts.summernote = function(ge) {
             });
         },
 
+        // What destroy leaves in the content area: the editor's code
+        read: function(contentArea) {
+            var $ = window.jQuery;
+            if (!$ || !$.fn.summernote || !$(contentArea).data('summernote')) { return null; }
+
+            return $(contentArea).summernote('code');
+        },
+
+        // Its frame, which air mode puts right after the content area
+        cleanCopy: function(copy) {
+            var frame = copy.nextElementSibling;
+            if (frame && dom.hasClass(frame, 'note-editor')) { frame.remove(); }
+        },
+
         stop: function(contentAreas) {
             var $ = window.jQuery;
 

@@ -205,5 +205,9 @@ GridEditor.utilities.order = function(ge) {
             listening = null;
             dom.all(ge.canvas, '[data-ge-order]').forEach(function(col) { col.removeAttribute('data-ge-order'); });
         },
+
+        cleanMarkup: function(root) {
+            dom.all(root, '[data-ge-order]').forEach(function(col) { col.removeAttribute('data-ge-order'); });
+        },
     };
 };

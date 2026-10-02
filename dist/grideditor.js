@@ -763,31 +763,53 @@
         whenConfirmed();
         return;
       }
-      var Modal = modalLibrary();
-      if (!Modal) {
-        if (window.confirm(message)) {
+      confirmWith(message, { danger: true }, function(confirmed) {
+        if (confirmed) {
           whenConfirmed();
         }
+      });
+    }
+    function confirmWith(message, options, answer) {
+      options = options || {};
+      var Modal = modalLibrary();
+      if (!Modal) {
+        answer(window.confirm(message));
         return;
       }
       var modal = confirmModal();
       var confirmed = false;
+      var ok = one(modal, ".ge-confirm-ok");
+      if (pendingAnswer) {
+        pendingAnswer(null);
+      }
+      var settle = function(value) {
+        if (pendingAnswer !== settle) {
+          return;
+        }
+        pendingAnswer = null;
+        answer(value);
+      };
+      pendingAnswer = settle;
+      one(modal, ".modal-title").textContent = options.title || t("confirm.title");
+      one(modal, ".ge-confirm-cancel").textContent = options.cancel || t("confirm.cancel");
+      ok.textContent = options.ok || t("confirm.ok");
+      toggleClass(ok, "btn-danger", !!options.danger);
+      toggleClass(ok, "btn-primary", !options.danger);
       one(modal, ".ge-confirm-message").textContent = message;
-      one(modal, ".ge-confirm-ok").onclick = function() {
+      ok.onclick = function() {
         confirmed = true;
         Modal.getInstance(modal).hide();
       };
       confirmHandlers.hidden = function() {
-        if (confirmed) {
-          whenConfirmed();
-        }
+        settle(confirmed);
       };
       confirmHandlers.shown = function() {
-        one(modal, ".ge-confirm-ok").focus();
+        ok.focus();
       };
       Modal.getOrCreateInstance(modal).show();
     }
     var confirmHandlers = { hidden: null, shown: null };
+    var pendingAnswer = null;
     function confirmModal() {
       if (confirmDialog) {
         return confirmDialog;
@@ -801,13 +823,14 @@
       one(confirmDialog, ".ge-confirm-cancel").textContent = t("confirm.cancel");
       one(confirmDialog, ".ge-confirm-ok").textContent = t("confirm.ok");
       trackModal(confirmDialog);
+      var asking = confirmDialog;
       confirmDialog.addEventListener("hidden.bs.modal", function() {
-        if (confirmHandlers.hidden) {
+        if (asking === confirmDialog && confirmHandlers.hidden) {
           confirmHandlers.hidden();
         }
       });
       confirmDialog.addEventListener("shown.bs.modal", function() {
-        if (confirmHandlers.shown) {
+        if (asking === confirmDialog && confirmHandlers.shown) {
           confirmHandlers.shown();
         }
       });
@@ -821,6 +844,9 @@
       confirmHandlers.shown = null;
       retireModal(confirmDialog);
       confirmDialog = null;
+      if (pendingAnswer) {
+        pendingAnswer(null);
+      }
     }
     function retireModal(panel) {
       var Modal = modalLibrary();
@@ -1115,7 +1141,7 @@
       settings.new_row_layouts.forEach(function(layout) {
         var grouped = !Array.isArray(layout);
         var btn = element("a", {
-          "class": "btn btn-sm btn-primary",
+          "class": "btn btn-sm btn-light",
           title: grouped ? t("row.add_row_cols", { columns: layout.columns, counts: rowColsText(layout.row_cols) }) : t("row.add", { layout: layout.join("-") }),
           // What this button makes, in the markup rather than in
           // memory: a drag works on a clone of it
@@ -1150,7 +1176,7 @@
       Object.keys(CONTAINERS).forEach(function(type) {
         var definition = CONTAINERS[type];
         var button = labelButton(
-          element("a", { "class": "btn btn-sm btn-primary ge-add-container" }),
+          element("a", { "class": "btn btn-sm btn-light ge-add-container" }),
           t(definition.labelKey),
           definition.iconClass
         );
@@ -1271,7 +1297,7 @@
       names.forEach(function(name) {
         var tab = tabs.appendChild(element("button", {
           type: "button",
-          "class": "btn btn-sm btn-outline-primary",
+          "class": "btn btn-sm btn-outline-secondary",
           role: "tab",
           "data-ge-group": name
         }, groupLabel(name)));
@@ -1320,7 +1346,7 @@
       mainControls.remove();
     }
     function createOverflowMenu(start) {
-      var more = create('<div class="ge-toolbar-more"><button type="button" class="btn btn-sm btn-primary"><i class="bi bi-three-dots"></i></button><div class="ge-toolbar-overflow"><div class="ge-addRowGroup btn-group"></div><div class="ge-addContainerGroup btn-group"></div></div></div>');
+      var more = create('<div class="ge-toolbar-more"><button type="button" class="btn btn-sm btn-light"><i class="bi bi-three-dots"></i></button><div class="ge-toolbar-overflow"><div class="ge-addRowGroup btn-group"></div><div class="ge-addContainerGroup btn-group"></div></div></div>');
       start.parentNode.insertBefore(more, start.nextSibling);
       var toggle2 = one(more, "button");
       var panel = one(more, ".ge-toolbar-overflow");
@@ -1411,7 +1437,8 @@
     function featureButton(name, item, index) {
       var iconClass = item.iconClass || (item.align === "end" ? "bi bi-plus" : null);
       var label = typeof item.label === "function" ? item.label() : item.label || t(item.labelKey);
-      var button = labelButton(element("a", { "class": "btn btn-sm btn-primary ge-add-container ge-add-feature" }), label, iconClass);
+      var colour = item.align === "end" ? "btn-primary" : "btn-light";
+      var button = labelButton(element("a", { "class": "btn btn-sm " + colour + " ge-add-container ge-add-feature" }), label, iconClass);
       addClass(button, item.className || "");
       attr(button, {
         "data-ge-toolbar": "feature",
@@ -1919,22 +1946,122 @@
       closeSizePicker();
       hideDropMarker();
       closeDialog();
-      all(canvas, ".ge-tools-drawer").forEach(function(drawer) {
-        drawer.remove();
-      });
+      removeDrawers(canvas);
       pluginFields.clear();
-      unwrapTexts();
+      unwrapTexts(canvas);
       plugins("onDeinit");
       clearPreviews(canvas);
-      all(canvas, "[data-ge-row-cols]").forEach(function(row) {
-        row.removeAttribute("data-ge-row-cols");
-      });
+      clearRowCols(canvas);
       unmarkContainers();
       removeSortable();
       removeResizable();
-      runFilter(false);
+      runFilter(false, canvas);
     }
-    function getHtml() {
+    function removeDrawers(root) {
+      all(root, ".ge-tools-drawer").forEach(function(drawer) {
+        drawer.remove();
+      });
+    }
+    function clearRowCols(root) {
+      all(root, "[data-ge-row-cols]").forEach(function(row) {
+        row.removeAttribute("data-ge-row-cols");
+      });
+    }
+    function pluginsWithoutCleanMarkup() {
+      var names = [];
+      [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+        Object.keys(registry).forEach(function(name) {
+          var plugin = registry[name];
+          var marks = plugin.unmark || plugin.onDeinit || plugin.onBeforeDeinit;
+          if (marks && !plugin.cleanMarkup) {
+            names.push(name);
+          }
+        });
+      });
+      return names;
+    }
+    function copyCanvas() {
+      var copy = canvas.cloneNode(true);
+      var toLive = /* @__PURE__ */ new Map();
+      var toCopy = /* @__PURE__ */ new Map();
+      var live = document.createTreeWalker(canvas, NodeFilter.SHOW_ELEMENT);
+      var copied = document.createTreeWalker(copy, NodeFilter.SHOW_ELEMENT);
+      var a = live.currentNode;
+      var b = copied.currentNode;
+      while (a && b) {
+        toLive.set(b, a);
+        toCopy.set(a, b);
+        a = live.nextNode();
+        b = copied.nextNode();
+      }
+      return {
+        root: copy,
+        liveOf: function(node) {
+          return toLive.get(node) || null;
+        },
+        copyOf: function(node) {
+          return toCopy.get(node) || null;
+        }
+      };
+    }
+    function snapshotHtml() {
+      if (sourceOpen) {
+        return getHtml();
+      }
+      var missing = pluginsWithoutCleanMarkup();
+      if (missing.length) {
+        missing.forEach(function(name) {
+          warnOnceHere("snapshot:" + name, 'the "' + name + '" plugin has no cleanMarkup, so the canvas leaves editing to be read: open texts and settings panels close');
+        });
+        return getHtml();
+      }
+      var copy = copyCanvas();
+      var root = copy.root;
+      [root].concat(all(root, ".ge-active-target, .ge-settings-target")).forEach(function(node) {
+        removeClass(node, "ge-active-target ge-settings-target");
+        dropEmptyClass(node);
+      });
+      all(root, ".ge-drop-marker").forEach(function(marker) {
+        marker.remove();
+      });
+      removeDrawers(root);
+      unwrapTexts(root);
+      var refused = null;
+      [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+        Object.keys(registry).forEach(function(name) {
+          var plugin = registry[name];
+          if (refused || !plugin.cleanMarkup) {
+            return;
+          }
+          if (plugin.cleanMarkup(root, copy.liveOf) === false) {
+            refused = name;
+          }
+        });
+      });
+      if (refused) {
+        warnOnceHere("snapshot-refused:" + refused, 'the "' + refused + '" plugin cannot take its marking off a copy right now, so the canvas leaves editing to be read');
+        return getHtml();
+      }
+      clearPreviews(root);
+      clearRowCols(root);
+      all(root, "[data-ge-container]").forEach(unmarkContainerClasses);
+      sortables.forEach(function(sortableInstance) {
+        var list = copy.copyOf(sortableInstance.el);
+        if (list) {
+          all(list, "[draggable]").forEach(function(node) {
+            node.removeAttribute("draggable");
+          });
+        }
+      });
+      removeResizeFurniture(root);
+      runFilter(false, root);
+      stripPixelWidths(root);
+      return root.innerHTML;
+    }
+    function getHtml(options) {
+      if (options && options.keepEditing) {
+        return snapshotHtml();
+      }
       deinit();
       stripPixelWidths(canvas);
       var html = canvas.innerHTML;
@@ -1948,10 +2075,24 @@
       init();
       return html;
     }
-    function getPlainHtml() {
-      return plainHtml(getHtml());
+    function getPlainHtml(options) {
+      return plainHtml(getHtml(options));
+    }
+    function setHtml2(html) {
+      if (sourceOpen) {
+        closeSource();
+        if (mainControls) {
+          all(mainControls, ".gm-edit-mode").forEach(function(button) {
+            removeClass(button, "active btn-danger");
+          });
+        }
+      }
+      deinit();
+      setHtml(canvas, html);
+      init();
     }
     function destroy() {
+      plugins("onDestroy");
       if (sourceOpen) {
         closeSource();
       }
@@ -2064,6 +2205,11 @@
         closeDialog,
         rowFromLayout: rowFromLayoutValue,
         nodeHtml,
+        // The markup as getHtml gives it, with the canvas left editing
+        snapshotHtml,
+        setHtml: setHtml2,
+        // A question in the editor's confirm modal
+        confirm: confirmWith,
         // A text editor has rewritten a content area, so whatever the
         // editor and its plugins had put in there goes back in
         textReady,
@@ -2586,9 +2732,12 @@
         if (definition) {
           definition.unmark(container);
         }
-        removeClass(container, "ge-container ge-container-" + containerTypeOf(container));
-        dropEmptyClass(container);
+        unmarkContainerClasses(container);
       });
+    }
+    function unmarkContainerClasses(container) {
+      removeClass(container, "ge-container ge-container-" + containerTypeOf(container));
+      dropEmptyClass(container);
     }
     function prependDrawer(node, className) {
       var drawer = element("div", { "class": className });
@@ -3990,13 +4139,16 @@
       on(handle, "pointerup pointercancel", onUp);
     }
     function removeResizable() {
-      all(canvas, ".ge-resize-handle").forEach(function(handle) {
+      removeResizeFurniture(canvas);
+    }
+    function removeResizeFurniture(root) {
+      all(root, ".ge-resize-handle").forEach(function(handle) {
         handle.remove();
       });
-      all(canvas, ".ge-resize-size").forEach(function(readout) {
+      all(root, ".ge-resize-size").forEach(function(readout) {
         readout.remove();
       });
-      stripPixelWidths(canvas);
+      stripPixelWidths(root);
     }
     function snapUnits(col, pixels) {
       var units = Math.round(pixels / rowContentWidth(col.parentElement) * MAX_COL_SIZE);
@@ -4204,7 +4356,7 @@
       setOffset(column, tier, wanted.offset);
       return column;
     }
-    function runFilter(isInit) {
+    function runFilter(isInit, root) {
       if (!settings.custom_filter || !settings.custom_filter.length) {
         return;
       }
@@ -4213,7 +4365,7 @@
         if (typeof func == "string") {
           func = window[func];
         }
-        func(canvas, isInit);
+        func(root || canvas, isInit);
       });
     }
     function textCutter() {
@@ -4333,8 +4485,8 @@
         }
       });
     }
-    function unwrapTexts() {
-      all(canvas, ".ge-text-block").forEach(function(textBlock) {
+    function unwrapTexts(root) {
+      all(root, ".ge-text-block").forEach(function(textBlock) {
         unwrap(textBlock);
       });
     }
@@ -4507,6 +4659,18 @@
     instances.set(canvas, instance);
     loadPlugins();
     instance.settings = settingsCopy();
+    Object.keys(featureMethods).forEach(function(name) {
+      if (Object.prototype.hasOwnProperty.call(own, name) || name in instance) {
+        return;
+      }
+      instance[name] = function() {
+        if (destroyed) {
+          warnOnceHere("destroyed:" + name, t("warning.destroyed", { method: name }));
+          return null;
+        }
+        return featureMethods[name].apply(null, arguments);
+      };
+    });
     setup();
     init();
     GridEditor._created.forEach(function(hook) {

@@ -95,15 +95,19 @@ export function drawerflowPart(ge) {
         });
     }
 
-    function unmark() {
-        if (observer) { observer.disconnect(); }
-        observer = null;
-
-        dom.all(ge.canvas, '.' + OUT_CLASS).forEach(function(node) {
+    function unmarkNodes(root) {
+        dom.all(root, '.' + OUT_CLASS).forEach(function(node) {
             dom.removeClass(node, OUT_CLASS);
             node.removeAttribute(OUT_ATTR);
             dom.dropEmptyClass(node);
         });
+    }
+
+    function unmark() {
+        if (observer) { observer.disconnect(); }
+        observer = null;
+
+        unmarkNodes(ge.canvas);
 
         if (sheet) { sheet.remove(); }
         sheet = null;
@@ -114,5 +118,6 @@ export function drawerflowPart(ge) {
         families: [],
         onRefresh: mark,
         onDeinit: unmark,
+        cleanMarkup: unmarkNodes,
     };
 }

@@ -126,6 +126,8 @@ export interface GridEditorOptions {
     /** The tabs plugin: the variant of the tabs containers made new. */
     tabs?: TabsOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
+    /** The autosave plugin: what is edited, kept in the browser's storage as it changes. */
+    autosave?: AutosaveOptions;
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];
     valid_col_offsets?: number[];
@@ -149,6 +151,50 @@ export interface GridEditorOptions {
     ckeditor?: { config?: Record<string, unknown> };
     summernote?: { config?: Record<string, unknown> };
     [plugin: string]: unknown;
+}
+
+/** The autosave plugin's options. */
+export interface AutosaveOptions {
+    /** Saving from the start; the methods turn it on and off. Default true. */
+    enabled?: boolean;
+    /** localStorage or sessionStorage. Default 'local'. */
+    storage?: 'local' | 'session';
+    /** Where the draft is kept. Default 'grideditor.autosave:' + the page's path + '#' + the canvas's id. One per document on a page that loads several. */
+    key?: string | null;
+    /** Milliseconds after the last change. Default 1000. */
+    delay?: number;
+    /** Milliseconds a draft is offered for; null, the default, for ever. */
+    maxAge?: number | null;
+}
+
+/** A draft the autosave plugin kept. */
+export interface AutosaveDraft {
+    html: string;
+    /** When, as an ISO 8601 date. */
+    savedAt: string;
+}
+
+export interface GetHtmlOptions {
+    /** Read the canvas without it leaving editing: open texts and settings panels stay open. */
+    keepEditing?: boolean;
+}
+
+export interface AutosavePayload {
+    canvas: HTMLElement;
+    html: string;
+    savedAt: string;
+    source: 'change' | 'pagehide' | 'api' | 'destroy';
+}
+
+export interface RestoreDraftPayload {
+    canvas: HTMLElement;
+    html: string;
+    savedAt: string;
+}
+
+export interface AutosaveErrorPayload {
+    canvas: HTMLElement;
+    error: unknown;
 }
 
 /** Where a node was, or went: its parent and its index among the blocks there. */
@@ -271,6 +317,9 @@ export interface GridEditorEventMap {
     'grideditor:popup-orphan': PopupOrphanPayload;
     'grideditor:view-change': ViewChangePayload;
     'grideditor:target-change': TargetChangePayload;
+    'grideditor:after-autosave': AutosavePayload;
+    'grideditor:after-restore-draft': RestoreDraftPayload;
+    'grideditor:autosave-error': AutosaveErrorPayload;
 }
 
 /** An event the editor dispatches on its canvas: a CustomEvent whose detail is the payload. */
@@ -362,10 +411,10 @@ export declare class GridEditor {
     /** A read-only copy of the settings the editor runs with. */
     readonly settings: Readonly<GridEditorOptions>;
 
-    /** The html to save: no drawers, no editor classes, no inline styles. */
-    getHtml(): string;
+    /** The html to save: no drawers, no editor classes, no inline styles. keepEditing reads it without the canvas leaving editing. */
+    getHtml(options?: GetHtmlOptions): string;
     /** getHtml without grid-editor's marking, for publishing. It cannot be edited again as it was. */
-    getPlainHtml(): string;
+    getPlainHtml(options?: GetHtmlOptions): string;
     /** Run the editing pass over the canvas again, after markup was put in. */
     init(): this;
     /** Take the editing furniture off, leaving the markup. */
@@ -395,6 +444,13 @@ export declare class GridEditor {
     getUtility(node: Target, family: string, view?: View): string | null;
     /** Write one through the events; null is inherit. False when canceled or nothing changed. */
     setUtility(node: Target, family: string, value: string | number | null, view?: View): boolean;
+    /** The autosave plugin's, when it is loaded: false when the browser gives it no storage. */
+    enableAutosave?(): boolean;
+    disableAutosave?(): boolean;
+    /** Save now, if it changed: true when it was written. */
+    saveDraft?(): boolean;
+    getDraft?(): AutosaveDraft | null;
+    clearDraft?(): boolean;
 }
 
 export default GridEditor;

@@ -64,5 +64,11 @@ GridEditor.containers.card = function(ge) {
         unmark: function(container) {
             ge.unwrapLabels(container);
         },
+
+        // The same, on a copy of the canvas: unmark only touches markup
+        cleanMarkup: function(root) {
+            var definition = this;
+            dom.all(root, '[data-ge-container="card"]').forEach(function(container) { definition.unmark(container); });
+        },
     };
 };

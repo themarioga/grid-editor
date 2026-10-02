@@ -157,6 +157,12 @@ GridEditor.texts.ckeditor = function(ge) {
             });
         },
 
+        // What destroy() puts back. Null while it is still starting
+        read: function(contentArea) {
+            var editor = editors.get(contentArea);
+            return editor ? editor.getData() : null;
+        },
+
         stop: function(contentAreas) {
             contentAreas.filter(function(contentArea) {
                 return dom.hasClass(contentArea, 'active');

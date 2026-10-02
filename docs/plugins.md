@@ -70,6 +70,7 @@ GridEditor.containers.carousel = function(ge) {
         addPane: addSlideTo,                          // returns the new pane
         mark: function(container) { … },              // editing furniture on
         unmark: function(container) { … },            // and off again
+        cleanMarkup: function(root, liveOf) { … },     // the same, on a copy: see "Reading on a copy"
         afterPaneMove: function(container, pane) { … },  // optional
         tools: function(drawer, container) { … },        // optional, extra tools
         onInit: function() { … },                        // optional, per canvas init
@@ -162,6 +163,9 @@ element, and where there may be several, an array.
 | `ge.openPicker(anchor, choices, className?)` | The choice itself, as a strip under `anchor`: one button per `{ label, title, attributes, choose }` |
 | `ge.closePicker()` | Close it; true when one was open, which is also a click's answer |
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
+| `ge.snapshotHtml()` | The canvas's markup as `getHtml` gives it, read on a copy so the canvas never leaves editing: what `getHtml({ keepEditing: true })` is. See [Reading on a copy](#reading-on-a-copy) |
+| `ge.setHtml(html)` | The canvas made of other markup, and edited again: the source view closed if it is open, `deinit`, the markup in, `init`. No add or delete events: it is replaced as a whole. A `<script>` in it does not run in the editor |
+| `ge.confirm(message, options, answer)` | A question in the editor's confirm modal, the one deleting asks in. `options`: `title`, `ok`, `cancel` - the texts, the locale's by default - and `danger`, a red ok button. `answer(true)` for ok, `answer(false)` for cancel, the close button or Escape, `answer(null)` when the modal is taken away unanswered: `setLocale`, `destroy`, or another question. The browser's `confirm` without Bootstrap's javascript |
 | `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
 | `ge.bareStyle(node, family, property)` | A css property's value on the node with none of the family's classes: what a preview shows when no class applies and that is not a constant |
 | `ge.hostStyle(node, property?)` | `{ value, priority }` of one property of the node's own style, as the host wrote it: never a breakpoint preview's. With no property, the whole of it as css text |
@@ -186,6 +190,8 @@ GridEditor.features.elements = function(ge) {
         onInit: function() { … },        // every init: put the furniture in
         onDeinit: function() { … },      // every deinit: take it out again
         onBeforeDeinit: function() { … },  // every deinit, before the drawers come off: close what you opened
+        cleanMarkup: function(root, liveOf) { … },  // what onDeinit and onBeforeDeinit take off, off a copy
+        onDestroy: function() { … },       // destroy, first, while the editor is whole
         onSourceOpen: function(textarea) { … },   // the source view opened: the canvas's html is in the textarea
         onSourceClose: function(textarea) { … },  // and is closing: put what you edited back in the textarea
         onContentReady: function(area) { … },  // a rich text editor just took over, or rewrote a text
@@ -232,6 +238,45 @@ needs to put a new kind of block on the canvas:
   `kind: 'text'` with its content area as the node, and is not the node's
   child: it sits beside it, in a wrapper that only exists while editing, so
   `ge.drawerOf(node)` is how to find it.
+
+### Reading on a copy
+
+`getHtml({ keepEditing: true })` - `ge.snapshotHtml()` - gives the markup
+`getHtml` gives without the canvas leaving editing: it copies the canvas and
+takes off the copy what `deinit` takes off the canvas. The core takes off
+its own: drawers, text blocks, previews, the resize handles. What a plugin put
+on the canvas, the plugin takes off, with **`cleanMarkup(root, liveOf)`**:
+
+- `root` is the copy of the canvas, already without the core's drawers and
+  text blocks. Take off it, under it, what your `mark`, `onInit` and the rest
+  put on the canvas - the same as your `unmark`, `onDeinit` and
+  `onBeforeDeinit` do, but only to markup: listeners, observers and what you
+  remember stay as they are, because the canvas is still being edited.
+- `liveOf(node)` is the canvas's node a node of the copy was copied from, or
+  `null` for one made on the copy. It is for state kept by node: the text
+  feature reads an open editor's content through it.
+- Return `false` when you cannot do it this time - the text feature does, for
+  an editor still starting - and `getHtml` is used instead.
+
+It is called for every kind of plugin, in the order `deinit` calls them. A
+container's `unmark` that only touches markup can be its `cleanMarkup` as it
+is, called for each container of the type under `root`:
+
+```javascript
+cleanMarkup: function(root) {
+    var definition = this;
+    root.querySelectorAll('[data-ge-container="carousel"]').forEach(function(container) {
+        definition.unmark(container);
+    });
+},
+```
+
+A plugin needs one when it has an `unmark`, an `onDeinit` or an
+`onBeforeDeinit`, and an empty one is fine when those take nothing off the
+canvas. When a loaded plugin needs one and has none, the canvas leaves editing
+to be read after all - open texts and settings panels close - and the console
+says so, once. A plugin with none of the three needs nothing. The host's
+`custom_filter` is run on the copy too.
 
 ### A section of the settings panel
 
@@ -431,7 +476,12 @@ carries it. However many a page loads, that is installed once.
 
 Each registers on `GridEditor.texts`, the text feature's own registry, with a
 factory whose `start(contentAreas)` and `stop(contentAreas)` get an array of
-content areas.
+content areas. For [reading on a copy](#reading-on-a-copy) an editor also has
+`read(contentArea)`, the html `stop` would leave in it - `null` while it is
+still starting - and, if it puts something beside the content area,
+`cleanCopy(copy, contentArea)`, which takes that off the copy: summernote's
+frame. An editor with no `read` makes `getHtml({ keepEditing: true })` fall
+back on `getHtml` while one of its texts is open.
 
 The editors offered are `content_types`, every one loaded by default, in the
 order the page loaded them; the `plugins` setting does not choose them. A
@@ -441,7 +491,9 @@ text of an editor that is loaded but not offered is still edited.
 
 A feature plugin with `textTypes`, a drawer for its texts, a toolbar item
 with `inColumn: true` if it makes new ones, a click handler that opens its
-editor, and `onBeforeDeinit` to close it.
+editor, and `onBeforeDeinit` to close it - and a `cleanMarkup` that reads its
+open texts on the copy, or the canvas leaves editing whenever it is read
+with `keepEditing`.
 [example/custom_editor.html](../example/custom_editor.html) is one, in full,
 on the browser's `contenteditable`, on a page that loads none of the shipped
 editors.

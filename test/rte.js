@@ -875,6 +875,49 @@ async function textAttributeTests(t) {
     });
 }
 
+/**
+ * getHtml({ keepEditing: true }) with each real editor open and typed into:
+ * what getHtml gives once it closes the editor, and the editor still open
+ * (spec autosave-plugin AC-03..AC-05).
+ */
+async function keepEditingTests(t) {
+    var pages = [
+        { name: 'tinymce', url: '/example/basic.html', ready: `window.tinymce && window.GridEditor && GridEditor.get('#myGrid')` },
+        { name: 'ckeditor', url: '/example/ckeditor.html', ready: `window.CKEDITOR && window.GridEditor && GridEditor.get('#myGrid')` },
+        { name: 'summernote', url: '/example/summernote.html', ready: `window.jQuery && jQuery.fn.summernote && window.GridEditor && GridEditor.get('#myGrid')` },
+    ];
+
+    for (var each of pages) {
+        var page = await openPage(t, each.url, each.ready, each.name + ' keepEditing');
+
+        if (!await page.eval(`return $$('#myGrid .ge-content[data-ge-content-type]').length;`)) {
+            await page.click('.ge-add-text-button');
+            await sleep(500);
+        }
+        await page.click('#myGrid .ge-content[data-ge-content-type]');
+        await sleep(2500);
+        await page.type(' Typed now');
+        await sleep(300);
+
+        var r = await page.eval(`
+            const ge = GridEditor.get('#myGrid');
+            const open = $$('#myGrid .ge-rte-active').length;
+            const focused = !!document.activeElement && !!document.activeElement.closest('#myGrid');
+            const kept = ge.getHtml({ keepEditing: true });
+            const after = {
+                open: $$('#myGrid .ge-rte-active').length,
+                focused: !!document.activeElement && !!document.activeElement.closest('#myGrid'),
+            };
+            const left = ge.getHtml();
+            return { open: open, focused: focused, after: after, typed: kept.indexOf('Typed now') !== -1,
+                same: kept === left, kept: kept === left ? '' : kept, left: kept === left ? '' : left };
+        `);
+        t.check('example ' + each.name + ': keepEditing reads what is typed, the editor still open and focused, ' +
+            'and it is what getHtml gives (AC-03..AC-05)',
+            r.open === 1 && r.after.open === 1 && r.focused && r.after.focused && r.typed && r.same, r);
+    }
+}
+
 module.exports = {
     name: 'rte',
     description: 'rich text editor integrations',
@@ -887,6 +930,7 @@ module.exports = {
         await attributePluginTests(t);
         await textAttributeTests(t);
         await otherEditorTests(t);
+        await keepEditingTests(t);
     },
 };
 

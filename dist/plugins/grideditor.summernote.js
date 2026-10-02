@@ -394,6 +394,30 @@
           }
           clicks = null;
         },
+        // What closing the editors does, on a copy of the canvas: each
+        // open text holds what its editor says it holds, and the
+        // attributes the host gave it, as closeText leaves them. An
+        // editor that cannot say - no read, or not started yet - and the
+        // canvas has to leave editing to be read
+        cleanMarkup: function(root, liveOf) {
+          var blocks = all(root, ".ge-content.ge-rte-active").filter(isOurs);
+          for (var i = 0; i < blocks.length; i++) {
+            var copy = blocks[i];
+            var block = liveOf(copy);
+            var text = TEXTS[copy.getAttribute("data-ge-content-type")];
+            var before = block && readBefore.get(block);
+            var html = before && text.read ? text.read(block) : null;
+            if (typeof html !== "string") {
+              return false;
+            }
+            setHtml(copy, html);
+            restoreAttributes(copy, before, readReady.get(block) || before, attributesOf(block));
+            if (text.cleanCopy) {
+              text.cleanCopy(copy, block);
+            }
+          }
+          return true;
+        },
         // The first time only: an undo says ready again, and by then the
         // host may have changed the content area itself
         onContentReady: function(area) {
@@ -494,6 +518,21 @@
           );
           $(contentArea).summernote(configuration);
         });
+      },
+      // What destroy leaves in the content area: the editor's code
+      read: function(contentArea) {
+        var $ = window.jQuery;
+        if (!$ || !$.fn.summernote || !$(contentArea).data("summernote")) {
+          return null;
+        }
+        return $(contentArea).summernote("code");
+      },
+      // Its frame, which air mode puts right after the content area
+      cleanCopy: function(copy) {
+        var frame = copy.nextElementSibling;
+        if (frame && hasClass(frame, "note-editor")) {
+          frame.remove();
+        }
       },
       stop: function(contentAreas) {
         var $ = window.jQuery;

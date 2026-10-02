@@ -75,8 +75,8 @@ GridEditor.containers.popup = function(ge) {
   function popupIdOf(container) {
     return container.getAttribute("data-ge-popup-id");
   }
-  function popupExists(id) {
-    return all(ge.canvas, "[data-ge-popup-id]").some(function(popup) {
+  function popupExists(id, root) {
+    return all(root || ge.canvas, "[data-ge-popup-id]").some(function(popup) {
       return popupIdOf(popup) === id;
     });
   }
@@ -107,12 +107,13 @@ GridEditor.containers.popup = function(ge) {
       });
     });
   }
-  function writePopupTriggerAttributes() {
-    all(ge.canvas, "[data-ge-popup-target]").forEach(function(trigger) {
+  function writePopupTriggerAttributes(root) {
+    root = root || ge.canvas;
+    all(root, "[data-ge-popup-target]").forEach(function(trigger) {
       var wanted = trigger.getAttribute("data-ge-popup-target");
       removeClass(trigger, "ge-popup-orphan");
       dropEmptyClass(trigger);
-      if (!popupExists(wanted)) {
+      if (!popupExists(wanted, root)) {
         return;
       }
       trigger.setAttribute("data-bs-toggle", "modal");
@@ -126,7 +127,17 @@ GridEditor.containers.popup = function(ge) {
     // are looked at whenever the canvas is initialized rather than only
     // when a popup is touched
     onInit: wirePopupTriggers,
-    onDeinit: writePopupTriggerAttributes,
+    onDeinit: function() {
+      writePopupTriggerAttributes();
+    },
+    // What onDeinit and unmark do, on a copy of the canvas
+    cleanMarkup: function(root) {
+      var definition = this;
+      writePopupTriggerAttributes(root);
+      all(root, '[data-ge-container="popup"]').forEach(function(container) {
+        definition.unmark(container);
+      });
+    },
     create: function(options) {
       var id = ge.containerId("popup");
       var container = element("div", { "data-ge-container": "popup", "data-ge-popup-id": id });

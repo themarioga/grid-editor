@@ -91,6 +91,9 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
 | `grideditor:target-change` | — | no | with `active_target`, after the column or section the toolbar adds to changes, only if it actually changed |
 | `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied |
+| `grideditor:after-autosave` | — | no | with the autosave plugin, after a draft is written |
+| `grideditor:after-restore-draft` | — | no | with the autosave plugin, after the user chose to restore a draft and the canvas is it |
+| `grideditor:autosave-error` | — | no | with the autosave plugin, when the storage refused a draft |
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
 because the indent tools are an operation like any other and announce
@@ -160,6 +163,11 @@ with the generic pair.
 view), `from` and `to`. A utility's `breakpoint` is the view it was written
 in, which `setUtility` can be asked to make a different one from the view on
 screen, and its `source` is `panel`, `tool` or `api`.
+
+The autosave events carry no node: `after-autosave` has `canvas`, `html`,
+`savedAt` (an ISO 8601 date) and `source` - `change`, `pagehide`, `api` for
+`saveDraft()`, or `destroy` -, `after-restore-draft` has `canvas`, `html` and
+`savedAt`, and `autosave-error` has `canvas` and the `error` the storage threw.
 
 `target-change` carries no node either: its payload is `canvas`, `target` - the
 column or section the toolbar adds to now, or `null` for the end of the canvas

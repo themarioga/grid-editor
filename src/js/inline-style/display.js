@@ -177,8 +177,8 @@ export function displayPart(ge, given) {
         });
     }
 
-    function unmark() {
-        dom.all(ge.canvas, '.ge-hidden-in-view, [data-ge-hidden-in], [' + SHOWN_ATTR + ']').forEach(function(node) {
+    function unmark(root) {
+        dom.all(root || ge.canvas, '.ge-hidden-in-view, [data-ge-hidden-in], [' + SHOWN_ATTR + ']').forEach(function(node) {
             dom.removeClass(node, 'ge-hidden-in-view');
             node.removeAttribute('data-ge-hidden-in');
             node.removeAttribute(SHOWN_ATTR);
@@ -224,6 +224,7 @@ export function displayPart(ge, given) {
         },
 
         onRefresh: mark,
-        onDeinit: unmark,
+        onDeinit: function() { unmark(); },
+        cleanMarkup: unmark,
     };
 }

@@ -5,7 +5,7 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { GridEditorOptions, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { AutosaveDraft, AutosavePayload, GridEditorOptions, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
@@ -30,6 +30,7 @@ const options: GridEditorOptions = {
         visibility: { drawer: false },
     },
     tabs: { variant: 'pills', vertical: 'md' },
+    autosave: { enabled: true, storage: 'session', key: 'page-42', delay: 500, maxAge: null },
 };
 
 const ge = new GridEditor('#myGrid', options);
@@ -38,6 +39,21 @@ GridEditor.create(document.body).destroy();
 
 const html: string = ge.getHtml();
 const plain: string = ge.getPlainHtml();
+const kept: string = ge.getHtml({ keepEditing: true });
+ge.getPlainHtml({ keepEditing: true });
+
+// The autosave plugin's, there when it is loaded
+if (ge.enableAutosave) {
+    const on: boolean = ge.enableAutosave();
+    const draft: AutosaveDraft | null = ge.getDraft ? ge.getDraft() : null;
+    if (draft) { draft.html.length; }
+}
+ge.canvas.addEventListener('grideditor:after-autosave', function(event) {
+    const payload: AutosavePayload = event.detail;
+    payload.source === 'pagehide';
+});
+// @ts-expect-error: the storage is local or session
+const wrongStorage: GridEditorOptions = { autosave: { storage: 'indexeddb' } };
 ge.changeView('md').reset().init();
 
 const row: HTMLElement | null = ge.createRow([8, 4], { appendTo: ge.canvas });

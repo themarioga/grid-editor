@@ -500,8 +500,8 @@
         });
       });
     }
-    function unmark() {
-      all(ge.canvas, ".ge-hidden-in-view, [data-ge-hidden-in], [" + SHOWN_ATTR + "]").forEach(function(node) {
+    function unmark(root) {
+      all(root || ge.canvas, ".ge-hidden-in-view, [data-ge-hidden-in], [" + SHOWN_ATTR + "]").forEach(function(node) {
         removeClass(node, "ge-hidden-in-view");
         node.removeAttribute("data-ge-hidden-in");
         node.removeAttribute(SHOWN_ATTR);
@@ -543,7 +543,10 @@
         });
       },
       onRefresh: mark2,
-      onDeinit: unmark
+      onDeinit: function() {
+        unmark();
+      },
+      cleanMarkup: unmark
     };
   }
 
@@ -815,16 +818,19 @@
         }
       });
     }
+    function unmarkNodes(root) {
+      all(root, "." + OUT_CLASS).forEach(function(node) {
+        removeClass(node, OUT_CLASS);
+        node.removeAttribute(OUT_ATTR);
+        dropEmptyClass(node);
+      });
+    }
     function unmark() {
       if (observer) {
         observer.disconnect();
       }
       observer = null;
-      all(ge.canvas, "." + OUT_CLASS).forEach(function(node) {
-        removeClass(node, OUT_CLASS);
-        node.removeAttribute(OUT_ATTR);
-        dropEmptyClass(node);
-      });
+      unmarkNodes(ge.canvas);
       if (sheet) {
         sheet.remove();
       }
@@ -834,7 +840,8 @@
     return {
       families: [],
       onRefresh: mark2,
-      onDeinit: unmark
+      onDeinit: unmark,
+      cleanMarkup: unmarkNodes
     };
   }
 
@@ -1926,7 +1933,8 @@
       onDeinit: function() {
         each2("onDeinit")();
         accordions = [];
-      }
+      },
+      cleanMarkup: each2("cleanMarkup")
     };
   };
 })();

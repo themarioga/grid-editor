@@ -140,6 +140,14 @@ GridEditor.texts.tinymce = function(ge) {
             });
         },
 
+        // What remove() leaves in the content area: tinyMCE writes its
+        // content back as it removes an inline editor. Null while it is
+        // still starting, when there is nothing to ask
+        read: function(contentArea) {
+            var editor = editors.get(contentArea);
+            return editor ? editor.getContent() : null;
+        },
+
         stop: function(contentAreas) {
             contentAreas.filter(function(contentArea) {
                 return dom.hasClass(contentArea, 'active');

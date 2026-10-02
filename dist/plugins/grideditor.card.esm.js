@@ -2,6 +2,9 @@
 import { GridEditor } from "../grideditor.esm.js";
 
 // src/js/dom.js
+function all(root, selector) {
+  return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
+}
 function one(root, selector) {
   return root ? root.querySelector(selector) : null;
 }
@@ -68,6 +71,13 @@ GridEditor.containers.card = function(ge) {
     },
     unmark: function(container) {
       ge.unwrapLabels(container);
+    },
+    // The same, on a copy of the canvas: unmark only touches markup
+    cleanMarkup: function(root) {
+      var definition = this;
+      all(root, '[data-ge-container="card"]').forEach(function(container) {
+        definition.unmark(container);
+      });
     }
   };
 };

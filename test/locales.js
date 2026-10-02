@@ -121,6 +121,16 @@ var RENDERED_STRINGS = `
 async function catalogueTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await loadLocale(page, 'es');
+    // The one plugin the fixture does not load, so its strings are in the catalogue too
+    await page.eval(`
+        await new Promise(function(resolve) {
+            const script = document.createElement('script');
+            script.src = '../../dist/plugins/grideditor.autosave.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+        return true;
+    `);
 
     var catalogues = await page.eval(`
         const locales = GridEditor.locales;

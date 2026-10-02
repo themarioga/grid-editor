@@ -6,6 +6,9 @@
   }
 
   // src/js/dom.js
+  function all(root, selector) {
+    return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
+  }
   function is(node, selector) {
     return !!node && node.nodeType === 1 && node.matches(selector);
   }
@@ -191,6 +194,14 @@
       // their block is. A block that is gone takes its editor with it.
       onBeforeDeinit: function() {
         open.forEach(hide);
+      },
+      // On a copy of the canvas: the editors are drawers, which the core
+      // takes off, and what they hid shows again. What is typed in one and
+      // not applied is not the block's yet
+      cleanMarkup: function(root) {
+        all(root, ".ge-code-hidden").forEach(function(node) {
+          removeClass(node, "ge-code-hidden");
+        });
       },
       onInit: function() {
         open.slice().forEach(function(entry) {

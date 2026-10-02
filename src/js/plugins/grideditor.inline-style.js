@@ -182,5 +182,7 @@ GridEditor.utilities['inline-style'] = function(ge) {
             each('onDeinit')();
             accordions = [];
         },
+
+        cleanMarkup: each('cleanMarkup'),
     };
 };

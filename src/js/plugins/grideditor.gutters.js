@@ -146,5 +146,9 @@ GridEditor.utilities.gutters = function(ge) {
             listening = null;
             dom.all(ge.canvas, '.ge-gutters').forEach(function(row) { dom.removeClass(row, 'ge-gutters'); });
         },
+
+        cleanMarkup: function(root) {
+            dom.all(root, '.ge-gutters').forEach(function(row) { dom.removeClass(row, 'ge-gutters'); });
+        },
     };
 };

@@ -185,6 +185,20 @@ The clipboard plugin: copy and paste.
 | `clipboard.paste_section` | Paste section | Title of the toolbar's paste button, while a section is copied |
 
 
+autosave.*
+----------
+
+The autosave plugin: the question asked when an editor starts with a draft of
+the same html saved.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `autosave.restore_title` | Restore the draft? | Title of the confirm modal |
+| `autosave.restore_message` | There is a draft of this page saved on {date}, with changes that were not published. Restore it? | The question, `{date}` the draft's, in the editor's locale |
+| `autosave.restore` | Restore | The modal's ok button: the canvas becomes the draft |
+| `autosave.discard` | Discard | The modal's cancel button: the draft is taken away |
+
+
 codemirror.*
 ------------
 

@@ -75,7 +75,6 @@
     "docs",
     "example",
     "!example/angular",
-    "AUTO_SAVE.md",
     "BUILDING.md",
     "CHANGELOG.md",
     "UPGRADING.md"

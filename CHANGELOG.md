@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The autosave plugin, `grideditor.autosave.js`: what is edited is kept in
+  `localStorage` or `sessionStorage` a second after each change and when the
+  page is left, without closing the text being typed into. An editor that
+  starts from the html a draft was made from asks, in its confirm modal,
+  whether to restore it. Options `enabled`, `storage`, `key`, `delay` and
+  `maxAge`; methods `enableAutosave`, `disableAutosave`, `saveDraft`,
+  `getDraft` and `clearDraft`; events `after-autosave`, `after-restore-draft`
+  and `autosave-error`.
+- `getHtml({ keepEditing: true })` and `getPlainHtml({ keepEditing: true })`:
+  the same markup, read on a copy of the canvas, so the canvas never leaves
+  editing - open texts, settings panels and the focus stay where they are.
+  `custom_filter` is run on the copy too.
+- For plugins: `cleanMarkup(root, liveOf)`, what `unmark`, `onDeinit` and
+  `onBeforeDeinit` take off, taken off the copy - a plugin that has one of
+  those and no `cleanMarkup` makes `keepEditing` fall back on `getHtml`, with
+  a warning; `onDestroy`; and on the handle `ge.snapshotHtml()`,
+  `ge.setHtml(html)` and `ge.confirm(message, options, answer)`. A text editor
+  of `GridEditor.texts` has `read(contentArea)` and `cleanCopy(copy, area)`.
+  Every shipped plugin and text editor has them.
+- A feature plugin's `methods` are the instance's, whatever their names: up
+  to now only the editor's own documented ones were.
+
 ### Changed
+- `example/autosave.html` is built on the plugin, with an on/off switch and
+  a key per imported file; `AUTO_SAVE.md` is gone, its content in the README.
 - The toolbar's add buttons on the left - rows, containers, the feature
   plugins' and the overflow menu's button - are grey (`btn-light`), and the
   `toolbar_groups` tabs `btn-outline-secondary`. Blue is left to the buttons

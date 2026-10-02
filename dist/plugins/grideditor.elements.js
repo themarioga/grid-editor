@@ -217,8 +217,8 @@
         });
       });
     }
-    function unmarkElements() {
-      all(ge.canvas, ".ge-element").forEach(function(element2) {
+    function unmarkElements(root) {
+      all(root || ge.canvas, ".ge-element").forEach(function(element2) {
         removeClass(element2, "ge-element");
         dropEmptyClass(element2);
       });
@@ -341,7 +341,10 @@
         return true;
       },
       onInit: markElements,
-      onDeinit: unmarkElements
+      onDeinit: function() {
+        unmarkElements();
+      },
+      cleanMarkup: unmarkElements
     };
   };
 })();

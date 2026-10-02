@@ -187,6 +187,13 @@ GridEditor.features['codemirror-inline'] = function(ge) {
             open.forEach(hide);
         },
 
+        // On a copy of the canvas: the editors are drawers, which the core
+        // takes off, and what they hid shows again. What is typed in one and
+        // not applied is not the block's yet
+        cleanMarkup: function(root) {
+            dom.all(root, '.ge-code-hidden').forEach(function(node) { dom.removeClass(node, 'ge-code-hidden'); });
+        },
+
         onInit: function() {
             open.slice().forEach(function(entry) {
                 if (!dom.attached(entry.node)) {

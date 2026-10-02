@@ -75,6 +75,16 @@
                     unmark: function(container) {
                         ge.unwrapLabels(container);
                     },
+
+                    // The same, on a copy of the canvas, for
+                    // getHtml({ keepEditing: true }): unmark only touches
+                    // markup, so it does for each callout on the copy
+                    cleanMarkup: function(root) {
+                        var definition = this;
+                        root.querySelectorAll('[data-ge-container="callout"]').forEach(function(container) {
+                            definition.unmark(container);
+                        });
+                    },
                 };
             };
 

@@ -36,7 +36,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
 | [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
-| [example/autosave.html](example/autosave.html) | Saving the html as the user edits | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
+| [example/autosave.html](example/autosave.html) | The autosave plugin: drafts kept as the user edits, offered back after a reload; import and export | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
 | [example/adapter.html](example/adapter.html) | A page written for 6.x, with jQuery, running unchanged through the adapter | [live](https://themarioga.github.io/grid-editor/example/adapter.html) |
 
 [example/angular](example/angular) is the editor in an Angular app, from the npm
@@ -142,6 +142,14 @@ which parts are elements, tabs, accordions or popups. That marking is how the
 editor reads its markup back, so **save `getHtml`** for anything that will be
 edited again.
 
+`getHtml` takes the canvas out of editing to read it and puts it back, which
+closes a text being typed into and a settings panel that is open.
+`getHtml({ keepEditing: true })` gives the same markup without the canvas
+leaving editing - it is read on a copy - which is what something that reads
+it as the user works, an autosave, wants. A plugin that cannot be read on a
+copy (see [docs/plugins.md](docs/plugins.md#reading-on-a-copy)) makes it fall
+back on `getHtml`, with a warning in the console.
+
 `getPlainHtml` is the same markup with that marking taken off, and each
 `div.ge-content` replaced by what it holds. Bootstrap's own classes and
 attributes stay, so tabs, accordions and popups still work in a page that
@@ -166,8 +174,8 @@ has, with the options it was made with, and warns once.
 
 | Method | Arguments | Returns | What it does |
 | --- | --- | --- | --- |
-| `getHtml` | — | `String` | The clean html: no drawers, no editor classes, no inline styles |
-| `getPlainHtml` | — | `String` | `getHtml` without grid-editor's marking (`ge-*`, `column`, `data-ge-*`), for publishing. It cannot be edited again as it was |
+| `getHtml` | `options?` | `String` | The clean html: no drawers, no editor classes, no inline styles. `{ keepEditing: true }` reads it without the canvas leaving editing |
+| `getPlainHtml` | `options?` | `String` | `getHtml` without grid-editor's marking (`ge-*`, `column`, `data-ge-*`), for publishing. It cannot be edited again as it was. Takes the same `options` |
 | `init` | — | `this` | Run the editing pass over the canvas again. Safe to call after you inject markup |
 | `deinit` | — | `this` | Strip the editing furniture, leave the markup |
 | `reset` | — | `this` | `deinit()` then `init()` |
@@ -397,7 +405,7 @@ ge.canvas.addEventListener('grideditor:target-change', function(e) {
 ```
 
 __`custom_filter`:__ Allows the execution of a custom function before initialization and after de-initialization. Accepts a functions or a function name as string.
-Gives the `canvas` element and `isInit` (true/false) as parameter.
+Gives the `canvas` element and `isInit` (true/false) as parameter. `getHtml({ keepEditing: true })` runs it too, with `isInit` false, on a copy of the canvas rather than the canvas: work on the element it is given, not on one you kept.
 
 ```javascript
 new GridEditor('#myGrid', {
@@ -816,6 +824,72 @@ one. So the tabs of a copy open the copy's panes, not the original's.
 A paste is an add like any other: `before-add-*` and `after-add-*` with
 `source: 'paste'`, and canceling the first turns it away. A copy fires
 `grideditor:after-copy`.
+
+### Autosave
+
+A plugin:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.autosave.min.js"></script>
+```
+
+What is being edited is kept in the browser's storage as it changes: a second
+after the last change, and when the page is left or reloaded. It is read with
+`getHtml({ keepEditing: true })`, so a text being typed into stays open, with
+its cursor. When an editor starts and a draft of the same html is saved, the
+editor's confirm modal asks whether to restore it; *Discard*, or closing the
+modal, takes the draft away.
+
+```javascript
+new GridEditor('#myGrid', {
+    autosave: {
+        enabled: true,        // saving from the start; the methods turn it on and off
+        storage: 'local',     // or 'session'
+        key: null,            // where the draft is kept: one per document, see below
+        delay: 1000,          // milliseconds after the last change
+        maxAge: null,         // milliseconds a draft is offered for; null for ever
+    },
+});
+```
+
+A draft remembers the html its editor started from, and is only offered to an
+editor that starts from the same html. A page that loads one document after
+another into the editor is not offered one document's draft over another, but
+with one key, editing the second overwrites the first's draft. Give each
+document a key of its own - its file name, its id - and each keeps its draft:
+
+```javascript
+new GridEditor('#myGrid', { autosave: { key: 'page-' + pageId } });
+```
+
+The default key is `grideditor.autosave:` with the page's path and the canvas's
+id. Two editors on a page with the same key would overwrite each other's
+drafts, so the second saves nothing and says so in the console.
+
+| Method | Returns | What it does |
+| --- | --- | --- |
+| `enableAutosave()` | `Boolean` | Starts saving, from what there is now |
+| `disableAutosave()` | `Boolean` | Stops saving; the draft is kept |
+| `saveDraft()` | `Boolean` | Saves now, if the html changed, even when disabled; `true` when it wrote |
+| `getDraft()` | `Object` | `{ html, savedAt }`, or `null` |
+| `clearDraft()` | `Boolean` | Takes the draft away, as a page does once it has saved to its server |
+
+The methods are there only when the plugin is loaded, and answer `false` or
+`null` when the browser gives the page no storage - a private window may not -
+in which case nothing is saved and the console says so.
+
+| Event | Payload | Fires |
+| --- | --- | --- |
+| `grideditor:after-autosave` | `canvas`, `html`, `savedAt`, `source` (`change`, `pagehide`, `api` or `destroy`) | after a draft is written |
+| `grideditor:after-restore-draft` | `canvas`, `html`, `savedAt` | after the user chose to restore one |
+| `grideditor:autosave-error` | `canvas`, `error` | when the storage refused a draft - it is full; the next change tries again |
+
+A draft in `localStorage` outlives the browser being closed, on a computer
+someone else may use next: `storage: 'session'` keeps it for the tab only. A
+draft is offered only to an editor that starts from the same html *as this
+version of grid-editor reads it*, so one saved before an upgrade that changes
+what `getHtml` gives is not offered after it. Drafts are a safety net, not a
+place to keep work.
 
 ### Containers
 

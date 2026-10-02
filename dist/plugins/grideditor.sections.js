@@ -226,8 +226,8 @@
         }
       });
     }
-    function unmark() {
-      children(ge.canvas, ".ge-section").forEach(function(section) {
+    function unmark(root) {
+      children(root || ge.canvas, ".ge-section").forEach(function(section) {
         removeClass(section, "ge-section");
       });
     }
@@ -268,7 +268,10 @@
         }
       }],
       onInit: mark,
-      onDeinit: unmark
+      onDeinit: function() {
+        unmark();
+      },
+      cleanMarkup: unmark
     };
     function isSectionMade(node) {
       return !node.parentElement && widthOf(node) !== null;

@@ -149,8 +149,8 @@ GridEditor.features.sections = function(ge) {
         });
     }
 
-    function unmark() {
-        dom.children(ge.canvas, '.ge-section').forEach(function(section) {
+    function unmark(root) {
+        dom.children(root || ge.canvas, '.ge-section').forEach(function(section) {
             dom.removeClass(section, 'ge-section');
         });
     }
@@ -197,7 +197,8 @@ GridEditor.features.sections = function(ge) {
         }],
 
         onInit: mark,
-        onDeinit: unmark,
+        onDeinit: function() { unmark(); },
+        cleanMarkup: unmark,
     };
 
     /** A section the toolbar just made, before init has marked it. */

@@ -473,6 +473,13 @@
         });
         ge.unwrapLabels(container);
       },
+      // The same, on a copy of the canvas: unmark only touches markup
+      cleanMarkup: function(root) {
+        var definition = this;
+        all(root, '[data-ge-container="tabs"]').forEach(function(container) {
+          definition.unmark(container);
+        });
+      },
       panelSection: function(node, kind) {
         if (kind !== "tabs" || !stripOf(node)) {
           return null;

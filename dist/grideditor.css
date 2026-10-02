@@ -2,6 +2,8 @@
   position: relative;
   min-height: 22px;
   margin-bottom: 10px;
+  /* The add buttons on the left are grey, so the blue is left to the
+       source, preview and layout buttons on the right */
   /* toolbar_groups: the tabs choosing which category of add buttons
        shows, at the start of the line. Never squeezed, and never behind the
        more button */
@@ -23,15 +25,24 @@
   z-index: 20;
   top: 0;
 }
-.ge-mainControls .ge-addRowGroup .btn.btn-primary {
+.ge-mainControls .ge-addRowGroup .btn.btn-light,
+.ge-mainControls .ge-addContainerGroup .btn.btn-light,
+.ge-mainControls .ge-toolbar-more > .btn.btn-light {
   background: #f4f4f4;
   color: #666;
   border-color: #999;
+}
+.ge-mainControls .ge-addRowGroup .btn.btn-light:hover,
+.ge-mainControls .ge-addContainerGroup .btn.btn-light:hover,
+.ge-mainControls .ge-toolbar-more > .btn.btn-light:hover,
+.ge-mainControls .ge-addRowGroup .btn.btn-light:active,
+.ge-mainControls .ge-addContainerGroup .btn.btn-light:active,
+.ge-mainControls .ge-toolbar-more > .btn.btn-light:active {
+  background: #E3E3E3;
+}
+.ge-mainControls .ge-addRowGroup .btn.btn-light {
   display: flex;
   align-items: center;
-}
-.ge-mainControls .ge-addRowGroup .btn.btn-primary:hover {
-  background: #E3E3E3;
 }
 .ge-mainControls .ge-addRowGroup .ge-row-icon {
   width: 48px;

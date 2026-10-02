@@ -55,9 +55,28 @@ var HELPERS = `
             node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
             node.click();
         },
+        // keepEditing first, while the canvas is still editing: it has to
+        // give what getHtml gives after it, without leaving editing
         result: function() {
-            return { html: G.call('getHtml'), plain: G.call('getPlainHtml') };
+            const kept = {
+                html: G.call('getHtml', { keepEditing: true }),
+                plain: G.call('getPlainHtml', { keepEditing: true }),
+            };
+            const result = { html: G.call('getHtml'), plain: G.call('getPlainHtml') };
+            if (kept.html !== result.html || kept.plain !== result.plain) {
+                window.KEPT_MISMATCHES.push({ kept: kept, result: result });
+            }
+            return result;
         },
+    };
+    window.KEPT_MISMATCHES = [];
+    // A keepEditing that had to leave editing after all says so
+    window.KEPT_FALLBACKS = [];
+    const warn = console.warn;
+    console.warn = function() {
+        const message = Array.prototype.join.call(arguments, ' ');
+        if (/leaves editing to be read/.test(message)) { window.KEPT_FALLBACKS.push(message); }
+        warn.apply(console, arguments);
     };
     return true;
 `;
@@ -173,9 +192,15 @@ async function collect(t) {
     await page.eval(HELPERS);
 
     var results = {};
+    var mismatches = {};
+    var keptMismatches = async function(name) {
+        var found = await page.eval(`return window.KEPT_MISMATCHES.splice(0);`);
+        if (found.length) { mismatches[name] = found; }
+    };
 
     for (var name of Object.keys(SCENARIOS)) {
         results[name] = await page.eval(SCENARIOS[name]);
+        await keptMismatches(name);
     }
 
     for (var recorded of fiveX()) {
@@ -183,9 +208,12 @@ async function collect(t) {
             G.start(${JSON.stringify(recorded.html)}, ${JSON.stringify(Object.assign({ plugins: null }, recorded.overrides))});
             return G.result();
         `);
+        await keptMismatches(recorded.name);
     }
 
-    return { results: results, errors: page.errors() };
+    var fallbacks = await page.eval(`return window.KEPT_FALLBACKS;`);
+
+    return { results: results, mismatches: mismatches, fallbacks: fallbacks, errors: page.errors() };
 }
 
 /**
@@ -206,6 +234,11 @@ async function run(t) {
     });
 
     t.check('the golden scenarios logged no errors', collected.errors.length === 0, collected.errors.slice(0, 5));
+    // spec autosave-plugin AC-01, AC-02
+    t.check('getHtml and getPlainHtml with keepEditing give what they give without it, in every scenario',
+        Object.keys(collected.mismatches).length === 0, collected.mismatches);
+    t.check('and read them on a copy, the canvas left editing: no plugin made it fall back on getHtml',
+        collected.fallbacks.length === 0, collected.fallbacks);
 
     if (process.env.RECORD) {
         fs.mkdirSync(GOLDEN, { recursive: true });

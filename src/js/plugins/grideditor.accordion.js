@@ -206,6 +206,12 @@ GridEditor.containers.accordion = function(ge) {
             ge.unwrapLabels(container);
         },
 
+        // The same, on a copy of the canvas: unmark only touches markup
+        cleanMarkup: function(root) {
+            var definition = this;
+            dom.all(root, '[data-ge-container="accordion"]').forEach(function(container) { definition.unmark(container); });
+        },
+
         afterPaneMove: function(container, item) {
             reparentAccordionItem(container, item);
         },

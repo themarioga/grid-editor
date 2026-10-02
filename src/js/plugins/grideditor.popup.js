@@ -25,8 +25,8 @@ GridEditor.containers.popup = function(ge) {
     }
 
     /** Whether a popup with this id is on the canvas. */
-    function popupExists(id) {
-        return dom.all(ge.canvas, '[data-ge-popup-id]').some(function(popup) {
+    function popupExists(id, root) {
+        return dom.all(root || ge.canvas, '[data-ge-popup-id]').some(function(popup) {
             return popupIdOf(popup) === id;
         });
     }
@@ -67,8 +67,10 @@ GridEditor.containers.popup = function(ge) {
         });
     }
 
-    function writePopupTriggerAttributes() {
-        dom.all(ge.canvas, '[data-ge-popup-target]').forEach(function(trigger) {
+    function writePopupTriggerAttributes(root) {
+        root = root || ge.canvas;
+
+        dom.all(root, '[data-ge-popup-target]').forEach(function(trigger) {
             var wanted = trigger.getAttribute('data-ge-popup-target');
 
             // The warning marking is editing furniture, whether or not
@@ -76,7 +78,7 @@ GridEditor.containers.popup = function(ge) {
             dom.removeClass(trigger, 'ge-popup-orphan');
             dom.dropEmptyClass(trigger);
 
-            if (!popupExists(wanted)) { return; }
+            if (!popupExists(wanted, root)) { return; }
 
             trigger.setAttribute('data-bs-toggle', 'modal');
             trigger.setAttribute('data-bs-target', '#' + wanted);
@@ -91,7 +93,14 @@ GridEditor.containers.popup = function(ge) {
         // are looked at whenever the canvas is initialized rather than only
         // when a popup is touched
         onInit: wirePopupTriggers,
-        onDeinit: writePopupTriggerAttributes,
+        onDeinit: function() { writePopupTriggerAttributes(); },
+
+        // What onDeinit and unmark do, on a copy of the canvas
+        cleanMarkup: function(root) {
+            var definition = this;
+            writePopupTriggerAttributes(root);
+            dom.all(root, '[data-ge-container="popup"]').forEach(function(container) { definition.unmark(container); });
+        },
 
         create: function(options) {
             var id = ge.containerId('popup');

@@ -325,6 +325,9 @@
       onDeinit: function() {
         document.removeEventListener(CHANGE, refresh);
         listening = false;
+      },
+      // Nothing of its own on the canvas: the tools are in the drawers
+      cleanMarkup: function() {
       }
     };
   };

@@ -628,30 +628,61 @@ function build(instance, baseElem, optionsOrMethod) {
                 return;
             }
 
+            confirmWith(message, { danger: true }, function(confirmed) {
+                if (confirmed) { whenConfirmed(); }
+            });
+        }
+
+        /**
+         * ge.confirm(): a question of a plugin's own, in the same modal.
+         * `answer` is called once: true for the ok button, false for cancel,
+         * the close button or Escape, and null when the question goes
+         * unanswered because the modal is taken away - setLocale, destroy, or
+         * another question asked over it.
+         */
+        function confirmWith(message, options, answer) {
+            options = options || {};
             var Modal = modalLibrary();
 
             if (!Modal) {
-                if (window.confirm(message)) { whenConfirmed(); }
+                answer(window.confirm(message));
                 return;
             }
 
             var modal = confirmModal();
             var confirmed = false;
+            var ok = dom.one(modal, '.ge-confirm-ok');
+
+            // The question before this one, if it is still up, goes unanswered
+            if (pendingAnswer) { pendingAnswer(null); }
+
+            var settle = function(value) {
+                if (pendingAnswer !== settle) { return; }
+                pendingAnswer = null;
+                answer(value);
+            };
+            pendingAnswer = settle;
+
+            dom.one(modal, '.modal-title').textContent = options.title || t('confirm.title');
+            dom.one(modal, '.ge-confirm-cancel').textContent = options.cancel || t('confirm.cancel');
+            ok.textContent = options.ok || t('confirm.ok');
+            dom.toggleClass(ok, 'btn-danger', !!options.danger);
+            dom.toggleClass(ok, 'btn-primary', !options.danger);
 
             dom.one(modal, '.ge-confirm-message').textContent = message;
-            dom.one(modal, '.ge-confirm-ok').onclick = function() {
+            ok.onclick = function() {
                 confirmed = true;
                 Modal.getInstance(modal).hide();
             };
 
             confirmHandlers.hidden = function() {
                 // After the modal is out of the way, so the backdrop is not
-                // sitting over the animation the delete runs
-                if (confirmed) { whenConfirmed(); }
+                // sitting over the animation a delete runs
+                settle(confirmed);
             };
 
             confirmHandlers.shown = function() {
-                dom.one(modal, '.ge-confirm-ok').focus();
+                ok.focus();
             };
 
             Modal.getOrCreateInstance(modal).show();
@@ -660,6 +691,7 @@ function build(instance, baseElem, optionsOrMethod) {
         // What the confirm modal does when Bootstrap says it is shown or
         // hidden: this question's answer, replaced by the next question's
         var confirmHandlers = { hidden: null, shown: null };
+        var pendingAnswer = null; // The open question's answer, until it is given
 
         /** Built once per instance, and taken away again by destroy(). */
         function confirmModal() {
@@ -690,11 +722,15 @@ function build(instance, baseElem, optionsOrMethod) {
             dom.one(confirmDialog, '.ge-confirm-ok').textContent = t('confirm.ok');
 
             trackModal(confirmDialog);
+            // Only while it is the modal asking: one being taken away -
+            // setLocale builds another - finishes hiding after the next
+            // question is up, and that answer is not its to give
+            var asking = confirmDialog;
             confirmDialog.addEventListener('hidden.bs.modal', function() {
-                if (confirmHandlers.hidden) { confirmHandlers.hidden(); }
+                if (asking === confirmDialog && confirmHandlers.hidden) { confirmHandlers.hidden(); }
             });
             confirmDialog.addEventListener('shown.bs.modal', function() {
-                if (confirmHandlers.shown) { confirmHandlers.shown(); }
+                if (asking === confirmDialog && confirmHandlers.shown) { confirmHandlers.shown(); }
             });
 
             return confirmDialog;
@@ -709,6 +745,9 @@ function build(instance, baseElem, optionsOrMethod) {
             confirmHandlers.shown = null;
             retireModal(confirmDialog);
             confirmDialog = null;
+
+            // A plugin's question goes unanswered, and the plugin is told so
+            if (pendingAnswer) { pendingAnswer(null); }
         }
 
         /**
@@ -2093,26 +2132,144 @@ function build(instance, baseElem, optionsOrMethod) {
             hideDropMarker();
             // In case a dialog was opened with no settings panel open
             closeDialog();
-            dom.all(canvas, '.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
+            removeDrawers(canvas);
             pluginFields.clear();
-            unwrapTexts();
+            unwrapTexts(canvas);
             plugins('onDeinit');
             // After the rich text editors have let go of their content areas:
             // one that rebuilt its area's DOM brought the preview styles back
             // with it, and the attribute recording them came back too
             clearPreviews(canvas);
-            dom.all(canvas, '[data-ge-row-cols]').forEach(function(row) { row.removeAttribute('data-ge-row-cols'); });
+            clearRowCols(canvas);
             unmarkContainers();
             removeSortable();
             removeResizable();
-            runFilter(false);
+            runFilter(false, canvas);
+        }
+
+        function removeDrawers(root) {
+            dom.all(root, '.ge-tools-drawer').forEach(function(drawer) { drawer.remove(); });
+        }
+
+        function clearRowCols(root) {
+            dom.all(root, '[data-ge-row-cols]').forEach(function(row) { row.removeAttribute('data-ge-row-cols'); });
+        }
+
+        /**
+         * The plugins that cannot be read without the canvas leaving editing:
+         * the ones that put something on the canvas - an unmark, an onDeinit
+         * or an onBeforeDeinit takes it off - and say nothing of how to take
+         * it off a copy.
+         */
+        function pluginsWithoutCleanMarkup() {
+            var names = [];
+
+            [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    var plugin = registry[name];
+                    var marks = plugin.unmark || plugin.onDeinit || plugin.onBeforeDeinit;
+                    if (marks && !plugin.cleanMarkup) { names.push(name); }
+                });
+            });
+
+            return names;
+        }
+
+        /**
+         * A copy of the canvas, and the way from each of its elements back to
+         * the one it was copied from. The two trees are walked side by side,
+         * which works because a deep clone has the same shape.
+         */
+        function copyCanvas() {
+            var copy = canvas.cloneNode(true);
+            var toLive = new Map();
+            var toCopy = new Map();
+            var live = document.createTreeWalker(canvas, NodeFilter.SHOW_ELEMENT);
+            var copied = document.createTreeWalker(copy, NodeFilter.SHOW_ELEMENT);
+            var a = live.currentNode;
+            var b = copied.currentNode;
+
+            while (a && b) {
+                toLive.set(b, a);
+                toCopy.set(a, b);
+                a = live.nextNode();
+                b = copied.nextNode();
+            }
+
+            return {
+                root: copy,
+                liveOf: function(node) { return toLive.get(node) || null; },
+                copyOf: function(node) { return toCopy.get(node) || null; },
+            };
+        }
+
+        /**
+         * getHtml without the canvas leaving editing: what deinit takes off,
+         * taken off a copy, so the text being typed into, the settings panel
+         * and the focus are where they were. The same markup getHtml gives,
+         * or getHtml itself - with a word, once - when a plugin can only take
+         * its marking off the canvas, or will not this time.
+         */
+        function snapshotHtml() {
+            // Nothing is being edited to keep: the canvas is out of editing
+            if (sourceOpen) { return getHtml(); }
+
+            var missing = pluginsWithoutCleanMarkup();
+            if (missing.length) {
+                missing.forEach(function(name) {
+                    warnOnceHere('snapshot:' + name, 'the "' + name + '" plugin has no cleanMarkup, so the canvas ' +
+                        'leaves editing to be read: open texts and settings panels close');
+                });
+                return getHtml();
+            }
+
+            var copy = copyCanvas();
+            var root = copy.root;
+
+            [root].concat(dom.all(root, '.ge-active-target, .ge-settings-target')).forEach(function(node) {
+                dom.removeClass(node, 'ge-active-target ge-settings-target');
+                dom.dropEmptyClass(node);
+            });
+            dom.all(root, '.ge-drop-marker').forEach(function(marker) { marker.remove(); });
+            removeDrawers(root);
+            unwrapTexts(root);
+
+            var refused = null;
+            [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    var plugin = registry[name];
+                    if (refused || !plugin.cleanMarkup) { return; }
+                    if (plugin.cleanMarkup(root, copy.liveOf) === false) { refused = name; }
+                });
+            });
+
+            if (refused) {
+                warnOnceHere('snapshot-refused:' + refused, 'the "' + refused + '" plugin cannot take its marking off ' +
+                    'a copy right now, so the canvas leaves editing to be read');
+                return getHtml();
+            }
+
+            clearPreviews(root);
+            clearRowCols(root);
+            dom.all(root, '[data-ge-container]').forEach(unmarkContainerClasses);
+            sortables.forEach(function(sortableInstance) {
+                var list = copy.copyOf(sortableInstance.el);
+                if (list) { dom.all(list, '[draggable]').forEach(function(node) { node.removeAttribute('draggable'); }); }
+            });
+            removeResizeFurniture(root);
+            runFilter(false, root);
+            stripPixelWidths(root);
+
+            return root.innerHTML;
         }
 
         /**
          * The markup as a host would save it: no drawers, no editor, no
          * sortables. The canvas goes back to editing afterwards.
          */
-        function getHtml() {
+        function getHtml(options) {
+            if (options && options.keepEditing) { return snapshotHtml(); }
+
             deinit();
             stripPixelWidths(canvas);
             var html = canvas.innerHTML;
@@ -2133,8 +2290,31 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /** getHtml with grid-editor's own classes and attributes taken off. */
-        function getPlainHtml() {
-            return plainHtml(getHtml());
+        function getPlainHtml(options) {
+            return plainHtml(getHtml(options));
+        }
+
+        /**
+         * ge.setHtml(): the canvas made of other markup, and edited again. Not
+         * an add or a delete of anything, so no events: what was there is
+         * replaced as a whole. innerHTML, as the source view does, so a
+         * <script> in it is markup and does not run in the editor.
+         */
+        function setHtml(html) {
+            // What is in the textarea is not wanted - html replaces it - but
+            // the source view closes the one way it always does
+            if (sourceOpen) {
+                closeSource();
+                if (mainControls) {
+                    dom.all(mainControls, '.gm-edit-mode').forEach(function(button) {
+                        dom.removeClass(button, 'active btn-danger');
+                    });
+                }
+            }
+
+            deinit();
+            dom.setHtml(canvas, html);
+            init();
         }
 
         /**
@@ -2144,6 +2324,8 @@ function build(instance, baseElem, optionsOrMethod) {
          * as a framework tearing a component down does.
          */
         function destroy() {
+            // First, while the editor is whole: a plugin may still read it
+            plugins('onDestroy');
             // The html being edited is what the canvas is left with
             if (sourceOpen) { closeSource(); }
             deinit();
@@ -2271,6 +2453,11 @@ function build(instance, baseElem, optionsOrMethod) {
                 closeDialog: closeDialog,
                 rowFromLayout: rowFromLayoutValue,
                 nodeHtml: nodeHtml,
+                // The markup as getHtml gives it, with the canvas left editing
+                snapshotHtml: snapshotHtml,
+                setHtml: setHtml,
+                // A question in the editor's confirm modal
+                confirm: confirmWith,
                 // A text editor has rewritten a content area, so whatever the
                 // editor and its plugins had put in there goes back in
                 textReady: textReady,
@@ -2993,9 +3180,13 @@ function build(instance, baseElem, optionsOrMethod) {
 
                 if (definition) { definition.unmark(container); }
 
-                dom.removeClass(container, 'ge-container ge-container-' + containerTypeOf(container));
-                dom.dropEmptyClass(container);
+                unmarkContainerClasses(container);
             });
+        }
+
+        function unmarkContainerClasses(container) {
+            dom.removeClass(container, 'ge-container ge-container-' + containerTypeOf(container));
+            dom.dropEmptyClass(container);
         }
 
         /** A new drawer as the first child of `node`. */
@@ -4926,10 +5117,14 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         function removeResizable() {
-            dom.all(canvas, '.ge-resize-handle').forEach(function(handle) { handle.remove(); });
+            removeResizeFurniture(canvas);
+        }
 
-            dom.all(canvas, '.ge-resize-size').forEach(function(readout) { readout.remove(); });
-            stripPixelWidths(canvas);
+        function removeResizeFurniture(root) {
+            dom.all(root, '.ge-resize-handle').forEach(function(handle) { handle.remove(); });
+
+            dom.all(root, '.ge-resize-size').forEach(function(readout) { readout.remove(); });
+            stripPixelWidths(root);
         }
 
         /**
@@ -5255,7 +5450,7 @@ function build(instance, baseElem, optionsOrMethod) {
          * function, or the name of one on window, and gets the canvas and
          * whether this is init.
          */
-        function runFilter(isInit) {
+        function runFilter(isInit, root) {
             if (!settings.custom_filter || !settings.custom_filter.length) { return; }
 
             var filters = typeof settings.custom_filter === 'string' || typeof settings.custom_filter === 'function'
@@ -5267,7 +5462,7 @@ function build(instance, baseElem, optionsOrMethod) {
                     func = window[func];
                 }
 
-                func(canvas, isInit);
+                func(root || canvas, isInit);
             });
         }
 
@@ -5460,8 +5655,8 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /** After the drawers are gone, so a wrapper holds its content area and nothing else. */
-        function unwrapTexts() {
-            dom.all(canvas, '.ge-text-block').forEach(function(textBlock) {
+        function unwrapTexts(root) {
+            dom.all(root, '.ge-text-block').forEach(function(textBlock) {
                 dom.unwrap(textBlock);
             });
         }
@@ -5669,6 +5864,22 @@ function build(instance, baseElem, optionsOrMethod) {
         // Again, with what the plugins filled in: the text editors'
         // content_types when the host gave none
         instance.settings = settingsCopy();
+
+        // A feature plugin's methods that are not the editor's own documented
+        // ones - the autosave plugin's - are the instance's too, while the
+        // plugin is there
+        Object.keys(featureMethods).forEach(function(name) {
+            if (Object.prototype.hasOwnProperty.call(own, name) || name in instance) { return; }
+
+            instance[name] = function() {
+                if (destroyed) {
+                    warnOnceHere('destroyed:' + name, t('warning.destroyed', { method: name }));
+                    return null;
+                }
+
+                return featureMethods[name].apply(null, arguments);
+            };
+        });
         setup();
         init();
 

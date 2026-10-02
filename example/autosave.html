@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Grid Editor example - auto save and import/export</title>
+    <title>Grid Editor example - autosave and import/export</title>
 
     <!-- CSS dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
@@ -19,6 +19,8 @@
     <script src="../dist/grideditor.min.js"></script>
     <!-- The text editor is a plugin of its own, loaded after the editor -->
     <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
+    <!-- And so is autosave -->
+    <script src="../dist/plugins/grideditor.autosave.min.js"></script>
 </head>
 <body>
     <!-- Back to the demo index -->
@@ -27,46 +29,60 @@
     </div>
 
 <div class="container py-3">
-    <h2>Grid Editor example - auto save and import/export</h2>
-    <div class="mb-3">
+    <h2>Grid Editor example - autosave and import/export</h2>
+    <p class="text-body-secondary">
+        The autosave plugin keeps what you edit in <code>localStorage</code>, a second after each change and when
+        you leave the page - with a text still open, which it does not close. Reload the page after a change and it
+        offers the draft back. An imported file is a document of its own, with its own <code>autosave.key</code>, so
+        its draft and the page's never step on each other.
+    </p>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <button id="exportBtn" class="btn btn-primary">Export layout</button>
-        <input type="file" id="importInput" class="btn btn-secondary" accept=".html">
-        <button id="resetBtn" class="btn btn-danger">Clear draft</button>
+        <input type="file" id="importInput" class="form-control w-auto" accept=".html">
+        <button id="resetBtn" class="btn btn-outline-danger">Clear draft</button>
+        <div class="form-check form-switch ms-2">
+            <input class="form-check-input" type="checkbox" role="switch" id="autosaveSwitch" checked>
+            <label class="form-check-label" for="autosaveSwitch">Autosave</label>
+        </div>
+        <span id="savedAt" class="text-body-secondary small"></span>
     </div>
 
     <form id="editorForm">
-        <div id="myGrid"></div>
+        <div id="myGrid">
+            <div class="row"><div class="col-md-12"><h3>Edit me</h3><p>Then reload the page.</p></div></div>
+        </div>
     </form>
 </div>
 <script>
-    const LOCAL_STORAGE_KEY = 'gridEditorLayout';
     const grid = document.getElementById('myGrid');
+    const autosaveSwitch = document.getElementById('autosaveSwitch');
     let editor = null;
 
-    function initEditor(initialContent = '') {
-        grid.innerHTML = initialContent;
+    function initEditor(key) {
         editor = new GridEditor(grid, {
             new_row_layouts: [[12], [6,6], [4,4,4]],
             content_types: ['tinymce'],
             // tinyMCE 7 is GPL-2.0-or-later: 'gpl' accepts that licence.
             // A commercial licence passes its own key here instead.
             tinymce: { config: { license_key: 'gpl' } },
+            // null is the page's own key
+            autosave: { key: key, enabled: autosaveSwitch.checked },
         });
     }
 
-    function autoSave() {
-        localStorage.setItem(LOCAL_STORAGE_KEY, editor.getHtml());
-    }
+    grid.addEventListener('grideditor:after-autosave', function(e) {
+        document.getElementById('savedAt').textContent = 'Saved ' + new Date(e.detail.savedAt).toLocaleTimeString();
+    });
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Restore the previous draft, falling back to whatever markup is in the page
-        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-        initEditor(saved || grid.innerHTML);
+        initEditor(null);
 
-        setInterval(autoSave, 5000);
+        autosaveSwitch.addEventListener('change', function () {
+            if (autosaveSwitch.checked) { editor.enableAutosave(); } else { editor.disableAutosave(); }
+        });
 
         document.getElementById('exportBtn').addEventListener('click', () => {
-            const html = editor.getHtml();
+            const html = editor.getHtml({ keepEditing: true });
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -76,21 +92,22 @@
             URL.revokeObjectURL(url);
         });
 
+        // Another document: the editor is made again on it, with a key of its own
         document.getElementById('importInput').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = function (loaded) {
                 editor.destroy();
-                initEditor(e.target.result);
-                autoSave();
+                grid.innerHTML = loaded.target.result;
+                initEditor('grideditor.autosave:import:' + file.name);
             };
             reader.readAsText(file);
         });
 
         document.getElementById('resetBtn').addEventListener('click', function () {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-            location.reload();
+            editor.clearDraft();
+            document.getElementById('savedAt').textContent = 'Draft cleared';
         });
     });
 </script>

@@ -139,8 +139,8 @@ GridEditor.features.elements = function(ge) {
         });
     }
 
-    function unmarkElements() {
-        dom.all(ge.canvas, '.ge-element').forEach(function(element) {
+    function unmarkElements(root) {
+        dom.all(root || ge.canvas, '.ge-element').forEach(function(element) {
             dom.removeClass(element, 'ge-element');
 
             // A host element that had no class of its own should not come
@@ -281,6 +281,7 @@ GridEditor.features.elements = function(ge) {
         },
 
         onInit: markElements,
-        onDeinit: unmarkElements,
+        onDeinit: function() { unmarkElements(); },
+        cleanMarkup: unmarkElements,
     };
 };

@@ -184,6 +184,11 @@ GridEditor.utilities.order = function(ge) {
       all(ge.canvas, "[data-ge-order]").forEach(function(col) {
         col.removeAttribute("data-ge-order");
       });
+    },
+    cleanMarkup: function(root) {
+      all(root, "[data-ge-order]").forEach(function(col) {
+        col.removeAttribute("data-ge-order");
+      });
     }
   };
 };
