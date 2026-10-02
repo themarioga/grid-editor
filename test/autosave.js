@@ -329,6 +329,33 @@ async function switching(t, page) {
     `);
     t.check('clearDraft takes the draft away (AC-42)', cleared.answer === true && cleared.draft === null && cleared.stored === null, cleared);
 
+    // AC-70, AC-71
+    var pending = await page.eval(`
+        fresh({ delay: 300 });
+        await wait(50);
+        change('saved-elsewhere');
+        await wait(100);
+        ge().clearDraft();
+        await wait(400);
+        const afterDelay = stored();
+        ge().changeView('md');
+        ge().changeView('all');
+        await wait(400);
+        const afterNothing = stored();
+        window.dispatchEvent(new Event('pagehide'));
+        const afterLeaving = stored();
+        change('new-work');
+        await wait(400);
+        const draft = stored();
+        return { afterDelay: afterDelay, afterNothing: afterNothing, afterLeaving: afterLeaving,
+            draft: !!draft && draft.html.indexOf('new-work') !== -1 && draft.html.indexOf('saved-elsewhere') !== -1,
+            events: window.events.length };
+    `);
+    t.check('clearDraft with a save waiting: it is not written after all, nor by a change the html does not show (AC-70)',
+        pending.afterDelay === null && pending.afterNothing === null, pending);
+    t.check('nor when the page is left with nothing changed since (AC-71)', pending.afterLeaving === null, pending);
+    t.check('a change after it makes a new draft, of the canvas as it is (AC-70)', pending.draft && pending.events === 1, pending);
+
     // AC-60
     var absent = await page.eval(`
         if (ge()) { ge().destroy(); }

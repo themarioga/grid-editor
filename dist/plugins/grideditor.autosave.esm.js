@@ -297,11 +297,26 @@ GridEditor.features.autosave = function(ge) {
         var found = readDraft(false);
         return found ? { html: found.html, savedAt: found.savedAt } : null;
       },
+      // What there is now is not a draft any more - a page calls this
+      // once it has saved to its server - so the save waiting does not
+      // write it back, and only a change from here makes a new draft
       clearDraft: function() {
         if (state === "unavailable") {
           return false;
         }
+        window.clearTimeout(timer);
+        timer = null;
         remove();
+        if (base !== null && state !== "asking" && !sourceOpen) {
+          var watching = !!observer && state === "enabled";
+          if (watching) {
+            observer.disconnect();
+          }
+          last = ge.snapshotHtml();
+          if (watching) {
+            watch();
+          }
+        }
         return true;
       }
     }
