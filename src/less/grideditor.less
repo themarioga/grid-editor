@@ -31,17 +31,25 @@
         top: 0;
     }
     
+    /* The add buttons on the left are grey, so the blue is left to the
+       source, preview and layout buttons on the right */
+    .ge-addRowGroup .btn.btn-light,
+    .ge-addContainerGroup .btn.btn-light,
+    .ge-toolbar-more > .btn.btn-light {
+        background: #f4f4f4;
+        color: @rowTextColor;
+        border-color: #999;
+
+        &:hover,
+        &:active {
+            background: #E3E3E3;
+        }
+    }
+
     .ge-addRowGroup {
-        .btn.btn-primary {
-            background: #f4f4f4;
-            color: @rowTextColor;
-            border-color: #999;
+        .btn.btn-light {
             display: flex;
             align-items: center;
-            
-            &:hover {
-                background: #E3E3E3;
-            }
         }
         
         .ge-row-icon {

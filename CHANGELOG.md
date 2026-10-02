@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+- The toolbar's add buttons on the left - rows, containers, the feature
+  plugins' and the overflow menu's button - are grey (`btn-light`), and the
+  `toolbar_groups` tabs `btn-outline-secondary`. Blue is left to the buttons
+  on the right: source, preview, layout and the `align: 'end'` ones.
+
 ## [8.5.0] - 2026-10-01
 
 ### Added

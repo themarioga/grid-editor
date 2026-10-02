@@ -1081,7 +1081,7 @@ function build(instance, baseElem, optionsOrMethod) {
             settings.new_row_layouts.forEach(function(layout) {
                 var grouped = !Array.isArray(layout);
                 var btn = dom.element('a', {
-                    'class': 'btn btn-sm btn-primary',
+                    'class': 'btn btn-sm btn-light',
                     title: grouped
                         ? t('row.add_row_cols', { columns: layout.columns, counts: rowColsText(layout.row_cols) })
                         : t('row.add', { layout: layout.join('-') }),
@@ -1126,7 +1126,7 @@ function build(instance, baseElem, optionsOrMethod) {
             // buttons next to these ones do
             Object.keys(CONTAINERS).forEach(function(type) {
                 var definition = CONTAINERS[type];
-                var button = labelButton(dom.element('a', { 'class': 'btn btn-sm btn-primary ge-add-container' }),
+                var button = labelButton(dom.element('a', { 'class': 'btn btn-sm btn-light ge-add-container' }),
                     t(definition.labelKey), definition.iconClass);
 
                 dom.attr(button, { 'data-ge-toolbar': 'container', 'data-ge-container-type': type });
@@ -1274,7 +1274,7 @@ function build(instance, baseElem, optionsOrMethod) {
             names.forEach(function(name) {
                 var tab = tabs.appendChild(dom.element('button', {
                     type: 'button',
-                    'class': 'btn btn-sm btn-outline-primary',
+                    'class': 'btn btn-sm btn-outline-secondary',
                     role: 'tab',
                     'data-ge-group': name,
                 }, groupLabel(name)));
@@ -1333,7 +1333,7 @@ function build(instance, baseElem, optionsOrMethod) {
          */
         function createOverflowMenu(start) {
             var more = dom.create('<div class="ge-toolbar-more">' +
-                '<button type="button" class="btn btn-sm btn-primary"><i class="bi bi-three-dots"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-light"><i class="bi bi-three-dots"></i></button>' +
                 '<div class="ge-toolbar-overflow">' +
                     '<div class="ge-addRowGroup btn-group"></div>' +
                     '<div class="ge-addContainerGroup btn-group"></div>' +
@@ -1442,7 +1442,10 @@ function build(instance, baseElem, optionsOrMethod) {
             // A label of its own, worked out when the toolbar is built - and
             // built again by setLocale - or the string its labelKey names
             var label = typeof item.label === 'function' ? item.label() : (item.label || t(item.labelKey));
-            var button = labelButton(dom.element('a', { 'class': 'btn btn-sm btn-primary ge-add-container ge-add-feature' }), label, iconClass);
+            // Grey with the add buttons on the left, blue with the source and
+            // preview buttons on the right
+            var colour = item.align === 'end' ? 'btn-primary' : 'btn-light';
+            var button = labelButton(dom.element('a', { 'class': 'btn btn-sm ' + colour + ' ge-add-container ge-add-feature' }), label, iconClass);
 
             dom.addClass(button, item.className || '');
             dom.attr(button, {
