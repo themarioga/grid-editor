@@ -908,6 +908,41 @@
         padding: 2px 0;
     }
 
+    /* A carousel shows one slide, the one Bootstrap's .active says, and the
+       container's drawer moves between them. Bootstrap's arrows and
+       indicators are drawn but the editor's javascript answers, not theirs:
+       a click goes through them to what is under, and a slide is changed
+       with no transition */
+    .ge-container-carousel {
+        .carousel-inner {
+            overflow: visible;
+        }
+        .carousel-item {
+            transition: none;
+        }
+        .carousel-control-prev,
+        .carousel-control-next,
+        .carousel-indicators {
+            pointer-events: none;
+        }
+        .carousel-indicators {
+            z-index: 1;
+        }
+        .ge-carousel-counter {
+            min-width: 3em;
+            text-align: center;
+            text-decoration: none;
+            cursor: default;
+        }
+        .ge-carousel-item > .ge-pane-drawer {
+            padding: 2px 0;
+        }
+        .ge-tools-drawer .disabled {
+            opacity: .35;
+            pointer-events: none;
+        }
+    }
+
     /* A popup is rendered unfolded and in place: a plain block with its
        body as an ordinary region. Bootstrap's modal JS is never asked to
        open it, so there is no backdrop, no focus trap and no scroll lock */

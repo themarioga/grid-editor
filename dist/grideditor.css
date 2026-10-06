@@ -566,6 +566,11 @@
        data-ge-open says. Bootstrap's own collapse is not involved: its
        javascript is never asked to run over the canvas, so the state is
        driven from the attribute rather than from the .show class it animates */
+  /* A carousel shows one slide, the one Bootstrap's .active says, and the
+       container's drawer moves between them. Bootstrap's arrows and
+       indicators are drawn but the editor's javascript answers, not theirs:
+       a click goes through them to what is under, and a slide is changed
+       with no transition */
   /* A popup is rendered unfolded and in place: a plain block with its
        body as an ordinary region. Bootstrap's modal JS is never asked to
        open it, so there is no backdrop, no focus trap and no scroll lock */
@@ -808,6 +813,33 @@
 }
 .ge-canvas.ge-editing .ge-accordion-item > .ge-pane-drawer {
   padding: 2px 0;
+}
+.ge-canvas.ge-editing .ge-container-carousel .carousel-inner {
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-carousel .carousel-item {
+  transition: none;
+}
+.ge-canvas.ge-editing .ge-container-carousel .carousel-control-prev,
+.ge-canvas.ge-editing .ge-container-carousel .carousel-control-next,
+.ge-canvas.ge-editing .ge-container-carousel .carousel-indicators {
+  pointer-events: none;
+}
+.ge-canvas.ge-editing .ge-container-carousel .carousel-indicators {
+  z-index: 1;
+}
+.ge-canvas.ge-editing .ge-container-carousel .ge-carousel-counter {
+  min-width: 3em;
+  text-align: center;
+  text-decoration: none;
+  cursor: default;
+}
+.ge-canvas.ge-editing .ge-container-carousel .ge-carousel-item > .ge-pane-drawer {
+  padding: 2px 0;
+}
+.ge-canvas.ge-editing .ge-container-carousel .ge-tools-drawer .disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
 .ge-canvas.ge-editing .ge-container-popup {
   /* Folded away, for a page with several popups on it */

@@ -77,6 +77,40 @@ export interface CreateTabsOptions extends Placement, TabsOptions {
     labels?: string[];
 }
 
+/**
+ * A carousel's options, which are Bootstrap's classes and attributes: arrows,
+ * indicators, fade, dark theme, autoplay and its interval, and the pause,
+ * wrap, keyboard and touch behaviours. All on or off unless said, as
+ * Bootstrap has them.
+ */
+export interface CarouselOptions {
+    /** Previous and next arrows. Default true. */
+    controls?: boolean;
+    /** One indicator a slide. Default true. */
+    indicators?: boolean;
+    /** Slides fade into each other instead of sliding. Default false. */
+    fade?: boolean;
+    /** `data-bs-theme="dark"`. Default false. */
+    dark?: boolean;
+    /** Autoplay: false, `'carousel'` on load, `'true'` after the first interaction. Default false. */
+    ride?: false | 'carousel' | 'true';
+    /** Milliseconds, 1000 or more, between slides; null is Bootstrap's own. Default null. */
+    interval?: number | null;
+    /** Pauses while the pointer is over it. Default true. */
+    pause?: boolean;
+    /** Goes from the last slide to the first. Default true. */
+    wrap?: boolean;
+    /** Answers the arrow keys. Default true. */
+    keyboard?: boolean;
+    /** Answers a swipe. Default true. */
+    touch?: boolean;
+    /** How many slides a new one has, 1 or more. Default 2. */
+    slides?: number;
+}
+
+/** createContainer('carousel', …): the options, and how many slides. */
+export interface CreateCarouselOptions extends Placement, CarouselOptions {}
+
 /** The inline-style plugin's settings. */
 export interface InlineStyleOptions {
     /** Every section is on unless it is turned off here. */
@@ -104,6 +138,8 @@ export interface GridEditorOptions {
     container_tools?: HostTool[];
     tab_tools?: HostTool[];
     accordion_tools?: HostTool[];
+    /** Host tools on carousel slide drawers. */
+    carousel_tools?: HostTool[];
     text_tools?: HostTool[];
     drag_handle?: 'tool' | 'drawer';
     toolbar_drag?: 'auto' | boolean;
@@ -125,6 +161,8 @@ export interface GridEditorOptions {
     inline_style?: InlineStyleOptions;
     /** The tabs plugin: the variant of the tabs containers made new. */
     tabs?: TabsOptions;
+    /** The carousel plugin: the options of the carousels made new. */
+    carousel?: CarouselOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
     /** The autosave plugin: what is edited, kept in the browser's storage as it changes. */
     autosave?: AutosaveOptions;
@@ -211,7 +249,7 @@ export interface Cleared {
 
 /** What every notification carries. */
 export interface Payload {
-    /** What the node is: row, column, text, plain, element, tab, accordion-item, a container's type… */
+    /** What the node is: row, column, text, plain, element, tab, accordion-item, carousel-item, a container's type… */
     kind: string;
     node: HTMLElement;
     /** Where the node is going, or coming from on a delete; null while it is detached. */
@@ -297,6 +335,8 @@ export interface GridEditorEventMap {
     'grideditor:after-add-tab': Payload;
     'grideditor:before-add-accordion-item': Payload;
     'grideditor:after-add-accordion-item': Payload;
+    'grideditor:before-add-carousel-item': Payload;
+    'grideditor:after-add-carousel-item': Payload;
     'grideditor:before-add-section': Payload;
     'grideditor:after-add-section': Payload;
     'grideditor:before-delete': Payload;
@@ -437,9 +477,12 @@ export declare class GridEditor {
     createElement(content: string | Node | ArrayLike<Node>, options?: CreateElementOptions): HTMLElement | null;
     createSection(options?: CreateSectionOptions): HTMLElement | null;
     createContainer(type: 'tabs', options?: CreateTabsOptions): HTMLElement | null;
+    createContainer(type: 'carousel', options?: CreateCarouselOptions): HTMLElement | null;
     createContainer(type: string, options?: Placement & Record<string, unknown>): HTMLElement | null;
     addTab(container: Target, options?: PaneOptions): HTMLElement | null;
     addAccordionItem(container: Target, options?: PaneOptions): HTMLElement | null;
+    /** A pane added to a container of any type that has panes; a carousel's takes `interval`. Null for one that has none. */
+    addPane(container: Target, options?: PaneOptions & { interval?: number }): HTMLElement | null;
     /** A utility's value on a node in a view (the current one by default), or null. */
     getUtility(node: Target, family: string, view?: View): string | null;
     /** Write one through the events; null is inherit. False when canceled or nothing changed. */

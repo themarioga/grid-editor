@@ -23,7 +23,7 @@ function start(settings, extra) {
         delete GridEditor.features.mediaA;
         delete GridEditor.features.mediaB;
         delete GridEditor.features.paster;
-        delete GridEditor.containers.carousel;
+        delete GridEditor.containers.gallery;
         GridEditor.texts.simple = function() {
             return { labelKey: 'text.simple', start: function() {}, stop: function() {} };
         };
@@ -170,23 +170,23 @@ async function structureTests(t) {
     t.check('AC-12 a plugin\'s item in rows comes after the row buttons',
         same(joined.tabs, ['Rows', 'Content', 'Elements']) && same(joined.shown, ROWS.concat(['Stamp'])), joined);
 
-    var carousel = await page.eval(start({ toolbar_groups: true, extraPlugins: ['carousel'] }, `
-        GridEditor.containers.carousel = function() {
-            return { labelKey: 'carousel.add', group: 'slides', create: function() {
+    var gallery = await page.eval(start({ toolbar_groups: true, extraPlugins: ['gallery'] }, `
+        GridEditor.containers.gallery = function() {
+            return { labelKey: 'gallery.add', group: 'slides', create: function() {
                 const made = document.createElement('div');
-                made.setAttribute('data-ge-container', 'carousel');
+                made.setAttribute('data-ge-container', 'gallery');
                 return made;
             } };
         };
-        Object.assign(GridEditor.locales.en, { 'carousel.add': 'Carousel' });
+        Object.assign(GridEditor.locales.en, { 'gallery.add': 'Gallery' });
     `) + `
         const inContent = (document.querySelector('.ge-toolbar-groups [data-ge-group="content"]').click(),
             Array.from(document.querySelectorAll('.ge-toolbar-start [data-ge-toolbar]')).map(function(b) { return b.getAttribute('title'); }));
         document.querySelector('.ge-toolbar-groups [data-ge-group="slides"]').click();
     ` + `const state = (function() { ${STATE} })(); state.inContent = inContent; return state;`);
     t.check('AC-13 a container with a group is in that tab, not in Content',
-        same(carousel.tabs, ['Rows', 'Content', 'Elements', 'Carousel']) && same(carousel.shown, ['Carousel']) &&
-        carousel.inContent.indexOf('Carousel') < 0, carousel);
+        same(gallery.tabs, ['Rows', 'Content', 'Elements', 'Gallery']) && same(gallery.shown, ['Gallery']) &&
+        gallery.inContent.indexOf('Gallery') < 0, gallery);
 
     var end = await page.eval(start({ toolbar_groups: true, extraPlugins: ['paster'] }, `
         GridEditor.features.paster = function() {

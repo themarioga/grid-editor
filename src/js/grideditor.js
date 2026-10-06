@@ -32,6 +32,7 @@ var METHODS = {
     createContainer:  { value: true },
     addTab:           { value: true },
     addAccordionItem: { value: true },
+    addPane:          { value: true },
     setLocale:        {},
     getUtility:       { value: true },
     setUtility:       { value: true },
@@ -985,6 +986,17 @@ function build(instance, baseElem, optionsOrMethod) {
             if (fromPlugin) { return fromPlugin; }
 
             if (node.getAttribute('data-ge-container')) { return node.getAttribute('data-ge-container'); }
+
+            // A container plugin's pane, by the class it marks its panes with
+            var paneKind = null;
+            Object.keys(CONTAINERS).forEach(function(type) {
+                var definition = CONTAINERS[type];
+                if (!paneKind && definition.paneClass && dom.hasClass(node, definition.paneClass)) {
+                    paneKind = definition.paneKind;
+                }
+            });
+            if (paneKind) { return paneKind; }
+
             if (dom.hasClass(node, 'ge-tab')) { return 'tab'; }
             if (dom.hasClass(node, 'ge-accordion-item')) { return 'accordion-item'; }
             if (dom.hasClass(node, 'row')) { return 'row'; }
@@ -3150,7 +3162,7 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /* --------------------------------------------------------------
-         * Containers: tabs, accordions and popups.
+         * Containers: tabs, accordions, popups, carousels and cards.
          *
          * A container holds panes, and a pane is an ordinary canvas region -
          * rows, columns, content areas and elements nest inside one exactly
@@ -3260,6 +3272,7 @@ function build(instance, baseElem, optionsOrMethod) {
             if (definition.addPane) {
                 createTool(drawer, t(definition.addPaneKey), 'ge-add-pane', 'bi bi-plus-circle', function() {
                     var pane = definition.addPane(container, {});
+                    if (!pane) { return; }
 
                     addNode(definition.paneKind, pane, function() {}, {
                         parent: container,
@@ -3300,33 +3313,41 @@ function build(instance, baseElem, optionsOrMethod) {
          * for its selector to match, so the attribute is moved aside while
          * the editor needs the control not to react, and moved back on the
          * way out.
+         *
+         * The attributes are the ones Bootstrap's data api acts on: the tabs',
+         * accordions' and popups' toggles and dismisses, and a carousel's
+         * slide controls and autoplay.
          */
+        var TOGGLE_ATTRIBUTES = ['toggle', 'dismiss', 'slide', 'slide-to', 'ride'];
+
         function suspendToggles(scope) {
             if (!scope) { return; }
 
-            dom.selfAndAll(scope, '[data-bs-toggle], [data-bs-dismiss]').forEach(function(node) {
-                ['toggle', 'dismiss'].forEach(function(name) {
-                    var value = node.getAttribute('data-bs-' + name);
-                    if (value === null) { return; }
+            dom.selfAndAll(scope, TOGGLE_ATTRIBUTES.map(function(name) { return '[data-bs-' + name + ']'; }).join(', '))
+                .forEach(function(node) {
+                    TOGGLE_ATTRIBUTES.forEach(function(name) {
+                        var value = node.getAttribute('data-bs-' + name);
+                        if (value === null) { return; }
 
-                    node.setAttribute('data-ge-bs-' + name, value);
-                    node.removeAttribute('data-bs-' + name);
+                        node.setAttribute('data-ge-bs-' + name, value);
+                        node.removeAttribute('data-bs-' + name);
+                    });
                 });
-            });
         }
 
         function resumeToggles(scope) {
             if (!scope) { return; }
 
-            dom.selfAndAll(scope, '[data-ge-bs-toggle], [data-ge-bs-dismiss]').forEach(function(node) {
-                ['toggle', 'dismiss'].forEach(function(name) {
-                    var value = node.getAttribute('data-ge-bs-' + name);
-                    if (value === null) { return; }
+            dom.selfAndAll(scope, TOGGLE_ATTRIBUTES.map(function(name) { return '[data-ge-bs-' + name + ']'; }).join(', '))
+                .forEach(function(node) {
+                    TOGGLE_ATTRIBUTES.forEach(function(name) {
+                        var value = node.getAttribute('data-ge-bs-' + name);
+                        if (value === null) { return; }
 
-                    node.setAttribute('data-bs-' + name, value);
-                    node.removeAttribute('data-ge-bs-' + name);
+                        node.setAttribute('data-bs-' + name, value);
+                        node.removeAttribute('data-ge-bs-' + name);
+                    });
                 });
-            });
         }
 
         /**
@@ -4480,6 +4501,11 @@ function build(instance, baseElem, optionsOrMethod) {
 
             if (CONTAINERS[kind] && CONTAINERS[kind].labelKey) { return t(CONTAINERS[kind].labelKey); }
 
+            var paneLabel = Object.keys(CONTAINERS).filter(function(type) {
+                return CONTAINERS[type].paneKind === kind && CONTAINERS[type].paneLabelKey;
+            })[0];
+            if (paneLabel) { return t(CONTAINERS[paneLabel].paneLabelKey); }
+
             switch (kind) {
                 case 'row': return t('panel.kind_row');
                 case 'column': return t('panel.kind_column');
@@ -5437,12 +5463,26 @@ function build(instance, baseElem, optionsOrMethod) {
             }
 
             var pane = definition.addPane(container, options);
+            if (!pane) { return null; }
 
             return addNode(definition.paneKind, pane, function() {}, {
                 parent: container,
                 source: 'api',
                 container: container,
             });
+        }
+
+        /** A pane appended to a container of any type that has panes. */
+        function apiAddPane(container, options) {
+            container = nodeFrom(container);
+
+            var type = containerTypeOf(container);
+            if (!CONTAINERS[type] || !CONTAINERS[type].addPane) {
+                warn('addPane: this is not a container with panes');
+                return null;
+            }
+
+            return addPaneTo(container, type, options);
         }
 
         /**
@@ -5868,6 +5908,7 @@ function build(instance, baseElem, optionsOrMethod) {
             addAccordionItem: function(container, options) {
                 return addPaneTo(container, 'accordion', options);
             },
+            addPane: apiAddPane,
             setLocale: setLocale,
             getUtility: getUtility,
             setUtility: setUtility,
@@ -5930,13 +5971,13 @@ function build(instance, baseElem, optionsOrMethod) {
 GridEditor._created = [];
 
 /**
- * Container plugins: tabs, accordions, popups, and whatever a host writes.
+ * Container plugins: tabs, accordions, popups, carousels, cards, and whatever a host writes.
  *
  * A plugin is a factory registered under the type it builds, called once per
  * editor with the handle described in docs/plugins.md. Loading its file is
  * what makes the type available; the `plugins` setting narrows that list.
  *
- *   GridEditor.containers.carousel = function(ge) {
+ *   GridEditor.containers.gallery = function(ge) {
  *       return { labelKey: ..., create: ..., mark: ..., unmark: ... };
  *   };
  */

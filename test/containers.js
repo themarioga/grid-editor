@@ -164,7 +164,7 @@ async function creationTests(t) {
         };
     `);
     t.check('every container plugin the page loaded is offered by the toolbar',
-        loaded.registered.join(',') === 'accordion,card,popup,tabs' &&
+        loaded.registered.join(',') === 'accordion,card,carousel,popup,tabs' &&
         loaded.offered.join(',') === 'accordion,card,popup,tabs',
         loaded);
 
@@ -185,12 +185,12 @@ async function creationTests(t) {
         const original = console.warn;
         console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); original.apply(console, arguments); };
 
-        window.fixture.init({ plugins: ['tabs', 'carousel'] });
+        window.fixture.init({ plugins: ['tabs', 'gallery'] });
         console.warn = original;
 
         return {
             offered: all('.ge-addContainerGroup a').length,
-            warnings: window.warnings.filter(w => /carousel/.test(w)),
+            warnings: window.warnings.filter(w => /gallery/.test(w)),
         };
     `);
     t.check('a plugin that was named but never loaded says so and changes nothing else',
@@ -227,7 +227,7 @@ async function paneTests(t) {
             activeTabs: all('.nav-link.active', tabs).length,
         };
     `);
-    t.check('addTab and addAccordionItem add a pane and hand it back',
+    t.check('AC-50 addTab and addAccordionItem add a pane and hand it back',
         added.paneIsPane && added.bodyIsBody && added.tabs === 3 && added.panes === 3 &&
         added.items === 2 && added.activeTabs === 1,
         added);
@@ -238,6 +238,45 @@ async function paneTests(t) {
             ['tab', 'tool', 'tabs'],
         ]),
         added.log);
+
+    var generic = await page.eval(EMPTY_CANVAS + `
+        window.log = [];
+        window.warnings = [];
+        const original = console.warn;
+        console.warn = function() { window.warnings.push(Array.prototype.join.call(arguments, ' ')); original.apply(console, arguments); };
+
+        window.fixture.init();
+        const column = one('#myGrid .column');
+        const tabs = ge().createContainer('tabs', { tabs: 1, appendTo: column });
+        const accordion = ge().createContainer('accordion', { items: 1, appendTo: column });
+        const card = ge().createContainer('card', { appendTo: column });
+
+        listen('grideditor:after-add', function(e, payload) { window.log.push(payload.kind + ':' + payload.source); });
+        window.log = [];
+
+        const pane = ge().addPane(tabs, { label: 'Second' });
+        const body = ge().addPane(accordion, { label: 'Second item' });
+        const onRow = ge().addPane(one('#myGrid .row'), {});
+        const onCard = ge().addPane(card);
+        console.warn = original;
+
+        return {
+            pane: !!pane && pane.classList.contains('tab-pane'),
+            label: all('.ge-tab', tabs).map(function(tab) { return tab.textContent.trim(); }).join(','),
+            body: !!body && body.classList.contains('accordion-body'),
+            items: all('.accordion-item', accordion).length,
+            log: window.log.join(','),
+            onRow: onRow, onCard: onCard,
+            warnings: window.warnings.filter(function(each) { return /addPane/.test(each); }).length,
+        };
+    `);
+    t.check('AC-48 addPane adds a tab or an accordion item as addTab and addAccordionItem do',
+        generic.pane && /Second/.test(generic.label) && generic.body && generic.items === 2 &&
+        generic.log === 'tab:api,accordion-item:api',
+        generic);
+    t.check('AC-49 addPane on a row or a card warns and gives null',
+        generic.onRow === null && generic.onCard === null && generic.warnings === 2,
+        generic);
 
     var deleted = await page.eval(`
         window.fixture.init({ confirm_delete: false });

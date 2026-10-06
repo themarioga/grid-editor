@@ -1,7 +1,7 @@
 Writing a plugin
 ================
 
-Tabs, accordions, popups, cards and the element level controls are not built
+Tabs, accordions, popups, carousels, cards and the element level controls are not built
 into grid-editor: each is a file you load beside it, and loading the file is
 what turns the feature on. `grideditor.card.js` is the shortest of them, and
 the one to read first if you are about to write your own.
@@ -51,23 +51,26 @@ called once per editor, with the handle below, and returns the definition:
 
 ```javascript
 Object.assign(GridEditor.locales.en, {
-    'container.add_carousel': 'Carousel',
-    'container.carousel_label': 'Slide {number}',
+    'container.add_gallery': 'Gallery',
+    'container.gallery_label': 'Picture {number}',
 });
 
-GridEditor.containers.carousel = function(ge) {
+GridEditor.containers.gallery = function(ge) {
 
-    function addSlideTo(container, options) { … }
+    function addPictureTo(container, options) { … }
 
     return {
-        labelKey: 'container.add_carousel',   // the toolbar button's label
+        labelKey: 'container.add_gallery',    // the toolbar button's label
         iconClass: 'bi bi-images',            // optional: the button shows it in place of the label
         group: 'media',                       // optional: its toolbar tab, with toolbar_groups
-        addPaneKey: 'container.add_slide',    // the drawer's add pane tool
-        paneKind: 'slide',                    // the kind its panes report
+        addPaneKey: 'container.add_picture',  // the drawer's add pane tool
+        paneKind: 'picture',                  // the kind its panes report
+        paneClass: 'ge-picture',              // optional: the class mark gives its panes, which is how
+                                              // the editor knows one is a picture
+        paneLabelKey: 'panel.kind_picture',   // optional: what a pane's settings panel calls it
 
         create: function(options) { … },              // returns the container
-        addPane: addSlideTo,                          // returns the new pane
+        addPane: addPictureTo,                        // returns the new pane
         mark: function(container) { … },              // editing furniture on
         unmark: function(container) { … },            // and off again
         cleanMarkup: function(root, liveOf) { … },     // the same, on a copy: see "Reading on a copy"
@@ -86,11 +89,11 @@ it is imported, which is how the shipped plugins' modules work:
 ```javascript
 import { GridEditor } from '@themarioga/grid-editor';
 
-GridEditor.containers.carousel = function(ge) { … };
+GridEditor.containers.gallery = function(ge) { … };
 ```
 
 A page or an app imports it for that side effect, after the editor:
-`import './carousel.js'`. Either way there is one registry per page, and the
+`import './gallery.js'`. Either way there is one registry per page, and the
 editors made after a plugin registered have it.
 
 Everything the editor hands a plugin, and everything a plugin hands back, is
@@ -141,11 +144,11 @@ element, and where there may be several, an array.
 | `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover or modal `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
 | `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
-| `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete |
+| `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete. Returns the drawer, for a plugin that wants other tools in it |
 | `ge.makeLabelEditable(label)` | Rename in place, with the Bootstrap toggle suspended while typing |
 | `ge.labelIn(button)` | The label span inside a button, wrapped if it is not already |
 | `ge.unwrapLabels(scope)` | Take those wrappers off again, for `unmark` |
-| `ge.suspendToggles(scope)` / `ge.resumeToggles(scope)` | Move `data-bs-toggle` aside while editing, and back on the way out |
+| `ge.suspendToggles(scope)` / `ge.resumeToggles(scope)` | Move the attributes Bootstrap's data api acts on - `data-bs-toggle`, `data-bs-dismiss`, `data-bs-slide`, `data-bs-slide-to` and `data-bs-ride` - aside while editing, and back on the way out. They take `scope` and everything under it: a plugin whose container holds others passes the elements that are its own |
 | `ge.emit(name, payload)` | Fire an event and its callbacks; false means a handler canceled |
 | `ge.payloadFor(kind, node, extra)` | Build a payload the documented way |
 | `ge.operate(body)` | Run `body` as one operation, so a handler calling back in is queued |
@@ -297,7 +300,7 @@ is, called for each container of the type under `root`:
 ```javascript
 cleanMarkup: function(root) {
     var definition = this;
-    root.querySelectorAll('[data-ge-container="carousel"]').forEach(function(container) {
+    root.querySelectorAll('[data-ge-container="gallery"]').forEach(function(container) {
         definition.unmark(container);
     });
 },

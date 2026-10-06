@@ -124,7 +124,7 @@ async function dispatchTests(t) {
     var wrongArguments = await page.eval(`
         const ge = window.fixture.editor();
         return {
-            unknownType: ge.createContainer('carousel'),
+            unknownType: ge.createContainer('gallery'),
             wrongContainer: ge.addTab(document.querySelector('#myGrid .row')),
             warnings: window.warnings.filter(w => /container/.test(w)),
         };

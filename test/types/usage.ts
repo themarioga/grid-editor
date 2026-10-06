@@ -5,7 +5,7 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { AutosaveDraft, AutosavePayload, GridEditorOptions, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { AutosaveDraft, CarouselOptions, AutosavePayload, GridEditorOptions, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
@@ -81,7 +81,13 @@ ge.canvas.addEventListener('grideditor:after-utility', function(event) {
 
 GridEditor.Sortable = {};
 GridEditor.bootstrap = { Modal: function() {} };
-GridEditor.containers.carousel = function() { return { labelKey: 'carousel.add' }; };
+GridEditor.containers.gallery = function() { return { labelKey: 'gallery.add' }; };
+
+const carousel = ge.createContainer('carousel', { slides: 3, fade: true, ride: 'carousel', interval: 4000, controls: false });
+if (carousel) { ge.addPane(carousel, { interval: 8000 }); }
+new GridEditor('#other', { carousel: { dark: true, ride: 'true', pause: false }, carousel_tools: [] });
+// @ts-expect-error ride is false, 'carousel' or 'true'
+const autoplay: CarouselOptions = { ride: 'always' };
 
 // @ts-expect-error a view is a breakpoint key or 'all'
 ge.changeView('huge');

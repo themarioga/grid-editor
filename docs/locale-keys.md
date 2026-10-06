@@ -36,7 +36,11 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.delete_column` | Remove col | Column drawer |
 | `tool.delete_element` | Remove element | Element drawer |
 | `tool.delete_container` | Remove container | Container drawer |
-| `tool.delete_pane` | Remove pane | Drawer of a tab or an accordion item |
+| `tool.delete_pane` | Remove pane | Drawer of a tab, an accordion item or a carousel slide |
+| `tool.carousel_show_previous` | Previous slide | Carousel drawer, shows the previous slide |
+| `tool.carousel_show_next` | Next slide | Carousel drawer, shows the next slide |
+| `tool.carousel_move_back` | Move back | Slide drawer, moves the slide a place back |
+| `tool.carousel_move_forward` | Move forward | Slide drawer, moves the slide a place on |
 | `tool.rename` | Double click to rename | Tooltip of a pane's label, which is edited in place |
 | `tool.toggle_popup` | Fold this popup away while editing | Popup drawer. Editing shows a popup unfolded, and this folds it away |
 | `tool.element_info` | Element: {name} | Tooltip of the element drawer's info tool. `{name}` is the element's `data-ge-label`, its `data-ge-element` type, or both |
@@ -90,12 +94,13 @@ title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
 | `panel.kind_section` | Section | For a section |
 | `panel.kind_tab` | Tab | For a tab |
 | `panel.kind_accordion_item` | Accordion item | For an accordion item |
+| `panel.kind_carousel_item` | Slide | For a carousel slide |
 
 
 container.*
 -----------
 
-The containers: tabs, accordions and popups, and the panes inside them.
+The containers: tabs, accordions, popups, carousels and cards, and the panes inside them.
 
 | Key | English | Where |
 | --- | --- | --- |
@@ -122,6 +127,27 @@ The containers: tabs, accordions and popups, and the panes inside them.
 | `container.add_accordion` | Accordion | Toolbar button that adds an accordion |
 | `container.add_accordion_item` | Add item | Container drawer, adds an item |
 | `container.accordion_label` | Item {number} | Label of a new accordion item |
+| `container.add_carousel` | Carousel | Toolbar button that adds a carousel |
+| `container.add_carousel_item` | Add slide | Container drawer, adds a slide |
+| `container.carousel_previous` | Previous | The text, hidden, of a carousel's previous arrow in the page |
+| `container.carousel_next` | Next | The same for the next arrow |
+| `container.carousel_slide_label` | Slide {number} | `aria-label` of a carousel's indicator. `{number}` is the slide's position |
+| `container.carousel_counter` | {current} / {total} | The container's drawer says which slide is shown, and how many there are |
+| `container.carousel_section` | Carousel | Heading of the carousel's section of its settings panel |
+| `container.carousel_controls` | Arrows | Its checkbox for the previous and next arrows |
+| `container.carousel_indicators` | Indicators | Its checkbox for the indicators |
+| `container.carousel_fade` | Fade | Its checkbox for `carousel-fade` |
+| `container.carousel_dark` | Dark theme | Its checkbox for `data-bs-theme="dark"` |
+| `container.carousel_ride` | Autoplay | Its autoplay select, `data-bs-ride` |
+| `container.carousel_ride_no` | No | Its choice for no autoplay |
+| `container.carousel_ride_load` | On load | Its choice for `data-bs-ride="carousel"` |
+| `container.carousel_ride_interaction` | After first interaction | Its choice for `data-bs-ride="true"` |
+| `container.carousel_interval` | Interval (s) | The interval field, in seconds, of the carousel's section and of a slide's. `data-bs-interval` |
+| `container.carousel_pause` | Pause on hover | Its checkbox for `data-bs-pause` |
+| `container.carousel_wrap` | Wrap around | Its checkbox for `data-bs-wrap` |
+| `container.carousel_keyboard` | Keyboard | Its checkbox for `data-bs-keyboard` |
+| `container.carousel_touch` | Touch swipe | Its checkbox for `data-bs-touch` |
+| `container.carousel_item_section` | Slide | Heading of a slide's section of its settings panel |
 | `container.add_popup` | Popup | Toolbar button that adds a popup |
 | `container.popup_title` | Title | Title of a new popup, in its modal header |
 | `container.popup_trigger` | Open | Label of the button a popup makes to open itself |
@@ -234,6 +260,7 @@ browser's own confirm instead.
 | `confirm.delete_container` | Delete this container and everything in it? | Before a container is removed |
 | `confirm.delete_tab` | Delete this tab and everything in it? | Before a tab and its pane are removed |
 | `confirm.delete_accordion_item` | Delete this item and everything in it? | Before an accordion item is removed |
+| `confirm.delete_carousel_item` | Delete this slide and everything in it? | Before a carousel slide is removed |
 
 
 view.*

@@ -23,6 +23,7 @@
     <script src="../dist/plugins/grideditor.accordion.min.js"></script>
     <script src="../dist/plugins/grideditor.popup.min.js"></script>
     <script src="../dist/plugins/grideditor.card.min.js"></script>
+    <script src="../dist/plugins/grideditor.carousel.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -87,9 +88,9 @@
                 <p class="form-text">
                     A container holds regions, and every region is an ordinary
                     one: rows, columns, content areas and elements nest inside
-                    it exactly as they do at the top level. The four buttons in
-                    the toolbar add a tabs container, an accordion, a popup and
-                    a card &mdash; the first three hold a pane each, a card
+                    it exactly as they do at the top level. The five buttons in
+                    the toolbar add a tabs container, an accordion, a popup, a
+                    carousel and a card &mdash; the first four hold a pane each, a card
                     holds one region and an editable header.
                 </p>
                 <p class="form-text">
@@ -104,7 +105,11 @@
                     an accordion item. A tabs container's gear has a Tabs
                     section for its variant - tabs, pills or underline, full
                     width, alignment, and vertical from a breakpoint up - and
-                    the last row has two of them.
+                    the row after has two of them. The last row is a carousel:
+                    one slide shows at a time, the arrows in its drawer move
+                    between them, and the gear has a Carousel section for
+                    fade, autoplay and the rest of Bootstrap's options, and a
+                    slide&rsquo;s own gear has its interval.
                 </p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
                 <button class="btn btn-sm btn-primary" id="authored" type="button">Open that html as a real page</button>
@@ -296,6 +301,41 @@
                                     <div class="ge-content" data-ge-content-type="tinymce"><p>The third.</p></div>
                                 </div></div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <div data-ge-container="carousel">
+                        <div class="carousel slide carousel-fade" id="example-carousel" data-bs-ride="carousel" data-bs-interval="5000">
+                            <div class="carousel-indicators">
+                                <button type="button" data-bs-target="#example-carousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                <button type="button" data-bs-target="#example-carousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                            </div>
+                            <div class="carousel-inner">
+                                <div class="carousel-item active">
+                                    <div class="row"><div class="col-lg-12">
+                                        <div class="ge-content" data-ge-content-type="tinymce"><p>A carousel that fades and starts by itself on the page. In the editor it stays on one slide until you move it with the arrows in its drawer.</p></div>
+                                    </div></div>
+                                </div>
+                                <div class="carousel-item" data-bs-interval="2000">
+                                    <div class="row"><div class="col-lg-6">
+                                        <div class="ge-content" data-ge-content-type="tinymce"><p>A slide is a region like any other, and this one stays for two seconds only.</p></div>
+                                    </div><div class="col-lg-6">
+                                        <div class="ge-content" data-ge-content-type="tinymce"><p>So it takes rows and columns of its own.</p></div>
+                                    </div></div>
+                                </div>
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#example-carousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#example-carousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
                         </div>
                     </div>
                 </div>

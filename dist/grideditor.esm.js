@@ -323,6 +323,7 @@ var METHODS = {
   createContainer: { value: true },
   addTab: { value: true },
   addAccordionItem: { value: true },
+  addPane: { value: true },
   setLocale: {},
   getUtility: { value: true },
   setUtility: { value: true },
@@ -1031,6 +1032,16 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     if (node.getAttribute("data-ge-container")) {
       return node.getAttribute("data-ge-container");
+    }
+    var paneKind = null;
+    Object.keys(CONTAINERS).forEach(function(type) {
+      var definition = CONTAINERS[type];
+      if (!paneKind && definition.paneClass && hasClass(node, definition.paneClass)) {
+        paneKind = definition.paneKind;
+      }
+    });
+    if (paneKind) {
+      return paneKind;
     }
     if (hasClass(node, "ge-tab")) {
       return "tab";
@@ -2794,6 +2805,9 @@ function build(instance, baseElem, optionsOrMethod) {
     if (definition.addPane) {
       createTool(drawer, t(definition.addPaneKey), "ge-add-pane", "bi bi-plus-circle", function() {
         var pane = definition.addPane(container, {});
+        if (!pane) {
+          return;
+        }
         addNode(definition.paneKind, pane, function() {
         }, {
           parent: container,
@@ -2815,12 +2829,15 @@ function build(instance, baseElem, optionsOrMethod) {
     });
     return drawer;
   }
+  var TOGGLE_ATTRIBUTES = ["toggle", "dismiss", "slide", "slide-to", "ride"];
   function suspendToggles(scope) {
     if (!scope) {
       return;
     }
-    selfAndAll(scope, "[data-bs-toggle], [data-bs-dismiss]").forEach(function(node) {
-      ["toggle", "dismiss"].forEach(function(name) {
+    selfAndAll(scope, TOGGLE_ATTRIBUTES.map(function(name) {
+      return "[data-bs-" + name + "]";
+    }).join(", ")).forEach(function(node) {
+      TOGGLE_ATTRIBUTES.forEach(function(name) {
         var value = node.getAttribute("data-bs-" + name);
         if (value === null) {
           return;
@@ -2834,8 +2851,10 @@ function build(instance, baseElem, optionsOrMethod) {
     if (!scope) {
       return;
     }
-    selfAndAll(scope, "[data-ge-bs-toggle], [data-ge-bs-dismiss]").forEach(function(node) {
-      ["toggle", "dismiss"].forEach(function(name) {
+    selfAndAll(scope, TOGGLE_ATTRIBUTES.map(function(name) {
+      return "[data-ge-bs-" + name + "]";
+    }).join(", ")).forEach(function(node) {
+      TOGGLE_ATTRIBUTES.forEach(function(name) {
         var value = node.getAttribute("data-ge-bs-" + name);
         if (value === null) {
           return;
@@ -3723,6 +3742,12 @@ function build(instance, baseElem, optionsOrMethod) {
     if (CONTAINERS[kind] && CONTAINERS[kind].labelKey) {
       return t(CONTAINERS[kind].labelKey);
     }
+    var paneLabel = Object.keys(CONTAINERS).filter(function(type) {
+      return CONTAINERS[type].paneKind === kind && CONTAINERS[type].paneLabelKey;
+    })[0];
+    if (paneLabel) {
+      return t(CONTAINERS[paneLabel].paneLabelKey);
+    }
     switch (kind) {
       case "row":
         return t("panel.kind_row");
@@ -4356,12 +4381,24 @@ function build(instance, baseElem, optionsOrMethod) {
       return null;
     }
     var pane = definition.addPane(container, options);
+    if (!pane) {
+      return null;
+    }
     return addNode(definition.paneKind, pane, function() {
     }, {
       parent: container,
       source: "api",
       container
     });
+  }
+  function apiAddPane(container, options) {
+    container = nodeFrom(container);
+    var type = containerTypeOf(container);
+    if (!CONTAINERS[type] || !CONTAINERS[type].addPane) {
+      warn("addPane: this is not a container with panes");
+      return null;
+    }
+    return addPaneTo(container, type, options);
   }
   function settingsCopy() {
     var copy = {};
@@ -4652,6 +4689,7 @@ function build(instance, baseElem, optionsOrMethod) {
     addAccordionItem: function(container, options) {
       return addPaneTo(container, "accordion", options);
     },
+    addPane: apiAddPane,
     setLocale,
     getUtility,
     setUtility,

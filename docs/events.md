@@ -63,12 +63,14 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-add-row` | `grideditor:after-add` | no | after insertion, once the canvas is up to date |
 | `grideditor:before-add-column` | `grideditor:before-add` | yes | before a column is inserted |
 | `grideditor:after-add-column` | `grideditor:after-add` | no | |
-| `grideditor:before-add-container` | `grideditor:before-add` | yes | before a container is inserted; `payload.kind` is `tabs`, `accordion` or `popup` |
+| `grideditor:before-add-container` | `grideditor:before-add` | yes | before a container is inserted; `payload.kind` is `tabs`, `accordion`, `popup`, `carousel` or `card` |
 | `grideditor:after-add-container` | `grideditor:after-add` | no | |
 | `grideditor:before-add-tab` | `grideditor:before-add` | yes | before a tab is added to a tabs container |
 | `grideditor:after-add-tab` | `grideditor:after-add` | no | |
 | `grideditor:before-add-accordion-item` | `grideditor:before-add` | yes | before an item is added to an accordion |
 | `grideditor:after-add-accordion-item` | `grideditor:after-add` | no | |
+| `grideditor:before-add-carousel-item` | `grideditor:before-add` | yes | before a slide is added to a carousel |
+| `grideditor:after-add-carousel-item` | `grideditor:after-add` | no | |
 | `grideditor:before-add-element` | `grideditor:before-add` | yes | before an element is inserted |
 | `grideditor:after-add-element` | `grideditor:after-add` | no | |
 | `grideditor:before-add-text` | `grideditor:before-add` | yes | before a text block is inserted, from the add text tool, the toolbar or `createText` |
@@ -97,7 +99,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
 because the indent tools are an operation like any other and announce
-themselves like one. And the add events for panes — a tab, an accordion item —
+themselves like one. And the add events for panes — a tab, an accordion item, a carousel slide —
 which follow the same pattern as the rest.
 
 
@@ -107,7 +109,7 @@ The payload
 ```javascript
 {
     kind: 'row',          // row | column | text | plain | element
-                          // tabs | accordion | popup | tab | accordion-item
+                          // tabs | accordion | popup | carousel | card | tab | accordion-item | carousel-item
                           // section, with the sections plugin
     node: Element,        // the node added, deleted, moved or resized
     parent: Element,      // where it is going, or where it came from on a delete;
@@ -115,6 +117,7 @@ The payload
     canvas: Element,
     breakpoint: 'lg',     // the view at the time: a breakpoint key, or 'all'
     source: 'tool',       // tool | api | dragdrop | panel (a width chosen in the panel)
+                          // a carousel slide moved a place with its arrows is a move with source 'tool'
 
     // move only
     from: { parent: Element, index: 2 },

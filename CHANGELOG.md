@@ -5,6 +5,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [8.8.0] - 2026-10-06
+
+### Added
+- The carousel plugin, `dist/plugins/grideditor.carousel.js`: a Bootstrap 5
+  carousel whose slides are regions. One slide shows at a time, the arrows in
+  the container's drawer move between them and each slide's drawer moves it a
+  place; Bootstrap's own arrows and indicators are drawn but do not answer.
+  `getHtml` gives the carousel starting at the first slide.
+- A carousel's options - arrows, indicators, fade, dark theme, autoplay and
+  its interval, pause, wrap, keyboard and touch - in a *Carousel* section of
+  its settings panel, in the `carousel` setting for the ones made new, and in
+  the options of `createContainer('carousel', …)`; a slide's own interval in
+  its settings panel. The setting `carousel_tools` adds host tools to a slide's
+  drawer.
+- `addPane(container, options?)` adds a pane to a container of any type that
+  has them, and `addTab` and `addAccordionItem` stay as they were.
+- For plugins: a container's definition can have `paneClass` and
+  `paneLabelKey`, which is how the editor names its panes in events and in
+  their settings panel; and `ge.suspendToggles` and `ge.resumeToggles` put
+  aside `data-bs-slide`, `data-bs-slide-to` and `data-bs-ride` as well.
+
 ## [8.7.1] - 2026-10-02
 
 ### Fixed
