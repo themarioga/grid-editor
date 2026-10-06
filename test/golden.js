@@ -7,6 +7,10 @@
  * baseline in test/fixtures/golden/ was recorded from the 6.0.0 dist, before
  * any of that rewrite, and every later build has to give it back.
  *
+ * One change since was deliberate: the tabs plugin's ge-tab class, which
+ * 6.0.0 left on the tabs, no longer goes out in getHtml, so the baseline has
+ * it out too.
+ *
  *   npm test -- golden              compare with the baseline
  *   RECORD=1 npm test -- golden     write the baseline again (only on 6.0.0)
  *

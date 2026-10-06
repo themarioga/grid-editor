@@ -278,6 +278,18 @@ async function paneTests(t) {
         generic.onRow === null && generic.onCard === null && generic.warnings === 2,
         generic);
 
+    var tabClasses = await page.eval(EMPTY_CANVAS + `
+        window.fixture.init();
+        const tabs = ge().createContainer('tabs', { tabs: 2, appendTo: one('#myGrid .column') });
+        const parsed = parse(ge().getHtml());
+        return {
+            exported: all('[data-ge-container="tabs"] > .nav > li', parsed).map(function(tab) { return tab.className; }).join(','),
+            editing: all('.ge-tab', tabs).length,
+        };
+    `);
+    t.check('getHtml gives the tabs without the editor\'s ge-tab, and the canvas keeps it while editing',
+        tabClasses.exported === 'nav-item,nav-item' && tabClasses.editing === 2, tabClasses);
+
     var deleted = await page.eval(`
         window.fixture.init({ confirm_delete: false });
         window.deleteLog = [];

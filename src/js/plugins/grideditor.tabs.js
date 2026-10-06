@@ -425,6 +425,10 @@ GridEditor.containers.tabs = function(ge) {
             dom.all(container, '.ge-tab-pane').forEach(function(pane) {
                 dom.removeClass(pane, 'ge-tab-pane');
             });
+            dom.all(container, '.ge-tab').forEach(function(tab) {
+                dom.removeClass(tab, 'ge-tab');
+                dom.dropEmptyClass(tab);
+            });
             ge.unwrapLabels(container);
         },
 

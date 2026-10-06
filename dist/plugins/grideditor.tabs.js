@@ -471,6 +471,10 @@
         all(container, ".ge-tab-pane").forEach(function(pane) {
           removeClass(pane, "ge-tab-pane");
         });
+        all(container, ".ge-tab").forEach(function(tab) {
+          removeClass(tab, "ge-tab");
+          dropEmptyClass(tab);
+        });
         ge.unwrapLabels(container);
       },
       // The same, on a copy of the canvas: unmark only touches markup

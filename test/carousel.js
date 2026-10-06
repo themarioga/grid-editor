@@ -665,8 +665,7 @@ async function integrationTests(t, page) {
         all('.nav-link', inner)[1].click();
         await wait(400);
         const innerShown = all(':scope > .tab-content > .tab-pane', inner).map(function(pane) { return pane.classList.contains('active'); }).join();
-        // The tabs plugin leaves ge-tab on its tabs, as it always has: not the carousel's to judge
-        const html = ge().getHtml().replace(/ ge-tab"/g, '"');
+        const html = ge().getHtml();
         return { outer: counter(outer), tabsShown, innerShown, clean: !/class="[^"]*\\bge-|data-ge-bs/.test(html) };
     `);
     t.check('AC-54 a carousel inside a tab moves without changing the tab, the tabs in its slide still switch, and the markup is clean',
