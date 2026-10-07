@@ -49,6 +49,17 @@ var METHODS = {
 var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
 
 /**
+ * The attributes that point at an id, as the id itself or as a #selector.
+ * A copy that has to take new ids (see freshNode) takes them here too, so
+ * its tabs, its accordion and its popups still point at their own panes.
+ */
+var REFERENCES = ['data-bs-target', 'data-bs-parent', 'href', 'aria-controls', 'aria-labelledby',
+    'aria-describedby', 'for', 'data-ge-popup-id', 'data-ge-popup-target'];
+
+/** An id grid-editor generated: ge-{type}-{counter}-{random}. */
+var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
+
+/**
  * Bootstrap 5's breakpoints, smallest first, which is the order the cascade
  * runs in: a size written for a tier applies to every wider tier that does not
  * override it. Every size and offset class grid-editor reads or writes comes
@@ -2540,6 +2551,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 t: t,
                 warn: warn,
                 containerId: containerId,
+                freshNode: freshNode,
                 defaultRegion: defaultRegion,
                 createTool: createTool,
                 createMoveTool: createMoveTool,
@@ -3264,6 +3276,66 @@ function build(instance, baseElem, optionsOrMethod) {
 
             return 'ge-' + type + '-' + containerCounter + '-' +
                 Math.random().toString(36).slice(2, 6);
+        }
+
+        /**
+         * Markup as a node, with new ids where the page already has them: two
+         * copies of a tab strip pointing at one set of panes is a tab strip that
+         * opens the other copy's tabs. An id the page does not have is kept, so
+         * markup that goes into another page changes nothing. The clipboard
+         * pastes through it, and a host inserting saved markup should too.
+         *
+         * Parsed the way innerHTML parses, so a <script> in the markup is markup,
+         * placed like the rest, and does not run in the editor.
+         */
+        function freshNode(html) {
+            var node = dom.create(html);
+            var renamed = {};
+            var taken = function(id) {
+                return !!document.getElementById(id) || Object.keys(renamed).some(function(old) {
+                    return renamed[old] === id;
+                });
+            };
+
+            dom.selfAndAll(node, '[id]').forEach(function(element) {
+                var id = element.id;
+                if (!document.getElementById(id)) { return; }
+
+                var generated = GENERATED_ID.exec(id);
+                var next;
+
+                if (generated) {
+                    do { next = containerId(generated[1]); } while (taken(next));
+                } else {
+                    var n = 2;
+                    while (taken(id + '-' + n)) { n++; }
+                    next = id + '-' + n;
+                }
+
+                renamed[id] = next;
+                element.id = next;
+            });
+
+            if (!Object.keys(renamed).length) { return node; }
+
+            dom.selfAndAll(node, '*').forEach(function(element) {
+                REFERENCES.forEach(function(name) {
+                    var value = element.getAttribute(name);
+                    if (value === null) { return; }
+                    if (name === 'href' && value.charAt(0) !== '#') { return; }
+
+                    var rewritten = value.split(/(\s+)/).map(function(token) {
+                        if (renamed[token]) { return renamed[token]; }
+                        if (token.charAt(0) === '#' && renamed[token.slice(1)]) { return '#' + renamed[token.slice(1)]; }
+
+                        return token;
+                    }).join('');
+
+                    if (rewritten !== value) { element.setAttribute(name, rewritten); }
+                });
+            });
+
+            return node;
         }
 
         /** A pane's starting content: one full width column, ready to edit. */

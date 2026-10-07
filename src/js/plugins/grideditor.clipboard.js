@@ -46,17 +46,6 @@ var TARGETS = {
     section: ['row'],
 };
 
-/**
- * The attributes that point at an id, as the id itself or as a #selector.
- * A pasted copy that has to take new ids takes them here too, so its tabs,
- * its accordion and its popups still point at their own panes.
- */
-var REFERENCES = ['data-bs-target', 'data-bs-parent', 'href', 'aria-controls', 'aria-labelledby',
-    'aria-describedby', 'for', 'data-ge-popup-id', 'data-ge-popup-target'];
-
-/** An id grid-editor generated: ge-{type}-{counter}-{random}. */
-var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
-
 function read() {
     var raw;
 
@@ -150,66 +139,7 @@ GridEditor.features.clipboard = function(ge) {
         var clip = read();
         if (!fits(clip, categories)) { return; }
 
-        ge.place(fresh(clip.html), clip.kind, { appendTo: target, source: 'paste' });
-    }
-
-    /**
-     * The copied markup as a node, with new ids where the page already has
-     * them: two copies of a tab strip pointing at one set of panes is a tab
-     * strip that opens the other copy's tabs. An id the page does not have
-     * is kept, so pasting into another page changes nothing.
-     *
-     * Parsed the way innerHTML parses, so a <script> in what was copied is
-     * markup, pasted like the rest, and does not run in the editor.
-     */
-    function fresh(html) {
-        var node = dom.create(html);
-        var renamed = {};
-        var taken = function(id) {
-            return !!document.getElementById(id) || Object.keys(renamed).some(function(old) {
-                return renamed[old] === id;
-            });
-        };
-
-        dom.selfAndAll(node, '[id]').forEach(function(element) {
-            var id = element.id;
-            if (!document.getElementById(id)) { return; }
-
-            var generated = GENERATED_ID.exec(id);
-            var next;
-
-            if (generated) {
-                do { next = ge.containerId(generated[1]); } while (taken(next));
-            } else {
-                var n = 2;
-                while (taken(id + '-' + n)) { n++; }
-                next = id + '-' + n;
-            }
-
-            renamed[id] = next;
-            element.id = next;
-        });
-
-        if (!Object.keys(renamed).length) { return node; }
-
-        dom.selfAndAll(node, '*').forEach(function(element) {
-            REFERENCES.forEach(function(name) {
-                var value = element.getAttribute(name);
-                if (value === null) { return; }
-                if (name === 'href' && value.charAt(0) !== '#') { return; }
-
-                var rewritten = value.split(/(\s+)/).map(function(token) {
-                    if (renamed[token]) { return renamed[token]; }
-                    if (token.charAt(0) === '#' && renamed[token.slice(1)]) { return '#' + renamed[token.slice(1)]; }
-
-                    return token;
-                }).join('');
-
-                if (rewritten !== value) { element.setAttribute(name, rewritten); }
-            });
-        });
-
-        return node;
+        ge.place(ge.freshNode(clip.html), clip.kind, { appendTo: target, source: 'paste' });
     }
 
     /** Show the paste tools, and the toolbar's paste buttons, that fit what is copied. */
@@ -240,7 +170,7 @@ GridEditor.features.clipboard = function(ge) {
             source: 'paste',
             // What the button showed, even if another tab has copied
             // something else since
-            create: function() { return fresh(shown.html); },
+            create: function() { return ge.freshNode(shown.html); },
         });
     });
 

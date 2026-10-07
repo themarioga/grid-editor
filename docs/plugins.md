@@ -137,6 +137,7 @@ element, and where there may be several, an array.
 | `ge.t(key, params)` | A string from the locale |
 | `ge.warn(message)` | A console warning, prefixed like the editor's own |
 | `ge.containerId(type)` | A generated id, stable across a reset, for Bootstrap's toggles |
+| `ge.freshNode(html)` | The markup as a detached node, with new ids for those the page already has and the attributes that point at them - `data-bs-target`, `data-bs-parent`, `href="#…"`, `aria-controls`, `aria-labelledby`, `aria-describedby`, `for`, `data-ge-popup-id`, `data-ge-popup-target` - following. An id grid-editor generated gets a new one from `containerId`, any other a `-2`, `-3`… suffix. What the clipboard pastes, and what a host inserting saved markup should hand `ge.place`. Place each copy before making the next: it checks the page as it is |
 | `ge.defaultRegion()` | A row with one full width column: what an empty pane starts as |
 | `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer, which it returns. `handlers` is a click handler or `{ eventName: handler }`; each gets the DOM event, with `this` the tool |
 | `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one; the tool, or null |

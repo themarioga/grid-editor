@@ -81,6 +81,7 @@ var WRAP = `
         const tool = ge.createTool(drawer, 'Probe', 'ge-probe', 'bi bi-star');
         const region = ge.defaultRegion();
         const row = ge.rowFromLayout([6, 6]);
+        const fresh = ge.freshNode('<div id="' + ge.canvas.id + '"><a href="#' + ge.canvas.id + '">Up</a></div>');
         window.contract.handles.push({
             plugin: plugin,
             canvas: isNode(ge.canvas),
@@ -90,6 +91,8 @@ var WRAP = `
             toolbarItems: Array.isArray(ge.toolbarItems(plugin)),
             detailsOfNothing: ge.detailsOf(drawer) === null,
             drawerOf: ge.drawerOf(drawer) === null,
+            freshNode: isNode(fresh) && fresh.id === ge.canvas.id + '-2' &&
+                fresh.firstChild.getAttribute('href') === '#' + ge.canvas.id + '-2',
         });
     };
 
@@ -148,12 +151,12 @@ async function run(t) {
             'gutters', 'inline-style', 'order', 'popup', 'sections', 'summernote', 'tabs', 'text', 'tinymce']
             .every(function(name) { return plugins.indexOf(name) !== -1; }),
         plugins);
-    t.check('the handle gives elements: the canvas, a tool, a region, a row; an array of toolbar items; null for no panel or drawer',
+    t.check('the handle gives elements: the canvas, a tool, a region, a row; an array of toolbar items; null for no panel or drawer; a fresh node, its ids renamed',
         exercised.handles.every(function(handle) {
             return handle.canvas && handle.tool && handle.region && handle.row && handle.toolbarItems &&
-                handle.detailsOfNothing && handle.drawerOf;
+                handle.detailsOfNothing && handle.drawerOf && handle.freshNode;
         }), exercised.handles.filter(function(handle) {
-            return !(handle.canvas && handle.tool && handle.region && handle.row && handle.toolbarItems && handle.detailsOfNothing && handle.drawerOf);
+            return !(handle.canvas && handle.tool && handle.region && handle.row && handle.toolbarItems && handle.detailsOfNothing && handle.drawerOf && handle.freshNode);
         }));
     t.check('every hook of every shipped plugin was handed elements, and every one that makes a node handed one back',
         exercised.wrong.length === 0 && exercised.calls > 20, { wrong: exercised.wrong, calls: exercised.calls, loaded: exercised.loaded });

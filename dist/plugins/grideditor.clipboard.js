@@ -12,16 +12,6 @@
   function one(root, selector) {
     return root ? root.querySelector(selector) : null;
   }
-  function selfAndAll(root, selector) {
-    if (!root) {
-      return [];
-    }
-    var found = all(root, selector);
-    if (root.nodeType === 1 && root.matches(selector)) {
-      found.unshift(root);
-    }
-    return found;
-  }
   function children(node, selector) {
     if (!node) {
       return [];
@@ -32,20 +22,6 @@
   }
   function child(node, selector) {
     return children(node, selector)[0] || null;
-  }
-  function parse(html) {
-    var template = document.createElement("template");
-    template.innerHTML = html;
-    return Array.prototype.slice.call(template.content.childNodes);
-  }
-  function create(html) {
-    var nodes = parse(html.trim());
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].nodeType === 1) {
-        return nodes[i];
-      }
-    }
-    return null;
   }
   function addClass(node, names) {
     split(names).forEach(function(name) {
@@ -112,18 +88,6 @@
     row: ["column"],
     section: ["row"]
   };
-  var REFERENCES = [
-    "data-bs-target",
-    "data-bs-parent",
-    "href",
-    "aria-controls",
-    "aria-labelledby",
-    "aria-describedby",
-    "for",
-    "data-ge-popup-id",
-    "data-ge-popup-target"
-  ];
-  var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
   function read() {
     var raw;
     try {
@@ -210,64 +174,7 @@
       if (!fits(clip, categories)) {
         return;
       }
-      ge.place(fresh(clip.html), clip.kind, { appendTo: target, source: "paste" });
-    }
-    function fresh(html) {
-      var node = create(html);
-      var renamed = {};
-      var taken = function(id) {
-        return !!document.getElementById(id) || Object.keys(renamed).some(function(old) {
-          return renamed[old] === id;
-        });
-      };
-      selfAndAll(node, "[id]").forEach(function(element) {
-        var id = element.id;
-        if (!document.getElementById(id)) {
-          return;
-        }
-        var generated = GENERATED_ID.exec(id);
-        var next;
-        if (generated) {
-          do {
-            next = ge.containerId(generated[1]);
-          } while (taken(next));
-        } else {
-          var n = 2;
-          while (taken(id + "-" + n)) {
-            n++;
-          }
-          next = id + "-" + n;
-        }
-        renamed[id] = next;
-        element.id = next;
-      });
-      if (!Object.keys(renamed).length) {
-        return node;
-      }
-      selfAndAll(node, "*").forEach(function(element) {
-        REFERENCES.forEach(function(name) {
-          var value = element.getAttribute(name);
-          if (value === null) {
-            return;
-          }
-          if (name === "href" && value.charAt(0) !== "#") {
-            return;
-          }
-          var rewritten = value.split(/(\s+)/).map(function(token) {
-            if (renamed[token]) {
-              return renamed[token];
-            }
-            if (token.charAt(0) === "#" && renamed[token.slice(1)]) {
-              return "#" + renamed[token.slice(1)];
-            }
-            return token;
-          }).join("");
-          if (rewritten !== value) {
-            element.setAttribute(name, rewritten);
-          }
-        });
-      });
-      return node;
+      ge.place(ge.freshNode(clip.html), clip.kind, { appendTo: target, source: "paste" });
     }
     function refresh() {
       var clip = read();
@@ -293,7 +200,7 @@
         // What the button showed, even if another tab has copied
         // something else since
         create: function() {
-          return fresh(shown.html);
+          return ge.freshNode(shown.html);
         }
       });
     });

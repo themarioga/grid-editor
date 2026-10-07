@@ -333,6 +333,18 @@ var METHODS = {
   setSelected: {}
 };
 var PLACEMENTS = ["appendTo", "prependTo", "insertAfter", "insertBefore"];
+var REFERENCES = [
+  "data-bs-target",
+  "data-bs-parent",
+  "href",
+  "aria-controls",
+  "aria-labelledby",
+  "aria-describedby",
+  "for",
+  "data-ge-popup-id",
+  "data-ge-popup-target"
+];
+var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
 var BREAKPOINTS = [
   { key: "xs", infix: "", colPrefix: "col-", offsetPrefix: "offset-", min: 0, preview: 400, labelKey: "view.xs" },
   { key: "sm", infix: "sm", colPrefix: "col-sm-", offsetPrefix: "offset-sm-", min: 576, preview: 576, labelKey: "view.sm" },
@@ -2269,6 +2281,7 @@ function build(instance, baseElem, optionsOrMethod) {
       t,
       warn,
       containerId,
+      freshNode,
       defaultRegion,
       createTool,
       createMoveTool,
@@ -2805,6 +2818,63 @@ function build(instance, baseElem, optionsOrMethod) {
   function containerId(type) {
     containerCounter++;
     return "ge-" + type + "-" + containerCounter + "-" + Math.random().toString(36).slice(2, 6);
+  }
+  function freshNode(html) {
+    var node = create(html);
+    var renamed = {};
+    var taken = function(id) {
+      return !!document.getElementById(id) || Object.keys(renamed).some(function(old) {
+        return renamed[old] === id;
+      });
+    };
+    selfAndAll(node, "[id]").forEach(function(element2) {
+      var id = element2.id;
+      if (!document.getElementById(id)) {
+        return;
+      }
+      var generated = GENERATED_ID.exec(id);
+      var next;
+      if (generated) {
+        do {
+          next = containerId(generated[1]);
+        } while (taken(next));
+      } else {
+        var n = 2;
+        while (taken(id + "-" + n)) {
+          n++;
+        }
+        next = id + "-" + n;
+      }
+      renamed[id] = next;
+      element2.id = next;
+    });
+    if (!Object.keys(renamed).length) {
+      return node;
+    }
+    selfAndAll(node, "*").forEach(function(element2) {
+      REFERENCES.forEach(function(name) {
+        var value = element2.getAttribute(name);
+        if (value === null) {
+          return;
+        }
+        if (name === "href" && value.charAt(0) !== "#") {
+          return;
+        }
+        var rewritten = value.split(/(\s+)/).map(function(token) {
+          if (renamed[token]) {
+            return renamed[token];
+          }
+          if (token.charAt(0) === "#" && renamed[token.slice(1)]) {
+            return "#" + renamed[token.slice(1)];
+          }
+          return token;
+        }).join("");
+        if (rewritten !== value) {
+          element2.setAttribute(name, rewritten);
+        }
+      });
+    });
+    return node;
   }
   function defaultRegion() {
     var row = createRow();
