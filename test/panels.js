@@ -268,9 +268,9 @@ async function edgeTests(t) {
 
     var wrong = await page.eval(`
         window.warnings = [];
-        startWith({ settings_panel: 'sidebar' });
+        startWith({ settings_panel: 'drawer' });
         gearOf(${JSON.stringify(gear('first'))});
-        return { open: state().open, warned: window.warnings.some(function(w) { return /settings_panel "sidebar"/.test(w); }) };
+        return { open: state().open, warned: window.warnings.some(function(w) { return /settings_panel "drawer"/.test(w); }) };
     `);
     t.check('a settings_panel it does not know warns and opens the offcanvas',
         wrong.open.join(',') === 'offcanvas' && wrong.warned, wrong);

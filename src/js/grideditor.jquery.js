@@ -69,6 +69,8 @@ function install() {
         setUtility:       { value: true },
         getActiveTarget:  { value: true },
         setActiveTarget:  {},
+        getSelected:      { value: true },
+        setSelected:      {},
     };
 
     /** The *_tools settings, whose handlers 6.x bound with jQuery. */

@@ -184,6 +184,8 @@ has, with the options it was made with, and warns once.
 | `getView` | — | `String` | The view the editor is in |
 | `getActiveTarget` | — | `Element` | With `active_target`, the column or section the toolbar adds to, or `null` |
 | `setActiveTarget` | `node` | `this` | Make a column or section - an element or a selector - the one the toolbar adds to, or `null` for none |
+| `getSelected` | — | `Element` | With `settings_panel: 'sidebar'`, the node whose settings the sidebar shows, or `null`. Always `null` without it |
+| `setSelected` | `node` | `this` | With `settings_panel: 'sidebar'`, show the settings of a node with settings - an element or a selector - or `null` for none. It does not unfold a sidebar that is folded away, and does nothing without the `'sidebar'` panel |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
 | `createRow` | `layout?`, `options?` | `Element` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
 | `createColumn` | `size`, `options?` | `Element` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
@@ -477,11 +479,27 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 | `'popover'` | A Bootstrap popover under the gear, or over it when there is more room there; a press anywhere else puts it away |
 | `'modal'` | A Bootstrap modal |
 | `'inline'` | Unfolded in the drawer itself |
+| `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear |
 
 Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
 
 ```javascript
 new GridEditor('#myGrid', { settings_panel: 'popover' });
+```
+
+The sidebar has a button on its left edge with an arrow that folds it away - it stays on the window's edge - and unfolds it again; the choice is not kept between page loads. Below 576px it covers the page instead of making room, and starts folded away. Clicking the canvas's background, the sidebar's close button, the page outside the editor, or pressing Escape deselects, and the sidebar shows a message. A page has one sidebar: a second editor asking for it warns once and uses `'offcanvas'`. The `grideditor:selection-change` event, with `node` and `from`, says when what is selected changes.
+
+__`sidebar`:__ Settings of the `'sidebar'` panel. `empty` is a `function(ge)` called whenever nothing is selected, that returns `{ title, body }` - the title is text, the body an element, which the editor moves out of the sidebar and back without destroying it - to show that instead of the message, such as the page's own properties. Return `null` for the message. Plugins can do the same with a `sidebarEmpty` hook, after this one.
+
+```javascript
+new GridEditor('#myGrid', {
+    settings_panel: 'sidebar',
+    sidebar: {
+        empty: function(ge) {
+            return { title: 'Page', body: pageForm };
+        },
+    },
+});
 ```
 
 __`confirm_delete`:__ Whether to ask before deleting a row, column, element or container. Default `true`. The question is asked in a Bootstrap modal the editor builds outside your canvas, in the interface language; a page that loaded Bootstrap's css but not its javascript gets the browser's own confirm instead. Set it to `false` if you cancel `before-delete` and ask in your own way.

@@ -128,6 +128,22 @@ async function hostTests(t, page) {
     t.check('getActiveTarget and setActiveTarget go through $(el).gridEditor(), with jQuery objects (AC-30)',
         targeted.chained && targeted.got && targeted.same && targeted.cleared === null, targeted);
 
+    var selection = await page.eval(`
+        fresh({ settings_panel: 'sidebar' });
+        const chained = jQuery('#myGrid').gridEditor('setSelected', jQuery('#right'));
+        const got = jQuery('#myGrid').gridEditor('getSelected');
+        const result = {
+            chained: chained.is('#myGrid'),
+            got: got instanceof jQuery && got.is('#right'),
+            same: GridEditor.get('#myGrid').getSelected() === document.querySelector('#right'),
+        };
+        jQuery('#myGrid').gridEditor('setSelected', null);
+        result.cleared = jQuery('#myGrid').gridEditor('getSelected');
+        return result;
+    `);
+    t.check('getSelected and setSelected go through $(el).gridEditor(), with jQuery objects',
+        selection.chained && selection.got && selection.same && selection.cleared === null, selection);
+
     var handle = await page.eval(`
         fresh();
         const ge = jQuery('#myGrid').data('grideditor');

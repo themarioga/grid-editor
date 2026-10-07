@@ -121,6 +121,18 @@ export interface InlineStyleOptions {
     visibility?: { drawer?: boolean };
 }
 
+/** What the sidebar shows while nothing is selected, instead of its message. */
+export interface SidebarContent {
+    /** Text, not html. Default the sidebar's own title. */
+    title?: string;
+    body: Element;
+}
+
+export interface SidebarSettings {
+    /** Called whenever the sidebar is left with nothing selected. Null gives the message. */
+    empty?: ((ge: GridEditor) => SidebarContent | null) | null;
+}
+
 export type CustomFilter = ((canvas: HTMLElement, isInit: boolean) => void) | string;
 
 /** The settings. Every one is optional. */
@@ -183,7 +195,10 @@ export interface GridEditorOptions {
     locale_strings?: Record<string, string>;
     callbacks?: Partial<GridEditorCallbacks>;
     confirm_delete?: boolean;
-    settings_panel?: 'offcanvas' | 'popover' | 'modal' | 'inline';
+    /** Where a node's settings open. 'sidebar' is a panel that stays on the right while editing, showing the selected node's; one editor per page has it. */
+    settings_panel?: 'offcanvas' | 'popover' | 'modal' | 'inline' | 'sidebar';
+    /** The 'sidebar' panel. */
+    sidebar?: SidebarSettings;
     drag?: { delay?: number; touch_delay?: number; threshold?: number; animation?: number; scroll?: boolean };
     tinymce?: { config?: Record<string, unknown> };
     ckeditor?: { config?: Record<string, unknown> };
@@ -317,6 +332,13 @@ export interface TargetChangePayload {
     from: HTMLElement | null;
 }
 
+/** The selection changed, with settings_panel 'sidebar': the node whose settings the sidebar shows, or null. */
+export interface SelectionChangePayload {
+    canvas: HTMLElement;
+    node: HTMLElement | null;
+    from: HTMLElement | null;
+}
+
 /** The events, by name, with their payloads. Adding fires a specific name and the generic one. */
 export interface GridEditorEventMap {
     'grideditor:before-add': Payload;
@@ -357,6 +379,7 @@ export interface GridEditorEventMap {
     'grideditor:popup-orphan': PopupOrphanPayload;
     'grideditor:view-change': ViewChangePayload;
     'grideditor:target-change': TargetChangePayload;
+    'grideditor:selection-change': SelectionChangePayload;
     'grideditor:after-autosave': AutosavePayload;
     'grideditor:after-restore-draft': RestoreDraftPayload;
     'grideditor:autosave-error': AutosaveErrorPayload;
@@ -468,6 +491,10 @@ export declare class GridEditor {
     getActiveTarget(): HTMLElement | null;
     /** Make a column or region, or the first a selector matches, where the toolbar adds; null for none. */
     setActiveTarget(target: HTMLElement | string | null): this;
+    /** The node whose settings the sidebar shows, or null. Null unless settings_panel is 'sidebar'. */
+    getSelected(): HTMLElement | null;
+    /** Select a node with settings, or the first a selector matches, or null for none. Does nothing unless settings_panel is 'sidebar'. */
+    setSelected(node: HTMLElement | string | null): this;
     getView(): View;
     setLocale(code: string): this;
     createRow(layout?: RowLayout, options?: Placement): HTMLElement | null;

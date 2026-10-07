@@ -38,6 +38,8 @@ var METHODS = {
     setUtility:       { value: true },
     getActiveTarget:  { value: true },
     setActiveTarget:  {},
+    getSelected:      { value: true },
+    setSelected:      {},
 };
 
 /**
@@ -154,6 +156,9 @@ var NESTED_SETTINGS = {
     indent: {
         tools: true, // The indent tools in the column's drawer
     },
+    sidebar: {
+        empty: null, // function(ge) -> { title, body } shown while nothing is selected, or null for the message
+    },
     drag: {
         delay: 0, // Milliseconds to hold before a drag starts
         touch_delay: 100, // The same for touch, where 0 eats the page's scrolling
@@ -170,6 +175,13 @@ var editorCounter = 0;
 
 /** The editor on each canvas element, so there is never a second one. */
 var instances = new WeakMap();
+
+/** The editor whose settings_panel is 'sidebar': a page has one sidebar, so one editor at most. */
+var sidebarHolder = null;
+
+/** The editor's own controls outside the canvas: a click on one is not a click on the page. */
+var EDITOR_CONTROLS = '.ge-mainControls, .ge-settings-panel, .ge-sidebar-toggle, .ge-dialog, .ge-confirm, ' +
+    '.ge-size-picker, .modal, .modal-backdrop';
 
 /**
  * Translate one key.
@@ -408,7 +420,8 @@ function build(instance, baseElem, optionsOrMethod) {
             'locale_strings'    : {}, // Overrides for individual keys
             'callbacks'         : {}, // before_*/after_* functions, the events by another route
             'confirm_delete'    : true, // Ask before deleting a row or a column
-            'settings_panel'    : 'offcanvas', // Where a node's settings open: 'offcanvas', 'popover', 'modal' or 'inline'
+            'settings_panel'    : 'offcanvas', // Where a node's settings open: 'offcanvas', 'popover', 'modal', 'inline' or 'sidebar'
+            'sidebar'           : NESTED_SETTINGS.sidebar, // The 'sidebar' panel: what it shows while nothing is selected
             'drag'              : NESTED_SETTINGS.drag // How a drag behaves, whatever drives it
         }, optionsOrMethod);
 
@@ -444,6 +457,19 @@ function build(instance, baseElem, optionsOrMethod) {
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
         var destroyed = false;
+        var selected = null; // The node whose settings the sidebar shows, with settings_panel 'sidebar'
+        var sidebarCollapsed = null; // Folded away, once the sidebar has been shown: the window's width decides the first time
+        var pluginHandle = null; // What the plugins were handed, for the hooks that call them back
+
+        if (settings.settings_panel === 'sidebar') {
+            if (sidebarHolder) {
+                warnOnceHere('sidebar', 'settings_panel "sidebar" is in use by another editor on the page, which has one ' +
+                    'sidebar: using offcanvas');
+                settings.settings_panel = 'offcanvas';
+            } else {
+                sidebarHolder = instance;
+            }
+        }
 
         // What the editor remembers about the nodes it edits, which used to
         // be jQuery data: a node's settings panel, a drag or a resize in
@@ -1055,10 +1081,9 @@ function build(instance, baseElem, optionsOrMethod) {
                 if (dom.hasClass(canvas, 'ge-editing')) { e.preventDefault(); }
             }, signal);
 
-            if (settings.active_target) {
-                // Whatever the click was for - a text, a tool - it also says
-                // where the toolbar adds next. A click on no column or region
-                // says nowhere, and the toolbar adds to the canvas again.
+            var sidebarMode = panelMode() === 'sidebar';
+
+            if (settings.active_target || sidebarMode) {
                 // The click a drag ends in - a resize, a move - is not one:
                 // it comes where the pointer let go, not where it pressed
                 var pressed = null;
@@ -1070,28 +1095,67 @@ function build(instance, baseElem, optionsOrMethod) {
                     pressed = null;
                     if (!dom.hasClass(canvas, 'ge-editing')) { return; }
                     if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) { return; }
-                    var region = dom.closest(e.target, targetSelector());
 
-                    // The target's own background, or its drawer's, clicked
-                    // again takes it back. What is in it - a text, a tool, a
-                    // nested column - keeps it, or makes that the target
-                    if (region && region === activeTarget &&
-                        (e.target === region || e.target === dom.child(region, '.ge-tools-drawer'))) {
-                        changeTarget(null);
-                        return;
-                    }
-
-                    changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+                    if (settings.active_target) { clickTarget(e); }
+                    // A tool that took its node off the canvas says nothing of where the click was
+                    if (sidebarMode && canvas.contains(e.target)) { changeSelection(settingsNodeAt(e.target)); }
                 }, signal);
 
                 // Escape is the panel's, the dialog's, and a field's or a
-                // text's while one has the focus; after those, it is this
+                // text's while one has the focus; after those, it is the
+                // selection's, and then the target's
                 document.addEventListener('keydown', function(e) {
-                    if (e.key !== 'Escape' || !activeTarget || openSettingsState || dialogState) { return; }
+                    if (e.key !== 'Escape' || openSettingsState || dialogState) { return; }
+                    if (confirmDialog && dom.hasClass(confirmDialog, 'show')) { return; }
                     var focus = document.activeElement;
                     if (focus && (dom.is(focus, 'input, textarea, select') || focus.isContentEditable)) { return; }
-                    changeTarget(null);
+
+                    if (selected && isEditing()) {
+                        changeSelection(null);
+                    } else if (activeTarget) {
+                        changeTarget(null);
+                    }
                 }, signal);
+            }
+
+            if (sidebarMode) {
+                // The focus coming into a node selects it, as a click does
+                canvas.addEventListener('focusin', function(e) {
+                    var node = isEditing() ? settingsNodeAt(e.target) : null;
+                    if (node) { changeSelection(node); }
+                }, signal);
+
+                // A click on the page, away from the canvas and the editor's own
+                // controls, puts the selection away - not while a text is open,
+                // whose editor has controls of its own out there
+                document.addEventListener('click', function(e) {
+                    var target = e.target;
+                    if (!selected || !isEditing() || !target || target.nodeType !== 1) { return; }
+                    if (!dom.attached(target) || canvas.contains(target)) { return; }
+                    if (dom.closest(target, EDITOR_CONTROLS) || canvas.querySelector('.ge-rte-active')) { return; }
+
+                    changeSelection(null);
+                }, signal);
+
+                window.addEventListener('resize', reserveSidebarRoom, signal);
+            }
+
+            /* Whatever the click was for - a text, a tool - it also says
+               where the toolbar adds next. A click on no column or region
+               says nowhere, and the toolbar adds to the canvas again. */
+            function clickTarget(e) {
+                var region = dom.closest(e.target, targetSelector());
+
+                // The target's own background, or its drawer's, clicked
+                // again takes it back. What is in it - a text, a tool, a
+                // nested column - keeps it, or makes that the target
+                if (region && region === activeTarget &&
+                    (e.target === region || e.target === dom.child(region, '.ge-tools-drawer'))) {
+                    changeTarget(null);
+                    return;
+                }
+
+                changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
             }
         }
 
@@ -2074,6 +2138,7 @@ function build(instance, baseElem, optionsOrMethod) {
             deinit();
             // The canvas is made again from the html when it comes back
             changeTarget(null);
+            changeSelection(null);
             htmlTextArea.style.height = (0.8 * document.documentElement.clientHeight) + 'px';
             htmlTextArea.value = canvas.innerHTML;
             dom.show(htmlTextArea);
@@ -2135,6 +2200,10 @@ function build(instance, baseElem, optionsOrMethod) {
             if (openSettingsState && !dom.attached(openSettingsState.node)) {
                 closeSettings();
             }
+            // The same for the selected node, which the sidebar stops showing
+            if (selected && !canvas.contains(selected)) {
+                changeSelection(null);
+            }
             // And a dialog showing part of a panel that is gone
             if (dialogState && dialogState.home && !dom.attached(dialogState.home)) {
                 closeDialog();
@@ -2163,11 +2232,14 @@ function build(instance, baseElem, optionsOrMethod) {
             } else if (activeTarget) {
                 dom.addClass(activeTarget, 'ge-active-target');
             }
+
+            showSidebar();
         }
 
         function deinit() {
             // Its panel goes home to its drawer first, and both go together
             closeSettings();
+            hideSidebar();
             dom.removeClass(canvas, 'ge-editing ge-drag-drawer ge-dropping');
             // The mark goes, the target stays: getHtml comes straight back
             if (activeTarget) { dom.removeClass(activeTarget, 'ge-active-target'); }
@@ -2376,6 +2448,8 @@ function build(instance, baseElem, optionsOrMethod) {
             if (sourceOpen) { closeSource(); }
             deinit();
             activeTarget = null;
+            selected = null;
+            if (sidebarHolder === instance) { sidebarHolder = null; }
             removeConfirmModal();
             removeSettingsPanels();
             removeDialog();
@@ -2396,7 +2470,7 @@ function build(instance, baseElem, optionsOrMethod) {
          * something it can see.
          */
         function loadPlugins() {
-            var api = pluginApi();
+            var api = pluginHandle = pluginApi();
 
             registerFamily('grid', {}, widthFamily());
             if (settings.row_cols !== false) { registerFamily('grid', {}, rowColsFamily()); }
@@ -3885,9 +3959,13 @@ function build(instance, baseElem, optionsOrMethod) {
             var details = createDetails(node, presets || []);
             detailsFor.set(node, details);
 
-            createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
-                toggleSettings(node, details, this);
-            });
+            // The sidebar shows the panel of the node that is selected, so
+            // there is no gear to open it with
+            if (panelMode() !== 'sidebar') {
+                createTool(drawer, t('tool.settings'), 'ge-settings', 'bi bi-gear-fill', function() {
+                    toggleSettings(node, details, this);
+                });
+            }
 
             // Beside the gear, because every node that has one is a node a
             // utility may apply to, whichever plugin built its drawer. A
@@ -3999,7 +4077,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
                     var holder = dom.element('div', { 'class': 'ge-panel-section', 'data-ge-plugin': name });
 
-                    if (mode === 'offcanvas' || mode === 'modal') {
+                    if (mode === 'offcanvas' || mode === 'modal' || mode === 'sidebar') {
                         holder.appendChild(sectionTitle(t(section.labelKey)));
                         holder.appendChild(section.body);
                     } else {
@@ -4039,7 +4117,7 @@ function build(instance, baseElem, optionsOrMethod) {
          * not at all. The modal is Bootstrap's own when Bootstrap is there.
          * -------------------------------------------------------------- */
 
-        var PANEL_MODES = ['offcanvas', 'popover', 'modal', 'inline'];
+        var PANEL_MODES = ['offcanvas', 'popover', 'modal', 'inline', 'sidebar'];
         var settingsPanels = {}; // One of each, built on first use, outside the canvas
         var openSettingsState = null; // What is open: { mode, node, details, home, next, gear }
         var modalState = new WeakMap(); // modal panel -> { watched, wanted, busy, backdrop, dismissed }
@@ -4059,9 +4137,12 @@ function build(instance, baseElem, optionsOrMethod) {
 
         /** Where settings fields are found: the canvas, and the panel open outside it. */
         function settingsScope() {
-            return openSettingsState && openSettingsState.mode !== 'inline'
-                ? [canvas, openSettingsState.details]
-                : [canvas];
+            var scope = [canvas];
+
+            if (openSettingsState && openSettingsState.mode !== 'inline') { scope.push(openSettingsState.details); }
+            if (sidebarShown) { scope.push(sidebarShown.details); }
+
+            return scope;
         }
 
         /** The gear: its node's panel, opened or closed; another node's closes first. */
@@ -4155,6 +4236,11 @@ function build(instance, baseElem, optionsOrMethod) {
                 hideModal(panel);
             }
 
+            returnPanel(open);
+        }
+
+        /** A node's panel back where it was in its drawer, and the node no longer marked. */
+        function returnPanel(open) {
             dom.removeClass(open.node, 'ge-settings-target');
             open.details.style.removeProperty('display');
             dom.dropEmptyStyle(open.details);
@@ -4199,6 +4285,15 @@ function build(instance, baseElem, optionsOrMethod) {
                 '</div>');
                 dom.one(panel, '.popover-header').appendChild(closeButton());
                 dom.hide(panel);
+            } else if (mode === 'sidebar') {
+                panel = dom.create('<div class="offcanvas offcanvas-end ge-settings-panel ge-settings-sidebar" tabindex="-1" role="complementary">' +
+                    '<div class="offcanvas-header"><h5 class="offcanvas-title ge-settings-title"></h5></div>' +
+                    '<div class="offcanvas-body ge-settings-body"></div>' +
+                '</div>');
+                panel.id = 'ge-settings-sidebar-' + instanceId;
+                dom.one(panel, '.offcanvas-header').appendChild(closeButton());
+                // Beside the panel rather than in it: it stays on the window's edge when the panel is folded away
+                settingsPanels['sidebar-toggle'] = document.body.appendChild(sidebarToggle(panel));
             } else {
                 panel = dom.create('<div class="modal fade ge-settings-panel ge-settings-modal" tabindex="-1" role="dialog" aria-hidden="true">' +
                     '<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">' +
@@ -4218,7 +4313,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
             dom.delegate(panel, 'click', '.ge-settings-close', function(e) {
                 e.preventDefault();
-                closeSettings();
+                if (mode === 'sidebar') { changeSelection(null); } else { closeSettings(); }
             });
 
             settingsPanels[mode] = document.body.appendChild(panel);
@@ -4227,6 +4322,8 @@ function build(instance, baseElem, optionsOrMethod) {
 
         function removeSettingsPanels() {
             closeSettings();
+            unshowSidebar();
+            dom.removeClass(document.documentElement, 'ge-sidebar-open');
 
             Object.keys(settingsPanels).forEach(function(mode) {
                 if (mode === 'modal') {
@@ -4237,6 +4334,218 @@ function build(instance, baseElem, optionsOrMethod) {
             });
             Object.keys(settingsPanels).forEach(function(mode) { removeBackdrop(settingsPanels[mode]); });
             settingsPanels = {};
+        }
+
+        /* --------------------------------------------------------------
+         * settings_panel: 'sidebar'. An offcanvas that stays: there while
+         * the canvas is edited, making room for itself on the page, with the
+         * settings of the node that is selected in it - or, with none, a
+         * message, or what the host or a plugin put there instead.
+         *
+         * The panels are the same ones: the selected node's moves into the
+         * sidebar and goes back to its drawer when another is selected, so
+         * ge.detailsOf(node) finds it either way. Folded away, the panel
+         * slides out and its button stays on the window's edge.
+         * -------------------------------------------------------------- */
+
+        var SIDEBAR_MIN_WIDTH = 576; // Bootstrap's sm: narrower than that, the sidebar covers the page instead of making room
+        var sidebarShown = null; // The selected node's panel while it is in the sidebar: { node, details, home, next }
+        var sidebarEmpty = null; // What the sidebar shows while nothing is selected: { body }
+
+        function isEditing() {
+            return dom.hasClass(canvas, 'ge-editing');
+        }
+
+        function sidebarToggle(panel) {
+            var button = dom.element('button', { type: 'button', 'class': 'ge-sidebar-toggle', 'aria-controls': panel.id });
+            button.appendChild(dom.element('i'));
+            button.addEventListener('click', function() { foldSidebar(!sidebarCollapsed); });
+            return button;
+        }
+
+        function foldSidebar(collapsed) {
+            sidebarCollapsed = collapsed;
+            applySidebar();
+        }
+
+        /** The panel and its button as `sidebarCollapsed` says. */
+        function applySidebar() {
+            var panel = settingsPanels.sidebar;
+            var toggle = settingsPanels['sidebar-toggle'];
+            if (!panel) { return; }
+
+            var open = !sidebarCollapsed;
+
+            if (open && !dom.hasClass(panel, 'show')) {
+                dom.removeClass(panel, 'hiding');
+                panel.getBoundingClientRect(); // So the slide in is a transition, not a jump
+                dom.addClass(panel, 'show');
+            } else if (!open && dom.hasClass(panel, 'show')) {
+                dom.removeClass(panel, 'show');
+                dom.addClass(panel, 'hiding');
+                window.setTimeout(function() { dom.removeClass(panel, 'hiding'); }, 300);
+            }
+
+            var label = open ? t('panel.collapse') : t('panel.expand');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.setAttribute('aria-label', label);
+            toggle.setAttribute('title', label);
+            dom.one(toggle, 'i').className = 'bi ' + (open ? 'bi-chevron-right' : 'bi-chevron-left');
+
+            reserveSidebarRoom();
+        }
+
+        /** The page makes room for the sidebar only while it is edited, unfolded, and the window is wide enough to have room. */
+        function reserveSidebarRoom() {
+            dom.toggleClass(document.documentElement, 'ge-sidebar-open',
+                !!settingsPanels.sidebar && isEditing() && !sidebarCollapsed && window.innerWidth >= SIDEBAR_MIN_WIDTH);
+        }
+
+        /** Editing starts, or starts again: the sidebar is there, showing what is selected. */
+        function showSidebar() {
+            if (panelMode() !== 'sidebar') { return; }
+
+            var panel = settingsPanel('sidebar');
+            if (sidebarCollapsed === null) { sidebarCollapsed = window.innerWidth < SIDEBAR_MIN_WIDTH; }
+
+            panel.style.removeProperty('display');
+            settingsPanels['sidebar-toggle'].style.removeProperty('display');
+            renderSidebar();
+            applySidebar();
+        }
+
+        /** Editing stops: out of sight, with the selected node's panel back in its drawer. The selection stays. */
+        function hideSidebar() {
+            unshowDetails();
+
+            var panel = settingsPanels.sidebar;
+            if (!panel) { return; }
+
+            panel.style.display = 'none';
+            settingsPanels['sidebar-toggle'].style.display = 'none';
+            dom.removeClass(document.documentElement, 'ge-sidebar-open');
+        }
+
+        function setSidebarTitle(text) {
+            var panel = settingsPanels.sidebar;
+            dom.one(panel, '.ge-settings-title').textContent = text;
+            panel.setAttribute('aria-label', text);
+        }
+
+        function unshowDetails() {
+            var shown = sidebarShown;
+            sidebarShown = null;
+            if (shown) { returnPanel(shown); }
+        }
+
+        /** Whatever the sidebar holds out of it: the panel to its drawer, the empty content out of the body, not destroyed. */
+        function unshowSidebar() {
+            unshowDetails();
+
+            if (sidebarEmpty) {
+                sidebarEmpty.body.remove();
+                sidebarEmpty = null;
+            }
+        }
+
+        /** What the sidebar shows is what is selected; nothing to do when it already does. */
+        function renderSidebar() {
+            var panel = settingsPanels.sidebar;
+            if (!panel || !isEditing()) { return; }
+
+            var details = selected ? detailsOf(selected) : null;
+            if (details ? sidebarShown && sidebarShown.details === details : !sidebarShown && sidebarEmpty) { return; }
+
+            unshowSidebar();
+            var holder = dom.one(panel, '.ge-settings-body');
+
+            if (!details) {
+                var content = emptyContent();
+                var body = content ? content.body : dom.element('p', { 'class': 'ge-sidebar-empty' }, t('panel.sidebar_empty'));
+
+                setSidebarTitle(content ? content.title : t('panel.sidebar_title'));
+                holder.appendChild(body);
+                sidebarEmpty = { body: body };
+                return;
+            }
+
+            sidebarShown = { node: selected, details: details, home: details.parentElement, next: details.nextElementSibling };
+            setSidebarTitle(t('panel.title', { kind: kindLabel(selected) }));
+            holder.appendChild(details);
+            dom.show(details);
+            dom.addClass(selected, 'ge-settings-target');
+        }
+
+        /**
+         * What the sidebar shows with nothing selected, other than its
+         * message: the host's sidebar.empty, else the first plugin's
+         * sidebarEmpty, as { title, body }. Null for the message.
+         */
+        function emptyContent() {
+            var fromHost = settings.sidebar.empty;
+            var found = null;
+
+            if (typeof fromHost === 'function') {
+                found = emptyContentOf(fromHost(instance), function(result) { return result.title; });
+            } else if (fromHost !== null && fromHost !== undefined) {
+                warnOnceHere('sidebar.empty', 'sidebar.empty is a function(ge) returning { title, body }, not ' +
+                    typeof fromHost + ': ignored');
+            }
+
+            [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+                Object.keys(registry).forEach(function(name) {
+                    var plugin = registry[name];
+                    if (found || !plugin.sidebarEmpty) { return; }
+
+                    found = emptyContentOf(plugin.sidebarEmpty(pluginHandle), function(result) {
+                        return typeof result.titleKey === 'string' && result.titleKey !== '' ? t(result.titleKey) : '';
+                    });
+                });
+            });
+
+            return found;
+        }
+
+        /** An answer of sidebar.empty or sidebarEmpty as { title, body }, or null when it has no body to show. */
+        function emptyContentOf(result, titleOf) {
+            if (!result || !result.body || result.body.nodeType !== 1) { return null; }
+
+            var title = titleOf(result);
+            return { title: typeof title === 'string' && title !== '' ? title : t('panel.sidebar_title'), body: result.body };
+        }
+
+        /**
+         * The node at `target` whose settings the sidebar shows: the
+         * innermost one, its drawer included. A text's drawer is beside it
+         * rather than in it.
+         */
+        function settingsNodeAt(target) {
+            var drawer = dom.closest(target, '.ge-tools-drawer', canvas);
+
+            if (drawer) {
+                var home = drawer.parentElement;
+                var owner = detailsFor.has(home) ? home : dom.children(home).filter(function(each) {
+                    return detailsFor.has(each);
+                })[0];
+                if (owner) { return owner; }
+            }
+
+            for (var node = target; node && node !== canvas; node = node.parentElement) {
+                if (detailsFor.has(node)) { return node; }
+            }
+
+            return null;
+        }
+
+        /** The one way the selection changes, told only when it does. */
+        function changeSelection(node) {
+            if (node === selected) { return; }
+
+            var from = selected;
+            selected = node;
+            renderSidebar();
+
+            emit('selection-change', { canvas: canvas, node: node, from: from });
         }
 
         /**
@@ -5881,6 +6190,23 @@ function build(instance, baseElem, optionsOrMethod) {
             changeTarget(node);
         }
 
+        function apiSetSelected(value) {
+            if (panelMode() !== 'sidebar') {
+                warnOnceHere('sidebar-api', 'setSelected needs settings_panel "sidebar": without it, it does nothing');
+                return;
+            }
+            if (value === null || value === undefined) { changeSelection(null); return; }
+
+            var node = nodeFrom(value);
+            if (!node || node === canvas || !canvas.contains(node) || !detailsFor.has(node)) {
+                var named = typeof value === 'string' ? value : (node ? '<' + node.tagName.toLowerCase() + '>' : String(value));
+                warn('setSelected: ' + named + ' is not a node of the canvas with settings');
+                return;
+            }
+
+            changeSelection(node);
+        }
+
         var own = {
             getHtml: getHtml,
             getPlainHtml: getPlainHtml,
@@ -5914,6 +6240,8 @@ function build(instance, baseElem, optionsOrMethod) {
             setUtility: setUtility,
             getActiveTarget: function() { return settings.active_target ? activeTarget : null; },
             setActiveTarget: apiSetActiveTarget,
+            getSelected: function() { return panelMode() === 'sidebar' ? selected : null; },
+            setSelected: apiSetSelected,
         };
 
         Object.keys(own).forEach(function(name) {
@@ -6071,6 +6399,10 @@ GridEditor.locales = {
         'panel.title': '{kind} settings',
         'panel.close': 'Close',
         'panel.done': 'Done',
+        'panel.sidebar_title': 'Settings',
+        'panel.sidebar_empty': 'Click an element to see its settings',
+        'panel.collapse': 'Hide settings',
+        'panel.expand': 'Show settings',
         'panel.id': 'Id',
         'panel.classes': 'Classes',
         'panel.section_general': 'Id and classes',

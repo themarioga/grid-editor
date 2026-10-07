@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- `settings_panel: 'sidebar'`: the settings of a node in an offcanvas that stays
+  on the right while you edit and makes room for itself on the page. A click on
+  any node of the canvas shows its settings, and the gear is gone from the
+  drawers. A button on its left edge folds it away and back; narrower than
+  576px it covers the page instead, and starts folded. One editor per page can
+  have it; a second warns once and uses `'offcanvas'`.
+- `sidebar.empty` and the `sidebarEmpty` plugin hook: what the sidebar shows
+  while nothing is selected, in place of its message.
+- The `grideditor:selection-change` event (and the `selection_change` callback),
+  and the `getSelected()` and `setSelected()` methods, in the jQuery API too.
+- Locale keys `panel.sidebar_title`, `panel.sidebar_empty`, `panel.collapse`
+  and `panel.expand`, in English and Spanish.
+
 ## [8.8.2] - 2026-10-07
 
 ### Changed

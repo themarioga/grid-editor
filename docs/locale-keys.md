@@ -83,6 +83,10 @@ title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
 | `panel.title` | {kind} settings | Title of the offcanvas, popover or modal |
 | `panel.close` | Close | Label of its close button |
 | `panel.done` | Done | The modal's button that closes it |
+| `panel.sidebar_title` | Settings | The sidebar's title while nothing is selected, and when the host's `sidebar.empty` gives none |
+| `panel.sidebar_empty` | Click an element to see its settings | The sidebar's message while nothing is selected |
+| `panel.collapse` | Hide settings | Label of the sidebar's button while it is open |
+| `panel.expand` | Show settings | Label of the same button while the sidebar is folded away |
 | `panel.id` | Id | Label of the id field |
 | `panel.classes` | Classes | Label of the classes field |
 | `panel.section_general` | Id and classes | Heading of the panel's section with the id, the classes and the preset toggles |

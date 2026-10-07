@@ -92,6 +92,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
 | `grideditor:target-change` | — | no | with `active_target`, after the column or section the toolbar adds to changes, only if it actually changed |
+| `grideditor:selection-change` | — | no | with `settings_panel: 'sidebar'`, after the node whose settings the sidebar shows changes, only if it actually changed |
 | `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied |
 | `grideditor:after-autosave` | — | no | with the autosave plugin, after a draft is written |
 | `grideditor:after-restore-draft` | — | no | with the autosave plugin, after the user chose to restore a draft and the canvas is it |
@@ -177,6 +178,11 @@ column or section the toolbar adds to now, or `null` for the end of the canvas
 - and `from`, the one before. What a toolbar button then adds fires its add
 events as any click does, with `source: 'tool'` (or `'paste'`) and the target,
 or the canvas for a section, as the `parent`.
+
+`selection-change` carries no node of its own either: its payload is `canvas`,
+`node` - the node whose settings the sidebar shows now, or `null` for none -
+and `from`, the one before. A node deleted while selected, or replaced by
+`setHtml`, is a change to `null`. A handler's answer is ignored.
 
 `source` matters to a host that both drives the editor from its own palette and
 listens for what the user does: `api` is your own call coming back to you,

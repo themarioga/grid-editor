@@ -141,7 +141,7 @@ element, and where there may be several, an array.
 | `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer, which it returns. `handlers` is a click handler or `{ eventName: handler }`; each gets the DOM event, with `this` the tool |
 | `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one; the tool, or null |
 | `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens. Returns the panel, to add fields to |
-| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover or modal `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none |
+| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover, modal or sidebar `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
 | `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete. Returns the drawer, for a plugin that wants other tools in it |
@@ -325,6 +325,9 @@ label instead, and `body` opens in the dialog, titled `titleKey` - with the
 node's kind as `{kind}` - or the label. `body` stays the panel's either way,
 so `ge.detailsOf(node)` finds what is in it.
 
+With `settings_panel: 'sidebar'` the panel has room, as the offcanvas does:
+the sections are in it, and `body` is in the sidebar while its node is selected.
+
 A field made with `ge.utilityField` in a section follows the view and the
 classes field as the Responsive section's do, wherever the section is at the
 time. The inline-style plugin's accordion is a section, and what the spacing,
@@ -335,6 +338,17 @@ A section that writes css should write it with `ge.setHostStyle` and read it
 with `ge.hostStyle`: in a breakpoint view the node's `style` holds the
 preview's `!important` values too, and they come off on `deinit` with
 whatever was written under them.
+
+### What the sidebar shows with nothing selected
+
+**`sidebarEmpty(ge)`**, which any kind of plugin can have, returns what the
+`'sidebar'` settings panel shows while nothing is selected -
+`{ titleKey, body }`, a locale key for the title and an element - or null. It
+is called each time the sidebar is left with nothing selected. The host's own
+`sidebar.empty` goes first; then the first plugin, in the order they were
+registered, that returns something; with none, the editor's message. A result
+without a `body` element counts as null. `body` is taken out of the sidebar,
+not destroyed, when a node is selected, so keep it and give it back.
 
 ### Settings of your own, saved on the node
 

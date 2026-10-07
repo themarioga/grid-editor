@@ -504,6 +504,57 @@
   --bs-offcanvas-width: 340px;
   --bs-offcanvas-height: 60vh;
 }
+/* The sidebar: always there while editing, with the page making room for it
+   (html.ge-sidebar-open) where the window is wide enough. Narrower than
+   Bootstrap's sm it covers the page instead. */
+.ge-settings-sidebar {
+  --bs-offcanvas-width: 340px;
+}
+.ge-settings-sidebar .ge-sidebar-empty {
+  margin: 0;
+  color: var(--bs-secondary-color, #6c757d);
+}
+html.ge-sidebar-open {
+  padding-right: 340px;
+}
+/* On the panel's left edge, centred; folded away, on the window's right edge.
+   Its own element, so the panel can slide out from under it. */
+.ge-sidebar-toggle {
+  position: fixed;
+  top: 50%;
+  right: 340px;
+  z-index: 1045;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 3rem;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-right: 0;
+  border-radius: 0.375rem 0 0 0.375rem;
+  background: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #212529);
+  transition: right 0.3s ease-in-out;
+}
+.ge-sidebar-toggle[aria-expanded="false"] {
+  right: 0;
+}
+.ge-sidebar-toggle.ge-under-dialog {
+  z-index: 1040;
+}
+@media (max-width: 575.98px) {
+  .ge-settings-sidebar {
+    --bs-offcanvas-width: 100vw;
+  }
+  .ge-sidebar-toggle[aria-expanded="true"] {
+    right: calc(100vw - 1.5rem);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-left: 0;
+    border-radius: 0 0.375rem 0.375rem 0;
+  }
+}
 .ge-settings-popover {
   /* Popper would position it; without Popper that is the editor's job */
   position: absolute;

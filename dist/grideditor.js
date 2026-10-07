@@ -329,7 +329,9 @@
     getUtility: { value: true },
     setUtility: { value: true },
     getActiveTarget: { value: true },
-    setActiveTarget: {}
+    setActiveTarget: {},
+    getSelected: { value: true },
+    setSelected: {}
   };
   var PLACEMENTS = ["appendTo", "prependTo", "insertAfter", "insertBefore"];
   var BREAKPOINTS = [
@@ -413,6 +415,10 @@
       tools: true
       // The indent tools in the column's drawer
     },
+    sidebar: {
+      empty: null
+      // function(ge) -> { title, body } shown while nothing is selected, or null for the message
+    },
     drag: {
       delay: 0,
       // Milliseconds to hold before a drag starts
@@ -429,6 +435,8 @@
   var warned = {};
   var editorCounter = 0;
   var instances = /* @__PURE__ */ new WeakMap();
+  var sidebarHolder = null;
+  var EDITOR_CONTROLS = ".ge-mainControls, .ge-settings-panel, .ge-sidebar-toggle, .ge-dialog, .ge-confirm, .ge-size-picker, .modal, .modal-backdrop";
   function translate(settings, key, params) {
     var locales = GridEditor.locales;
     var locale = locales[settings.locale] || {};
@@ -634,7 +642,9 @@
       "confirm_delete": true,
       // Ask before deleting a row or a column
       "settings_panel": "offcanvas",
-      // Where a node's settings open: 'offcanvas', 'popover', 'modal' or 'inline'
+      // Where a node's settings open: 'offcanvas', 'popover', 'modal', 'inline' or 'sidebar'
+      "sidebar": NESTED_SETTINGS.sidebar,
+      // The 'sidebar' panel: what it shows while nothing is selected
       "drag": NESTED_SETTINGS.drag
       // How a drag behaves, whatever drives it
     }, optionsOrMethod);
@@ -660,6 +670,17 @@
     var sortables = [];
     var instanceId = ++editorCounter;
     var destroyed = false;
+    var selected = null;
+    var sidebarCollapsed = null;
+    var pluginHandle = null;
+    if (settings.settings_panel === "sidebar") {
+      if (sidebarHolder) {
+        warnOnceHere("sidebar", 'settings_panel "sidebar" is in use by another editor on the page, which has one sidebar: using offcanvas');
+        settings.settings_panel = "offcanvas";
+      } else {
+        sidebarHolder = instance;
+      }
+    }
     var detailsFor = /* @__PURE__ */ new WeakMap();
     var moves = /* @__PURE__ */ new WeakMap();
     var resizes = /* @__PURE__ */ new WeakMap();
@@ -1097,7 +1118,8 @@
           e.preventDefault();
         }
       }, signal);
-      if (settings.active_target) {
+      var sidebarMode = panelMode() === "sidebar";
+      if (settings.active_target || sidebarMode) {
         var pressed = null;
         canvas.addEventListener("pointerdown", function(e) {
           pressed = { x: e.clientX, y: e.clientY };
@@ -1111,23 +1133,60 @@
           if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) {
             return;
           }
-          var region = closest(e.target, targetSelector());
-          if (region && region === activeTarget && (e.target === region || e.target === child(region, ".ge-tools-drawer"))) {
-            changeTarget(null);
-            return;
+          if (settings.active_target) {
+            clickTarget(e);
           }
-          changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+          if (sidebarMode && canvas.contains(e.target)) {
+            changeSelection(settingsNodeAt(e.target));
+          }
         }, signal);
         document.addEventListener("keydown", function(e) {
-          if (e.key !== "Escape" || !activeTarget || openSettingsState || dialogState) {
+          if (e.key !== "Escape" || openSettingsState || dialogState) {
+            return;
+          }
+          if (confirmDialog && hasClass(confirmDialog, "show")) {
             return;
           }
           var focus = document.activeElement;
           if (focus && (is(focus, "input, textarea, select") || focus.isContentEditable)) {
             return;
           }
-          changeTarget(null);
+          if (selected && isEditing()) {
+            changeSelection(null);
+          } else if (activeTarget) {
+            changeTarget(null);
+          }
         }, signal);
+      }
+      if (sidebarMode) {
+        canvas.addEventListener("focusin", function(e) {
+          var node = isEditing() ? settingsNodeAt(e.target) : null;
+          if (node) {
+            changeSelection(node);
+          }
+        }, signal);
+        document.addEventListener("click", function(e) {
+          var target = e.target;
+          if (!selected || !isEditing() || !target || target.nodeType !== 1) {
+            return;
+          }
+          if (!attached(target) || canvas.contains(target)) {
+            return;
+          }
+          if (closest(target, EDITOR_CONTROLS) || canvas.querySelector(".ge-rte-active")) {
+            return;
+          }
+          changeSelection(null);
+        }, signal);
+        window.addEventListener("resize", reserveSidebarRoom, signal);
+      }
+      function clickTarget(e) {
+        var region = closest(e.target, targetSelector());
+        if (region && region === activeTarget && (e.target === region || e.target === child(region, ".ge-tools-drawer"))) {
+          changeTarget(null);
+          return;
+        }
+        changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
       }
     }
     function textReady(block) {
@@ -1899,6 +1958,7 @@
     function openSource() {
       deinit();
       changeTarget(null);
+      changeSelection(null);
       htmlTextArea.style.height = 0.8 * document.documentElement.clientHeight + "px";
       htmlTextArea.value = canvas.innerHTML;
       show(htmlTextArea);
@@ -1944,6 +2004,9 @@
       if (openSettingsState && !attached(openSettingsState.node)) {
         closeSettings();
       }
+      if (selected && !canvas.contains(selected)) {
+        changeSelection(null);
+      }
       if (dialogState && dialogState.home && !attached(dialogState.home)) {
         closeDialog();
       }
@@ -1968,9 +2031,11 @@
       } else if (activeTarget) {
         addClass(activeTarget, "ge-active-target");
       }
+      showSidebar();
     }
     function deinit() {
       closeSettings();
+      hideSidebar();
       removeClass(canvas, "ge-editing ge-drag-drawer ge-dropping");
       if (activeTarget) {
         removeClass(activeTarget, "ge-active-target");
@@ -2131,6 +2196,10 @@
       }
       deinit();
       activeTarget = null;
+      selected = null;
+      if (sidebarHolder === instance) {
+        sidebarHolder = null;
+      }
       removeConfirmModal();
       removeSettingsPanels();
       removeDialog();
@@ -2141,7 +2210,7 @@
       destroyed = true;
     }
     function loadPlugins() {
-      var api = pluginApi();
+      var api = pluginHandle = pluginApi();
       registerFamily("grid", {}, widthFamily());
       if (settings.row_cols !== false) {
         registerFamily("grid", {}, rowColsFamily());
@@ -3262,9 +3331,11 @@
     function addSettingsTool(drawer, node, presets) {
       var details = createDetails(node, presets || []);
       detailsFor.set(node, details);
-      createTool(drawer, t("tool.settings"), "ge-settings", "bi bi-gear-fill", function() {
-        toggleSettings(node, details, this);
-      });
+      if (panelMode() !== "sidebar") {
+        createTool(drawer, t("tool.settings"), "ge-settings", "bi bi-gear-fill", function() {
+          toggleSettings(node, details, this);
+        });
+      }
       var kind = kindOf(node);
       Object.keys(UTILITIES).forEach(function(name) {
         if (UTILITIES[name].drawerTools) {
@@ -3355,7 +3426,7 @@
             return;
           }
           var holder = element("div", { "class": "ge-panel-section", "data-ge-plugin": name });
-          if (mode === "offcanvas" || mode === "modal") {
+          if (mode === "offcanvas" || mode === "modal" || mode === "sidebar") {
             holder.appendChild(sectionTitle(t(section.labelKey)));
             holder.appendChild(section.body);
           } else {
@@ -3379,7 +3450,7 @@
       });
       return sections;
     }
-    var PANEL_MODES = ["offcanvas", "popover", "modal", "inline"];
+    var PANEL_MODES = ["offcanvas", "popover", "modal", "inline", "sidebar"];
     var settingsPanels = {};
     var openSettingsState = null;
     var modalState = /* @__PURE__ */ new WeakMap();
@@ -3394,7 +3465,14 @@
       return node && detailsFor.get(node) || null;
     }
     function settingsScope() {
-      return openSettingsState && openSettingsState.mode !== "inline" ? [canvas, openSettingsState.details] : [canvas];
+      var scope = [canvas];
+      if (openSettingsState && openSettingsState.mode !== "inline") {
+        scope.push(openSettingsState.details);
+      }
+      if (sidebarShown) {
+        scope.push(sidebarShown.details);
+      }
+      return scope;
     }
     function toggleSettings(node, details, gear) {
       var mode = panelMode();
@@ -3484,6 +3562,9 @@
       } else {
         hideModal(panel);
       }
+      returnPanel(open);
+    }
+    function returnPanel(open) {
       removeClass(open.node, "ge-settings-target");
       open.details.style.removeProperty("display");
       dropEmptyStyle(open.details);
@@ -3516,6 +3597,11 @@
         panel = create('<div class="popover bs-popover-bottom ge-settings-panel ge-settings-popover" role="dialog"><div class="popover-arrow"></div><div class="popover-header"><span class="ge-settings-title"></span></div><div class="popover-body ge-settings-body"></div></div>');
         one(panel, ".popover-header").appendChild(closeButton());
         hide(panel);
+      } else if (mode === "sidebar") {
+        panel = create('<div class="offcanvas offcanvas-end ge-settings-panel ge-settings-sidebar" tabindex="-1" role="complementary"><div class="offcanvas-header"><h5 class="offcanvas-title ge-settings-title"></h5></div><div class="offcanvas-body ge-settings-body"></div></div>');
+        panel.id = "ge-settings-sidebar-" + instanceId;
+        one(panel, ".offcanvas-header").appendChild(closeButton());
+        settingsPanels["sidebar-toggle"] = document.body.appendChild(sidebarToggle(panel));
       } else {
         panel = create('<div class="modal fade ge-settings-panel ge-settings-modal" tabindex="-1" role="dialog" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title ge-settings-title"></h5></div><div class="modal-body ge-settings-body"></div><div class="modal-footer"></div></div></div></div>');
         one(panel, ".modal-header").appendChild(closeButton());
@@ -3526,13 +3612,19 @@
       }
       delegate(panel, "click", ".ge-settings-close", function(e) {
         e.preventDefault();
-        closeSettings();
+        if (mode === "sidebar") {
+          changeSelection(null);
+        } else {
+          closeSettings();
+        }
       });
       settingsPanels[mode] = document.body.appendChild(panel);
       return panel;
     }
     function removeSettingsPanels() {
       closeSettings();
+      unshowSidebar();
+      removeClass(document.documentElement, "ge-sidebar-open");
       Object.keys(settingsPanels).forEach(function(mode) {
         if (mode === "modal") {
           retireModal(settingsPanels[mode]);
@@ -3544,6 +3636,180 @@
         removeBackdrop(settingsPanels[mode]);
       });
       settingsPanels = {};
+    }
+    var SIDEBAR_MIN_WIDTH = 576;
+    var sidebarShown = null;
+    var sidebarEmpty = null;
+    function isEditing() {
+      return hasClass(canvas, "ge-editing");
+    }
+    function sidebarToggle(panel) {
+      var button = element("button", { type: "button", "class": "ge-sidebar-toggle", "aria-controls": panel.id });
+      button.appendChild(element("i"));
+      button.addEventListener("click", function() {
+        foldSidebar(!sidebarCollapsed);
+      });
+      return button;
+    }
+    function foldSidebar(collapsed) {
+      sidebarCollapsed = collapsed;
+      applySidebar();
+    }
+    function applySidebar() {
+      var panel = settingsPanels.sidebar;
+      var toggle2 = settingsPanels["sidebar-toggle"];
+      if (!panel) {
+        return;
+      }
+      var open = !sidebarCollapsed;
+      if (open && !hasClass(panel, "show")) {
+        removeClass(panel, "hiding");
+        panel.getBoundingClientRect();
+        addClass(panel, "show");
+      } else if (!open && hasClass(panel, "show")) {
+        removeClass(panel, "show");
+        addClass(panel, "hiding");
+        window.setTimeout(function() {
+          removeClass(panel, "hiding");
+        }, 300);
+      }
+      var label = open ? t("panel.collapse") : t("panel.expand");
+      toggle2.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle2.setAttribute("aria-label", label);
+      toggle2.setAttribute("title", label);
+      one(toggle2, "i").className = "bi " + (open ? "bi-chevron-right" : "bi-chevron-left");
+      reserveSidebarRoom();
+    }
+    function reserveSidebarRoom() {
+      toggleClass(
+        document.documentElement,
+        "ge-sidebar-open",
+        !!settingsPanels.sidebar && isEditing() && !sidebarCollapsed && window.innerWidth >= SIDEBAR_MIN_WIDTH
+      );
+    }
+    function showSidebar() {
+      if (panelMode() !== "sidebar") {
+        return;
+      }
+      var panel = settingsPanel("sidebar");
+      if (sidebarCollapsed === null) {
+        sidebarCollapsed = window.innerWidth < SIDEBAR_MIN_WIDTH;
+      }
+      panel.style.removeProperty("display");
+      settingsPanels["sidebar-toggle"].style.removeProperty("display");
+      renderSidebar();
+      applySidebar();
+    }
+    function hideSidebar() {
+      unshowDetails();
+      var panel = settingsPanels.sidebar;
+      if (!panel) {
+        return;
+      }
+      panel.style.display = "none";
+      settingsPanels["sidebar-toggle"].style.display = "none";
+      removeClass(document.documentElement, "ge-sidebar-open");
+    }
+    function setSidebarTitle(text) {
+      var panel = settingsPanels.sidebar;
+      one(panel, ".ge-settings-title").textContent = text;
+      panel.setAttribute("aria-label", text);
+    }
+    function unshowDetails() {
+      var shown = sidebarShown;
+      sidebarShown = null;
+      if (shown) {
+        returnPanel(shown);
+      }
+    }
+    function unshowSidebar() {
+      unshowDetails();
+      if (sidebarEmpty) {
+        sidebarEmpty.body.remove();
+        sidebarEmpty = null;
+      }
+    }
+    function renderSidebar() {
+      var panel = settingsPanels.sidebar;
+      if (!panel || !isEditing()) {
+        return;
+      }
+      var details = selected ? detailsOf(selected) : null;
+      if (details ? sidebarShown && sidebarShown.details === details : !sidebarShown && sidebarEmpty) {
+        return;
+      }
+      unshowSidebar();
+      var holder = one(panel, ".ge-settings-body");
+      if (!details) {
+        var content = emptyContent();
+        var body = content ? content.body : element("p", { "class": "ge-sidebar-empty" }, t("panel.sidebar_empty"));
+        setSidebarTitle(content ? content.title : t("panel.sidebar_title"));
+        holder.appendChild(body);
+        sidebarEmpty = { body };
+        return;
+      }
+      sidebarShown = { node: selected, details, home: details.parentElement, next: details.nextElementSibling };
+      setSidebarTitle(t("panel.title", { kind: kindLabel(selected) }));
+      holder.appendChild(details);
+      show(details);
+      addClass(selected, "ge-settings-target");
+    }
+    function emptyContent() {
+      var fromHost = settings.sidebar.empty;
+      var found = null;
+      if (typeof fromHost === "function") {
+        found = emptyContentOf(fromHost(instance), function(result) {
+          return result.title;
+        });
+      } else if (fromHost !== null && fromHost !== void 0) {
+        warnOnceHere("sidebar.empty", "sidebar.empty is a function(ge) returning { title, body }, not " + typeof fromHost + ": ignored");
+      }
+      [CONTAINERS, FEATURES, UTILITIES].forEach(function(registry) {
+        Object.keys(registry).forEach(function(name) {
+          var plugin = registry[name];
+          if (found || !plugin.sidebarEmpty) {
+            return;
+          }
+          found = emptyContentOf(plugin.sidebarEmpty(pluginHandle), function(result) {
+            return typeof result.titleKey === "string" && result.titleKey !== "" ? t(result.titleKey) : "";
+          });
+        });
+      });
+      return found;
+    }
+    function emptyContentOf(result, titleOf) {
+      if (!result || !result.body || result.body.nodeType !== 1) {
+        return null;
+      }
+      var title = titleOf(result);
+      return { title: typeof title === "string" && title !== "" ? title : t("panel.sidebar_title"), body: result.body };
+    }
+    function settingsNodeAt(target) {
+      var drawer = closest(target, ".ge-tools-drawer", canvas);
+      if (drawer) {
+        var home = drawer.parentElement;
+        var owner = detailsFor.has(home) ? home : children(home).filter(function(each) {
+          return detailsFor.has(each);
+        })[0];
+        if (owner) {
+          return owner;
+        }
+      }
+      for (var node = target; node && node !== canvas; node = node.parentElement) {
+        if (detailsFor.has(node)) {
+          return node;
+        }
+      }
+      return null;
+    }
+    function changeSelection(node) {
+      if (node === selected) {
+        return;
+      }
+      var from = selected;
+      selected = node;
+      renderSidebar();
+      emit("selection-change", { canvas, node, from });
     }
     function placePopover(panel, gear) {
       if (!attached(gear)) {
@@ -4659,6 +4925,23 @@
       }
       changeTarget(node);
     }
+    function apiSetSelected(value) {
+      if (panelMode() !== "sidebar") {
+        warnOnceHere("sidebar-api", 'setSelected needs settings_panel "sidebar": without it, it does nothing');
+        return;
+      }
+      if (value === null || value === void 0) {
+        changeSelection(null);
+        return;
+      }
+      var node = nodeFrom(value);
+      if (!node || node === canvas || !canvas.contains(node) || !detailsFor.has(node)) {
+        var named = typeof value === "string" ? value : node ? "<" + node.tagName.toLowerCase() + ">" : String(value);
+        warn("setSelected: " + named + " is not a node of the canvas with settings");
+        return;
+      }
+      changeSelection(node);
+    }
     var own = {
       getHtml,
       getPlainHtml,
@@ -4697,7 +4980,11 @@
       getActiveTarget: function() {
         return settings.active_target ? activeTarget : null;
       },
-      setActiveTarget: apiSetActiveTarget
+      setActiveTarget: apiSetActiveTarget,
+      getSelected: function() {
+        return panelMode() === "sidebar" ? selected : null;
+      },
+      setSelected: apiSetSelected
     };
     Object.keys(own).forEach(function(name) {
       var value = !!(METHODS[name] && METHODS[name].value);
@@ -4781,6 +5068,10 @@
       "panel.title": "{kind} settings",
       "panel.close": "Close",
       "panel.done": "Done",
+      "panel.sidebar_title": "Settings",
+      "panel.sidebar_empty": "Click an element to see its settings",
+      "panel.collapse": "Hide settings",
+      "panel.expand": "Show settings",
       "panel.id": "Id",
       "panel.classes": "Classes",
       "panel.section_general": "Id and classes",
