@@ -963,7 +963,8 @@ markup alone and writes Bootstrap's attributes onto it in the output.
 
 A carousel shows one slide at a time while editing, as it does on the page.
 The container's drawer has the arrows and says which slide it is on, and
-Bootstrap's own arrows and indicators are drawn but do not answer: the editor
+Bootstrap's own arrows are kept in the markup but not drawn, so they never sit
+over a slide's content. Its indicators are drawn but do not answer: the editor
 puts the attributes Bootstrap's javascript acts on aside, so an autoplay never
 starts over the canvas. Each slide's drawer moves it a place back or on. What
 `getHtml` gives starts at the first slide, whichever one the canvas was on.

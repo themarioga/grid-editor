@@ -168,20 +168,24 @@ async function navigationTests(t, page) {
         start({}, '', { slides: 2 });
         const target = one('.column', items()[0]);
         target.id = 'under';
-        const arrow = one(':scope > .carousel > .carousel-control-prev', car()).getBoundingClientRect();
-        const hit = document.elementFromPoint(arrow.left + 5, arrow.top + arrow.height / 2);
-        one(':scope > .carousel > .carousel-control-prev', car()).click();
+        const arrows = car().querySelectorAll(':scope > .carousel > .carousel-control-prev, :scope > .carousel > .carousel-control-next');
+        const indicator = indicators()[1].getBoundingClientRect();
+        const hit = document.elementFromPoint(indicator.left + indicator.width / 2, indicator.top + indicator.height / 2);
+        arrows[0].click();
         indicators()[1].click();
         await wait(700);
         return {
-            hitArrow: !!hit && !!hit.closest('.carousel-control-prev'),
+            arrows: arrows.length,
+            arrowsDrawn: Array.from(arrows).some(function(arrow) { return getComputedStyle(arrow).display !== 'none'; }),
+            hitIndicator: !!hit && !!hit.closest('.carousel-indicators'),
             hitSlide: !!hit && !!hit.closest('.carousel-item'),
             shown: shown(),
             counter: counter(),
         };
     `);
-    t.check('AC-06 Bootstrap\'s arrows and indicators do not change the slide, and a click goes through them to the slide',
-        !through.hitArrow && through.hitSlide && through.shown === '0' && through.counter === '1 / 2', through);
+    t.check('AC-06 Bootstrap\'s arrows are in the markup but not drawn, its indicators do not change the slide, and a click goes through them to the slide',
+        through.arrows === 2 && !through.arrowsDrawn && !through.hitIndicator && through.hitSlide
+            && through.shown === '0' && through.counter === '1 / 2', through);
 
     var one_ = await page.eval(`
         start({}, '', { slides: 1 });

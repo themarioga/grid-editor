@@ -567,10 +567,11 @@
        javascript is never asked to run over the canvas, so the state is
        driven from the attribute rather than from the .show class it animates */
   /* A carousel shows one slide, the one Bootstrap's .active says, and the
-       container's drawer moves between them. Bootstrap's arrows and
-       indicators are drawn but the editor's javascript answers, not theirs:
-       a click goes through them to what is under, and a slide is changed
-       with no transition */
+       container's drawer moves between them. Bootstrap's arrows are kept in
+       the markup but not drawn: they would sit over the slide's content and
+       the drawer's already do their work. Its indicators are drawn but the
+       editor's javascript answers, not theirs: a click goes through them to
+       what is under, and a slide is changed with no transition */
   /* A popup is rendered unfolded and in place: a plain block with its
        body as an ordinary region. Bootstrap's modal JS is never asked to
        open it, so there is no backdrop, no focus trap and no scroll lock */
@@ -821,7 +822,9 @@
   transition: none;
 }
 .ge-canvas.ge-editing .ge-container-carousel .carousel-control-prev,
-.ge-canvas.ge-editing .ge-container-carousel .carousel-control-next,
+.ge-canvas.ge-editing .ge-container-carousel .carousel-control-next {
+  display: none;
+}
 .ge-canvas.ge-editing .ge-container-carousel .carousel-indicators {
   pointer-events: none;
 }

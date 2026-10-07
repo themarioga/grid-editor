@@ -11,7 +11,8 @@
  *
  * Only one slide shows on the canvas, as on the page. The container's drawer
  * says which, and moves to the next and the previous; Bootstrap's own arrows
- * and indicators are drawn but do not answer, and neither does its javascript:
+ * are kept in the markup but not drawn, its indicators are drawn but do not
+ * answer, and neither does its javascript:
  * the attributes it acts on are put aside while editing. A carousel's options
  * - arrows, indicators, fade, dark theme, autoplay and its interval, pause,
  * wrap, keyboard and touch - are Bootstrap's classes and attributes and
