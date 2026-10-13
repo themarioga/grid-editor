@@ -1541,6 +1541,9 @@
       var colour = item.align === "end" ? "btn-primary" : "btn-light";
       var button = labelButton(element("a", { "class": "btn btn-sm " + colour + " ge-add-container ge-add-feature" }), label, iconClass);
       addClass(button, item.className || "");
+      if (typeof item.hidden === "function" ? item.hidden() : item.hidden) {
+        hide(button);
+      }
       attr(button, {
         "data-ge-toolbar": "feature",
         "data-ge-feature": name,

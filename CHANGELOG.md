@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- clipboard: a toolbar built again (another plugin's buttons changing,
+  `setLocale`) showed every paste button, not only the one that fits what was
+  copied.
+
+### Added
+- For plugins: `hidden` on a toolbar item, a boolean or a function called
+  whenever the toolbar is built, builds its button hidden.
+
 ## [8.10.0] - 2026-10-07
 
 ### Added

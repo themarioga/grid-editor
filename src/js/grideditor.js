@@ -1605,6 +1605,9 @@ function build(instance, baseElem, optionsOrMethod) {
             var button = labelButton(dom.element('a', { 'class': 'btn btn-sm ' + colour + ' ge-add-container ge-add-feature' }), label, iconClass);
 
             dom.addClass(button, item.className || '');
+            // Hidden as it is now: a plugin that shows and hides its buttons
+            // only hears of what changes, not of the toolbar being built again
+            if (typeof item.hidden === 'function' ? item.hidden() : item.hidden) { dom.hide(button); }
             dom.attr(button, {
                 'data-ge-toolbar': 'feature',
                 'data-ge-feature': name,

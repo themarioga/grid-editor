@@ -131,6 +131,19 @@ async function rowTests(t) {
         copied.showing.toolbar.join(',') === 'Paste row',
         copied.showing);
 
+    // Another plugin building the toolbar again - its buttons changed - with
+    // no init after it to look at the clipboard
+    var rebuilt = await page.eval(`
+        GridEditor.features.rebuilder = function(handle) { window.rebuild = handle.refreshToolbar; return {}; };
+        window.ge = window.fixture.init({ plugins: window.fixture.plugins(['clipboard', 'sections', 'rebuilder']) });
+        window.rebuild();
+        const toolbar = showingButtons().map(function(button) { return button.getAttribute('title'); });
+        delete GridEditor.features.rebuilder;
+        return toolbar;
+    `);
+    t.check('a toolbar built again shows only the paste button that fits',
+        rebuilt.join(',') === 'Paste row', rebuilt);
+
     var placed = await page.eval(`
         const paste = $$('.ge-mainControls [data-ge-feature="clipboard"]');
         const end = document.querySelector('.ge-mainControls .ge-toolbar-end');

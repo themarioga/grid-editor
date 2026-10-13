@@ -377,7 +377,10 @@ rather than remembering anything about it.
   preview buttons, always as an icon - `bi bi-plus` when it has none.
   `label`, a string or a function called whenever the toolbar is built, stands
   in for `labelKey` when the label takes parameters; `className` goes on the
-  button. With `inColumn: true` what it makes belongs in a column, as a
+  button. `hidden`, a boolean or a function called whenever the toolbar is
+  built, builds the button hidden: a plugin that shows and hides its buttons
+  gives it, so a toolbar built again - `ge.refreshToolbar()`, `setLocale` -
+  shows them as they are. With `inColumn: true` what it makes belongs in a column, as a
   container or a text does: a click puts it in a row and a column of its own
   at the end of the canvas, and a drop anywhere but in a column does the
   same where it was dropped.

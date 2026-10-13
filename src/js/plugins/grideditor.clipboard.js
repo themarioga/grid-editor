@@ -168,6 +168,9 @@ GridEditor.features.clipboard = function(ge) {
             // the add buttons make
             align: 'end',
             source: 'paste',
+            // A toolbar built again - another plugin's buttons changed -
+            // shows only what fits, as refresh would
+            hidden: function() { return !fits(read(), [item.kind]); },
             // What the button showed, even if another tab has copied
             // something else since
             create: function() { return ge.freshNode(shown.html); },
