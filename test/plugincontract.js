@@ -239,12 +239,58 @@ async function handleTests(t) {
     t.check('the handle tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** The handle choosing the selection and the target (spec history, AC-44). */
+async function chooseTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var chosen = await page.eval(`
+        GridEditor.features.probe = function(handle) { window.probe = handle; return {}; };
+        const q = function(selector) { return document.querySelector(selector); };
+        const warnings = [];
+        const warn = console.warn;
+        console.warn = function() { warnings.push(Array.prototype.join.call(arguments, ' ')); };
+        const changes = [];
+        q('#myGrid').innerHTML = '<div class="row" id="r1"><div class="column col-6" id="a"><p>A</p></div><div class="column col-6" id="b"><p>B</p></div></div>';
+        q('#myGrid').addEventListener('grideditor:selection-change', function(e) { changes.push(e.detail.node && e.detail.node.id); });
+        let ge = window.fixture.init({ settings_panel: 'sidebar', plugins: window.fixture.plugins(['probe']) });
+
+        const result = {
+            selected: window.probe.setSelected(q('#b')),
+            same: ge.getSelected() === q('#b'),
+            shown: q('.ge-settings-sidebar .ge-id') && q('.ge-settings-sidebar .ge-id').value,
+            target: window.probe.setActiveTarget(q('#a')),
+            targetSame: ge.getActiveTarget() === q('#a'),
+            notOne: window.probe.setSelected(document.body),
+            notRegion: window.probe.setActiveTarget(q('#r1')),
+            changes: changes.slice(),
+        };
+        ge = window.fixture.init({ plugins: window.fixture.plugins(['probe']) });
+        result.withoutSidebar = window.probe.setSelected(q('#a'));
+        result.withoutTarget = window.probe.setActiveTarget(q('#a'));
+        result.warnings = warnings;
+        console.warn = warn;
+        ge.destroy();
+        delete GridEditor.features.probe;
+        return result;
+    `);
+    t.check('setSelected on the handle selects as the public method does: selection-change, the sidebar shows it (AC-44)',
+        chosen.selected === true && chosen.same && chosen.shown === 'b' && chosen.changes.indexOf('b') !== -1, chosen);
+    t.check('setActiveTarget on the handle makes the target', chosen.target === true && chosen.targetSame, chosen);
+    t.check('a node that is not one, or no sidebar or active_target, answers false without a warning',
+        chosen.notOne === false && chosen.notRegion === false && chosen.withoutSidebar === false &&
+            chosen.withoutTarget === false && chosen.warnings.length === 0, chosen);
+
+    var errors = page.errors();
+    t.check('the choose tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'plugincontract',
     description: 'what every shipped plugin is handed and hands back is DOM',
     run: async function(t) {
         await run(t);
         await handleTests(t);
+        await chooseTests(t);
     },
 };
 

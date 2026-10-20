@@ -297,6 +297,54 @@ async function iconTests(t) {
     t.check('the toolbar icon tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** A toolbar item with an action: a button that does something, not a block to add (spec history, AC-43). */
+async function actionTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var acted = await page.eval(`
+        let calls = 0;
+        let handed = null;
+        GridEditor.features.stamp = function(ge) {
+            window.stampHandle = ge;
+            return { toolbar: [{
+                labelKey: 'stamp.act', iconClass: 'bi bi-star', align: 'end', className: 'ge-stamp-act', disabled: true,
+                action: function(button) { calls++; handed = button; },
+            }] };
+        };
+        Object.assign(GridEditor.locales.en, { 'stamp.act': 'Act' });
+        window.fixture.init({ active_target: true, toolbar_drag: true, plugins: window.fixture.plugins(['stamp']) });
+        let adds = 0;
+        document.querySelector('#myGrid').addEventListener('grideditor:before-add', function() { adds++; });
+        document.querySelector('#myGrid .column > .ge-tools-drawer, #myGrid .column').click();
+
+        const button = document.querySelector('.ge-stamp-act');
+        const built = {
+            disabled: button.classList.contains('disabled') && button.getAttribute('aria-disabled') === 'true',
+            right: !!button.closest('.ge-toolbar-end'),
+            palette: button.classList.contains('ge-palette-button'),
+        };
+        button.click();
+        const first = calls;
+        window.stampHandle.toolbarItems('stamp').forEach(function(each) {
+            each.classList.remove('disabled');
+            each.removeAttribute('aria-disabled');
+        });
+        button.click();
+        const result = { built: built, first: first, second: calls, handed: handed === button, adds: adds };
+
+        delete GridEditor.features.stamp;
+        window.fixture.init({});
+        return result;
+    `);
+    t.check('an item with action is built disabled, on the right, not a palette button (AC-43)',
+        acted.built.disabled && acted.built.right && !acted.built.palette, acted);
+    t.check('disabled, a click does nothing; enabled, it calls action with the button, and never adds (AC-43)',
+        acted.first === 0 && acted.second === 1 && acted.handed && acted.adds === 0, acted);
+
+    var errors = page.errors();
+    t.check('the toolbar action tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 /** What does not fit on the toolbar's line goes behind its more button, and comes back when there is room. */
 async function overflowTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
@@ -381,12 +429,13 @@ async function overflowTests(t) {
 
 module.exports = {
     name: 'toolbar',
-    description: 'dragging the toolbar buttons onto the canvas, their icons, and the overflow menu',
+    description: 'dragging the toolbar buttons onto the canvas, their icons, action items, and the overflow menu',
     run: async function(t) {
         await paletteTests(t);
         await markerTests(t);
         await settingTests(t);
         await iconTests(t);
+        await actionTests(t);
         await overflowTests(t);
     },
 };

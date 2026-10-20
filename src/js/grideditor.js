@@ -1614,6 +1614,8 @@ function build(instance, baseElem, optionsOrMethod) {
             var colour = item.align === 'end' ? 'btn-primary' : 'btn-light';
             var button = labelButton(dom.element('a', { 'class': 'btn btn-sm ' + colour + ' ge-add-container ge-add-feature' }), label, iconClass);
 
+            var acting = typeof item.action === 'function';
+
             dom.addClass(button, item.className || '');
             // Hidden as it is now: a plugin that shows and hides its buttons
             // only hears of what changes, not of the toolbar being built again
@@ -1623,7 +1625,21 @@ function build(instance, baseElem, optionsOrMethod) {
                 'data-ge-feature': name,
                 'data-ge-item': index,
             });
+            if (acting) {
+                // Not a block to add: it is not carried onto the canvas, and
+                // the active target is none of its business
+                button.setAttribute('data-ge-action', '');
+                if (typeof item.disabled === 'function' ? item.disabled() : item.disabled) {
+                    dom.addClass(button, 'disabled');
+                    button.setAttribute('aria-disabled', 'true');
+                }
+            }
             button.addEventListener('click', function() {
+                if (acting) {
+                    if (!dom.hasClass(button, 'disabled')) { item.action(button); }
+                    return;
+                }
+
                 if (activeTarget) { addToTarget(button, item.source || 'tool'); return; }
 
                 var made = item.create();
@@ -1661,7 +1677,7 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         function makeToolbarDraggable() {
-            var buttons = dom.all(mainControls, '[data-ge-toolbar]');
+            var buttons = dom.all(mainControls, '[data-ge-toolbar]:not([data-ge-action])');
 
             buttons.forEach(function(button) {
                 dom.removeClass(button, 'ge-palette-button');
@@ -2624,6 +2640,19 @@ function build(instance, baseElem, optionsOrMethod) {
                 },
                 getSelected: function() { return panelMode() === 'sidebar' ? selected : null; },
                 getActiveTarget: function() { return settings.active_target ? activeTarget : null; },
+                // True when it took: a node that cannot be, or no setting
+                // for it, says nothing, since a plugin putting back what it
+                // remembers cannot know the node is still one
+                setSelected: function(node) {
+                    var chosen = panelMode() === 'sidebar' && !!node && node !== canvas && canvas.contains(node) && detailsFor.has(node);
+                    if (chosen) { changeSelection(node); }
+                    return chosen;
+                },
+                setActiveTarget: function(node) {
+                    var chosen = !!settings.active_target && isTarget(node);
+                    if (chosen) { changeTarget(node); }
+                    return chosen;
+                },
                 // What keeps Escape from the selection and the target, and an
                 // inline panel unfolded in a drawer, which Escape leaves alone
                 panelOpen: function() {

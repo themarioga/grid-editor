@@ -97,6 +97,9 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-autosave` | — | no | with the autosave plugin, after a draft is written |
 | `grideditor:after-restore-draft` | — | no | with the autosave plugin, after the user chose to restore a draft and the canvas is it |
 | `grideditor:autosave-error` | — | no | with the autosave plugin, when the storage refused a draft |
+| `grideditor:after-undo` | — | no | with the history plugin, after the canvas went back a step: `source` is `'shortcut'`, `'tool'` or `'api'`, and the payload has `canvas` and `html`, the markup it went to |
+| `grideditor:after-redo` | — | no | with the history plugin, after the canvas came forward a step; the same payload |
+| `grideditor:history-change` | — | no | with the history plugin, after what can be done changes: `canvas`, `canUndo`, `canRedo`. Not for a step that leaves both as they were |
 
 Two things here are not in the 3.0 specification's catalogue. The indent pair,
 because the indent tools are an operation like any other and announce

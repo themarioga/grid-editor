@@ -36,6 +36,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
 | [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
+| [example/history.html](example/history.html) | The history plugin: undo and redo, with the keyboard and the toolbar | [live](https://themarioga.github.io/grid-editor/example/history.html) |
 | [example/autosave.html](example/autosave.html) | The autosave plugin: drafts kept as the user edits, offered back after a reload; import and export | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
 | [example/adapter.html](example/adapter.html) | A page written for 6.x, with jQuery, running unchanged through the adapter | [live](https://themarioga.github.io/grid-editor/example/adapter.html) |
 
@@ -927,6 +928,57 @@ draft is offered only to an editor that starts from the same html *as this
 version of grid-editor reads it*, so one saved before an upgrade that changes
 what `getHtml` gives is not offered after it. Drafts are a safety net, not a
 place to keep work.
+
+### Undo and redo
+
+A plugin:
+
+```html
+<script src="grid-editor/dist/plugins/grideditor.history.min.js"></script>
+```
+
+What is edited is kept, step by step, in memory. <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+(<kbd>⌘</kbd>+<kbd>Z</kbd> on a Mac) goes back one step, and
+<kbd>Ctrl</kbd>+<kbd>Y</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>
+comes forward again; two buttons on the right of the toolbar do the same. A
+step is what the canvas is `delay` milliseconds after the last change, so a
+drag, a resize or a burst of typing is one. A change made after going back ends
+what could be redone. The steps go with the page: they are not kept in the
+storage, and a draft restored by the autosave plugin is one more step.
+
+```javascript
+new GridEditor('#myGrid', {
+    history: {
+        shortcuts: true,   // the keys; false leaves them to the browser
+        buttons: true,     // the toolbar's buttons
+        max: 50,           // the steps that can be undone
+        delay: 500,        // milliseconds after the last change that make a step
+    },
+});
+```
+
+The keys stay the browser's, or the text editor's, while a field or a text is
+edited, while a panel or a dialog is open, and while the canvas is in preview or
+showing its source; what was typed becomes a step when it is done. They go to
+the editor used last. Going to a step makes the canvas again, so an open text
+closes, and the node selected in the sidebar and the target are chosen again by
+where they were: nothing is selected if there is no node there any more.
+
+| Method | Returns | What it does |
+| --- | --- | --- |
+| `undo()` | `Boolean` | Goes back a step; `false` when there is none, or the canvas is not being edited or a drag is going on |
+| `redo()` | `Boolean` | Comes forward a step |
+| `canUndo()` | `Boolean` | Whether there is a step to go back to. A change not yet a step counts |
+| `canRedo()` | `Boolean` | Whether there is one to come forward to |
+| `clearHistory()` | `Boolean` | What there is now is the first step, with nothing before it or after it: for a page that loads another document |
+
+The methods are there only when the plugin is loaded.
+
+| Event | Payload | Fires |
+| --- | --- | --- |
+| `grideditor:after-undo` | `canvas`, `html`, `source` (`shortcut`, `tool` or `api`) | after the canvas went back a step |
+| `grideditor:after-redo` | `canvas`, `html`, `source` | after it came forward |
+| `grideditor:history-change` | `canvas`, `canUndo`, `canRedo` | when either changed: for a page with buttons of its own, which `buttons: false` leaves to it |
 
 ### Containers
 

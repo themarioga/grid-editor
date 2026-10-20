@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- history: a plugin for undo and redo. Ctrl+Z goes back a step and Ctrl+Y or
+  Ctrl+Shift+Z comes forward (⌘ on a Mac), and two buttons on the right of the
+  toolbar do the same. A step is the canvas `delay` ms after the last change,
+  and the node selected and the target are chosen again by where they were.
+  `history: { shortcuts, buttons, max, delay }`; `undo()`, `redo()`,
+  `canUndo()`, `canRedo()` and `clearHistory()`; the events `after-undo`,
+  `after-redo` and `history-change`.
+- A feature plugin's `toolbar` item can have an `action` in place of `create`:
+  a button that does something instead of adding a block, and `disabled`.
+- The plugin handle has `setSelected(node)` and `setActiveTarget(node)`.
+
 ## [9.0.0-beta.2] - 2026-10-20
 
 ### Added

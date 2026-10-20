@@ -180,6 +180,8 @@ export interface GridEditorOptions {
     autosave?: AutosaveOptions;
     /** The clipboard plugin. `shortcuts`: Ctrl+C and Ctrl+V on the node selected or the target; default active_target. */
     clipboard?: { shortcuts?: boolean };
+    /** The history plugin: undo and redo. */
+    history?: HistoryOptions;
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];
     valid_col_offsets?: number[];
@@ -222,6 +224,18 @@ export interface AutosaveOptions {
     maxAge?: number | null;
 }
 
+/** The history plugin's options. */
+export interface HistoryOptions {
+    /** Ctrl+Z, and Ctrl+Y or Ctrl+Shift+Z (⌘ on a Mac). Default true. */
+    shortcuts?: boolean;
+    /** The undo and redo buttons on the right of the toolbar. Default true. */
+    buttons?: boolean;
+    /** The steps that can be undone. Default 50. */
+    max?: number;
+    /** Milliseconds after the last change that make a step. Default 500. */
+    delay?: number;
+}
+
 /** A draft the autosave plugin kept. */
 export interface AutosaveDraft {
     html: string;
@@ -250,6 +264,19 @@ export interface RestoreDraftPayload {
 export interface AutosaveErrorPayload {
     canvas: HTMLElement;
     error: unknown;
+}
+
+export interface HistoryPayload {
+    canvas: HTMLElement;
+    /** The markup the canvas went to. */
+    html: string;
+    source: 'shortcut' | 'tool' | 'api';
+}
+
+export interface HistoryChangePayload {
+    canvas: HTMLElement;
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
 /** Where a node was, or went: its parent and its index among the blocks there. */
@@ -385,6 +412,9 @@ export interface GridEditorEventMap {
     'grideditor:after-autosave': AutosavePayload;
     'grideditor:after-restore-draft': RestoreDraftPayload;
     'grideditor:autosave-error': AutosaveErrorPayload;
+    'grideditor:after-undo': HistoryPayload;
+    'grideditor:after-redo': HistoryPayload;
+    'grideditor:history-change': HistoryChangePayload;
 }
 
 /** An event the editor dispatches on its canvas: a CustomEvent whose detail is the payload. */
@@ -523,6 +553,14 @@ export declare class GridEditor {
     saveDraft?(): boolean;
     getDraft?(): AutosaveDraft | null;
     clearDraft?(): boolean;
+    /** The history plugin's, when it is loaded: true when it went to another step. */
+    undo?(): boolean;
+    redo?(): boolean;
+    /** Whether there is a step to go back to, a change not yet a step counting. */
+    canUndo?(): boolean;
+    canRedo?(): boolean;
+    /** What there is now becomes the first step, with nothing before or after it. */
+    clearHistory?(): boolean;
 }
 
 export default GridEditor;

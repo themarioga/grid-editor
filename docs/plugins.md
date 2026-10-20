@@ -173,6 +173,7 @@ element, and where there may be several, an array.
 | `ge.refreshToolbar()` | The toolbar built again, from what the feature plugins' `toolbar`s hold now: for a plugin whose buttons come and go. The category shown with `toolbar_groups`, the preview and the source view stay as they are. Does nothing before the toolbar is first built, and after `destroy` |
 | `ge.getSelected()` | The node the sidebar shows, as the public method gives it: `null` without the `'sidebar'` panel |
 | `ge.getActiveTarget()` | The column or section the toolbar adds to, as the public method gives it: `null` without `active_target` |
+| `ge.setSelected(node)` / `ge.setActiveTarget(node)` | Choose the node the sidebar shows, or the column or section the toolbar adds to: the public methods without their warnings. `true` when it took, `false` for a node that is not one, or without the `'sidebar'` panel or `active_target`. A plugin that puts the choice back after it remade the canvas does not know the node is still one |
 | `ge.panelOpen()` | Whether a settings panel is open in a popover, an offcanvas or a modal, or one is unfolded inline in a drawer, or the editor's dialog or delete confirmation is up. The sidebar does not count: it is always there |
 | `ge.contains(node)` | Whether a node is this editor's: in its canvas, its toolbar, its settings panels (the sidebar too, when it has it), its dialog or its confirmation |
 | `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
@@ -384,7 +385,13 @@ rather than remembering anything about it.
   button. `hidden`, a boolean or a function called whenever the toolbar is
   built, builds the button hidden: a plugin that shows and hides its buttons
   gives it, so a toolbar built again - `ge.refreshToolbar()`, `setLocale` -
-  shows them as they are. With `inColumn: true` what it makes belongs in a column, as a
+  shows them as they are. With **`action(button)`** in place of `create` the
+  button is not a block to add: a click calls `action`, which makes nothing and
+  asks nothing of the active target, and the button is not carried onto the
+  canvas. **`disabled`**, a boolean or a function, builds it disabled, as
+  `hidden` does; afterwards the plugin gives its buttons - `ge.toolbarItems(name)` -
+  the `disabled` class and `aria-disabled="true"`, and a click on one with the
+  class does nothing. With `inColumn: true` what it makes belongs in a column, as a
   container or a text does: a click puts it in a row and a column of its own
   at the end of the canvas, and a drop anywhere but in a column does the
   same where it was dropped.

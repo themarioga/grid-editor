@@ -5,7 +5,7 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { AutosaveDraft, CarouselOptions, AutosavePayload, GridEditorOptions, SelectionChangePayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { AutosaveDraft, CarouselOptions, AutosavePayload, GridEditorOptions, HistoryChangePayload, HistoryPayload, SelectionChangePayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
@@ -31,6 +31,7 @@ const options: GridEditorOptions = {
     },
     tabs: { variant: 'pills', vertical: 'md' },
     autosave: { enabled: true, storage: 'session', key: 'page-42', delay: 500, maxAge: null },
+    history: { shortcuts: true, buttons: false, max: 100, delay: 300 },
 };
 
 const ge = new GridEditor('#myGrid', options);
@@ -54,6 +55,22 @@ ge.canvas.addEventListener('grideditor:after-autosave', function(event) {
 });
 // @ts-expect-error: the storage is local or session
 const wrongStorage: GridEditorOptions = { autosave: { storage: 'indexeddb' } };
+
+// The history plugin's, there when it is loaded
+if (ge.undo && ge.canUndo && ge.canUndo()) {
+    const went: boolean = ge.undo();
+}
+ge.canvas.addEventListener('grideditor:after-undo', function(event) {
+    const payload: HistoryPayload = event.detail;
+    payload.source === 'shortcut';
+    payload.html.length;
+});
+ge.canvas.addEventListener('grideditor:history-change', function(event) {
+    const payload: HistoryChangePayload = event.detail;
+    const both: boolean = payload.canUndo && payload.canRedo;
+});
+// @ts-expect-error: buttons are on or off
+const wrongButtons: GridEditorOptions = { history: { buttons: 'yes' } };
 ge.changeView('md').reset().init();
 
 const row: HTMLElement | null = ge.createRow([8, 4], { appendTo: ge.canvas });

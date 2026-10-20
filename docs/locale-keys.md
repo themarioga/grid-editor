@@ -229,6 +229,17 @@ the same html saved.
 | `autosave.discard` | Discard | The modal's cancel button: the draft is taken away |
 
 
+history.*
+---------
+
+The history plugin: undo and redo.
+
+| Key | English | Where |
+| --- | --- | --- |
+| `history.undo` | Undo | Title of the toolbar's undo button |
+| `history.redo` | Redo | Title of the toolbar's redo button |
+
+
 codemirror.*
 ------------
 

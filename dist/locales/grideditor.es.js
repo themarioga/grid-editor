@@ -164,6 +164,8 @@
     "autosave.restore_message": "Hay un borrador de esta p\xE1gina guardado el {date}, con cambios que no se publicaron. \xBFQuieres recuperarlo?",
     "autosave.restore": "Recuperar",
     "autosave.discard": "Descartar",
+    "history.undo": "Deshacer",
+    "history.redo": "Rehacer",
     "utility.col_from_row": "De la fila: {count}",
     "utility.row_cols": "Columnas por fila",
     "badge.row_cols": "{count} por fila",
