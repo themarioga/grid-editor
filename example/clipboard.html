@@ -34,6 +34,10 @@
                 // tinyMCE 7 is GPL-2.0-or-later: 'gpl' accepts that licence.
                 // A commercial licence passes its own key here instead.
                 tinymce: { config: { license_key: 'gpl' } },
+                // A click in a column or a section makes it the target, which
+                // turns on Ctrl+C and Ctrl+V. clipboard: { shortcuts: false }
+                // would leave the keys to the browser
+                active_target: true,
             };
 
             ['#myGrid', '#otherGrid'].forEach(function(selector) {
@@ -45,6 +49,12 @@
                     if (e.detail.source === 'paste') {
                         document.getElementById('log').textContent = 'Pasted a ' + e.detail.kind + ' into ' + e.currentTarget.id;
                     }
+                });
+
+                // A copy says where it came from: 'tool' or 'shortcut'
+                grid.addEventListener('grideditor:after-copy', function(e) {
+                    document.getElementById('log').textContent = 'Copied a ' + e.detail.kind + ' from ' + e.currentTarget.id +
+                        (e.detail.source === 'shortcut' ? ' with Ctrl+C' : ' with its tool');
                 });
             });
         });
@@ -69,6 +79,18 @@
             section can also be pasted from the toolbar, with the
             <i class="bi bi-clipboard-plus"></i> on the right: click it, or
             drag it to where the copy should land.
+        </p>
+        <p class="text-body-secondary">
+            With the keyboard: click a column or a section - its background or
+            its drawer, not a text, which opens the text for writing - and it
+            becomes the target, with a dashed outline. <kbd>Ctrl</kbd>+<kbd>C</kbd>
+            (<kbd>⌘</kbd>+<kbd>C</kbd> on a Mac) copies it, and
+            <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes what is copied into it, where
+            it fits: a row, a text, a container or an element at the end of a
+            column, a row into a section, a section after the block the target
+            is in. While you are writing in a text, or have text selected, the
+            keys copy and paste the text as usual. Escape, or a click on the
+            canvas outside any column, clears the target.
         </p>
         <p class="text-body-secondary">
             What is copied is kept in the browser, so it can be pasted in the
