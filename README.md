@@ -1,7 +1,7 @@
 Grid Editor
 ===========
 
-Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — display, flex, order, alignment, gutters, spacing, text alignment, sticky and float — are edited per breakpoint too, and any row, column, container or element can be given inline css, with Bootstrap's classes for it offered as chips. It also edits tabs, accordions, popups, carousels and cards, and any markup you mark as an element, and it tells your application about every change it makes.
+Grid Editor is a visual javascript editor for the [bootstrap 5 grid system](https://getbootstrap.com/docs/5.3/layout/grid/), in plain DOM: no jQuery needed. You can create, drag, resize and delete rows and columns — sized in units, equal (`col`) or to their content (`col-auto`), or shared out by their row (`row-cols-*`) — indent them, group them in sections (`.container`), copy and paste them, and give each of bootstrap's six breakpoints its own layout — or edit them all at once, with a mouse or with a finger. Bootstrap's responsive utilities — display, flex, order, alignment, gutters, spacing, text alignment, sticky and float — are edited per breakpoint too, and any row, column, container or element can be given inline css, with Bootstrap's classes for it offered as chips. It also edits tabs, accordions, popups, offcanvases, carousels and cards, and any markup you mark as an element, and it tells your application about every change it makes.
 
 This is a fork of [Friendly-Pixel/grid-editor](https://github.com/Friendly-Pixel/grid-editor)
 by Simon Epskamp, carrying it on from 2.x. It is published as
@@ -27,7 +27,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view | [live](https://themarioga.github.io/grid-editor/example/breakpoints.html) |
 | [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
 | [example/attributes.html](example/attributes.html) | A plugin of your own: a drawer tool, a modal, and its settings saved as an attribute | [live](https://themarioga.github.io/grid-editor/example/attributes.html) |
-| [example/containers.html](example/containers.html) | Tabs, accordions, popups, carousels and cards, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
+| [example/containers.html](example/containers.html) | Tabs, accordions, popups, offcanvases, carousels and cards, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
 | [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output | [live](https://themarioga.github.io/grid-editor/example/elements.html) |
 | [example/autocols.html](example/autocols.html) | Equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/autocols.html) |
 | [example/utilities.html](example/utilities.html) | Bootstrap's responsive utilities, edited per breakpoint | [live](https://themarioga.github.io/grid-editor/example/utilities.html) |
@@ -193,7 +193,7 @@ has, with the options it was made with, and warns once.
 | `createSection` | `options?` | `Element` | A section, with the sections plugin. `options`: `width` (`'fixed'`, `'fluid'` or a breakpoint), `rows` (layouts), and a placement |
 | `createElement` | `content`, `options?` | `Element` | Host markup wrapped as an element. `options`: `type`, `label` |
 | `createText` | `type?`, `options?` | `Element` | A content area for a text editor, the first one offered by default. `options`: `content`, and a placement. `null` if the editor is not loaded, or no text editor is |
-| `createContainer` | `type`, `options?` | `Element` | `'tabs'`, `'accordion'`, `'popup'`, `'carousel'` or `'card'` |
+| `createContainer` | `type`, `options?` | `Element` | `'tabs'`, `'accordion'`, `'popup'`, `'offcanvas'`, `'carousel'` or `'card'` |
 | `addTab` | `container`, `options?` | `Element` | Appends a tab, returns its pane |
 | `addAccordionItem` | `container`, `options?` | `Element` | Appends an item, returns its body |
 | `addPane` | `container`, `options?` | `Element` | Appends a pane to a container of any type that has them - a tab, an item, a carousel slide, whose `options.interval` is its time in milliseconds - and returns it. `null`, and a warning, for a node that is not one |
@@ -793,7 +793,7 @@ row and delete. The toolbar gets a *Section* button. Rows drag in and out of
 sections, and sections drag along the canvas but not into a column. In a
 breakpoint view each section is as wide as its container would be at that
 breakpoint. They are called sections, not containers, because a container is
-what the tabs, accordion, popup and card plugins make.
+what the tabs, accordion, popup, offcanvas and card plugins make.
 
 ```javascript
 ge.createSection({ width: 'md', rows: [[6, 6]], appendTo: '#myGrid' });
@@ -818,7 +818,7 @@ nowhere else:
 | a row | a column, a section, or the canvas from the toolbar's paste button |
 | a column | a row |
 | a section | the canvas, from the toolbar's paste button |
-| a container (tabs, accordion, popup, card) | a column |
+| a container (tabs, accordion, popup, offcanvas, card) | a column |
 | a text | a column |
 | an element | a column |
 
@@ -838,7 +838,7 @@ The copy is what `getHtml` would give for that node. When it is pasted, any id
 it carries that the page already has is renamed - `ge-tab-…` ids get new
 generated ones, the host's own get a suffix, `hero` becoming `hero-2` - and
 whatever inside the copy pointed at the old id (`data-bs-target`,
-`data-bs-parent`, `href="#…"`, `aria-*`, a popup's trigger) points at the new
+`data-bs-parent`, `href="#…"`, `aria-*`, a popup's or an offcanvas's trigger) points at the new
 one. So the tabs of a copy open the copy's panes, not the original's.
 
 A paste is an add like any other: `before-add-*` and `after-add-*` with
@@ -982,8 +982,8 @@ The methods are there only when the plugin is loaded.
 
 ### Containers
 
-Tabs, accordions, popups, carousels and cards. A tabs, accordion, popup or
-carousel container holds panes; a card holds one region. Either way a region is an ordinary one: rows,
+Tabs, accordions, popups, offcanvases, carousels and cards. A tabs, accordion or
+carousel container holds panes; a popup, an offcanvas and a card hold one region. Either way a region is an ordinary one: rows,
 columns, content areas and elements nest inside it exactly as they do at the
 top level.
 
@@ -995,6 +995,7 @@ it available:
 <script src="grid-editor/dist/plugins/grideditor.tabs.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.accordion.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.popup.min.js"></script>
+<script src="grid-editor/dist/plugins/grideditor.offcanvas.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.carousel.min.js"></script>
 <script src="grid-editor/dist/plugins/grideditor.card.min.js"></script>
 ```
@@ -1023,6 +1024,13 @@ ge.createContainer('carousel', { slides: 3, controls: false });   // an option g
 ge.addPane(carousel, { interval: 8000 });                         // a slide that stays for 8 seconds
 ```
 
+__`offcanvas`:__ The options of the offcanvases made new, from the toolbar or with `createContainer`, as Bootstrap has them: `placement` (`'start'`, `'end'`, `'top'` or `'bottom'`; `'start'`), `backdrop` (`true`, `false` or `'static'`; `true`), `scroll` (the page scrolls behind it; `false`), `keyboard` (Esc closes it; `true`), `responsive` (`null`, or the breakpoint - `'sm'` to `'xxl'` - from which it is content in the page and not a panel) and `dark` (`data-bs-theme="dark"`). A value a key does not take is warned about and its default used. Every offcanvas also has an *Offcanvas* section in its settings panel, which changes its own. It is all Bootstrap's classes and attributes, so a page's markup says it too.
+
+```javascript
+new GridEditor('#myGrid', { offcanvas: { placement: 'end', backdrop: 'static' } });
+ge.createContainer('offcanvas', { title: 'Menu', trigger_label: 'Menu', responsive: 'lg' });   // an option given wins
+```
+
 __`container_tools`, `tab_tools`, `accordion_tools`, `carousel_tools`:__ Extra tools on the container drawer and on each pane's drawer, same shape as `row_tools`.
 
 ```javascript
@@ -1035,6 +1043,7 @@ ge.addTab(tabs, { label: 'Third', activate: true });
 
 ge.createContainer('accordion', { items: 3, stay_open: true });
 ge.createContainer('popup', { title: 'Terms', trigger_label: 'Read them', size: 'lg' });
+ge.createContainer('offcanvas', { title: 'Filters', placement: 'end', trigger: false });
 ```
 
 An accordion opens and closes from its headers while editing, and what you
@@ -1048,6 +1057,13 @@ is never involved; `getHtml` gives you a closed modal that Bootstrap opens from
 the trigger. Any node in the canvas carrying
 `data-ge-popup-target="<popup id>"` is a trigger too — grid-editor leaves your
 markup alone and writes Bootstrap's attributes onto it in the output.
+
+An offcanvas is the same with Bootstrap's offcanvas in place of its modal: it is
+rendered unfolded in place while editing, its body is a region, and the trigger
+is the button it makes, or any node carrying
+`data-ge-offcanvas-target="<offcanvas id>"`. With `responsive` the panel is
+content in the page from that breakpoint up, so its own trigger gets
+`d-<breakpoint>-none`; a trigger of yours elsewhere is not touched.
 
 A carousel shows one slide at a time while editing, as it does on the page.
 The container's drawer has the arrows and says which slide it is on, and

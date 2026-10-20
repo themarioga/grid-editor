@@ -111,6 +111,35 @@ export interface CarouselOptions {
 /** createContainer('carousel', …): the options, and how many slides. */
 export interface CreateCarouselOptions extends Placement, CarouselOptions {}
 
+/**
+ * The offcanvas plugin's options, the ones an offcanvas made new has, as the
+ * offcanvas setting gives them and createContainer overrides them: where it
+ * comes from, its backdrop, whether the page scrolls behind it, Esc, the
+ * breakpoint from which it is content and not a panel, and the dark theme.
+ */
+export interface OffcanvasOptions {
+    /** The edge it slides in from. Default `'start'`. */
+    placement?: 'start' | 'end' | 'top' | 'bottom';
+    /** A backdrop behind it: `true`, `false`, or `'static'`, which does not close it on a click. Default true. */
+    backdrop?: boolean | 'static';
+    /** The page can scroll while it is open. Default false. */
+    scroll?: boolean;
+    /** Esc closes it. Default true. */
+    keyboard?: boolean;
+    /** From this breakpoint up it is content in the page, and its trigger is hidden; null is a panel at every size. Default null. */
+    responsive?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | null;
+    /** `data-bs-theme="dark"`. Default false. */
+    dark?: boolean;
+}
+
+/** createContainer('offcanvas', …): the options, its title and its trigger. */
+export interface CreateOffcanvasOptions extends Placement, OffcanvasOptions {
+    title?: string;
+    /** false makes none, for a trigger the page writes itself. Default true. */
+    trigger?: boolean;
+    trigger_label?: string;
+}
+
 /** The inline-style plugin's settings. */
 export interface InlineStyleOptions {
     /** Every section is on unless it is turned off here. */
@@ -175,6 +204,8 @@ export interface GridEditorOptions {
     tabs?: TabsOptions;
     /** The carousel plugin: the options of the carousels made new. */
     carousel?: CarouselOptions;
+    /** The offcanvas plugin: the options of the offcanvases made new. */
+    offcanvas?: OffcanvasOptions;
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
     /** The autosave plugin: what is edited, kept in the browser's storage as it changes. */
     autosave?: AutosaveOptions;
@@ -347,6 +378,10 @@ export interface PopupOrphanPayload extends Payload {
     missing: string;
 }
 
+export interface OffcanvasOrphanPayload extends Payload {
+    missing: string;
+}
+
 export interface ViewChangePayload {
     canvas: HTMLElement;
     breakpoint: View;
@@ -406,6 +441,7 @@ export interface GridEditorEventMap {
     'grideditor:after-edit-html': EditHtmlPayload;
     'grideditor:after-copy': Payload;
     'grideditor:popup-orphan': PopupOrphanPayload;
+    'grideditor:offcanvas-orphan': OffcanvasOrphanPayload;
     'grideditor:view-change': ViewChangePayload;
     'grideditor:target-change': TargetChangePayload;
     'grideditor:selection-change': SelectionChangePayload;
@@ -537,6 +573,7 @@ export declare class GridEditor {
     createSection(options?: CreateSectionOptions): HTMLElement | null;
     createContainer(type: 'tabs', options?: CreateTabsOptions): HTMLElement | null;
     createContainer(type: 'carousel', options?: CreateCarouselOptions): HTMLElement | null;
+    createContainer(type: 'offcanvas', options?: CreateOffcanvasOptions): HTMLElement | null;
     createContainer(type: string, options?: Placement & Record<string, unknown>): HTMLElement | null;
     addTab(container: Target, options?: PaneOptions): HTMLElement | null;
     addAccordionItem(container: Target, options?: PaneOptions): HTMLElement | null;

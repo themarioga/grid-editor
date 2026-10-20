@@ -10,6 +10,7 @@
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
+import { triggersFor } from '../triggers/triggers.js';
 
 Object.assign(GridEditor.locales.en, {
     'container.add_popup': 'Popup',
@@ -20,85 +21,22 @@ Object.assign(GridEditor.locales.en, {
 
 GridEditor.containers.popup = function(ge) {
 
-    function popupIdOf(container) {
-        return container.getAttribute('data-ge-popup-id');
-    }
-
-    /** Whether a popup with this id is on the canvas. */
-    function popupExists(id, root) {
-        return dom.all(root || ge.canvas, '[data-ge-popup-id]').some(function(popup) {
-            return popupIdOf(popup) === id;
-        });
-    }
-
-    function wirePopupTriggers() {
-        dom.all(ge.canvas, '[data-ge-popup-target]').forEach(function(trigger) {
-            dom.addClass(trigger, 'ge-popup-trigger');
-            var wanted = trigger.getAttribute('data-ge-popup-target');
-
-            // Bootstrap's own attributes are written at getHtml time, not
-            // while editing, so a click here cannot open a real modal
-            trigger.removeAttribute('data-bs-toggle');
-            trigger.removeAttribute('data-bs-target');
-
-            if (popupExists(wanted)) {
-                dom.removeClass(trigger, 'ge-popup-orphan');
-                return;
-            }
-
-            var column = trigger.closest('.column');
-            var nearby = column ? dom.all(column, '[data-ge-popup-id]') : [];
-
-            if (nearby.length === 1) {
-                trigger.setAttribute('data-ge-popup-target', popupIdOf(nearby[0]));
-                dom.removeClass(trigger, 'ge-popup-orphan');
-                return;
-            }
-
-            dom.addClass(trigger, 'ge-popup-orphan');
-
-            ge.operate(function() {
-                ge.emit('popup-orphan', ge.payloadFor('popup', trigger, {
-                    parent: trigger.parentElement,
-                    source: 'api',
-                    missing: wanted,
-                }));
-            });
-        });
-    }
-
-    function writePopupTriggerAttributes(root) {
-        root = root || ge.canvas;
-
-        dom.all(root, '[data-ge-popup-target]').forEach(function(trigger) {
-            var wanted = trigger.getAttribute('data-ge-popup-target');
-
-            // The warning marking is editing furniture, whether or not
-            // the trigger can be wired up
-            dom.removeClass(trigger, 'ge-popup-orphan');
-            dom.dropEmptyClass(trigger);
-
-            if (!popupExists(wanted, root)) { return; }
-
-            trigger.setAttribute('data-bs-toggle', 'modal');
-            trigger.setAttribute('data-bs-target', '#' + wanted);
-        });
-    }
+    var triggers = triggersFor(ge, 'popup', 'data-ge-popup-id', 'data-ge-popup-target', 'modal');
 
     return {
         labelKey: 'container.add_popup',
         paneKind: 'popup',
 
-        // Triggers are markup the host owns, anywhere in the canvas, so they
-        // are looked at whenever the canvas is initialized rather than only
-        // when a popup is touched
-        onInit: wirePopupTriggers,
-        onDeinit: function() { writePopupTriggerAttributes(); },
+        // The ids a copy of a popup has to rename together
+        references: ['data-ge-popup-id', 'data-ge-popup-target'],
+
+        onInit: triggers.onInit,
+        onDeinit: triggers.onDeinit,
 
         // What onDeinit and unmark do, on a copy of the canvas
         cleanMarkup: function(root) {
             var definition = this;
-            writePopupTriggerAttributes(root);
+            triggers.write(root);
             dom.all(root, '[data-ge-container="popup"]').forEach(function(container) { definition.unmark(container); });
         },
 

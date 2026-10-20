@@ -5,7 +5,7 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { AutosaveDraft, CarouselOptions, AutosavePayload, GridEditorOptions, HistoryChangePayload, HistoryPayload, SelectionChangePayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { AutosaveDraft, CarouselOptions, OffcanvasOptions, OffcanvasOrphanPayload, AutosavePayload, GridEditorOptions, HistoryChangePayload, HistoryPayload, SelectionChangePayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
@@ -122,6 +122,19 @@ if (carousel) { ge.addPane(carousel, { interval: 8000 }); }
 new GridEditor('#other', { carousel: { dark: true, ride: 'true', pause: false }, carousel_tools: [] });
 // @ts-expect-error ride is false, 'carousel' or 'true'
 const autoplay: CarouselOptions = { ride: 'always' };
+
+ge.createContainer('offcanvas', { title: 'Menu', trigger: false, trigger_label: 'Open', placement: 'end', backdrop: 'static', scroll: true, keyboard: false, responsive: 'lg', dark: true });
+new GridEditor('#other', { offcanvas: { placement: 'top', backdrop: false, responsive: null } });
+ge.canvas.addEventListener('grideditor:offcanvas-orphan', function(event) {
+    const payload: OffcanvasOrphanPayload = event.detail;
+    payload.missing.toUpperCase();
+});
+// @ts-expect-error placement is start, end, top or bottom
+const left: OffcanvasOptions = { placement: 'left' };
+// @ts-expect-error there is no offcanvas-xs: responsive is sm to xxl or null
+const tiny: OffcanvasOptions = { responsive: 'xs' };
+// @ts-expect-error backdrop is a boolean or 'static'
+const backdrop: OffcanvasOptions = { backdrop: 'true' };
 
 // @ts-expect-error a view is a breakpoint key or 'all'
 ge.changeView('huge');

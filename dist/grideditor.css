@@ -626,6 +626,14 @@ html.ge-sidebar-open {
   /* A popup is rendered unfolded and in place: a plain block with its
        body as an ordinary region. Bootstrap's modal JS is never asked to
        open it, so there is no backdrop, no focus trap and no scroll lock */
+  /* An offcanvas is rendered unfolded and in place too: a plain block with
+       its body as an ordinary region, whichever edge it comes from on the
+       page. Bootstrap fixes it to the window, hides it and shifts it out
+       until its own JS adds .show, which the editor never asks for, so what
+       it sets is undone here. The responsive classes hide the header and
+       the body's padding from their breakpoint up, where the panel is
+       content: the title still has to be there to edit */
+  /* A trigger pointing at an offcanvas that is not there any more */
   /* A trigger pointing at a popup that is not there any more */
   /* Elements: the level below a column, inside a content area. Dashed
        rather than solid, so a page full of them still reads as content */
@@ -924,6 +932,185 @@ html.ge-sidebar-open {
 }
 .ge-canvas.ge-editing .ge-container-popup.ge-popup-collapsed .modal {
   display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas {
+  /* d-*-none on the trigger is for the page: the editor needs it to select the container */
+  /* Folded away, for a page with several offcanvases on it */
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-sm {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-sm .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-sm .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-md {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-md .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-md .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-lg {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-lg .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-lg .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xl {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xl .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xl .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xxl {
+  position: static;
+  z-index: auto;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 5px 0;
+  transform: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-offcanvas-bg) !important;
+  border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xxl .offcanvas-header {
+  display: flex;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas .offcanvas-xxl .offcanvas-body {
+  display: block;
+  flex-grow: 1;
+  padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+  overflow: visible;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas > .ge-offcanvas-trigger {
+  display: inline-block !important;
+  margin-bottom: 5px;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas-sm {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas-md {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas-lg {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas-xl {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-container-offcanvas.ge-offcanvas-collapsed .offcanvas-xxl {
+  display: none;
+}
+.ge-canvas.ge-editing .ge-offcanvas-orphan {
+  outline: 2px dashed #d9534f;
 }
 .ge-canvas.ge-editing .ge-popup-orphan {
   outline: 2px dashed #d9534f;

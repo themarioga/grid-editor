@@ -5,6 +5,13 @@ import { GridEditor } from "../grideditor.esm.js";
 function all(root, selector) {
   return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
 }
+function closest(node, selector, stopAt) {
+  var found = node && node.nodeType === 1 ? node.closest(selector) : null;
+  if (found && stopAt && found !== stopAt && !stopAt.contains(found)) {
+    return null;
+  }
+  return found;
+}
 function parse(html) {
   var template = document.createElement("template");
   template.innerHTML = html;
@@ -54,6 +61,9 @@ function toggleClass(node, names, state) {
   });
   return node;
 }
+function hasClass(node, name) {
+  return !!node && node.nodeType === 1 && node.classList.contains(name);
+}
 function split(names) {
   return String(names || "").split(/\s+/).filter(Boolean);
 }
@@ -62,6 +72,99 @@ function dropEmptyClass(node) {
     node.removeAttribute("class");
   }
   return node;
+}
+function delegate(root, types, selector, handler, options) {
+  var listener = function(event) {
+    var match = closest(event.target, selector, root);
+    if (match && root.contains(match)) {
+      return handler.call(match, event);
+    }
+    return void 0;
+  };
+  split(types).forEach(function(type) {
+    root.addEventListener(type, listener, options);
+  });
+  return listener;
+}
+
+// src/js/triggers/triggers.js
+function triggersFor(ge, kind, idAttribute, targetAttribute, toggle) {
+  var triggerClass = "ge-" + kind + "-trigger";
+  var orphanClass = "ge-" + kind + "-orphan";
+  var listening = null;
+  function idOf(container) {
+    return container.getAttribute(idAttribute);
+  }
+  function exists(id, root) {
+    return all(root || ge.canvas, "[" + idAttribute + "]").some(function(container) {
+      return idOf(container) === id;
+    });
+  }
+  function wire() {
+    all(ge.canvas, "[" + targetAttribute + "]").forEach(function(trigger) {
+      addClass(trigger, triggerClass);
+      var wanted = trigger.getAttribute(targetAttribute);
+      trigger.removeAttribute("data-bs-toggle");
+      trigger.removeAttribute("data-bs-target");
+      if (exists(wanted)) {
+        removeClass(trigger, orphanClass);
+        return;
+      }
+      var column = trigger.closest(".column");
+      var nearby = column ? all(column, "[" + idAttribute + "]") : [];
+      if (nearby.length === 1) {
+        trigger.setAttribute(targetAttribute, idOf(nearby[0]));
+        removeClass(trigger, orphanClass);
+        return;
+      }
+      addClass(trigger, orphanClass);
+      ge.operate(function() {
+        ge.emit(kind + "-orphan", ge.payloadFor(kind, trigger, {
+          parent: trigger.parentElement,
+          source: "api",
+          missing: wanted
+        }));
+      });
+    });
+  }
+  function write(root) {
+    root = root || ge.canvas;
+    all(root, "[" + targetAttribute + "]").forEach(function(trigger) {
+      var wanted = trigger.getAttribute(targetAttribute);
+      removeClass(trigger, orphanClass);
+      dropEmptyClass(trigger);
+      if (!exists(wanted, root)) {
+        return;
+      }
+      trigger.setAttribute("data-bs-toggle", toggle);
+      trigger.setAttribute("data-bs-target", "#" + wanted);
+    });
+  }
+  return {
+    write,
+    // Triggers are markup the host owns, anywhere in the canvas, so they
+    // are looked at whenever the canvas is initialized rather than only
+    // when a container is touched
+    onInit: function() {
+      wire();
+      if (listening) {
+        listening.abort();
+      }
+      listening = new AbortController();
+      delegate(ge.canvas, "click", "." + triggerClass + ", [" + targetAttribute + "]", function(e) {
+        if (hasClass(ge.canvas, "ge-editing")) {
+          e.preventDefault();
+        }
+      }, { signal: listening.signal });
+    },
+    onDeinit: function() {
+      if (listening) {
+        listening.abort();
+      }
+      listening = null;
+      write();
+    }
+  };
 }
 
 // src/js/plugins/grideditor.popup.js
@@ -72,68 +175,18 @@ Object.assign(GridEditor.locales.en, {
   "tool.toggle_popup": "Fold this popup away while editing"
 });
 GridEditor.containers.popup = function(ge) {
-  function popupIdOf(container) {
-    return container.getAttribute("data-ge-popup-id");
-  }
-  function popupExists(id, root) {
-    return all(root || ge.canvas, "[data-ge-popup-id]").some(function(popup) {
-      return popupIdOf(popup) === id;
-    });
-  }
-  function wirePopupTriggers() {
-    all(ge.canvas, "[data-ge-popup-target]").forEach(function(trigger) {
-      addClass(trigger, "ge-popup-trigger");
-      var wanted = trigger.getAttribute("data-ge-popup-target");
-      trigger.removeAttribute("data-bs-toggle");
-      trigger.removeAttribute("data-bs-target");
-      if (popupExists(wanted)) {
-        removeClass(trigger, "ge-popup-orphan");
-        return;
-      }
-      var column = trigger.closest(".column");
-      var nearby = column ? all(column, "[data-ge-popup-id]") : [];
-      if (nearby.length === 1) {
-        trigger.setAttribute("data-ge-popup-target", popupIdOf(nearby[0]));
-        removeClass(trigger, "ge-popup-orphan");
-        return;
-      }
-      addClass(trigger, "ge-popup-orphan");
-      ge.operate(function() {
-        ge.emit("popup-orphan", ge.payloadFor("popup", trigger, {
-          parent: trigger.parentElement,
-          source: "api",
-          missing: wanted
-        }));
-      });
-    });
-  }
-  function writePopupTriggerAttributes(root) {
-    root = root || ge.canvas;
-    all(root, "[data-ge-popup-target]").forEach(function(trigger) {
-      var wanted = trigger.getAttribute("data-ge-popup-target");
-      removeClass(trigger, "ge-popup-orphan");
-      dropEmptyClass(trigger);
-      if (!popupExists(wanted, root)) {
-        return;
-      }
-      trigger.setAttribute("data-bs-toggle", "modal");
-      trigger.setAttribute("data-bs-target", "#" + wanted);
-    });
-  }
+  var triggers = triggersFor(ge, "popup", "data-ge-popup-id", "data-ge-popup-target", "modal");
   return {
     labelKey: "container.add_popup",
     paneKind: "popup",
-    // Triggers are markup the host owns, anywhere in the canvas, so they
-    // are looked at whenever the canvas is initialized rather than only
-    // when a popup is touched
-    onInit: wirePopupTriggers,
-    onDeinit: function() {
-      writePopupTriggerAttributes();
-    },
+    // The ids a copy of a popup has to rename together
+    references: ["data-ge-popup-id", "data-ge-popup-target"],
+    onInit: triggers.onInit,
+    onDeinit: triggers.onDeinit,
     // What onDeinit and unmark do, on a copy of the canvas
     cleanMarkup: function(root) {
       var definition = this;
-      writePopupTriggerAttributes(root);
+      triggers.write(root);
       all(root, '[data-ge-container="popup"]').forEach(function(container) {
         definition.unmark(container);
       });

@@ -46,6 +46,12 @@ function files(directory, pattern) {
 }
 
 function staticTests(t) {
+    var naming = ['src/js/grideditor.js', 'dist/grideditor.js'].filter(function(file) {
+        return /data-ge-popup|ge-popup/.test(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+    });
+    t.check('the core names no container plugin\'s own attributes or classes: they are the plugins\' references (offcanvas AC-28)',
+        naming.length === 0, naming);
+
     var leftovers = fs.readdirSync(path.join(ROOT, 'dist', 'plugins')).filter(function(file) {
         return ALIASES.some(function(name) { return file.indexOf('grideditor.' + name + '.') === 0; });
     });

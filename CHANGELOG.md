@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.0.0-beta.4] - 2026-10-20
+
+### Added
+- offcanvas: a container plugin for Bootstrap's offcanvas, with its trigger.
+  While editing the panel is unfolded in place and its body is a region, as a
+  popup's is. `createContainer('offcanvas', { title, trigger, trigger_label,
+  placement, backdrop, scroll, keyboard, responsive, dark })`, the `offcanvas`
+  setting for the ones made new, and an *Offcanvas* section in its settings
+  panel. With `responsive` the panel's own trigger gets `d-<breakpoint>-none`.
+  The event `offcanvas-orphan`, for a trigger whose offcanvas is missing.
+- A container plugin's definition can have `references`: the attributes of its
+  own that hold an id, which `freshNode` renames along with the id when a copy
+  is made.
+
+### Changed
+- The core no longer names the popup: its ids are followed through the popup
+  plugin's `references`, and the trigger handling the popup and the offcanvas
+  share moved out of the core with it. Nothing changes in the markup, the
+  events or the behaviour of a popup.
+
 ## [9.0.0-beta.3] - 2026-10-20
 
 ### Added

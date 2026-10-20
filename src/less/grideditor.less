@@ -1040,6 +1040,66 @@ html.ge-sidebar-open {
         }
     }
 
+    /* An offcanvas is rendered unfolded and in place too: a plain block with
+       its body as an ordinary region, whichever edge it comes from on the
+       page. Bootstrap fixes it to the window, hides it and shifts it out
+       until its own JS adds .show, which the editor never asks for, so what
+       it sets is undone here. The responsive classes hide the header and
+       the body's padding from their breakpoint up, where the panel is
+       content: the title still has to be there to edit */
+    @ge-offcanvases: offcanvas, offcanvas-sm, offcanvas-md, offcanvas-lg, offcanvas-xl, offcanvas-xxl;
+
+    .ge-container-offcanvas {
+        each(@ge-offcanvases, {
+            .@{value} {
+                position: static;
+                z-index: auto;
+                visibility: visible;
+                width: auto;
+                height: auto;
+                max-width: none;
+                max-height: none;
+                margin: @editGutter 0;
+                transform: none;
+                transition: none;
+                display: flex;
+                flex-direction: column;
+                background-color: var(--bs-offcanvas-bg) !important;
+                border: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+
+                .offcanvas-header {
+                    display: flex;
+                }
+                .offcanvas-body {
+                    display: block;
+                    flex-grow: 1;
+                    padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
+                    overflow: visible;
+                }
+            }
+        });
+
+        /* d-*-none on the trigger is for the page: the editor needs it to select the container */
+        > .ge-offcanvas-trigger {
+            display: inline-block !important;
+            margin-bottom: @editGutter;
+        }
+
+        /* Folded away, for a page with several offcanvases on it */
+        &.ge-offcanvas-collapsed {
+            each(@ge-offcanvases, {
+                .@{value} {
+                    display: none;
+                }
+            });
+        }
+    }
+
+    /* A trigger pointing at an offcanvas that is not there any more */
+    .ge-offcanvas-orphan {
+        outline: 2px dashed #d9534f;
+    }
+
     /* A trigger pointing at a popup that is not there any more */
     .ge-popup-orphan {
         outline: 2px dashed #d9534f;

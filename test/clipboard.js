@@ -484,6 +484,90 @@ async function idTests(t) {
         row.triggerBs === '#' + row.copyPopup && row.originalTrigger === '#' + row.original,
         row);
 
+    var offcanvas = await page.eval(START.replace("['clipboard', 'sections']", "['clipboard', 'sections', 'offcanvas']") + `
+        window.orphans = [];
+        document.querySelector('#myGrid').addEventListener('grideditor:offcanvas-orphan', function(e) { window.orphans.push(e.detail.missing); });
+
+        const source = kid(document.querySelector('#hero'), '.column');
+        const made = ge.createContainer('offcanvas', { title: 'Menu', appendTo: source });
+        const original = made.getAttribute('data-ge-offcanvas-id');
+
+        // A trigger the host wrote elsewhere on the page, for the original
+        const secondRow = kids(document.querySelector('#myGrid'), '.row')[1];
+        kid(kid(lastOf(kids(secondRow, '.column')), '.ge-text-block'), '.ge-content')
+            .insertAdjacentHTML('beforeend', '<button type="button" class="btn btn-link" id="host-offcanvas" data-ge-offcanvas-target="' + original + '">Menu</button>');
+        ge.reset();
+
+        clickAll(toolOf(document.querySelector('[data-ge-offcanvas-id="' + original + '"]'), 'ge-copy'));
+        const target = kid(kids(document.querySelector('#myGrid'), '.row')[1], '.column');
+        clickAll(toolOf(target, 'ge-paste'));
+        ` + EXPORTED + `
+
+        const describe = function(container) {
+            const panel = container.querySelector(':scope > [id]');
+            const trigger = container.querySelector(':scope > [data-ge-offcanvas-target]');
+            return {
+                id: container.getAttribute('data-ge-offcanvas-id'),
+                panel: panel.id,
+                labelledBy: panel.getAttribute('aria-labelledby'),
+                title: panel.querySelector('.offcanvas-title').id,
+                trigger: trigger.getAttribute('data-ge-offcanvas-target'),
+                triggerBs: trigger.getAttribute('data-bs-target'),
+            };
+        };
+        const all = Array.from(exported.querySelectorAll('[data-ge-container="offcanvas"]'));
+        return {
+            original: original,
+            count: all.length,
+            first: describe(all[0]),
+            copy: describe(all[1]),
+            hostTrigger: exported.querySelector('#host-offcanvas').getAttribute('data-bs-target'),
+            unique: unique,
+            orphans: window.orphans,
+        };
+    `);
+    t.check('a pasted offcanvas gets a new id, and its panel, its title and its own trigger follow (offcanvas AC-11)',
+        offcanvas.count === 2 && offcanvas.unique && offcanvas.copy.id !== offcanvas.original &&
+        offcanvas.copy.panel === offcanvas.copy.id && offcanvas.copy.trigger === offcanvas.copy.id &&
+        offcanvas.copy.triggerBs === '#' + offcanvas.copy.id && offcanvas.copy.labelledBy === offcanvas.copy.title &&
+        offcanvas.copy.title !== offcanvas.first.title,
+        offcanvas);
+    t.check('the original offcanvas, and a trigger outside the copy, still point at the original (offcanvas AC-11)',
+        offcanvas.first.id === offcanvas.original && offcanvas.first.panel === offcanvas.original &&
+        offcanvas.first.labelledBy === offcanvas.first.title && offcanvas.first.triggerBs === '#' + offcanvas.original &&
+        offcanvas.hostTrigger === '#' + offcanvas.original && offcanvas.orphans.length === 0,
+        offcanvas);
+
+    // A container plugin of the host's own, with an attribute of its own that points at an id
+    var references = await page.eval(HELPERS + `
+        localStorage.clear();
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        GridEditor.containers.xref = function(handle) {
+            window.xrefHandle = handle;
+            return {
+                labelKey: 'container.add_xref',
+                references: ['data-x-ref'],
+                create: function() { return document.createElement('div'); },
+            };
+        };
+        document.querySelector('#myGrid').innerHTML = '<div class="row"><div class="col-12"><p id="ge-x-1-a">Taken</p></div></div>';
+        window.fixture.init({ plugins: window.fixture.plugins(['xref']) });
+
+        const fresh = window.xrefHandle.freshNode('<div><p id="ge-x-1-a">Copy</p><a data-x-ref="ge-x-1-a" data-y-ref="ge-x-1-a">To it</a></div>');
+        const result = {
+            id: fresh.querySelector('p').id,
+            followed: fresh.querySelector('a').getAttribute('data-x-ref'),
+            notDeclared: fresh.querySelector('a').getAttribute('data-y-ref'),
+        };
+
+        window.fixture.editor().destroy();
+        delete GridEditor.containers.xref;
+        return result;
+    `);
+    t.check('freshNode follows the attributes a container plugin declares as references, and no others (offcanvas AC-31)',
+        references.id !== 'ge-x-1-a' && references.followed === references.id && references.notDeclared === 'ge-x-1-a',
+        references);
+
     var errors = page.errors();
     t.check('the id tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }

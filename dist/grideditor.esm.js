@@ -340,9 +340,7 @@ var REFERENCES = [
   "aria-controls",
   "aria-labelledby",
   "aria-describedby",
-  "for",
-  "data-ge-popup-id",
-  "data-ge-popup-target"
+  "for"
 ];
 var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
 var BREAKPOINTS = [
@@ -1130,11 +1128,6 @@ function build(instance, baseElem, optionsOrMethod) {
     var signal = { signal: lifetime.signal };
     window.addEventListener("scroll", onScroll, signal);
     delegate(canvas, "click", ".ge-content", onContentClick, signal);
-    delegate(canvas, "click", ".ge-popup-trigger, [data-ge-popup-target]", function(e) {
-      if (hasClass(canvas, "ge-editing")) {
-        e.preventDefault();
-      }
-    }, signal);
     var sidebarMode = panelMode() === "sidebar";
     if (settings.active_target || sidebarMode) {
       var pressed = null;
@@ -2926,8 +2919,11 @@ function build(instance, baseElem, optionsOrMethod) {
     if (!Object.keys(renamed).length) {
       return node;
     }
+    var references = Object.keys(CONTAINERS).reduce(function(names, type) {
+      return names.concat(CONTAINERS[type].references || []);
+    }, REFERENCES);
     selfAndAll(node, "*").forEach(function(element2) {
-      REFERENCES.forEach(function(name) {
+      references.forEach(function(name) {
         var value = element2.getAttribute(name);
         if (value === null) {
           return;

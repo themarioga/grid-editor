@@ -164,7 +164,7 @@ async function creationTests(t) {
         };
     `);
     t.check('every container plugin the page loaded is offered by the toolbar',
-        loaded.registered.join(',') === 'accordion,card,carousel,popup,tabs' &&
+        loaded.registered.join(',') === 'accordion,card,carousel,offcanvas,popup,tabs' &&
         loaded.offered.join(',') === 'accordion,card,popup,tabs',
         loaded);
 
@@ -783,6 +783,16 @@ async function popupTests(t) {
         external.ownTrigger === 0 && external.marked && external.whileEditing === undefined &&
         external.inOutput && external.orphans.length === 0,
         external);
+
+    // The guard is the popup plugin's own now, not the core's (spec offcanvas)
+    var navigation = await page.eval(`
+        const link = one('#myGrid a[data-ge-popup-target]');
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+        link.dispatchEvent(click);
+        return { prevented: click.defaultPrevented, url: location.hash };
+    `);
+    t.check('a host trigger that is a link does not navigate while editing (offcanvas AC-30)',
+        navigation.prevented && navigation.url === '', navigation);
 
     var orphaned = await page.eval(`
         // Delete the popup the trigger points at, with another popup left in

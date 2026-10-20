@@ -52,9 +52,10 @@ var PLACEMENTS = ['appendTo', 'prependTo', 'insertAfter', 'insertBefore'];
  * The attributes that point at an id, as the id itself or as a #selector.
  * A copy that has to take new ids (see freshNode) takes them here too, so
  * its tabs, its accordion and its popups still point at their own panes.
+ * A container plugin adds its own, as `references` on its definition.
  */
 var REFERENCES = ['data-bs-target', 'data-bs-parent', 'href', 'aria-controls', 'aria-labelledby',
-    'aria-describedby', 'for', 'data-ge-popup-id', 'data-ge-popup-target'];
+    'aria-describedby', 'for'];
 
 /** An id grid-editor generated: ge-{type}-{counter}-{random}. */
 var GENERATED_ID = /^ge-([a-z][a-z-]*?)-\d+-[a-z0-9]+$/;
@@ -1095,12 +1096,6 @@ function build(instance, baseElem, optionsOrMethod) {
 
             /* A click on the host's plain content offers to make it a text */
             dom.delegate(canvas, 'click', '.ge-content', onContentClick, signal);
-
-            /* A trigger is often a link, and a link still navigates even
-               with its Bootstrap attributes suspended */
-            dom.delegate(canvas, 'click', '.ge-popup-trigger, [data-ge-popup-target]', function(e) {
-                if (dom.hasClass(canvas, 'ge-editing')) { e.preventDefault(); }
-            }, signal);
 
             var sidebarMode = panelMode() === 'sidebar';
 
@@ -3381,8 +3376,12 @@ function build(instance, baseElem, optionsOrMethod) {
 
             if (!Object.keys(renamed).length) { return node; }
 
+            var references = Object.keys(CONTAINERS).reduce(function(names, type) {
+                return names.concat(CONTAINERS[type].references || []);
+            }, REFERENCES);
+
             dom.selfAndAll(node, '*').forEach(function(element) {
-                REFERENCES.forEach(function(name) {
+                references.forEach(function(name) {
                     var value = element.getAttribute(name);
                     if (value === null) { return; }
                     if (name === 'href' && value.charAt(0) !== '#') { return; }

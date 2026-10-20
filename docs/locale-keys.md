@@ -43,6 +43,7 @@ The tools in a drawer, and the buttons in the toolbar above the canvas.
 | `tool.carousel_move_forward` | Move forward | Slide drawer, moves the slide a place on |
 | `tool.rename` | Double click to rename | Tooltip of a pane's label, which is edited in place |
 | `tool.toggle_popup` | Fold this popup away while editing | Popup drawer. Editing shows a popup unfolded, and this folds it away |
+| `tool.toggle_offcanvas` | Fold this offcanvas away while editing | Offcanvas drawer. Editing shows an offcanvas unfolded, and this folds it away |
 | `tool.element_info` | Element: {name} | Tooltip of the element drawer's info tool. `{name}` is the element's `data-ge-label`, its `data-ge-element` type, or both |
 | `tool.column_narrower` | Make column narrower\n(hold shift for min) | Column drawer, the `-` tool. Two lines |
 | `tool.column_wider` | Make column wider\n(hold shift for max) | Column drawer, the `+` tool. Two lines |
@@ -104,7 +105,7 @@ title. `{kind}` is one of the `panel.kind_*` keys, or a container's own label.
 container.*
 -----------
 
-The containers: tabs, accordions, popups, carousels and cards, and the panes inside them.
+The containers: tabs, accordions, popups, offcanvases, carousels and cards, and the panes inside them.
 
 | Key | English | Where |
 | --- | --- | --- |
@@ -155,6 +156,25 @@ The containers: tabs, accordions, popups, carousels and cards, and the panes ins
 | `container.add_popup` | Popup | Toolbar button that adds a popup |
 | `container.popup_title` | Title | Title of a new popup, in its modal header |
 | `container.popup_trigger` | Open | Label of the button a popup makes to open itself |
+| `container.add_offcanvas` | Offcanvas | Toolbar button that adds an offcanvas |
+| `container.offcanvas_title` | Title | Title of a new offcanvas, in its header |
+| `container.offcanvas_trigger` | Open | Label of the button an offcanvas makes to open itself |
+| `container.offcanvas_section` | Offcanvas | Heading of an offcanvas's section of its settings panel |
+| `container.offcanvas_placement` | Placement | Its select for the edge it comes from |
+| `container.offcanvas_start` | Start | Placement: the left in a left to right page |
+| `container.offcanvas_end` | End | Placement: the right in a left to right page |
+| `container.offcanvas_top` | Top | Placement: the top edge |
+| `container.offcanvas_bottom` | Bottom | Placement: the bottom edge |
+| `container.offcanvas_backdrop` | Backdrop | Its select for `data-bs-backdrop` |
+| `container.offcanvas_backdrop_yes` | Yes | Backdrop: shown, and closes it on a click |
+| `container.offcanvas_backdrop_no` | No | Backdrop: none |
+| `container.offcanvas_backdrop_static` | Static | Backdrop: shown, and does not close it on a click |
+| `container.offcanvas_scroll` | Allow body scroll | Its checkbox for `data-bs-scroll` |
+| `container.offcanvas_keyboard` | Close with Esc | Its checkbox for `data-bs-keyboard` |
+| `container.offcanvas_responsive` | Responsive | Its select for the breakpoint from which it is content |
+| `container.offcanvas_responsive_never` | Always offcanvas | Responsive: a panel at every size |
+| `container.offcanvas_responsive_from` | Inline from {breakpoint} | Responsive: content from that breakpoint up. `{breakpoint}` is `sm`, `md`… |
+| `container.offcanvas_dark` | Dark theme | Its checkbox for `data-bs-theme="dark"` |
 | `container.add_card` | Card | Toolbar button that adds a card |
 | `container.card_title` | Card title | Title of a new card, in its header |
 | `container.card_footer` | Card footer | Text of a new card's footer, when it has one |

@@ -63,7 +63,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:after-add-row` | `grideditor:after-add` | no | after insertion, once the canvas is up to date |
 | `grideditor:before-add-column` | `grideditor:before-add` | yes | before a column is inserted |
 | `grideditor:after-add-column` | `grideditor:after-add` | no | |
-| `grideditor:before-add-container` | `grideditor:before-add` | yes | before a container is inserted; `payload.kind` is `tabs`, `accordion`, `popup`, `carousel` or `card` |
+| `grideditor:before-add-container` | `grideditor:before-add` | yes | before a container is inserted; `payload.kind` is `tabs`, `accordion`, `popup`, `offcanvas`, `carousel` or `card` |
 | `grideditor:after-add-container` | `grideditor:after-add` | no | |
 | `grideditor:before-add-tab` | `grideditor:before-add` | yes | before a tab is added to a tabs container |
 | `grideditor:after-add-tab` | `grideditor:after-add` | no | |
@@ -88,6 +88,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-indent` | — | yes | before a column's offset changes |
 | `grideditor:after-indent` | — | no | after the offset class is written |
 | `grideditor:popup-orphan` | — | no | on `init`, once per trigger whose popup is missing and cannot be re-pointed |
+| `grideditor:offcanvas-orphan` | — | no | the same for an offcanvas's trigger |
 | `grideditor:before-utility` | — | yes | before a utility class is written, from the panel, a plugin's tool or `setUtility` |
 | `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
@@ -113,7 +114,7 @@ The payload
 ```javascript
 {
     kind: 'row',          // row | column | text | plain | element
-                          // tabs | accordion | popup | carousel | card | tab | accordion-item | carousel-item
+                          // tabs | accordion | popup | offcanvas | carousel | card | tab | accordion-item | carousel-item
                           // section, with the sections plugin
     node: Element,        // the node added, deleted, moved or resized
     parent: Element,      // where it is going, or where it came from on a delete;
@@ -146,7 +147,7 @@ The payload
     from: '<div class="row">…</div>',   // the block's html as it was
     to: '<div class="row">…</div>',     // what was written
 
-    // popup-orphan only
+    // popup-orphan and offcanvas-orphan only
     missing: 'ge-popup-3-a91',   // the id the trigger pointed at
 
     // utility only

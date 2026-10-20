@@ -124,6 +124,7 @@ async function run(t) {
         ge.createContainer('tabs', { appendTo: '#left' });
         ge.createContainer('accordion', { appendTo: '#left' });
         ge.createContainer('popup', { appendTo: '#right' });
+        ge.createContainer('offcanvas', { appendTo: '#right' });
         ge.createContainer('card', { appendTo: '#right' });
         ge.createSection({ appendTo: '#myGrid' });
         const tabs = document.querySelector('[data-ge-container="tabs"]');
@@ -148,7 +149,7 @@ async function run(t) {
     var plugins = exercised.handles.map(function(handle) { return handle.plugin; }).sort();
     t.check('every plugin the fixture loads was made with a handle',
         ['accordion', 'alignment', 'card', 'ckeditor', 'clipboard', 'codemirror', 'codemirror-inline', 'elements',
-            'gutters', 'inline-style', 'order', 'popup', 'sections', 'summernote', 'tabs', 'text', 'tinymce']
+            'gutters', 'inline-style', 'offcanvas', 'order', 'popup', 'sections', 'summernote', 'tabs', 'text', 'tinymce']
             .every(function(name) { return plugins.indexOf(name) !== -1; }),
         plugins);
     t.check('the handle gives elements: the canvas, a tool, a region, a row; an array of toolbar items; null for no panel or drawer; a fresh node, its ids renamed',

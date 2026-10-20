@@ -22,6 +22,7 @@
     <script src="../dist/plugins/grideditor.tabs.min.js"></script>
     <script src="../dist/plugins/grideditor.accordion.min.js"></script>
     <script src="../dist/plugins/grideditor.popup.min.js"></script>
+    <script src="../dist/plugins/grideditor.offcanvas.min.js"></script>
     <script src="../dist/plugins/grideditor.card.min.js"></script>
     <script src="../dist/plugins/grideditor.carousel.min.js"></script>
 
@@ -89,9 +90,9 @@
                     A container holds regions, and every region is an ordinary
                     one: rows, columns, content areas and elements nest inside
                     it exactly as they do at the top level. The five buttons in
-                    the toolbar add a tabs container, an accordion, a popup, a
-                    carousel and a card &mdash; the first four hold a pane each, a card
-                    holds one region and an editable header.
+                    the toolbar add a tabs container, an accordion, a popup, an
+                    offcanvas, a carousel and a card &mdash; tabs, accordion and carousel
+                    hold a pane each, the others hold one region.
                 </p>
                 <p class="form-text">
                     While editing, a popup is unfolded in place and an
@@ -101,7 +102,9 @@
                     asked to do any of it, so there is no backdrop and no focus
                     trap to fight with. Double click a tab or item label to
                     rename it, and a card&rsquo;s header and footer the same
-                    way. The row after the popup shows two levels: tabs inside
+                    way. The offcanvas under the popup is the same panel
+                    unfolded, and its gear says where it comes from and from
+                    which breakpoint it is plain content. The row after it shows two levels: tabs inside
                     an accordion item. A tabs container's gear has a Tabs
                     section for its variant - tabs, pills or underline, full
                     width, alignment, and vertical from a breakpoint up - and
@@ -171,6 +174,21 @@
                         Grid editor leaves the markup alone and writes
                         Bootstrap's attributes onto it in the output.
                     </p>
+
+                    <div data-ge-container="offcanvas" data-ge-offcanvas-id="example-offcanvas">
+                        <button type="button" class="btn btn-primary ge-offcanvas-trigger" data-ge-offcanvas-target="example-offcanvas">Open the filters</button>
+                        <div class="offcanvas offcanvas-end" tabindex="-1" id="example-offcanvas" aria-labelledby="example-offcanvas-label">
+                            <div class="offcanvas-header">
+                                <h5 class="offcanvas-title" id="example-offcanvas-label">Filters</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                            </div>
+                            <div class="offcanvas-body">
+                                <div class="row"><div class="col-lg-12">
+                                    <div class="ge-content" data-ge-content-type="tinymce"><p>An offcanvas slides in from the right, over the page.</p></div>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
