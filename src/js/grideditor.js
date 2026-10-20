@@ -403,7 +403,7 @@ function build(instance, baseElem, optionsOrMethod) {
             'toolbar_overflow'  : 'menu', // What doesn't fit on one line: 'menu' behind a button, 'wrap' onto another line
             'drawer_overflow'   : 'menu', // The same for the drawers' tools: 'menu' behind a button, 'wrap' onto another line
             'toolbar_groups'    : false, // The add buttons in categories, one shown at a time, picked with tabs
-            'active_target'     : false, // A click in a column makes it where the toolbar's buttons add
+            'active_target'     : false, // A click in a column makes it where the toolbar's buttons add. The 'sidebar' panel turns it on
             'element_tools'     : [], // Host tools on element drawers, same shape as row_tools
             'element_classes'   : [], // Preset class toggles on an element's settings panel
             // content_types, text_tools and text_classes are the text editor
@@ -441,6 +441,16 @@ function build(instance, baseElem, optionsOrMethod) {
         Object.keys(NESTED_SETTINGS).forEach(function(name) {
             settings[name] = Object.assign({}, NESTED_SETTINGS[name], settings[name]);
         });
+
+        // The sidebar shows what is selected and the toolbar adds to the
+        // target: both follow the node last clicked, so one asks for the other.
+        // Read from what the host gave, as the default is already in settings
+        if (settings.settings_panel === 'sidebar') {
+            if (optionsOrMethod && optionsOrMethod.active_target === false) {
+                throw new TypeError('grid-editor: settings_panel "sidebar" needs active_target; leave it out or set it to true');
+            }
+            settings.active_target = true;
+        }
 
 
         // Elems

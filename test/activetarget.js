@@ -445,6 +445,43 @@ async function apiTests(t) {
     t.check('the api tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Only the sidebar turns active_target on: the other panels keep what the
+ * host gave (spec sidebar-active-target).
+ */
+async function panelTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SETUP);
+
+    var offcanvas = await page.eval(`
+        start({ settings_panel: 'offcanvas', active_target: undefined });
+        clickIn('b');
+        return { target: ge().getActiveTarget(), marked: marked() };
+    `);
+    t.check('with offcanvas and no active_target a click makes no target (sidebar-active-target AC-06)',
+        offcanvas.target === null && offcanvas.marked === '', offcanvas);
+
+    var off = await page.eval(`
+        let error = null;
+        try { start({ settings_panel: 'offcanvas', active_target: false }); } catch (e) { error = e; }
+        return { thrown: !!error, editor: !!ge(), setting: ge() && ge().settings.active_target };
+    `);
+    t.check('offcanvas with active_target false is no error (sidebar-active-target AC-07)',
+        !off.thrown && off.editor && off.setting === false, off);
+
+    var popover = await page.eval(`
+        start({ settings_panel: 'popover' });
+        clickIn('b');
+        button.text().click();
+        return { target: target(), b: blocks(q('#b')), warnings: warnings.length };
+    `);
+    t.check('popover with active_target true behaves as before (sidebar-active-target AC-15)',
+        popover.target === 'b' && popover.b === 'text,text' && popover.warnings === 0, popover);
+
+    var errors = page.errors();
+    t.check('the panel tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'activetarget',
     description: 'the active target: where the toolbar adds, chosen by a click in a column or a section',
@@ -452,6 +489,7 @@ module.exports = {
         await placementTests(t);
         await activationTests(t);
         await apiTests(t);
+        await panelTests(t);
     },
 };
 

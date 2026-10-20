@@ -182,7 +182,7 @@ has, with the options it was made with, and warns once.
 | `destroy` | — | `this` | Deinit, drop the controls, unbind, forget the instance |
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once, with one class |
 | `getView` | — | `String` | The view the editor is in |
-| `getActiveTarget` | — | `Element` | With `active_target`, the column or section the toolbar adds to, or `null` |
+| `getActiveTarget` | — | `Element` | With `active_target` - which the `'sidebar'` panel turns on - the column or section the toolbar adds to, or `null` |
 | `setActiveTarget` | `node` | `this` | Make a column or section - an element or a selector - the one the toolbar adds to, or `null` for none |
 | `getSelected` | — | `Element` | With `settings_panel: 'sidebar'`, the node whose settings the sidebar shows, or `null`. Always `null` without it |
 | `setSelected` | `node` | `this` | With `settings_panel: 'sidebar'`, show the settings of a node with settings - an element or a selector - or `null` for none. It does not unfold a sidebar that is folded away, and does nothing without the `'sidebar'` panel |
@@ -398,7 +398,7 @@ new GridEditor('#myGrid', {
 });
 ```
 
-__`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, a click again on the target's own background or drawer (not on a tool or on what it holds), or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
+__`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `settings_panel: 'sidebar'` it is on without being asked, and giving `false` with the sidebar throws a `TypeError`: both follow the node last clicked. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, a click again on the target's own background or drawer (not on a tool or on what it holds), or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
 
 ```javascript
 const ge = new GridEditor('#myGrid', { active_target: true });
@@ -479,7 +479,7 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 | `'popover'` | A Bootstrap popover under the gear, or over it when there is more room there; a press anywhere else puts it away |
 | `'modal'` | A Bootstrap modal |
 | `'inline'` | Unfolded in the drawer itself |
-| `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear |
+| `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear. It turns `active_target` on, so the node clicked is also where the toolbar adds; `active_target: false` with it is an error |
 
 Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
 

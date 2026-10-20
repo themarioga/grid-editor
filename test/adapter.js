@@ -144,6 +144,19 @@ async function hostTests(t, page) {
     t.check('getSelected and setSelected go through $(el).gridEditor(), with jQuery objects',
         selection.chained && selection.got && selection.same && selection.cleared === null, selection);
 
+    var refused = await page.eval(`
+        if (jQuery('#myGrid').data('grideditor')) { jQuery('#myGrid').gridEditor('destroy'); }
+        let error = null;
+        try {
+            jQuery('#myGrid').gridEditor(jQuery.extend({}, window.fixture.settings, { settings_panel: 'sidebar', active_target: false }));
+        } catch (e) {
+            error = e;
+        }
+        return { thrown: error instanceof TypeError, editor: !!GridEditor.get('#myGrid') };
+    `);
+    t.check('the sidebar with active_target false throws through $(el).gridEditor() too (sidebar-active-target AC-10)',
+        refused.thrown && !refused.editor, refused);
+
     var handle = await page.eval(`
         fresh();
         const ge = jQuery('#myGrid').data('grideditor');

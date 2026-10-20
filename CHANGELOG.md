@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+- **BREAKING:** `settings_panel: 'sidebar'` turns `active_target` on. A click
+  in a column or a section is also where the toolbar's buttons add, as with
+  `active_target: true`, instead of the end of the canvas.
+- **BREAKING:** `settings_panel: 'sidebar'` with `active_target: false` throws
+  a `TypeError` from the constructor, which builds nothing.
+
 ## [8.10.1] - 2026-10-13
 
 ### Fixed

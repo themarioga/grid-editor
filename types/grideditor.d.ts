@@ -161,7 +161,7 @@ export interface GridEditorOptions {
     drawer_overflow?: 'menu' | 'wrap';
     /** The add buttons in categories - rows, content, and a plugin's own - one shown at a time, chosen with tabs. Default false. */
     toolbar_groups?: boolean;
-    /** A click in a column or a section makes it where the toolbar's buttons add. Default false. */
+    /** A click in a column or a section makes it where the toolbar's buttons add. Default false, and true with settings_panel 'sidebar', which throws if it is given false. */
     active_target?: boolean;
     /** The plugins to use, of any kind; null is every one loaded. */
     plugins?: string[] | null;
@@ -195,7 +195,7 @@ export interface GridEditorOptions {
     locale_strings?: Record<string, string>;
     callbacks?: Partial<GridEditorCallbacks>;
     confirm_delete?: boolean;
-    /** Where a node's settings open. 'sidebar' is a panel that stays on the right while editing, showing the selected node's; one editor per page has it. */
+    /** Where a node's settings open. 'sidebar' is a panel that stays on the right while editing, showing the selected node's; one editor per page has it. It turns active_target on, and the constructor throws a TypeError if active_target is false. */
     settings_panel?: 'offcanvas' | 'popover' | 'modal' | 'inline' | 'sidebar';
     /** The 'sidebar' panel. */
     sidebar?: SidebarSettings;
@@ -487,7 +487,7 @@ export declare class GridEditor {
     /** Take the editor off: the markup stays, everything else goes. */
     destroy(): this;
     changeView(view: View): this;
-    /** The column or region the toolbar adds to, or null. Null without active_target. */
+    /** The column or region the toolbar adds to, or null. Null without active_target, which settings_panel 'sidebar' turns on. */
     getActiveTarget(): HTMLElement | null;
     /** Make a column or region, or the first a selector matches, where the toolbar adds; null for none. */
     setActiveTarget(target: HTMLElement | string | null): this;

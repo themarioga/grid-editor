@@ -605,7 +605,7 @@
       "toolbar_groups": false,
       // The add buttons in categories, one shown at a time, picked with tabs
       "active_target": false,
-      // A click in a column makes it where the toolbar's buttons add
+      // A click in a column makes it where the toolbar's buttons add. The 'sidebar' panel turns it on
       "element_tools": [],
       // Host tools on element drawers, same shape as row_tools
       "element_classes": [],
@@ -663,6 +663,12 @@
     Object.keys(NESTED_SETTINGS).forEach(function(name) {
       settings[name] = Object.assign({}, NESTED_SETTINGS[name], settings[name]);
     });
+    if (settings.settings_panel === "sidebar") {
+      if (optionsOrMethod && optionsOrMethod.active_target === false) {
+        throw new TypeError('grid-editor: settings_panel "sidebar" needs active_target; leave it out or set it to true');
+      }
+      settings.active_target = true;
+    }
     var canvas, mainControls, wrapper, addRowGroup, addContainerGroup, layoutDropdown, htmlTextArea;
     var curView = settings.default_view;
     var confirmDialog = null;

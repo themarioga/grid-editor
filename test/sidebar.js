@@ -3,7 +3,8 @@
  * right while editing - no gears, the room it takes, folding it away, the
  * window's width, the editor's lifecycle, and one sidebar per page (spec
  * permanent-settings-panel, AC-01 to AC-03, AC-24 to AC-42, AC-51 to AC-53
- * and AC-61). test/selection.js has what selects a node.
+ * and AC-61). test/selection.js has what selects a node. targetTests covers
+ * spec sidebar-active-target: the sidebar turning active_target on.
  *
  * Runs against the built files in `dist`, so run `npm run build` first if you
  * changed anything under `src`.
@@ -478,6 +479,145 @@ async function instanceTests(t) {
     t.check('the instance tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * The sidebar turns active_target on, and throws with active_target: false
+ * (spec sidebar-active-target).
+ */
+async function targetTests(t) {
+    var page = await newPage(t);
+    await width(page, 1200);
+
+    var on = await page.eval(`
+        start();
+        const targets = [];
+        q('#myGrid').addEventListener('grideditor:target-change', function(e) { targets.push(e.detail.target && e.detail.target.id); });
+        q('#b > .ge-tools-drawer').click();
+        const result = {
+            target: ge().getActiveTarget() && ge().getActiveTarget().id,
+            marked: q('#b').classList.contains('ge-active-target'),
+            selected: selected(),
+            targets: targets.slice(),
+        };
+        q('.ge-mainControls .ge-add-text-button').click();
+        const last = Array.from(q('#b').children).filter(function(child) { return !child.matches('.ge-tools-drawer, .ge-resize-handle'); }).pop();
+        result.textInB = !!last && last.matches('.ge-text-block');
+        result.rows = qa('#myGrid > .row').length;
+        return result;
+    `);
+    t.check('without active_target written, a click in a column selects it and makes it the target, marked, and says so (sidebar-active-target AC-01)',
+        on.target === 'b' && on.marked && on.selected === 'b' && on.targets.length === 1 && on.targets[0] === 'b', on);
+    t.check('the toolbar’s Text goes to the end of the target column, not to the end of the canvas (sidebar-active-target AC-02)',
+        on.textInB && on.rows === 1, on);
+
+    var thrown = await page.eval(`
+        if (ge()) { ge().destroy(); }
+        window.warnings = [];
+        const grid = q('#myGrid');
+        grid.innerHTML = CANVAS;
+        const before = grid.innerHTML;
+        let error = null;
+        try {
+            window.fixture.init({ content_types: ['tinymce'], settings_panel: 'sidebar', active_target: false });
+        } catch (e) {
+            error = e;
+        }
+        const result = {
+            type: error instanceof TypeError,
+            message: error && error.message,
+            untouched: grid.innerHTML === before,
+            editor: GridEditor.get(grid) !== null,
+            controls: qa('.ge-mainControls').length,
+            sidebars: qa('.ge-settings-sidebar').length,
+        };
+        start();
+        result.after = {
+            settings: ge().settings.settings_panel,
+            sidebars: qa('.ge-settings-sidebar').length,
+            warned: warnings.filter(function(w) { return /settings_panel "sidebar"/.test(w); }).length,
+        };
+        return result;
+    `);
+    t.check('settings_panel sidebar with active_target false throws a TypeError (sidebar-active-target AC-03)',
+        thrown.type && /needs active_target/.test(thrown.message), thrown);
+    t.check('after the error nothing is built, and the next editor gets the sidebar with no warning (sidebar-active-target AC-04)',
+        thrown.untouched && !thrown.editor && thrown.controls === 0 && thrown.sidebars === 0 &&
+        thrown.after.settings === 'sidebar' && thrown.after.sidebars === 1 && thrown.after.warned === 0, thrown);
+
+    var written = await page.eval(`
+        start({ active_target: true });
+        q('#a > .ge-tools-drawer').click();
+        return { target: ge().getActiveTarget() && ge().getActiveTarget().id, warnings: warnings.length };
+    `);
+    t.check('with active_target true written as well, no warning, and a click still makes the target (sidebar-active-target AC-05)',
+        written.target === 'a' && written.warnings === 0, written);
+
+    var nulled = await page.eval(`
+        start({ active_target: null });
+        return { setting: ge().settings.active_target };
+    `);
+    t.check('active_target null with the sidebar is no error, and turns it on (sidebar-active-target AC-11)',
+        nulled.setting === true, nulled);
+
+    var set = await page.eval(`
+        start();
+        ge().setActiveTarget('#a');
+        return {
+            target: ge().getActiveTarget() && ge().getActiveTarget().id,
+            warned: warnings.filter(function(w) { return /setActiveTarget/.test(w); }).length,
+        };
+    `);
+    t.check('setActiveTarget works with the sidebar and no active_target written, with no warning (sidebar-active-target AC-12)',
+        set.target === 'a' && set.warned === 0, set);
+
+    var escaped = await page.eval(`
+        start();
+        q('#a > .ge-tools-drawer').click();
+        const escape = function() { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); };
+        escape();
+        const first = { selected: selected(), target: ge().getActiveTarget() && ge().getActiveTarget().id };
+        escape();
+        const second = { selected: selected(), target: ge().getActiveTarget() };
+        return { first: first, second: second };
+    `);
+    t.check('the first Escape clears the selection and leaves the target (sidebar-active-target AC-13)',
+        escaped.first.selected === null && escaped.first.target === 'a', escaped);
+    t.check('the second Escape clears the target (sidebar-active-target AC-14)',
+        escaped.second.selected === null && escaped.second.target === null, escaped);
+
+    var second = await page.eval(`
+        start();
+        window.warnings = [];
+        const other = document.body.appendChild(document.createElement('div'));
+        other.id = 'other';
+        other.innerHTML = '<div class="row"><div class="column col-12" id="oc"><p>Other</p></div></div>';
+        const editor = GridEditor.create(other, { settings_panel: 'sidebar' });
+        q('#oc > .ge-tools-drawer').click();
+        const result = {
+            settings: editor.settings.settings_panel,
+            warned: warnings.filter(function(w) { return /settings_panel "sidebar"/.test(w); }).length,
+            target: editor.getActiveTarget() && editor.getActiveTarget().id,
+        };
+        editor.destroy();
+        let error = null;
+        try {
+            GridEditor.create(other, { settings_panel: 'sidebar', active_target: false });
+        } catch (e) {
+            error = e;
+        }
+        result.thrown = error instanceof TypeError;
+        result.editor = GridEditor.get(other) !== null;
+        other.remove();
+        return result;
+    `);
+    t.check('a second editor asking for the sidebar warns, goes offcanvas, and still has a target (sidebar-active-target AC-08)',
+        second.settings === 'offcanvas' && second.warned === 1 && second.target === 'oc', second);
+    t.check('a second editor asking for the sidebar with active_target false throws too (sidebar-active-target AC-09)',
+        second.thrown && !second.editor, second);
+
+    var errors = page.errors();
+    t.check('the target tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'sidebar',
     description: 'settings_panel sidebar: the panel, folding it, the window, the lifecycle, one per page',
@@ -486,6 +626,7 @@ module.exports = {
         await foldTests(t);
         await lifecycleTests(t);
         await instanceTests(t);
+        await targetTests(t);
     },
 };
 
