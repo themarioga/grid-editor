@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [9.0.0-beta.3] - 2026-10-20
 
 ### Added
 - history: a plugin for undo and redo. Ctrl+Z goes back a step and Ctrl+Y or
