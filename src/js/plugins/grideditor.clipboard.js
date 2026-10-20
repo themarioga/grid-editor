@@ -17,6 +17,11 @@
  *
  * A paste is an add like any other - before-add-* and after-add-*, with
  * `source: 'paste'` - so a host can turn one away.
+ *
+ * With active_target (which the sidebar turns on), Ctrl+C copies the node
+ * selected, or the target, and Ctrl+V pastes into the target, or the node
+ * selected. `clipboard: { shortcuts: false }` turns them off. They go through
+ * the same store as the tools, never the system clipboard.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
@@ -85,10 +90,41 @@ window.addEventListener('storage', function(e) {
     if (e.key === STORAGE_ITEM) { announce(); }
 });
 
+/** The editors listening for the shortcuts, and the one used last, which a key press goes to. */
+var listeningEditors = [];
+var lastEditor = null;
+
+function track(e) {
+    lastEditor = listeningEditors.filter(function(ge) { return ge.contains(e.target); })[0] || null;
+}
+
+// Captured: a control that stops the event still counts as using its editor
+document.addEventListener('pointerdown', track, true);
+document.addEventListener('focusin', track, true);
+
+/** 'c', 'v' or null, from the letter typed or, on a layout without Latin letters, the key's place. */
+function shortcutKey(e) {
+    var key = (e.key || '').toLowerCase();
+    if (!/^[a-z]$/.test(key)) { key = { KeyC: 'c', KeyV: 'v' }[e.code] || ''; }
+
+    return key === 'c' || key === 'v' ? key : null;
+}
+
+function typing() {
+    var focus = document.activeElement;
+    return !!focus && (dom.is(focus, 'input, textarea, select') || focus.isContentEditable);
+}
+
+function textSelected() {
+    var selection = window.getSelection ? window.getSelection() : null;
+    return !!selection && !selection.isCollapsed && selection.toString() !== '';
+}
+
 GridEditor.features.clipboard = function(ge) {
 
     var shown = null; // What the toolbar's paste buttons stand for
     var listening = false; // Whether refresh is on the document's change event
+    var shortcuts = shortcutsSetting();
 
     function used(name) {
         return !ge.settings.plugins || ge.settings.plugins.indexOf(name) !== -1;
@@ -115,11 +151,29 @@ GridEditor.features.clipboard = function(ge) {
         return ['row', 'column', 'section', 'text', 'element'].indexOf(kind) !== -1 ? kind : null;
     }
 
-    function copy(node, kind) {
+    /** On, unless the host said otherwise: with no target there is nothing for a key to act on. */
+    function shortcutsSetting() {
+        var wanted = (ge.settings.clipboard || {}).shortcuts;
+        var target = !!ge.settings.active_target;
+
+        if (wanted !== undefined && typeof wanted !== 'boolean') {
+            ge.warn('clipboard.shortcuts is true or false: ' + (target ? 'on' : 'off') + ', as with active_target, is used');
+            wanted = undefined;
+        }
+        if (wanted === undefined) { return target; }
+        if (wanted && !target) {
+            ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C and Ctrl+V do nothing');
+            return false;
+        }
+
+        return wanted;
+    }
+
+    function copy(node, kind, source) {
         var html = ge.nodeHtml(node);
 
         write({ version: VERSION, category: categoryOf(kind), kind: kind, html: html });
-        ge.emit('after-copy', ge.payloadFor(kind, node, { source: 'tool' }));
+        ge.emit('after-copy', ge.payloadFor(kind, node, { source: source || 'tool' }));
 
         // The canvas came back with new drawers: the one to flash is the
         // node's new copy tool
@@ -140,6 +194,67 @@ GridEditor.features.clipboard = function(ge) {
         if (!fits(clip, categories)) { return; }
 
         ge.place(ge.freshNode(clip.html), clip.kind, { appendTo: target, source: 'paste' });
+    }
+
+    /**
+     * Ctrl+V: into the target as the toolbar's paste button would - a
+     * section, which only the canvas takes, after the block the target is in
+     * - and what that button has none for as the target's paste tool would.
+     * With no target, as the selected node's paste tool. What does not fit
+     * is not pasted anywhere else.
+     */
+    function pasteByShortcut() {
+        var clip = read();
+        var target = ge.getActiveTarget();
+        var node = target || ge.getSelected();
+        if (!clip || !node) { return false; }
+
+        var placement = { appendTo: node, source: 'paste' };
+        if (target && clip.category === 'section') {
+            if (!available(clip)) { return false; }
+            var top = target;
+            while (top.parentElement && top.parentElement !== ge.canvas) { top = top.parentElement; }
+            placement = { insertAfter: top, source: 'paste' };
+        } else if (!fits(clip, TARGETS[ge.kindOf(node)] || [])) {
+            return false;
+        }
+
+        var made = ge.place(ge.freshNode(clip.html), clip.kind, placement);
+        if (made && made.scrollIntoView) { made.scrollIntoView({ behavior: 'smooth' }); }
+
+        return true;
+    }
+
+    function copyByShortcut() {
+        if (textSelected()) { return false; }
+
+        var node = ge.getSelected() || ge.getActiveTarget();
+        var kind = node && ge.kindOf(node);
+        if (!kind || !categoryOf(kind)) { return false; }
+
+        copy(node, kind, 'shortcut');
+        return true;
+    }
+
+    function onKeydown(e) {
+        if (lastEditor !== ge || e.repeat || e.shiftKey || e.altKey || !(e.ctrlKey || e.metaKey)) { return; }
+        var key = shortcutKey(e);
+        if (!key || !dom.hasClass(ge.canvas, 'ge-editing') || typing() || ge.panelOpen()) { return; }
+
+        // Left alone, it is the browser's: a copy of the text, a paste in a field
+        if (key === 'c' ? copyByShortcut() : pasteByShortcut()) { e.preventDefault(); }
+    }
+
+    function listenForShortcuts(on) {
+        var at = listeningEditors.indexOf(ge);
+
+        if (on && at === -1) {
+            listeningEditors.push(ge);
+            document.addEventListener('keydown', onKeydown);
+        } else if (!on && at !== -1) {
+            listeningEditors.splice(at, 1);
+            document.removeEventListener('keydown', onKeydown);
+        }
     }
 
     /** Show the paste tools, and the toolbar's paste buttons, that fit what is copied. */
@@ -203,11 +318,19 @@ GridEditor.features.clipboard = function(ge) {
                 document.addEventListener(CHANGE, refresh);
                 listening = true;
             }
+            listenForShortcuts(shortcuts);
         },
 
         onDeinit: function() {
             document.removeEventListener(CHANGE, refresh);
             listening = false;
+            // A copy takes the canvas out of editing and back: the editor
+            // stays the one used last, as it is still
+            listenForShortcuts(false);
+        },
+
+        onDestroy: function() {
+            if (lastEditor === ge) { lastEditor = null; }
         },
 
         // Nothing of its own on the canvas: the tools are in the drawers

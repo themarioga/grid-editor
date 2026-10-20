@@ -2350,6 +2350,41 @@
         refreshToolbar,
         toolbarItems: function(name) {
           return mainControls ? all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]') : [];
+        },
+        getSelected: function() {
+          return panelMode() === "sidebar" ? selected : null;
+        },
+        getActiveTarget: function() {
+          return settings.active_target ? activeTarget : null;
+        },
+        // What keeps Escape from the selection and the target, and an
+        // inline panel unfolded in a drawer, which Escape leaves alone
+        panelOpen: function() {
+          if (openSettingsState || dialogState) {
+            return true;
+          }
+          if (confirmDialog && hasClass(confirmDialog, "show")) {
+            return true;
+          }
+          return panelMode() === "inline" && all(canvas, ".ge-tools-drawer > .ge-details").some(visible);
+        },
+        // The toolbar and the settings panels are outside the canvas
+        contains: function(node) {
+          if (!node || node.nodeType !== 1) {
+            return false;
+          }
+          if (canvas.contains(node) || mainControls && mainControls.contains(node)) {
+            return true;
+          }
+          if (dialogPanel && dialogPanel.contains(node)) {
+            return true;
+          }
+          if (confirmDialog && confirmDialog.contains(node)) {
+            return true;
+          }
+          return Object.keys(settingsPanels).some(function(mode) {
+            return settingsPanels[mode].contains(node);
+          });
         }
       };
     }

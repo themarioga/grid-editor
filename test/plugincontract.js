@@ -165,10 +165,87 @@ async function run(t) {
     t.check('the plugin contract tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * The handle's view of the selection, the target, what is open and what is
+ * the editor's own (spec clipboard-shortcuts, AC-41 to AC-43). A probe
+ * plugin keeps the handle it is given.
+ */
+async function handleTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    // In the background a page's transitions do not run, and the confirmation fades out
+    await page.send('Page.bringToFront');
+
+    var state = await page.eval(`
+        const settle = function(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms || 50); }); };
+        GridEditor.features.probe = function(handle) { window.probe = handle; return {}; };
+        const q = function(selector) { return document.querySelector(selector); };
+        const canvas = '<div class="row" id="r1"><div class="column col-6" id="a"><p>A</p></div><div class="column col-6" id="b"><p>B</p></div></div>';
+
+        q('#myGrid').innerHTML = canvas;
+        let ge = window.fixture.init({ settings_panel: 'sidebar', confirm_delete: false, plugins: window.fixture.plugins(['probe']) });
+        q('#a > .ge-tools-drawer').click();
+        const mirrors = {
+            selected: window.probe.getSelected() === ge.getSelected() && !!ge.getSelected(),
+            target: window.probe.getActiveTarget() === ge.getActiveTarget() && !!ge.getActiveTarget(),
+        };
+
+        const other = document.body.appendChild(document.createElement('div'));
+        other.innerHTML = '<div class="row"><div class="column col-12" id="oc"><p>Other</p></div></div>';
+        const second = GridEditor.create(other, { plugins: [] });
+        const contains = {
+            canvas: window.probe.contains(q('#a')),
+            toolbar: window.probe.contains(q('#myGrid').previousElementSibling.previousElementSibling.querySelector('button')),
+            sidebar: window.probe.contains(q('.ge-settings-sidebar')),
+            otherCanvas: window.probe.contains(q('#oc')),
+            body: window.probe.contains(document.body),
+        };
+        second.destroy();
+        other.remove();
+
+        q('#myGrid').innerHTML = canvas;
+        ge = window.fixture.init({ settings_panel: 'popover', confirm_delete: true, plugins: window.fixture.plugins(['probe']) });
+        const open = { none: window.probe.panelOpen() };
+        q('#a > .ge-tools-drawer > .ge-settings').click();
+        open.panel = window.probe.panelOpen();
+        q('#a > .ge-tools-drawer > .ge-settings').click();
+        open.panelClosed = window.probe.panelOpen();
+        const body = document.createElement('div');
+        window.probe.openDialog('Probe', body);
+        open.dialog = window.probe.panelOpen();
+        window.probe.closeDialog();
+        await settle(400);
+        open.dialogClosed = window.probe.panelOpen();
+        q('#a > .ge-tools-drawer > .ge-delete-column').click();
+        // Bootstrap does not hide a modal still fading in
+        await settle(800);
+        open.confirm = window.probe.panelOpen();
+        q('.ge-confirm .ge-confirm-cancel').click();
+        await settle(800);
+        open.confirmClosed = window.probe.panelOpen();
+        ge.destroy();
+        delete GridEditor.features.probe;
+        return { mirrors: mirrors, contains: contains, open: open };
+    `);
+    t.check('getSelected and getActiveTarget on the handle give what the public methods give (AC-41)',
+        state.mirrors.selected && state.mirrors.target, state.mirrors);
+    t.check('panelOpen is true with a popover panel, a dialog or the delete confirmation open, and false with none (AC-42)',
+        !state.open.none && state.open.panel && !state.open.panelClosed && state.open.dialog && !state.open.dialogClosed &&
+        state.open.confirm && !state.open.confirmClosed, state.open);
+    t.check('contains says what is the editor’s: its canvas, its toolbar, its sidebar, not another editor nor the page (AC-43)',
+        state.contains.canvas && state.contains.toolbar && state.contains.sidebar && !state.contains.otherCanvas && !state.contains.body,
+        state.contains);
+
+    var errors = page.errors();
+    t.check('the handle tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'plugincontract',
     description: 'what every shipped plugin is handed and hands back is DOM',
-    run: run,
+    run: async function(t) {
+        await run(t);
+        await handleTests(t);
+    },
 };
 
 if (require.main === module) {

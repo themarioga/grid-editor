@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- clipboard: Ctrl+C and Ctrl+V (⌘C and ⌘V) with `active_target`, and so with
+  the sidebar. Ctrl+C copies the node selected or the target; Ctrl+V pastes
+  into the target, or the node selected, by the paste rules the toolbar and
+  the tools already have. The keys stay the browser's while a field or a
+  text is edited, while text is selected, or while a panel or a dialog is
+  open. They use the plugin's own store, never the system clipboard, and go
+  to the editor used last. `clipboard: { shortcuts: false }` turns them off;
+  `after-copy` says `source: 'shortcut'` for them.
+- The plugin handle has `getSelected()`, `getActiveTarget()`, `panelOpen()`
+  and `contains(node)`.
+
 ## [9.0.0-beta.1] - 2026-10-20
 
 ### Changed

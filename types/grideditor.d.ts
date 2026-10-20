@@ -178,6 +178,8 @@ export interface GridEditorOptions {
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
     /** The autosave plugin: what is edited, kept in the browser's storage as it changes. */
     autosave?: AutosaveOptions;
+    /** The clipboard plugin. `shortcuts`: Ctrl+C and Ctrl+V on the node selected or the target; default active_target. */
+    clipboard?: { shortcuts?: boolean };
     custom_filter?: CustomFilter | CustomFilter[] | '';
     valid_col_sizes?: ColumnSize[];
     valid_col_offsets?: number[];
@@ -271,7 +273,7 @@ export interface Payload {
     parent: HTMLElement | null;
     canvas: HTMLElement;
     breakpoint: View;
-    source: 'api' | 'tool' | 'dragdrop' | 'paste' | 'panel' | string;
+    source: 'api' | 'tool' | 'dragdrop' | 'paste' | 'panel' | 'shortcut' | string;
     /** A pane inside a container. */
     container?: HTMLElement;
 }

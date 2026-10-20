@@ -7,6 +7,11 @@ Upgrading from grid-editor `8.x` to `9.0`
   setting to have the sidebar without it. Clicking the canvas's background, or
   pressing Escape, clears the target and the toolbar adds at the end of the
   canvas again, as before.
+* __With the clipboard plugin and `active_target`, Ctrl+C and Ctrl+V copy
+  and paste nodes.__ They act on the node selected or the target, and leave
+  the keys alone while a field or a text has the focus or text is selected.
+  `clipboard: { shortcuts: false }` turns them off. This came in
+  `9.0.0-beta.2`.
 * __`settings_panel: 'sidebar'` with `active_target: false` throws.__ The
   constructor raises a `TypeError` and builds nothing. Leave `active_target`
   out, or give it `true`.

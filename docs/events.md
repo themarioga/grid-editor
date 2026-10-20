@@ -93,7 +93,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
 | `grideditor:target-change` | — | no | with `active_target`, after the column or section the toolbar adds to changes, only if it actually changed |
 | `grideditor:selection-change` | — | no | with `settings_panel: 'sidebar'`, after the node whose settings the sidebar shows changes, only if it actually changed |
-| `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied |
+| `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied: `source: 'tool'` from its Copy tool, `'shortcut'` from Ctrl+C |
 | `grideditor:after-autosave` | — | no | with the autosave plugin, after a draft is written |
 | `grideditor:after-restore-draft` | — | no | with the autosave plugin, after the user chose to restore a draft and the canvas is it |
 | `grideditor:autosave-error` | — | no | with the autosave plugin, when the storage refused a draft |

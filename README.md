@@ -844,6 +844,24 @@ A paste is an add like any other: `before-add-*` and `after-add-*` with
 `source: 'paste'`, and canceling the first turns it away. A copy fires
 `grideditor:after-copy`.
 
+With `active_target` - which `settings_panel: 'sidebar'` turns on - there are
+shortcuts too, Ctrl+C and Ctrl+V (⌘C and ⌘V on a Mac). Ctrl+C copies the node
+selected in the sidebar or, with none, the target, as its *Copy* tool would.
+Ctrl+V pastes into the target as the toolbar's paste button would - a row at
+its end, a section after the block it is in - and a text, a container or an
+element at the end of a target column, as its *Paste* tool would; with no
+target, into the node selected, as its *Paste* tool would. What does not fit
+there is not pasted anywhere else. They go to the editor used last, and leave
+the keys to the browser while a field or a text is being edited, while text
+is selected (for Ctrl+C), while a settings panel, a dialog or the delete
+confirmation is open, and outside editing. They use the same store as the
+tools: the system clipboard is not read or written. `after-copy` says
+`source: 'shortcut'` for a copy made with them.
+
+__`clipboard`:__ `{ shortcuts }`, the plugin's settings. `shortcuts` defaults to
+`active_target`; `false` turns them off, and `true` without `active_target`
+warns and does nothing.
+
 ### Autosave
 
 A plugin:

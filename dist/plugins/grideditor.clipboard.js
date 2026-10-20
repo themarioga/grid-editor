@@ -23,6 +23,9 @@
   function child(node, selector) {
     return children(node, selector)[0] || null;
   }
+  function is(node, selector) {
+    return !!node && node.nodeType === 1 && node.matches(selector);
+  }
   function addClass(node, names) {
     split(names).forEach(function(name) {
       node.classList.add(name);
@@ -34,6 +37,9 @@
       node.classList.remove(name);
     });
     return node;
+  }
+  function hasClass(node, name) {
+    return !!node && node.nodeType === 1 && node.classList.contains(name);
   }
   function split(names) {
     return String(names || "").split(/\s+/).filter(Boolean);
@@ -122,9 +128,34 @@
       announce();
     }
   });
+  var listeningEditors = [];
+  var lastEditor = null;
+  function track(e) {
+    lastEditor = listeningEditors.filter(function(ge) {
+      return ge.contains(e.target);
+    })[0] || null;
+  }
+  document.addEventListener("pointerdown", track, true);
+  document.addEventListener("focusin", track, true);
+  function shortcutKey(e) {
+    var key = (e.key || "").toLowerCase();
+    if (!/^[a-z]$/.test(key)) {
+      key = { KeyC: "c", KeyV: "v" }[e.code] || "";
+    }
+    return key === "c" || key === "v" ? key : null;
+  }
+  function typing() {
+    var focus = document.activeElement;
+    return !!focus && (is(focus, "input, textarea, select") || focus.isContentEditable);
+  }
+  function textSelected() {
+    var selection = window.getSelection ? window.getSelection() : null;
+    return !!selection && !selection.isCollapsed && selection.toString() !== "";
+  }
   GridEditor.features.clipboard = function(ge) {
     var shown = null;
     var listening = false;
+    var shortcuts = shortcutsSetting();
     function used(name) {
       return !ge.settings.plugins || ge.settings.plugins.indexOf(name) !== -1;
     }
@@ -149,10 +180,26 @@
       }
       return ["row", "column", "section", "text", "element"].indexOf(kind) !== -1 ? kind : null;
     }
-    function copy(node, kind) {
+    function shortcutsSetting() {
+      var wanted = (ge.settings.clipboard || {}).shortcuts;
+      var target = !!ge.settings.active_target;
+      if (wanted !== void 0 && typeof wanted !== "boolean") {
+        ge.warn("clipboard.shortcuts is true or false: " + (target ? "on" : "off") + ", as with active_target, is used");
+        wanted = void 0;
+      }
+      if (wanted === void 0) {
+        return target;
+      }
+      if (wanted && !target) {
+        ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C and Ctrl+V do nothing');
+        return false;
+      }
+      return wanted;
+    }
+    function copy(node, kind, source) {
       var html = ge.nodeHtml(node);
       write({ version: VERSION, category: categoryOf(kind), kind, html });
-      ge.emit("after-copy", ge.payloadFor(kind, node, { source: "tool" }));
+      ge.emit("after-copy", ge.payloadFor(kind, node, { source: source || "tool" }));
       var tool = child(ge.drawerOf(node), ".ge-copy");
       if (!tool) {
         return;
@@ -175,6 +222,66 @@
         return;
       }
       ge.place(ge.freshNode(clip.html), clip.kind, { appendTo: target, source: "paste" });
+    }
+    function pasteByShortcut() {
+      var clip = read();
+      var target = ge.getActiveTarget();
+      var node = target || ge.getSelected();
+      if (!clip || !node) {
+        return false;
+      }
+      var placement = { appendTo: node, source: "paste" };
+      if (target && clip.category === "section") {
+        if (!available(clip)) {
+          return false;
+        }
+        var top = target;
+        while (top.parentElement && top.parentElement !== ge.canvas) {
+          top = top.parentElement;
+        }
+        placement = { insertAfter: top, source: "paste" };
+      } else if (!fits(clip, TARGETS[ge.kindOf(node)] || [])) {
+        return false;
+      }
+      var made = ge.place(ge.freshNode(clip.html), clip.kind, placement);
+      if (made && made.scrollIntoView) {
+        made.scrollIntoView({ behavior: "smooth" });
+      }
+      return true;
+    }
+    function copyByShortcut() {
+      if (textSelected()) {
+        return false;
+      }
+      var node = ge.getSelected() || ge.getActiveTarget();
+      var kind = node && ge.kindOf(node);
+      if (!kind || !categoryOf(kind)) {
+        return false;
+      }
+      copy(node, kind, "shortcut");
+      return true;
+    }
+    function onKeydown(e) {
+      if (lastEditor !== ge || e.repeat || e.shiftKey || e.altKey || !(e.ctrlKey || e.metaKey)) {
+        return;
+      }
+      var key = shortcutKey(e);
+      if (!key || !hasClass(ge.canvas, "ge-editing") || typing() || ge.panelOpen()) {
+        return;
+      }
+      if (key === "c" ? copyByShortcut() : pasteByShortcut()) {
+        e.preventDefault();
+      }
+    }
+    function listenForShortcuts(on) {
+      var at = listeningEditors.indexOf(ge);
+      if (on && at === -1) {
+        listeningEditors.push(ge);
+        document.addEventListener("keydown", onKeydown);
+      } else if (!on && at !== -1) {
+        listeningEditors.splice(at, 1);
+        document.removeEventListener("keydown", onKeydown);
+      }
     }
     function refresh() {
       var clip = read();
@@ -233,10 +340,17 @@
           document.addEventListener(CHANGE, refresh);
           listening = true;
         }
+        listenForShortcuts(shortcuts);
       },
       onDeinit: function() {
         document.removeEventListener(CHANGE, refresh);
         listening = false;
+        listenForShortcuts(false);
+      },
+      onDestroy: function() {
+        if (lastEditor === ge) {
+          lastEditor = null;
+        }
       },
       // Nothing of its own on the canvas: the tools are in the drawers
       cleanMarkup: function() {
