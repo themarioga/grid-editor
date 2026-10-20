@@ -477,10 +477,15 @@ async function stepTests(t, page) {
         await start();
         await change();
         ge.destroy();
+        window.warnings.length = 0;
         const z = press('z');
-        return { z: z, undo: ge.undo() };
+        const kept = q('#myGrid').innerHTML.indexOf('id="added"') !== -1;
+        const undo = ge.undo();
+        ge.undo();
+        return { z: z, kept: kept, undo: undo, warnings: window.warnings.filter(function(w) { return w.indexOf('undo()') !== -1; }).length };
     `);
-    t.check('a destroyed editor: no error from the key, undo() gives nothing (AC-33)', !gone.z && !gone.undo, gone);
+    t.check('a destroyed editor: the key does nothing, undo() gives null and warns once (AC-33 rev v2)',
+        !gone.z && gone.kept && gone.undo === null && gone.warnings === 1, gone);
 }
 
 async function settingTests(t, page) {
