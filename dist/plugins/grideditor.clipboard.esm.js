@@ -77,6 +77,7 @@ function visible(node) {
 // src/js/plugins/grideditor.clipboard.js
 Object.assign(GridEditor.locales.en, {
   "tool.copy": "Copy",
+  "tool.cut": "Cut",
   "tool.paste": "Paste",
   "clipboard.paste_row": "Paste row",
   "clipboard.paste_section": "Paste section"
@@ -136,9 +137,9 @@ document.addEventListener("focusin", track, true);
 function shortcutKey(e) {
   var key = (e.key || "").toLowerCase();
   if (!/^[a-z]$/.test(key)) {
-    key = { KeyC: "c", KeyV: "v" }[e.code] || "";
+    key = { KeyC: "c", KeyX: "x", KeyV: "v" }[e.code] || "";
   }
-  return key === "c" || key === "v" ? key : null;
+  return key === "c" || key === "x" || key === "v" ? key : null;
 }
 function typing() {
   var focus = document.activeElement;
@@ -187,15 +188,17 @@ GridEditor.features.clipboard = function(ge) {
       return target;
     }
     if (wanted && !target) {
-      ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C and Ctrl+V do nothing');
+      ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C, Ctrl+X and Ctrl+V do nothing');
       return false;
     }
     return wanted;
   }
+  function keep(node, kind, source, removing) {
+    write({ version: VERSION, category: categoryOf(kind), kind, html: ge.nodeHtml(node) });
+    ge.emit("after-copy", ge.payloadFor(kind, node, { source: source || "tool", cut: removing }));
+  }
   function copy(node, kind, source) {
-    var html = ge.nodeHtml(node);
-    write({ version: VERSION, category: categoryOf(kind), kind, html });
-    ge.emit("after-copy", ge.payloadFor(kind, node, { source: source || "tool" }));
+    keep(node, kind, source, false);
     var tool = child(ge.drawerOf(node), ".ge-copy");
     if (!tool) {
       return;
@@ -211,6 +214,24 @@ GridEditor.features.clipboard = function(ge) {
         icon.setAttribute("class", "bi bi-copy");
       }
     }, 1200);
+  }
+  function cut(node, kind, source) {
+    return ge.removeNode(node, {
+      source: "cut",
+      confirm: false,
+      before: function() {
+        keep(node, kind, source, true);
+        var target = ge.getActiveTarget();
+        if (source !== "tool" && !(target && node.contains(target))) {
+          return;
+        }
+        var parent = node.parentElement;
+        while (parent && parent !== ge.canvas && !ge.detailsOf(parent)) {
+          parent = parent.parentElement;
+        }
+        ge.setActiveTarget(parent && parent !== ge.canvas ? parent : null);
+      }
+    });
   }
   function paste(target, categories) {
     var clip = read();
@@ -242,6 +263,17 @@ GridEditor.features.clipboard = function(ge) {
     copy(node, kind, "shortcut");
     return true;
   }
+  function cutByShortcut() {
+    if (textSelected()) {
+      return false;
+    }
+    var node = ge.getActiveTarget();
+    var kind = node && ge.kindOf(node);
+    if (!kind || !categoryOf(kind)) {
+      return false;
+    }
+    return cut(node, kind, "shortcut");
+  }
   function onKeydown(e) {
     if (lastEditor !== ge || e.repeat || e.shiftKey || e.altKey || !(e.ctrlKey || e.metaKey)) {
       return;
@@ -250,7 +282,8 @@ GridEditor.features.clipboard = function(ge) {
     if (!key || !hasClass(ge.canvas, "ge-editing") || typing() || ge.panelOpen()) {
       return;
     }
-    if (key === "c" ? copyByShortcut() : pasteByShortcut()) {
+    var acted = { c: copyByShortcut, x: cutByShortcut, v: pasteByShortcut }[key]();
+    if (acted) {
       e.preventDefault();
     }
   }
@@ -302,6 +335,10 @@ GridEditor.features.clipboard = function(ge) {
       if (categoryOf(kind)) {
         ge.createTool(drawer, ge.t("tool.copy"), "ge-copy", "bi bi-copy", function() {
           copy(node, kind);
+        });
+        ge.createTool(drawer, ge.t("tool.cut"), "ge-cut", "bi bi-scissors", function(e) {
+          e.stopPropagation();
+          cut(node, kind, "tool");
         });
       }
       var categories = TARGETS[kind];

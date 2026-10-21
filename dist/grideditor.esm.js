@@ -238,7 +238,10 @@ function off(target, types, handler, options) {
 var DEFAULT_DURATION = 400;
 function animateAway(node, frames, duration, done) {
   duration = duration === void 0 ? DEFAULT_DURATION : duration;
+  addClass(node, "ge-leaving");
   var finish = function() {
+    removeClass(node, "ge-leaving");
+    dropEmptyClass(node);
     hide(node);
     if (done) {
       done();
@@ -695,6 +698,8 @@ function build(instance, baseElem, optionsOrMethod) {
     }
   }
   var detailsFor = /* @__PURE__ */ new WeakMap();
+  var toolActions = /* @__PURE__ */ new WeakMap();
+  var pendingDelete = null;
   var moves = /* @__PURE__ */ new WeakMap();
   var resizes = /* @__PURE__ */ new WeakMap();
   var sectionNodes = /* @__PURE__ */ new WeakMap();
@@ -918,12 +923,17 @@ function build(instance, baseElem, optionsOrMethod) {
     });
   }
   function deleteNode(kind, node, message, animate) {
+    var asked = pendingDelete || {};
+    pendingDelete = null;
     operate(function() {
-      var payload = payloadFor(kind, node, { source: "tool" });
+      var payload = payloadFor(kind, node, { source: asked.source || "tool" });
       if (!emit("before-delete", payload)) {
         return;
       }
-      askToDelete(message, function() {
+      if (asked.before) {
+        asked.before();
+      }
+      var remove = function() {
         operate(function() {
           animate(function() {
             node.remove();
@@ -933,8 +943,39 @@ function build(instance, baseElem, optionsOrMethod) {
             });
           });
         });
-      });
+      };
+      if (asked.confirm === false) {
+        remove();
+      } else {
+        askToDelete(message, remove);
+      }
     });
+  }
+  function removeNode(node, options) {
+    options = options || {};
+    var drawer = node ? drawerOf(node) : null;
+    var tool = drawer ? child(drawer, '[class*="ge-delete-"]') : null;
+    var action = tool ? toolActions.get(tool) : null;
+    if (!action) {
+      return false;
+    }
+    var went = false;
+    pendingDelete = {
+      source: options.source,
+      confirm: options.confirm,
+      before: function() {
+        went = true;
+        if (options.before) {
+          options.before();
+        }
+      }
+    };
+    try {
+      action.call(tool);
+    } finally {
+      pendingDelete = null;
+    }
+    return went;
   }
   function planSize(col, size, view) {
     view = view || curView;
@@ -2214,8 +2255,8 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     var copy = copyCanvas();
     var root = copy.root;
-    [root].concat(all(root, ".ge-selected, .ge-settings-target")).forEach(function(node) {
-      removeClass(node, "ge-selected ge-settings-target");
+    [root].concat(all(root, ".ge-selected, .ge-settings-target, .ge-leaving")).forEach(function(node) {
+      removeClass(node, "ge-selected ge-settings-target ge-leaving");
       dropEmptyClass(node);
     });
     all(root, ".ge-drop-marker").forEach(function(marker) {
@@ -2442,13 +2483,16 @@ function build(instance, baseElem, optionsOrMethod) {
       // True when it took: a node that cannot be, or no setting
       // for it, says nothing, since a plugin putting back what it
       // remembers cannot know the node is still one
+      // null takes it away
       setActiveTarget: function(node) {
-        var chosen = !!settings.active_target && isTarget(node);
+        var chosen = !!settings.active_target && (node === null || isTarget(node));
         if (chosen) {
           changeTarget(node);
         }
         return chosen;
       },
+      // A node removed as its delete tool does, as asked
+      removeNode,
       // What keeps Escape from the target, and an
       // inline panel unfolded in a drawer, which Escape leaves alone
       panelOpen: function() {
@@ -3499,11 +3543,15 @@ function build(instance, baseElem, optionsOrMethod) {
     drawer.appendChild(tool);
     if (typeof eventHandlers == "function") {
       tool.addEventListener("click", eventHandlers);
+      toolActions.set(tool, eventHandlers);
     }
     if (eventHandlers && typeof eventHandlers == "object") {
       Object.keys(eventHandlers).forEach(function(name) {
         on(tool, name, eventHandlers[name]);
       });
+      if (typeof eventHandlers.click == "function") {
+        toolActions.set(tool, eventHandlers.click);
+      }
     }
     return tool;
   }

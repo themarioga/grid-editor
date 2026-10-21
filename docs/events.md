@@ -94,7 +94,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
 | `grideditor:preview-change` | — | no | after the preview button is pressed or let go; not while it is only hovered |
 | `grideditor:target-change` | — | no | with `active_target`, after the node the toolbar adds to and the sidebar shows changes - any node with settings - only if it actually changed |
-| `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied: `source: 'tool'` from its Copy tool, `'shortcut'` from Ctrl+C |
+| `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied or cut: `source: 'tool'` from its Copy or Cut tool, `'shortcut'` from Ctrl+C or Ctrl+X, and `cut` true when the node is on its way out |
 | `grideditor:after-autosave` | — | no | with the autosave plugin, after a draft is written |
 | `grideditor:after-restore-draft` | — | no | with the autosave plugin, after the user chose to restore a draft and the canvas is it |
 | `grideditor:autosave-error` | — | no | with the autosave plugin, when the storage refused a draft |
@@ -196,6 +196,11 @@ listens for what the user does: `api` is your own call coming back to you,
 `tool` is a click in the editor, `dragdrop` is a gesture, and `paste` is a node
 the clipboard plugin put in, from a paste tool or the toolbar. A paste is an add
 like any other, so canceling its `before-add-*` turns it away.
+
+A cut is a copy and a delete: `before-delete` first, with `source: 'cut'`,
+then `after-copy` with `cut: true`, the move of the target to what held the
+node (`target-change`), and `after-delete`, also `source: 'cut'`. Canceling the
+`before-delete` cancels the cut, and nothing is copied.
 
 A text block is `kind: 'text'`, with its content area as the node, when it is
 added, deleted or moved, and in `drawerTools`. The host's plain content - a

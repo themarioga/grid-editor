@@ -274,6 +274,65 @@ async function handleTests(t) {
         JSON.stringify(placed.adds.slice(-1)) === JSON.stringify(['row:paste:r1']), placed);
     t.check('a container with no regionOf adds to its column when it is the target (active-target-selection D14)',
         placed.boxAddsToColumn, placed);
+
+    var removed = await page.eval(`
+        GridEditor.features.probe = function(handle) { window.probe = handle; return {}; };
+        const q = function(selector) { return document.querySelector(selector); };
+        const settle = function(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms || 900); }); };
+        window.tinymce = { init: function(config) { const editor = { ui: { show: function() {} }, on: function() {}, focus: function() {}, remove: function() {} }; config.init_instance_callback.call(editor, editor); } };
+        q('#myGrid').innerHTML = '<div class="row" id="r1"><div class="column col-6" id="a"><div class="ge-content ge-content-type-tinymce" data-ge-content-type="tinymce"><p>A</p></div></div>' +
+            '<div class="column col-6" id="b"><p>B</p></div></div><div class="row" id="r2"><div class="column col-12" id="c"><p>C</p></div></div>';
+        const ge = window.fixture.init({ content_types: ['tinymce'], active_target: true, confirm_delete: true, plugins: window.fixture.plugins(['probe']) });
+        const log = [];
+        q('#myGrid').addEventListener('grideditor:before-delete', function(e) { log.push('before:' + e.detail.kind + ':' + e.detail.source); });
+        q('#myGrid').addEventListener('grideditor:after-delete', function(e) { log.push('after:' + e.detail.kind + ':' + e.detail.source); });
+        const out = {};
+
+        let called = 0;
+        out.column = window.probe.removeNode(q('#b'), { source: 'probe', confirm: false, before: function() { called++; log.push('before()'); } });
+        out.asked = !!q('.ge-confirm.show');
+        await settle();
+        out.columnGone = !q('#b');
+
+        out.text = window.probe.removeNode(q('#a .ge-content'), { source: 'probe', confirm: false });
+        await settle();
+        out.textGone = !q('#a .ge-content');
+
+        const cancel = function(e) { e.preventDefault(); };
+        q('#myGrid').addEventListener('grideditor:before-delete', cancel);
+        out.canceled = window.probe.removeNode(q('#c'), { confirm: false, before: function() { called++; } });
+        q('#myGrid').removeEventListener('grideditor:before-delete', cancel);
+        out.cKept = !!q('#c');
+
+        out.noTool = window.probe.removeNode(q('#myGrid'), {});
+        out.called = called;
+
+        // Asked by default, as the tool asks
+        out.byDefault = window.probe.removeNode(q('#c'));
+        // Bootstrap does not show a modal until it has begun to fade in
+        await settle(400);
+        out.defaultAsked = !!q('.ge-confirm.show');
+        q('.ge-confirm .ge-confirm-cancel').click();
+        await settle(800);
+        out.cStill = !!q('#c');
+
+        ge.setActiveTarget('#c');
+        out.cleared = window.probe.setActiveTarget(null);
+        out.target = ge.getActiveTarget();
+        out.log = log;
+        ge.destroy();
+        delete GridEditor.features.probe;
+        return out;
+    `);
+    t.check('removeNode removes a node as its delete tool does, with no question, its source in the events, and before() once let through (clipboard-cut §5)',
+        removed.column === true && !removed.asked && removed.columnGone && removed.called === 1 &&
+        JSON.stringify(removed.log.slice(0, 3)) === JSON.stringify(['before:column:probe', 'before()', 'after:column:probe']), removed);
+    t.check('removeNode works through a plugin’s delete tool too: the text’s (clipboard-cut §5)', removed.text === true && removed.textGone, removed);
+    t.check('removeNode answers false, with no before(), when a before-delete turns it away or the node has no delete tool (clipboard-cut A2)',
+        removed.canceled === false && removed.cKept && removed.noTool === false && removed.called === 1, removed);
+    t.check('without confirm: false, removeNode asks as the tool does (clipboard-cut §5)', removed.defaultAsked && removed.cStill, removed);
+    t.check('setActiveTarget(null) on the handle takes the target away and answers true (clipboard-cut A3)',
+        removed.cleared === true && removed.target === null, removed);
     t.check('panelOpen is true with a popover panel, a dialog or the delete confirmation open, and false with none (AC-42)',
         !state.open.none && state.open.panel && !state.open.panelClosed && state.open.dialog && !state.open.dialogClosed &&
         state.open.confirm && !state.open.confirmClosed, state.open);

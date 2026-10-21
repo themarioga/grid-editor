@@ -331,9 +331,14 @@ export interface Payload {
     parent: HTMLElement | null;
     canvas: HTMLElement;
     breakpoint: View;
-    source: 'api' | 'tool' | 'dragdrop' | 'paste' | 'panel' | 'shortcut' | string;
+    source: 'api' | 'tool' | 'dragdrop' | 'paste' | 'cut' | 'panel' | 'shortcut' | string;
     /** A pane inside a container. */
     container?: HTMLElement;
+}
+
+/** A node was copied, or cut: with the clipboard plugin, `source` is 'tool' or 'shortcut', and `cut` says whether the node is leaving. */
+export interface CopyPayload extends Payload {
+    cut: boolean;
 }
 
 export interface MovePayload extends Payload {
@@ -438,7 +443,7 @@ export interface GridEditorEventMap {
     'grideditor:after-convert': ConvertPayload;
     'grideditor:before-edit-html': EditHtmlPayload;
     'grideditor:after-edit-html': EditHtmlPayload;
-    'grideditor:after-copy': Payload;
+    'grideditor:after-copy': CopyPayload;
     'grideditor:popup-orphan': PopupOrphanPayload;
     'grideditor:offcanvas-orphan': OffcanvasOrphanPayload;
     'grideditor:view-change': ViewChangePayload;

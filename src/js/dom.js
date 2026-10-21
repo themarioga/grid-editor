@@ -324,7 +324,13 @@ var DEFAULT_DURATION = 400;
 function animateAway(node, frames, duration, done) {
     duration = duration === undefined ? DEFAULT_DURATION : duration;
 
+    // Marked while it goes: the history plugin waits for it, rather than
+    // keep the canvas halfway through as a step of its own
+    addClass(node, 'ge-leaving');
+
     var finish = function() {
+        removeClass(node, 'ge-leaving');
+        dropEmptyClass(node);
         hide(node);
         if (done) { done(); }
     };

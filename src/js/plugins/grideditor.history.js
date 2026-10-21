@@ -35,8 +35,8 @@ var DEFAULT_DELAY = 500;
 /** What the editor puts in a node that is not the node's own: a position counts without it. */
 var FURNITURE = '.ge-tools-drawer, .ge-drop-marker';
 
-/** What a drag or a resize leaves on the canvas while it lasts. */
-var BUSY = '.ge-drag-chosen, .ge-drag-placeholder, .ge-drag-helper, .ge-resizing';
+/** What a drag, a resize or a node animating out leaves on the canvas while it lasts. */
+var BUSY = '.ge-drag-chosen, .ge-drag-placeholder, .ge-drag-helper, .ge-resizing, .ge-leaving';
 
 /** The editors listening for the keys, and the one used last, which a key press goes to. */
 var listeningEditors = [];
@@ -133,7 +133,7 @@ GridEditor.features.history = function(ge) {
         return dom.hasClass(ge.canvas, 'ge-editing');
     }
 
-    /** A drag or a resize is going on: the canvas is not at a step but between two. */
+    /** A drag, a resize or a removal is going on: the canvas is not at a step but between two. */
     function busy() {
         return dom.hasClass(ge.canvas, 'ge-dropping') || !!dom.one(ge.canvas, BUSY);
     }

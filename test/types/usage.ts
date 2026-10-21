@@ -83,6 +83,10 @@ const changed: boolean = ge.setUtility('#col', 'order', 2, 'md');
 const value: string | null = ge.getUtility('#col', 'order');
 const active: HTMLElement | null = ge.getActiveTarget();
 ge.setActiveTarget('#col').setActiveTarget(active).setActiveTarget(null);
+ge.canvas.addEventListener('grideditor:after-copy', function(event) {
+    const cut: boolean = event.detail.cut;
+    if (cut && event.detail.source === 'shortcut') { event.detail.node.remove(); }
+});
 ge.canvas.addEventListener('grideditor:target-change', function(event) {
     const payload: TargetChangePayload = event.detail;
     if (payload.target) { payload.target.classList.contains('column'); }

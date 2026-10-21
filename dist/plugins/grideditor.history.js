@@ -45,7 +45,7 @@
   var DEFAULT_MAX = 50;
   var DEFAULT_DELAY = 500;
   var FURNITURE = ".ge-tools-drawer, .ge-drop-marker";
-  var BUSY = ".ge-drag-chosen, .ge-drag-placeholder, .ge-drag-helper, .ge-resizing";
+  var BUSY = ".ge-drag-chosen, .ge-drag-placeholder, .ge-drag-helper, .ge-resizing, .ge-leaving";
   var listeningEditors = [];
   var lastEditor = null;
   function track(e) {

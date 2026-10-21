@@ -5,6 +5,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.0.0-beta.7] - 2026-10-21
+
+### Added
+- clipboard: cut. A *Cut* tool beside *Copy* in every drawer that has it, and
+  Ctrl+X (⌘X) on the target, with `active_target`. It copies the node and
+  removes it as its delete tool does, without asking whatever `confirm_delete`
+  says. It is all or nothing: a `before-delete` that turns it away leaves the
+  clipboard as it was. The target goes to what held the node before it leaves,
+  so a paste right after puts it back. The `before-delete` and `after-delete`
+  of a cut have `source: 'cut'`, and `after-copy` has `cut`, true for a cut.
+- The plugin handle's `ge.removeNode(node, { source, confirm, before })`: a node
+  removed as its own delete tool does, as asked.
+
+### Changed
+- The plugin handle's `ge.setActiveTarget(null)` takes the target away, and
+  answers `true`.
+
+### Fixed
+- history: deleting a node with its tool was two steps, one of them the canvas
+  halfway through the node's exit animation. A node animating out is marked
+  `ge-leaving` while it goes, and history waits for it: a delete, and a cut,
+  is one step. The mark never reaches `getHtml`.
+
 ## [9.0.0-beta.6] - 2026-10-21
 
 ### Changed

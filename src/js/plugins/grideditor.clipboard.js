@@ -15,11 +15,16 @@
  * pasted in another tab or another editor of the same site. A browser that
  * will not give the page its storage keeps it in memory, for this page only.
  *
+ * Cut is a copy and a removal in one: its tool in the same drawers, and Ctrl+X.
+ * It never asks, and is all or nothing: a before-delete that turns the
+ * removal away leaves the clipboard as it was. The target goes to what held
+ * the node, so a paste right after puts it back.
+ *
  * A paste is an add like any other - before-add-* and after-add-*, with
  * `source: 'paste'` - so a host can turn one away.
  *
- * With active_target (which the sidebar turns on), Ctrl+C copies the target
- * and Ctrl+V pastes into it, as the toolbar adds to it.
+ * With active_target (which the sidebar turns on), Ctrl+C copies the target,
+ * Ctrl+X cuts it and Ctrl+V pastes into it, as the toolbar adds to it.
  * `clipboard: { shortcuts: false }` turns them off. They go through the same
  * store as the tools, never the system clipboard.
  */
@@ -28,6 +33,7 @@ import * as dom from '../dom.js';
 
 Object.assign(GridEditor.locales.en, {
     'tool.copy': 'Copy',
+    'tool.cut': 'Cut',
     'tool.paste': 'Paste',
     'clipboard.paste_row': 'Paste row',
     'clipboard.paste_section': 'Paste section',
@@ -102,12 +108,12 @@ function track(e) {
 document.addEventListener('pointerdown', track, true);
 document.addEventListener('focusin', track, true);
 
-/** 'c', 'v' or null, from the letter typed or, on a layout without Latin letters, the key's place. */
+/** 'c', 'x', 'v' or null, from the letter typed or, on a layout without Latin letters, the key's place. */
 function shortcutKey(e) {
     var key = (e.key || '').toLowerCase();
-    if (!/^[a-z]$/.test(key)) { key = { KeyC: 'c', KeyV: 'v' }[e.code] || ''; }
+    if (!/^[a-z]$/.test(key)) { key = { KeyC: 'c', KeyX: 'x', KeyV: 'v' }[e.code] || ''; }
 
-    return key === 'c' || key === 'v' ? key : null;
+    return key === 'c' || key === 'x' || key === 'v' ? key : null;
 }
 
 function typing() {
@@ -162,18 +168,21 @@ GridEditor.features.clipboard = function(ge) {
         }
         if (wanted === undefined) { return target; }
         if (wanted && !target) {
-            ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C and Ctrl+V do nothing');
+            ge.warn('clipboard.shortcuts needs active_target, or settings_panel "sidebar": without it, Ctrl+C, Ctrl+X and Ctrl+V do nothing');
             return false;
         }
 
         return wanted;
     }
 
-    function copy(node, kind, source) {
-        var html = ge.nodeHtml(node);
+    /** What is copied, kept, and said: by a copy, or by a cut on its way to removing the node. */
+    function keep(node, kind, source, removing) {
+        write({ version: VERSION, category: categoryOf(kind), kind: kind, html: ge.nodeHtml(node) });
+        ge.emit('after-copy', ge.payloadFor(kind, node, { source: source || 'tool', cut: removing }));
+    }
 
-        write({ version: VERSION, category: categoryOf(kind), kind: kind, html: html });
-        ge.emit('after-copy', ge.payloadFor(kind, node, { source: source || 'tool' }));
+    function copy(node, kind, source) {
+        keep(node, kind, source, false);
 
         // The canvas came back with new drawers: the one to flash is the
         // node's new copy tool
@@ -187,6 +196,30 @@ GridEditor.features.clipboard = function(ge) {
             dom.removeClass(tool, 'ge-copied');
             if (icon) { icon.setAttribute('class', 'bi bi-copy'); }
         }, 1200);
+    }
+
+    /**
+     * Copy the node and remove it, as its delete tool does but without the
+     * question: all or nothing, so a before-delete that turns it away leaves
+     * the clipboard as it was. The target, if it was this node or in it, goes
+     * to what held it before the node leaves, so a paste right after goes
+     * there.
+     */
+    function cut(node, kind, source) {
+        return ge.removeNode(node, {
+            source: 'cut',
+            confirm: false,
+            before: function() {
+                keep(node, kind, source, true);
+
+                var target = ge.getActiveTarget();
+                if (source !== 'tool' && !(target && node.contains(target))) { return; }
+
+                var parent = node.parentElement;
+                while (parent && parent !== ge.canvas && !ge.detailsOf(parent)) { parent = parent.parentElement; }
+                ge.setActiveTarget(parent && parent !== ge.canvas ? parent : null);
+            },
+        });
     }
 
     function paste(target, categories) {
@@ -223,13 +256,24 @@ GridEditor.features.clipboard = function(ge) {
         return true;
     }
 
+    function cutByShortcut() {
+        if (textSelected()) { return false; }
+
+        var node = ge.getActiveTarget();
+        var kind = node && ge.kindOf(node);
+        if (!kind || !categoryOf(kind)) { return false; }
+
+        return cut(node, kind, 'shortcut');
+    }
+
     function onKeydown(e) {
         if (lastEditor !== ge || e.repeat || e.shiftKey || e.altKey || !(e.ctrlKey || e.metaKey)) { return; }
         var key = shortcutKey(e);
         if (!key || !dom.hasClass(ge.canvas, 'ge-editing') || typing() || ge.panelOpen()) { return; }
 
         // Left alone, it is the browser's: a copy of the text, a paste in a field
-        if (key === 'c' ? copyByShortcut() : pasteByShortcut()) { e.preventDefault(); }
+        var acted = { c: copyByShortcut, x: cutByShortcut, v: pasteByShortcut }[key]();
+        if (acted) { e.preventDefault(); }
     }
 
     function listenForShortcuts(on) {
@@ -284,6 +328,12 @@ GridEditor.features.clipboard = function(ge) {
             if (categoryOf(kind)) {
                 ge.createTool(drawer, ge.t('tool.copy'), 'ge-copy', 'bi bi-copy', function() {
                     copy(node, kind);
+                });
+                ge.createTool(drawer, ge.t('tool.cut'), 'ge-cut', 'bi bi-scissors', function(e) {
+                    // The click that picks the node it is in would pick it as
+                    // the target again, after it has gone to what held it
+                    e.stopPropagation();
+                    cut(node, kind, 'tool');
                 });
             }
 

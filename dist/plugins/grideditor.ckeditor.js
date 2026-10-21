@@ -62,6 +62,12 @@
   function split(names) {
     return String(names || "").split(/\s+/).filter(Boolean);
   }
+  function dropEmptyClass(node) {
+    if (!node.getAttribute("class")) {
+      node.removeAttribute("class");
+    }
+    return node;
+  }
   function hide(node) {
     node.style.display = "none";
     return node;
@@ -85,7 +91,10 @@
   var DEFAULT_DURATION = 400;
   function animateAway(node, frames, duration, done) {
     duration = duration === void 0 ? DEFAULT_DURATION : duration;
+    addClass(node, "ge-leaving");
     var finish = function() {
+      removeClass(node, "ge-leaving");
+      dropEmptyClass(node);
       hide(node);
       if (done) {
         done();

@@ -230,6 +230,7 @@ The clipboard plugin: copy and paste.
 | Key | English | Where |
 | --- | --- | --- |
 | `tool.copy` | Copy | Row, column, section, text, container and element drawers |
+| `tool.cut` | Cut | Row, column, section, text, container and element drawers, beside Copy |
 | `tool.paste` | Paste | Column, row and section drawers, while something that fits there is copied |
 | `clipboard.paste_row` | Paste row | Title of the toolbar's paste button, while a row is copied |
 | `clipboard.paste_section` | Paste section | Title of the toolbar's paste button, while a section is copied |

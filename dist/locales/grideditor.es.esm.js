@@ -171,6 +171,7 @@ GridEditor.locales.es = {
   "tool.delete_section": "Quitar secci\xF3n",
   "confirm.delete_section": "\xBFSeguro que quieres borrar esta secci\xF3n y todo su contenido?",
   "tool.copy": "Copiar",
+  "tool.cut": "Cortar",
   "tool.paste": "Pegar",
   "clipboard.paste_row": "Pegar fila",
   "clipboard.paste_section": "Pegar secci\xF3n",

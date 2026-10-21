@@ -73,7 +73,10 @@ function visible(node) {
 var DEFAULT_DURATION = 400;
 function animateAway(node, frames, duration, done) {
   duration = duration === void 0 ? DEFAULT_DURATION : duration;
+  addClass(node, "ge-leaving");
   var finish = function() {
+    removeClass(node, "ge-leaving");
+    dropEmptyClass(node);
     hide(node);
     if (done) {
       done();

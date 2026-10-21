@@ -495,6 +495,8 @@ function build(instance, baseElem, optionsOrMethod) {
         // be jQuery data: a node's settings panel, a drag or a resize in
         // progress. Kept off the markup, and gone with the node.
         var detailsFor = new WeakMap(); // node -> its settings panel
+        var toolActions = new WeakMap(); // A tool -> what its click does, to do it without one
+        var pendingDelete = null; // What removeNode asks of the delete the tool it runs makes, for that call only
         var moves = new WeakMap(); // dragged node -> { from, canceled }
         var resizes = new WeakMap(); // column -> { from, units }
         var sectionNodes = new WeakMap(); // Responsive section -> the node it edits
@@ -844,12 +846,16 @@ function build(instance, baseElem, optionsOrMethod) {
          * question to have been asked already.
          */
         function deleteNode(kind, node, message, animate) {
+            var asked = pendingDelete || {};
+            pendingDelete = null;
+
             operate(function() {
-                var payload = payloadFor(kind, node, { source: 'tool' });
+                var payload = payloadFor(kind, node, { source: asked.source || 'tool' });
 
                 if (!emit('before-delete', payload)) { return; }
+                if (asked.before) { asked.before(); }
 
-                askToDelete(message, function() {
+                var remove = function() {
                     operate(function() {
                         animate(function() {
                             node.remove();
@@ -859,8 +865,49 @@ function build(instance, baseElem, optionsOrMethod) {
                             });
                         });
                     });
-                });
+                };
+
+                if (asked.confirm === false) {
+                    remove();
+                } else {
+                    askToDelete(message, remove);
+                }
             });
+        }
+
+        /**
+         * A node removed as its own delete tool removes it - the text's
+         * editor closes first, say - but as the caller asks: without the
+         * question, from a `source` of its own, and with `before()` called
+         * once the host's before-delete has let it through, which is also
+         * what the answer says. False for a node with no delete tool, or
+         * one a before-delete turned away.
+         */
+        function removeNode(node, options) {
+            options = options || {};
+
+            var drawer = node ? drawerOf(node) : null;
+            var tool = drawer ? dom.child(drawer, '[class*="ge-delete-"]') : null;
+            var action = tool ? toolActions.get(tool) : null;
+            if (!action) { return false; }
+
+            var went = false;
+            pendingDelete = {
+                source: options.source,
+                confirm: options.confirm,
+                before: function() {
+                    went = true;
+                    if (options.before) { options.before(); }
+                },
+            };
+
+            try {
+                action.call(tool);
+            } finally {
+                pendingDelete = null;
+            }
+
+            return went;
         }
 
         /**
@@ -2496,8 +2543,8 @@ function build(instance, baseElem, optionsOrMethod) {
             var copy = copyCanvas();
             var root = copy.root;
 
-            [root].concat(dom.all(root, '.ge-selected, .ge-settings-target')).forEach(function(node) {
-                dom.removeClass(node, 'ge-selected ge-settings-target');
+            [root].concat(dom.all(root, '.ge-selected, .ge-settings-target, .ge-leaving')).forEach(function(node) {
+                dom.removeClass(node, 'ge-selected ge-settings-target ge-leaving');
                 dom.dropEmptyClass(node);
             });
             dom.all(root, '.ge-drop-marker').forEach(function(marker) { marker.remove(); });
@@ -2760,11 +2807,14 @@ function build(instance, baseElem, optionsOrMethod) {
                 // True when it took: a node that cannot be, or no setting
                 // for it, says nothing, since a plugin putting back what it
                 // remembers cannot know the node is still one
+                // null takes it away
                 setActiveTarget: function(node) {
-                    var chosen = !!settings.active_target && isTarget(node);
+                    var chosen = !!settings.active_target && (node === null || isTarget(node));
                     if (chosen) { changeTarget(node); }
                     return chosen;
                 },
+                // A node removed as its delete tool does, as asked
+                removeNode: removeNode,
                 // What keeps Escape from the target, and an
                 // inline panel unfolded in a drawer, which Escape leaves alone
                 panelOpen: function() {
@@ -4161,11 +4211,13 @@ function build(instance, baseElem, optionsOrMethod) {
 
             if (typeof eventHandlers == 'function') {
                 tool.addEventListener('click', eventHandlers);
+                toolActions.set(tool, eventHandlers);
             }
             if (eventHandlers && typeof eventHandlers == 'object') {
                 Object.keys(eventHandlers).forEach(function(name) {
                     dom.on(tool, name, eventHandlers[name]);
                 });
+                if (typeof eventHandlers.click == 'function') { toolActions.set(tool, eventHandlers.click); }
             }
 
             return tool;

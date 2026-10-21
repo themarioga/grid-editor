@@ -54,8 +54,9 @@
 
                 // A copy says where it came from: 'tool' or 'shortcut'
                 grid.addEventListener('grideditor:after-copy', function(e) {
-                    document.getElementById('log').textContent = 'Copied a ' + e.detail.kind + ' from ' + e.currentTarget.id +
-                        (e.detail.source === 'shortcut' ? ' with Ctrl+C' : ' with its tool');
+                    var key = e.detail.cut ? 'Ctrl+X' : 'Ctrl+C';
+                    document.getElementById('log').textContent = (e.detail.cut ? 'Cut a ' : 'Copied a ') + e.detail.kind + ' from ' + e.currentTarget.id +
+                        (e.detail.source === 'shortcut' ? ' with ' + key : ' with its tool');
                 });
             });
         });
@@ -73,7 +74,7 @@
         <h2>Copy and paste</h2>
         <p class="text-body-secondary">
             Every row, column, section, container and element has a
-            <i class="bi bi-copy"></i> copy tool in its drawer. Once something
+            <i class="bi bi-copy"></i> copy tool and a <i class="bi bi-scissors"></i> cut tool in its drawer. Once something
             is copied, a <i class="bi bi-clipboard-plus"></i> paste tool shows
             wherever it can go: a row into a column or a section, a column into
             a row, a container or an element into a column. A copied row or
@@ -85,7 +86,9 @@
             With the keyboard: click a node - a row, a column, a container, an
             element, or a text - on its background or its drawer, and it
             becomes the target, with a dashed outline. <kbd>Ctrl</kbd>+<kbd>C</kbd>
-            (<kbd>⌘</kbd>+<kbd>C</kbd> on a Mac) copies it, and
+            (<kbd>⌘</kbd>+<kbd>C</kbd> on a Mac) copies it,
+            <kbd>Ctrl</kbd>+<kbd>X</kbd> cuts it - and the target goes to what held it,
+            so a paste puts it back - and
             <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes what is copied into it, at its
             end and in the level it lacks: a row pasted into a row goes in a
             new column of it, a column pasted into a column goes in a new row,

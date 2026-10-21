@@ -817,8 +817,8 @@ A plugin:
 <script src="grid-editor/dist/plugins/grideditor.clipboard.min.js"></script>
 ```
 
-Every row, column, section, text, container and element gets a *Copy* tool in its
-drawer. While something is copied, a *Paste* tool shows wherever it can go, and
+Every row, column, section, text, container and element gets a *Copy* tool and a
+*Cut* tool in its drawer. While something is copied, a *Paste* tool shows wherever it can go, and
 nowhere else:
 
 | Copied | Pasted into |
@@ -853,17 +853,30 @@ A paste is an add like any other: `before-add-*` and `after-add-*` with
 `source: 'paste'`, and canceling the first turns it away. A copy fires
 `grideditor:after-copy`.
 
+*Cut* is a copy and a delete in one: what it copies is what *Copy* would, and the
+node goes out as its delete tool would take it, but without asking, whatever
+`confirm_delete` says. It is all or nothing: if a `before-delete` handler turns
+the delete away, nothing is copied and the clipboard keeps what it had. A cut
+fires `before-delete`, `after-copy` (with `cut: true`) and `after-delete`, and
+the two deletes have `source: 'cut'`. With `active_target`, the target goes to
+what held the node - a text's column, a column's row, a row's column or section,
+a container's pane's container - so a paste right after puts it back there; a
+top-level row or section leaves no target. A cut is one step for the history
+plugin, and what was cut stays in the clipboard after an undo. Tabs and
+accordion items have no *Cut*, as they have no *Copy*.
+
 With `active_target` - which `settings_panel: 'sidebar'` turns on - there are
-shortcuts too, Ctrl+C and Ctrl+V (⌘C and ⌘V on a Mac). Ctrl+C copies the
-target, as its *Copy* tool would, whatever its level: a container, a row, an
-element, a text. Ctrl+V pastes into the target as the toolbar adds to it - at
-the end of what it holds, in the row or the column it lacks, a section after
-the block it is in. With no target, they do nothing. They go to the editor used last, and leave
-the keys to the browser while a field or a text is being edited, while text
-is selected (for Ctrl+C), while a settings panel, a dialog or the delete
-confirmation is open, and outside editing. They use the same store as the
-tools: the system clipboard is not read or written. `after-copy` says
-`source: 'shortcut'` for a copy made with them.
+shortcuts too, Ctrl+C, Ctrl+X and Ctrl+V (⌘C, ⌘X and ⌘V on a Mac). Ctrl+C copies
+the target, as its *Copy* tool would, whatever its level: a container, a row, an
+element, a text. Ctrl+X cuts it, as its *Cut* tool would. Ctrl+V pastes into the
+target as the toolbar adds to it - at the end of what it holds, in the row or the
+column it lacks, a section after the block it is in. With no target, they do
+nothing. They go to the editor used last, and leave the keys to the browser while
+a field or a text is being edited, while text is selected (for Ctrl+C and
+Ctrl+X), while a settings panel, a dialog or the delete confirmation is open, and
+outside editing. They use the same store as the tools: the system clipboard is
+not read or written. `after-copy` says `source: 'shortcut'` for a copy or a cut
+made with them.
 
 __`clipboard`:__ `{ shortcuts }`, the plugin's settings. `shortcuts` defaults to
 `active_target`; `false` turns them off, and `true` without `active_target`

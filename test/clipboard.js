@@ -1190,6 +1190,296 @@ async function shortcutEditorTests(t) {
     t.check('the shortcut editor tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Cut (spec clipboard-cut): its tool and Ctrl+X, a copy and a removal with no
+ * question, all or nothing, and the target moving to what held the node.
+ */
+var CUT = `
+    /** The cut's events, in order, as name:source[:cut][:target]. */
+    window.watch = function() {
+        window.cutLog = [];
+        const grid = q('#myGrid');
+        ['before-delete', 'after-copy', 'target-change', 'after-delete'].forEach(function(name) {
+            const listen = function(e) {
+                const d = e.detail;
+                window.cutLog.push([name, d.source || '', d.cut === undefined ? '' : String(d.cut),
+                    name === 'target-change' ? (d.target ? d.target.id || 'node' : 'none') : ''].filter(Boolean).join(':'));
+            };
+            grid.addEventListener('grideditor:' + name, listen);
+            window.listening.push(['grideditor:' + name, listen]);
+        });
+    };
+    /** A press on the canvas - which says this editor is the one used - then the node as the target, and Ctrl+X. */
+    window.cutAt = function(node) {
+        q('#myGrid').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        ge.setActiveTarget(node);
+        return press('x');
+    };
+    window.tabsIn = function(list) { return list.map(function(b) { return b.replace(/ge-container ge-container-tabs/g, 'tabs'); }); };
+    window.settle = function(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms || 900); }); };
+    window.targetId = function() { const n = ge.getActiveTarget(); return n ? n.id || n.className.split(' ')[0] : null; };
+    window.confirmShown = function() { return !!q('.ge-confirm.show'); };
+    window.ELEMENT = '<div class="row" id="r1"><div class="column col-6" id="a">' + text('<p>A</p>') +
+        '<blockquote data-ge-element="quote" id="el">Q</blockquote></div>' +
+        '<div class="column col-6" id="b">' + text('<p>B</p>') + '</div></div>' +
+        '<div class="container" id="s"><div class="row" id="sr"><div class="column col-12" id="sc">' + text('<p>S</p>') + '</div></div></div>';
+    return true;
+`;
+
+async function cutTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SHORTCUTS);
+    await page.eval(CUT);
+
+    var tabs = await page.eval(`
+        start({ confirm_delete: true });
+        const made = ge.createContainer('tabs', { appendTo: '#a' });
+        use(made.querySelector(':scope > .ge-tools-drawer'));
+        watch();
+        const taken = press('x');
+        const asked = confirmShown();
+        await settle();
+        const cut = { taken: taken, asked: asked, gone: !q('#a [data-ge-container="tabs"]'), category: stored() && stored().category,
+            target: targetId(), log: cutLog.slice() };
+        adds.length = 0;
+        press('v');
+        const back = tabsIn([blocks(q('#a'))])[0];
+        use(drawer('r1'));
+        press('v');
+        const inRow = tabsIn(Array.from(q('#r1').children).filter(function(c) { return c.matches('.column'); }).map(blocks));
+        press('v');
+        const again = tabsIn(Array.from(q('#r1').children).filter(function(c) { return c.matches('.column'); }).map(blocks));
+        return { cut: cut, back: back, inRow: inRow, again: again, adds: adds.slice() };
+    `);
+    t.check('Ctrl+X on a container stores it, removes it, and leaves its column as the target (AC-01)',
+        tabs.cut.taken && tabs.cut.gone && tabs.cut.category === 'container' && tabs.cut.target === 'a', tabs.cut);
+    t.check('the events come in order: before-delete, after-copy, target-change, after-delete (AC-02)',
+        JSON.stringify(tabs.cut.log) === JSON.stringify(['before-delete:cut', 'after-copy:shortcut:true', 'target-change:a', 'after-delete:cut']), tabs.cut.log);
+    t.check('with confirm_delete on, a cut asks nothing (AC-03)', !tabs.cut.asked, tabs.cut);
+    t.check('Ctrl+V right after puts it back at the end of its column (AC-05)', /,tabs$/.test(tabs.back), tabs);
+    t.check('Ctrl+V into a row pastes it in a new column of the row, from the paste (AC-04)',
+        tabs.inRow.length === 3 && tabs.inRow[2] === 'tabs' &&
+        tabs.adds.length === 3 && tabs.adds[0].parent === 'a' && tabs.adds[1].parent === 'r1' && tabs.adds.every(function(a) { return a.kind === 'tabs'; }), tabs);
+    t.check('what was cut pastes again, as a second copy (AC-06)', tabs.again.length === 4 && tabs.again[3] === 'tabs', tabs);
+
+    var canceled = await page.eval(`
+        start({ confirm_delete: true });
+        copyText('b');
+        use(drawer('r1'));
+        watch();
+        const cancel = function(e) { e.preventDefault(); };
+        q('#myGrid').addEventListener('grideditor:before-delete', cancel);
+        const taken = press('x');
+        await settle(300);
+        q('#myGrid').removeEventListener('grideditor:before-delete', cancel);
+        return { taken: taken, row: !!q('#r1'), kept: stored() && stored().category, log: cutLog.slice(), target: targetId() };
+    `);
+    t.check('a before-delete that cancels cancels the cut: nothing copied, the row and the target stay (AC-07)',
+        !canceled.taken && canceled.row && canceled.kept === 'text' && canceled.target === 'r1' &&
+        JSON.stringify(canceled.log) === JSON.stringify(['before-delete:cut']), canceled);
+
+    var tool = await page.eval(`
+        start({ settings_panel: 'offcanvas', active_target: false, confirm_delete: true });
+        watch();
+        q('#a > .ge-tools-drawer > .ge-cut').click();
+        const asked = confirmShown();
+        await settle();
+        return { asked: asked, gone: !q('#a'), category: stored() && stored().category, log: cutLog.slice() };
+    `);
+    t.check('without active_target the Cut tool cuts, with no question, from the tool (AC-08)',
+        !tool.asked && tool.gone && tool.category === 'column' &&
+        JSON.stringify(tool.log) === JSON.stringify(['before-delete:cut', 'after-copy:tool:true', 'after-delete:cut']), tool);
+
+    var toolTarget = await page.eval(`
+        start({ confirm_delete: true });
+        ge.setActiveTarget(textIn('b'));
+        use(q('#a > .ge-tools-drawer > .ge-cut'));
+        await settle();
+        const elsewhere = { gone: !q('#a'), target: targetId() };
+        start({ confirm_delete: true });
+        ge.setActiveTarget(textIn('a'));
+        use(q('#r1 > .ge-tools-drawer > .ge-cut'));
+        await settle();
+        return { elsewhere: elsewhere, ancestor: { gone: !q('#r1'), target: targetId() } };
+    `);
+    t.check('the Cut tool of another column cuts that one, and its row is the target (AC-09)',
+        toolTarget.elsewhere.gone && toolTarget.elsewhere.target === 'r1', toolTarget);
+    t.check('the Cut tool of the row a target text is in cuts the row, and the target goes to its parent: none at the top (AC-25)',
+        toolTarget.ancestor.gone && toolTarget.ancestor.target === null, toolTarget);
+
+    var parents = await page.eval(`
+        const out = {};
+        start({}, ELEMENT);
+        cutAt(q('#b')); await settle(); out.column = targetId();
+        start({}, ELEMENT);
+        cutAt(textIn('a')); await settle(); out.text = targetId();
+        start({}, ELEMENT);
+        cutAt(q('#sr')); await settle(); out.sectionRow = targetId();
+        start({}, ELEMENT);
+        cutAt(q('#el')); await settle(); out.element = targetId();
+        start();
+        const tabs = ge.createContainer('tabs', { appendTo: '#a' });
+        cutAt(tabs.querySelector('.tab-pane.active > .row')); await settle(); out.tabRow = ge.getActiveTarget() === tabs;
+        start();
+        const accordion = ge.createContainer('accordion', { appendTo: '#b' });
+        const item = accordion.querySelector('.accordion-item');
+        cutAt(item.querySelector('.accordion-body > .row')); await settle(); out.itemRow = ge.getActiveTarget() === item;
+        start();
+        cutAt(q('#r1')); await settle(); out.topRow = targetId(); out.topGone = !q('#r1');
+        start();
+        cutAt(q('#s')); await settle(); out.section = targetId(); out.sectionGone = !q('#s');
+        return out;
+    `);
+    t.check('the target goes to what held the node: a column’s row, a text’s column, a section row’s section, an element’s column (AC-10)',
+        parents.column === 'r1' && parents.text === 'a' && parents.sectionRow === 's' && parents.element === 'a', parents);
+    t.check('a row in a tab’s pane leaves the tabs as the target (AC-11)', parents.tabRow, parents);
+    t.check('a row in an accordion item leaves the item as the target (AC-12)', parents.itemRow, parents);
+    t.check('a top level row or a section is cut and leaves no target (AC-13)',
+        parents.topGone && parents.topRow === null && parents.sectionGone && parents.section === null, parents);
+
+    var refused = await page.eval(`
+        start();
+        const tabs = ge.createContainer('tabs', { appendTo: '#a' });
+        const tab = tabs.querySelector('.ge-tab');
+        const onPane = cutAt(tab);
+        const paneKept = !!tab.isConnected && stored() === null;
+        ge.setActiveTarget(null);
+        const none = press('x');
+        return { onPane: onPane, paneKept: paneKept, none: none, stored: stored(), r1: !!q('#r1') };
+    `);
+    t.check('Ctrl+X on a pane does nothing and leaves the key to the browser (AC-14)', !refused.onPane && refused.paneKept, refused);
+    t.check('Ctrl+X with no target does nothing (AC-15)', !refused.none && refused.stored === null && refused.r1, refused);
+
+    var guards = await page.eval(`
+        const out = {};
+        start();
+        use(drawer('r1'));
+        const field = document.body.appendChild(document.createElement('input'));
+        field.focus();
+        out.field = press('x');
+        field.remove();
+        use(drawer('r1'));
+        const range = document.createRange();
+        range.selectNodeContents(q('#b p'));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        out.selected = press('x');
+        window.getSelection().removeAllRanges();
+        start({ settings_panel: 'popover', active_target: true });
+        use(drawer('r1'));
+        q('#r1 > .ge-tools-drawer > .ge-settings').click();
+        out.panel = press('x');
+        q('#r1 > .ge-tools-drawer > .ge-settings').click();
+        start();
+        use(drawer('r1'));
+        const button = q('.ge-mainControls .gm-preview');
+        button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        button.click();
+        out.preview = press('x');
+        button.click();
+        start({ clipboard: { shortcuts: false } });
+        use(drawer('r1'));
+        out.off = press('x');
+        out.row = !!q('#r1');
+        out.stored = stored();
+        return out;
+    `);
+    t.check('typing, text selected, a panel open, preview or shortcuts: false leave Ctrl+X to the browser (AC-16)',
+        !guards.field && !guards.selected && !guards.panel && !guards.preview && !guards.off && guards.row && guards.stored === null, guards);
+
+    var keys = await page.eval(`
+        start();
+        use(drawer('r1'));
+        const shift = press('x', { shiftKey: true });
+        const alt = press('x', { altKey: true });
+        const held = press('x', { repeat: true });
+        const kept = !!q('#r1');
+        const meta = press('x', { ctrlKey: false, metaKey: true });
+        await settle();
+        return { shift: shift, alt: alt, held: held, kept: kept, meta: meta, metaGone: !q('#r1') };
+    `);
+    t.check('Ctrl+Shift+X, Alt+Ctrl+X and a held Ctrl+X do not cut (AC-17)', !keys.shift && !keys.alt && !keys.held && keys.kept, keys);
+    t.check('⌘X cuts like Ctrl+X (AC-18)', keys.meta && keys.metaGone, keys);
+
+    var between = await page.eval(`
+        start();
+        cutAt(q('#a'));
+        await settle();
+        const other = document.body.appendChild(document.createElement('div'));
+        other.id = 'otherGrid';
+        other.innerHTML = '<div class="row"><div class="column col-12" id="x">' + text('<p>X</p>') + '</div></div>';
+        const second = GridEditor.create('#otherGrid', Object.assign({}, window.fixture.settings,
+            { content_types: ['tinymce'], active_target: true, plugins: window.fixture.plugins(['clipboard']) }));
+        use(q('#x > .ge-tools-drawer'));
+        const taken = press('v');
+        const result = { taken: taken, x: blocks(q('#x')) };
+        second.destroy();
+        other.remove();
+        return result;
+    `);
+    t.check('what is cut in one editor pastes in another (AC-20)', between.taken && between.x === 'text,row:1', between);
+
+    var copies = await page.eval(`
+        start();
+        watch();
+        copyByTool('#r1');
+        use(drawer('a'));
+        press('c');
+        return cutLog.filter(function(entry) { return entry.indexOf('after-copy') === 0; });
+    `);
+    t.check('Copy and Ctrl+C say cut: false (AC-21)',
+        JSON.stringify(copies) === JSON.stringify(['after-copy:tool:false', 'after-copy:shortcut:false']), copies);
+
+    var drawers = await page.eval(`
+        start({ settings_panel: 'offcanvas', active_target: true }, ELEMENT);
+        const tabs = ge.createContainer('tabs', { appendTo: '#b' });
+        const copiesNow = Array.from(document.querySelectorAll('#myGrid .ge-copy'));
+        return {
+            count: copiesNow.length,
+            besides: copiesNow.every(function(copy) {
+                const cut = copy.nextElementSibling;
+                return !!cut && cut.matches('.ge-cut') && cut.title === 'Cut' && !!cut.querySelector('i.bi-scissors');
+            }),
+            panes: tabs.querySelectorAll('.ge-tab > .ge-tools-drawer > .ge-cut').length,
+        };
+    `);
+    t.check('every drawer with Copy has Cut right after it, titled and with the scissors (AC-22)', drawers.count > 5 && drawers.besides, drawers);
+    t.check('a pane’s drawer has no Cut (AC-23)', drawers.panes === 0, drawers);
+
+    var midway = await page.eval(`
+        start();
+        use(drawer('b'));
+        press('x');
+        const pasted = press('v');
+        const during = { b: !!q('#b'), target: targetId() };
+        await settle();
+        return { pasted: pasted, during: during, columns: q('#r1').querySelectorAll(':scope > .column').length };
+    `);
+    t.check('Ctrl+V while the cut node is still going out pastes into the new target (AC-24)',
+        midway.pasted && midway.during.target === 'r1' && midway.columns === 2, midway);
+
+    var errors = page.errors();
+    t.check('the cut tests logged no errors', errors.length === 0, errors.slice(0, 5));
+
+    var noStorage = await t.page(FIXTURE, `window.fixture`);
+    await noStorage.eval(SHORTCUTS);
+    await noStorage.eval(CUT);
+    var memory = await noStorage.eval(`
+        Storage.prototype.getItem = function() { throw new Error('denied'); };
+        Storage.prototype.setItem = function() { throw new Error('denied'); };
+        Storage.prototype.clear = function() {};
+        start();
+        cutAt(q('#a'));
+        await settle();
+        const gone = !q('#a');
+        use(drawer('b'));
+        const taken = press('v');
+        return { gone: gone, taken: taken, b: blocks(q('#b')) };
+    `);
+    t.check('with no storage, a cut still pastes within the page (AC-26)',
+        memory.gone && memory.taken && memory.b === 'text,row:1', memory);
+}
+
 module.exports = {
     name: 'clipboard',
     description: 'copy and paste, with the clipboard plugin',
@@ -1204,6 +1494,7 @@ module.exports = {
         await shortcutGuardTests(t);
         await shortcutPlaceTests(t);
         await shortcutEditorTests(t);
+        await cutTests(t);
     },
 };
 

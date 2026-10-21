@@ -601,6 +601,39 @@ async function selectionTests(t, page) {
     t.check('a selected node the step does not have leaves nothing selected (AC-25)',
         gone.was && !gone.row && gone.selected === null, gone);
 
+    // clipboard-cut AC-19
+    var cut = await page.eval(`
+        await start({}, { active_target: true, plugins: window.fixture.plugins(['history', 'clipboard']) });
+        ge.clearHistory();
+        const before = html();
+        use(q('#myGrid'));
+        ge.setActiveTarget(q('#myGrid .row'));
+        press('x');
+        await wait(900);
+        const removed = html() !== before;
+        const steps = ge.canUndo();
+        press('z');
+        await wait(120);
+        const raw = localStorage.getItem('grideditor.clipboard');
+        return { removed: removed, steps: steps, back: html() === before, oneStep: !ge.canUndo(), kept: !!raw && JSON.parse(raw).category === 'row' };
+    `);
+    t.check('a cut is one step: one Ctrl+Z brings the row back, and the clipboard still has it (clipboard-cut AC-19)',
+        cut.removed && cut.steps && cut.back && cut.oneStep && cut.kept, cut);
+
+    var deleted = await page.eval(`
+        await start({}, { confirm_delete: false });
+        ge.clearHistory();
+        const before = html();
+        q('#myGrid .row > .ge-tools-drawer > .ge-delete-row').click();
+        await wait(900);
+        const removed = html() !== before;
+        ge.undo();
+        await wait(60);
+        return { removed: removed, back: html() === before, leftover: /ge-leaving|overflow/.test(before + html()) };
+    `);
+    t.check('a delete with its tool is one step, not one halfway through its animation and another (clipboard-cut INV-4)',
+        deleted.removed && deleted.back && !deleted.leftover, deleted);
+
     // active-target-selection AC-37
     var element = await page.eval(`
         await start({}, { active_target: true }, '<div class="row" id="r1"><div class="column col-12" id="b"><blockquote data-ge-element="quote">Q</blockquote></div></div>');
