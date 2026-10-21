@@ -30,8 +30,10 @@
             new GridEditor(grid, {
                 new_row_layouts: [[12], [6, 6], [4, 4, 4]],
                 content_types: [],
-                // What was selected is selected again after an undo
-                settings_panel: 'sidebar',
+                // Settings open in an offcanvas. A click makes a node the
+                // target, which is chosen again after an undo
+                settings_panel: 'offcanvas',
+                active_target: true,
                 history: {
                     max: 50,       // the steps that can be undone
                     delay: 500,    // a drag or a burst of changes is one step
@@ -69,7 +71,8 @@
         <p class="text-body-secondary">
             While you are writing in a text or a field, the keys undo what you
             typed there, as usual; it becomes a step when you are done. The
-            column or row selected in the sidebar is selected again after a step.
+            node you clicked last - the target, with a dashed outline - is the
+            target again after a step, if it is still there.
             <span id="log" class="fw-semibold"></span>
         </p>
 
