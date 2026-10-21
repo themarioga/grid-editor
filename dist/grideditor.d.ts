@@ -190,7 +190,7 @@ export interface GridEditorOptions {
     drawer_overflow?: 'menu' | 'wrap';
     /** The add buttons in categories - rows, content, and a plugin's own - one shown at a time, chosen with tabs. Default false. */
     toolbar_groups?: boolean;
-    /** A click in a column or a section makes it where the toolbar's buttons add. Default false, and true with settings_panel 'sidebar', which throws if it is given false. */
+    /** A click on any node with settings - a row, a column, a container, a text - makes it the target: where the toolbar's buttons add, and what the sidebar shows. Default false, and true with settings_panel 'sidebar', which throws if it is given false. */
     active_target?: boolean;
     /** The plugins to use, of any kind; null is every one loaded. */
     plugins?: string[] | null;
@@ -209,7 +209,7 @@ export interface GridEditorOptions {
     elements?: { enabled?: boolean | 'auto'; selector?: string; auto?: boolean; types?: ElementType[] };
     /** The autosave plugin: what is edited, kept in the browser's storage as it changes. */
     autosave?: AutosaveOptions;
-    /** The clipboard plugin. `shortcuts`: Ctrl+C and Ctrl+V on the node selected or the target; default active_target. */
+    /** The clipboard plugin. `shortcuts`: Ctrl+C and Ctrl+V on the active target; default active_target. */
     clipboard?: { shortcuts?: boolean };
     /** The history plugin: undo and redo. */
     history?: HistoryOptions;
@@ -230,7 +230,7 @@ export interface GridEditorOptions {
     locale_strings?: Record<string, string>;
     callbacks?: Partial<GridEditorCallbacks>;
     confirm_delete?: boolean;
-    /** Where a node's settings open. 'sidebar' is a panel that stays on the right while editing, showing the selected node's; one editor per page has it. It turns active_target on, and the constructor throws a TypeError if active_target is false. */
+    /** Where a node's settings open. 'sidebar' is a panel that stays on the right while editing, showing the active target's; one editor per page has it. It turns active_target on, and the constructor throws a TypeError if active_target is false. */
     settings_panel?: 'offcanvas' | 'popover' | 'modal' | 'inline' | 'sidebar';
     /** The 'sidebar' panel. */
     sidebar?: SidebarSettings;
@@ -389,7 +389,7 @@ export interface ViewChangePayload {
     to: View;
 }
 
-/** The active target changed: the column or region the toolbar adds to, or null for the canvas. */
+/** The active target changed: the node the toolbar adds to and the sidebar shows - any with settings - or null for the canvas. */
 export interface TargetChangePayload {
     canvas: HTMLElement;
     target: HTMLElement | null;
@@ -400,13 +400,6 @@ export interface TargetChangePayload {
 export interface PreviewChangePayload {
     canvas: HTMLElement;
     previewing: boolean;
-}
-
-/** The selection changed, with settings_panel 'sidebar': the node whose settings the sidebar shows, or null. */
-export interface SelectionChangePayload {
-    canvas: HTMLElement;
-    node: HTMLElement | null;
-    from: HTMLElement | null;
 }
 
 /** The events, by name, with their payloads. Adding fires a specific name and the generic one. */
@@ -451,7 +444,6 @@ export interface GridEditorEventMap {
     'grideditor:view-change': ViewChangePayload;
     'grideditor:preview-change': PreviewChangePayload;
     'grideditor:target-change': TargetChangePayload;
-    'grideditor:selection-change': SelectionChangePayload;
     'grideditor:after-autosave': AutosavePayload;
     'grideditor:after-restore-draft': RestoreDraftPayload;
     'grideditor:autosave-error': AutosaveErrorPayload;
@@ -562,14 +554,10 @@ export declare class GridEditor {
     /** Take the editor off: the markup stays, everything else goes. */
     destroy(): this;
     changeView(view: View): this;
-    /** The column or region the toolbar adds to, or null. Null without active_target, which settings_panel 'sidebar' turns on. */
+    /** The node the toolbar adds to, and the sidebar shows, or null: any node with settings, a row, a column, a container, a text. Null without active_target, which settings_panel 'sidebar' turns on. */
     getActiveTarget(): HTMLElement | null;
-    /** Make a column or region, or the first a selector matches, where the toolbar adds; null for none. */
+    /** Make a node with settings, or the first a selector matches, the one the toolbar adds to; null for none. */
     setActiveTarget(target: HTMLElement | string | null): this;
-    /** The node whose settings the sidebar shows, or null. Null unless settings_panel is 'sidebar'. */
-    getSelected(): HTMLElement | null;
-    /** Select a node with settings, or the first a selector matches, or null for none. Does nothing unless settings_panel is 'sidebar'. */
-    setSelected(node: HTMLElement | string | null): this;
     getView(): View;
     setLocale(code: string): this;
     createRow(layout?: RowLayout, options?: Placement): HTMLElement | null;

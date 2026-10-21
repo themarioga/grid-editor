@@ -1,8 +1,9 @@
 /**
- * Browser tests for the selection of settings_panel 'sidebar': which node a
- * click or the focus selects, what deselects, and getSelected/setSelected
- * with the selection-change event (spec permanent-settings-panel, AC-04 to
- * AC-23 and AC-54 to AC-59). test/sidebar.js has the sidebar itself.
+ * Browser tests for what settings_panel 'sidebar' shows: the active target,
+ * which a click or the focus chooses, and getActiveTarget/setActiveTarget
+ * with the target-change event (spec permanent-settings-panel, AC-04 to
+ * AC-23 and AC-54 to AC-59, as spec active-target-selection changed them:
+ * the selection is the active target). test/sidebar.js has the sidebar itself.
  *
  * The texts use a stand-in for tinyMCE, as test/texts.js does, so a click on
  * a text opens it.
@@ -48,11 +49,11 @@ var SETUP = `
         window.changes = [];
         const grid = q('#myGrid');
         grid.innerHTML = CANVAS;
-        if (window.onChange) { grid.removeEventListener('grideditor:selection-change', window.onChange); }
+        if (window.onChange) { grid.removeEventListener('grideditor:target-change', window.onChange); }
         window.onChange = function(e) {
-            window.changes.push({ node: id(e.detail.node), from: id(e.detail.from), canvas: e.detail.canvas === grid });
+            window.changes.push({ node: id(e.detail.target), from: id(e.detail.from), canvas: e.detail.canvas === grid });
         };
-        grid.addEventListener('grideditor:selection-change', window.onChange);
+        grid.addEventListener('grideditor:target-change', window.onChange);
         return window.fixture.init(Object.assign({
             content_types: ['tinymce'],
             settings_panel: 'sidebar',
@@ -67,11 +68,11 @@ var SETUP = `
         if (node.matches('.ge-content')) { return node.closest('.column').id + ':text'; }
         return node.id || node.className;
     };
-    window.selected = function() { return id(ge().getSelected()); };
-    window.marked = function() { return qa('.ge-settings-target').map(id).join(','); };
+    window.selected = function() { return id(ge().getActiveTarget()); };
+    window.marked = function() { return qa('.ge-selected').map(id).join(','); };
     window.sidebar = function() { return q('.ge-settings-sidebar'); };
     window.title = function() { return sidebar().querySelector('.ge-settings-title').textContent; };
-    window.inSidebar = function(node) { return ge().getSelected() === node && !!sidebar().querySelector('.ge-settings-body > .ge-details'); };
+    window.inSidebar = function(node) { return ge().getActiveTarget() === node && !!sidebar().querySelector('.ge-settings-body > .ge-details'); };
     window.home = function(id) { return !!q('#' + id + ' > .ge-tools-drawer > .ge-details'); };
     window.escape = function(on) {
         (on || document).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -131,8 +132,8 @@ async function clickTests(t) {
         q('#a').click();
         return { selected: selected(), changes: changes.length };
     `);
-    t.check('a click on the selected column again keeps it, and says nothing (AC-08)',
-        again.selected === 'a' && again.changes === 0, again);
+    t.check('a click on the background of the column chosen takes it back (AC-08 rev; active-target-selection AC-03)',
+        again.selected === null && again.changes === 1, again);
 
     var threshold = await page.eval(`
         const result = {};
@@ -270,8 +271,8 @@ async function keyboardTests(t) {
         escape();
         return { first: first, second: { selected: selected(), target: id(ge().getActiveTarget()) } };
     `);
-    t.check('with a target too, the first Escape deselects and the second clears the target (AC-14)',
-        twice.first.selected === null && twice.first.target === 'a' && twice.second.target === null, twice);
+    t.check('one Escape clears the target, which is the selection (AC-14 rev; active-target-selection AC-09)',
+        twice.first.selected === null && twice.first.target === null && twice.second.target === null, twice);
 
     var dialog = await page.eval(`
         start();
@@ -326,7 +327,7 @@ async function apiTests(t) {
 
     var set = await page.eval(`
         start();
-        const chained = ge().setSelected(q('#b')) === ge();
+        const chained = ge().setActiveTarget(q('#b')) === ge();
         return { chained: chained, selected: selected(), inSidebar: inSidebar(q('#b')), changes: changes.slice() };
     `);
     t.check('setSelected selects a column of the canvas, says so, and getSelected gives it back (AC-54)',
@@ -335,43 +336,43 @@ async function apiTests(t) {
 
     var cleared = await page.eval(`
         start();
-        ge().setSelected('#a').setSelected(null);
-        return { selected: ge().getSelected(), message: !!sidebar().querySelector('.ge-sidebar-empty') };
+        ge().setActiveTarget('#a').setActiveTarget(null);
+        return { selected: ge().getActiveTarget(), message: !!sidebar().querySelector('.ge-sidebar-empty') };
     `);
-    t.check('setSelected(null) deselects (AC-55)', cleared.selected === null && cleared.message, cleared);
+    t.check('setActiveTarget(null) deselects (AC-55)', cleared.selected === null && cleared.message, cleared);
 
     var refused = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         changes.length = 0;
-        ge().setSelected('#no-such-node');
+        ge().setActiveTarget('#no-such-node');
         const stray = document.body.appendChild(document.createElement('div'));
-        ge().setSelected(stray);
+        ge().setActiveTarget(stray);
         stray.remove();
-        ge().setSelected(q('#a .ge-content p'));
-        return { selected: selected(), changes: changes.length, warned: warnings.filter(function(w) { return /setSelected/.test(w); }).length };
+        ge().setActiveTarget(q('#a .ge-content p'));
+        return { selected: selected(), changes: changes.length, warned: warnings.filter(function(w) { return /setActiveTarget/.test(w); }).length };
     `);
-    t.check('setSelected with no node, one outside the canvas, or one with no settings warns and changes nothing (AC-56)',
+    t.check('setActiveTarget with no node, one outside the canvas, or one with no settings warns and changes nothing (AC-56; active-target-selection AC-33)',
         refused.selected === 'a' && refused.changes === 0 && refused.warned === 3, refused);
 
     var offcanvas = await page.eval(`
         start({ settings_panel: 'offcanvas' });
-        ge().setSelected('#a');
-        ge().setSelected('#b');
+        ge().setActiveTarget('#a');
+        ge().setActiveTarget('#b');
         return {
-            selected: ge().getSelected(),
+            selected: ge().getActiveTarget(),
             marked: marked(),
             changes: changes.length,
-            warned: warnings.filter(function(w) { return /setSelected/.test(w); }).length,
+            warned: warnings.filter(function(w) { return /setActiveTarget/.test(w); }).length,
         };
     `);
-    t.check('without the sidebar setSelected warns once and does nothing, and getSelected is null (AC-57)',
+    t.check('without active_target setActiveTarget warns once and does nothing, and getActiveTarget is null (AC-57; active-target-selection AC-34)',
         offcanvas.selected === null && offcanvas.marked === '' && offcanvas.changes === 0 && offcanvas.warned === 1, offcanvas);
 
     var kept = await page.eval(`
         start();
         ge().deinit();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         const away = { selected: selected(), marked: marked() };
         ge().init();
         await sleep(0);
@@ -383,20 +384,34 @@ async function apiTests(t) {
 
     var callback = await page.eval(`
         window.called = [];
-        start({ callbacks: { selection_change: function(payload) { window.called.push(payload); } } });
+        start({ callbacks: { target_change: function(payload) { window.called.push(payload); } } });
         let event = null;
         const grab = function(e) { event = e.detail; };
-        q('#myGrid').addEventListener('grideditor:selection-change', grab);
+        q('#myGrid').addEventListener('grideditor:target-change', grab);
         q('#a').click();
-        q('#myGrid').removeEventListener('grideditor:selection-change', grab);
+        q('#myGrid').removeEventListener('grideditor:target-change', grab);
         return {
             calls: called.length,
-            same: called[0] === event || (called[0].node === event.node && called[0].from === event.from && called[0].canvas === event.canvas),
-            node: id(called[0].node),
+            same: called[0] === event || (called[0].target === event.target && called[0].from === event.from && called[0].canvas === event.canvas),
+            node: id(called[0].target),
         };
     `);
-    t.check('callbacks.selection_change gets what the event carries (AC-59)',
+    t.check('callbacks.target_change gets what the event carries (AC-59 rev)',
         callback.calls === 1 && callback.same && callback.node === 'a', callback);
+
+    var gone = await page.eval(`
+        window.oldCalls = 0;
+        start({ callbacks: { selection_change: function() { window.oldCalls++; } } });
+        let heard = 0;
+        const listen = function() { heard++; };
+        q('#myGrid').addEventListener('grideditor:selection-change', listen);
+        q('#a').click();
+        q('#b').click();
+        q('#myGrid').removeEventListener('grideditor:selection-change', listen);
+        return { heard: heard, called: oldCalls, target: selected() };
+    `);
+    t.check('selection-change and callbacks.selection_change are no longer called (active-target-selection AC-31)',
+        gone.heard === 0 && gone.called === 0 && gone.target === 'b', gone);
 
     var errors = page.errors();
     t.check('the API tests logged no errors', errors.length === 0, errors.slice(0, 5));

@@ -330,7 +330,7 @@ async function stepTests(t, page) {
         drawer.dispatchEvent(new MouseEvent('mouseenter'));
         drawer.click();
         await wait(150);
-        return { selected: !!ge.getSelected(), can: ge.canUndo(), changes: named('history-change').length };
+        return { selected: !!ge.getActiveTarget(), can: ge.canUndo(), changes: named('history-change').length };
     `);
     t.check('a hover and a selection are no step (AC-18)',
         noChange.selected && !noChange.can && noChange.changes === 0, noChange);
@@ -581,7 +581,7 @@ async function selectionTests(t, page) {
         await wait(120);
         use(q('#myGrid'));
         press('z');
-        const now = ge.getSelected();
+        const now = ge.getActiveTarget();
         return { second: !!now && now === q('#r1').children[2] && now.id === 'b', fresh: !q('#b').classList.contains('picked'),
             shown: !!q('.ge-settings-sidebar .ge-id') && q('.ge-settings-sidebar .ge-id').value === 'b' };
     `);
@@ -593,13 +593,27 @@ async function selectionTests(t, page) {
         await start({}, { settings_panel: 'sidebar' });
         ge.createRow([12], { appendTo: q('#myGrid') }).id = 'last';
         q('#last > .ge-tools-drawer').click();
-        const was = ge.getSelected() === q('#last');
+        const was = ge.getActiveTarget() === q('#last');
         await wait(120);
         ge.undo();
-        return { was: was, row: !!q('#last'), selected: ge.getSelected() };
+        return { was: was, row: !!q('#last'), selected: ge.getActiveTarget() };
     `);
     t.check('a selected node the step does not have leaves nothing selected (AC-25)',
         gone.was && !gone.row && gone.selected === null, gone);
+
+    // active-target-selection AC-37
+    var element = await page.eval(`
+        await start({}, { active_target: true }, '<div class="row" id="r1"><div class="column col-12" id="b"><blockquote data-ge-element="quote">Q</blockquote></div></div>');
+        const quote = q('#b [data-ge-element]');
+        ge.setActiveTarget(quote);
+        const set = ge.getActiveTarget() === quote;
+        await change();
+        ge.undo();
+        const now = ge.getActiveTarget();
+        return { set: set, now: now && now.outerHTML.slice(0, 80), element: !!now && now.matches('[data-ge-element]') && now.closest('#b') !== null, fresh: now !== quote };
+    `);
+    t.check('an element as the target is the target again after undo, by where it was (active-target-selection AC-37)',
+        element.element && element.fresh, element);
 
     // AC-26
     var target = await page.eval(`

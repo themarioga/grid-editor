@@ -18,10 +18,10 @@
  * A paste is an add like any other - before-add-* and after-add-*, with
  * `source: 'paste'` - so a host can turn one away.
  *
- * With active_target (which the sidebar turns on), Ctrl+C copies the node
- * selected, or the target, and Ctrl+V pastes into the target, or the node
- * selected. `clipboard: { shortcuts: false }` turns them off. They go through
- * the same store as the tools, never the system clipboard.
+ * With active_target (which the sidebar turns on), Ctrl+C copies the target
+ * and Ctrl+V pastes into it, as the toolbar adds to it.
+ * `clipboard: { shortcuts: false }` turns them off. They go through the same
+ * store as the tools, never the system clipboard.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';
@@ -197,29 +197,16 @@ GridEditor.features.clipboard = function(ge) {
     }
 
     /**
-     * Ctrl+V: into the target as the toolbar's paste button would - a
-     * section, which only the canvas takes, after the block the target is in
-     * - and what that button has none for as the target's paste tool would.
-     * With no target, as the selected node's paste tool. What does not fit
-     * is not pasted anywhere else.
+     * Ctrl+V: into the target, where the toolbar would add it - at the end
+     * of what the target holds, in the row or column it lacks, a section on
+     * the canvas after the block the target is in. What the target cannot
+     * take is not pasted anywhere else.
      */
     function pasteByShortcut() {
         var clip = read();
-        var target = ge.getActiveTarget();
-        var node = target || ge.getSelected();
-        if (!clip || !node) { return false; }
+        if (!clip || !ge.getActiveTarget() || !available(clip)) { return false; }
 
-        var placement = { appendTo: node, source: 'paste' };
-        if (target && clip.category === 'section') {
-            if (!available(clip)) { return false; }
-            var top = target;
-            while (top.parentElement && top.parentElement !== ge.canvas) { top = top.parentElement; }
-            placement = { insertAfter: top, source: 'paste' };
-        } else if (!fits(clip, TARGETS[ge.kindOf(node)] || [])) {
-            return false;
-        }
-
-        var made = ge.place(ge.freshNode(clip.html), clip.kind, placement);
+        var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, 'paste');
         if (made && made.scrollIntoView) { made.scrollIntoView({ behavior: 'smooth' }); }
 
         return true;
@@ -228,7 +215,7 @@ GridEditor.features.clipboard = function(ge) {
     function copyByShortcut() {
         if (textSelected()) { return false; }
 
-        var node = ge.getSelected() || ge.getActiveTarget();
+        var node = ge.getActiveTarget();
         var kind = node && ge.kindOf(node);
         if (!kind || !categoryOf(kind)) { return false; }
 

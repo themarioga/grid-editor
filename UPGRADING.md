@@ -2,14 +2,33 @@ Upgrading from grid-editor `8.x` to `9.0`
 =========================================
 
 * __`settings_panel: 'sidebar'` turns `active_target` on.__ A click on a
-  column or a section is now also where the toolbar's buttons add - a text, a
-  row, a container, a paste - instead of the end of the canvas. There is no
-  setting to have the sidebar without it. Clicking the canvas's background, or
+  node is now also where the toolbar's buttons add - a text, a row, a
+  container, a paste - instead of the end of the canvas. There is no setting
+  to have the sidebar without it. Clicking the canvas's background, or
   pressing Escape, clears the target and the toolbar adds at the end of the
   canvas again, as before.
+* __The selection is the active target.__ With `active_target` - and so with
+  the sidebar - a click, or the focus, makes the innermost node with settings
+  the target, whatever it is: a row, a container, an element, a text. Before,
+  only a column or a section could be one, and the sidebar kept a selection
+  of its own. `getSelected()`, `setSelected()`, the `grideditor:selection-change`
+  event and `callbacks.selection_change` are gone: use `getActiveTarget()`,
+  `setActiveTarget()`, `grideditor:target-change` and `callbacks.target_change`.
+  The class that marks the target is `ge-selected`, in place of
+  `ge-active-target`, and a node with its settings open in the sidebar no
+  longer has `ge-settings-target`. Focus in a node and a click on the page
+  outside the editor now change the target with every settings panel, not
+  only with the sidebar. This came in `9.0.0-beta.6`.
+* __The toolbar and Ctrl+V add inside the target, in the level it lacks.__ A
+  row added to a row goes in a new column of it, a pasted column added to a
+  column goes in a new row, a text or an element target adds to its column,
+  and a container target adds to the pane it shows. A container plugin of your
+  own can say where its rows go with `regionOf(container, pane)` in its
+  definition; without it, a container target adds to its column. A plugin that
+  adds a node it made to the target can use `ge.placeInTarget(node, kind, source)`.
 * __With the clipboard plugin and `active_target`, Ctrl+C and Ctrl+V copy
-  and paste nodes.__ They act on the node selected or the target, and leave
-  the keys alone while a field or a text has the focus or text is selected.
+  and paste nodes.__ They act on the target, and leave the keys alone while a
+  field or a text has the focus or text is selected.
   `clipboard: { shortcuts: false }` turns them off. This came in
   `9.0.0-beta.2`.
 * __`settings_panel: 'sidebar'` with `active_target: false` throws.__ The

@@ -668,6 +668,10 @@ GridEditor.containers.carousel = function(ge) {
     labelKey: "container.add_carousel",
     addPaneKey: "container.add_carousel_item",
     paneKind: "carousel-item",
+    // Where rows go: the slide showing, or the slide itself
+    regionOf: function(container, item) {
+      return item || currentOf(container);
+    },
     paneClass: "ge-carousel-item",
     paneLabelKey: "panel.kind_carousel_item",
     /**

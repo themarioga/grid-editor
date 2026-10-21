@@ -69,6 +69,8 @@ GridEditor.containers.gallery = function(ge) {
         paneClass: 'ge-picture',              // optional: the class mark gives its panes, which is how
                                               // the editor knows one is a picture
         paneLabelKey: 'panel.kind_picture',   // optional: what a pane's settings panel calls it
+        regionOf: function(container, pane) { … },    // optional: where rows go when it is the active target:
+                                              // the pane's own (or the one showing, with no pane), or null
 
         create: function(options) { … },              // returns the container
         addPane: addPictureTo,                        // returns the new pane
@@ -188,9 +190,9 @@ element, and where there may be several, an array.
 | `ge.setHtml(html)` | The canvas made of other markup, and edited again: the source view closed if it is open, `deinit`, the markup in, `init`. No add or delete events: it is replaced as a whole. A `<script>` in it does not run in the editor |
 | `ge.confirm(message, options, answer)` | A question in the editor's confirm modal, the one deleting asks in. `options`: `title`, `ok`, `cancel` - the texts, the locale's by default - and `danger`, a red ok button. `answer(true)` for ok, `answer(false)` for cancel, the close button or Escape, `answer(null)` when the modal is taken away unanswered: `setLocale`, `destroy`, or another question. The browser's `confirm` without Bootstrap's javascript |
 | `ge.refreshToolbar()` | The toolbar built again, from what the feature plugins' `toolbar`s hold now: for a plugin whose buttons come and go. The category shown with `toolbar_groups`, the preview and the source view stay as they are. Does nothing before the toolbar is first built, and after `destroy` |
-| `ge.getSelected()` | The node the sidebar shows, as the public method gives it: `null` without the `'sidebar'` panel |
-| `ge.getActiveTarget()` | The column or section the toolbar adds to, as the public method gives it: `null` without `active_target` |
-| `ge.setSelected(node)` / `ge.setActiveTarget(node)` | Choose the node the sidebar shows, or the column or section the toolbar adds to: the public methods without their warnings. `true` when it took, `false` for a node that is not one, or without the `'sidebar'` panel or `active_target`. A plugin that puts the choice back after it remade the canvas does not know the node is still one |
+| `ge.getActiveTarget()` | The node the toolbar adds to and the sidebar shows - any node with settings - as the public method gives it: `null` without `active_target` |
+| `ge.placeInTarget(node, kind, source)` | Add a node you made to the active target as the toolbar adds what it makes: at the end of what the target holds, in the row or column it lacks, a section on the canvas after the block the target is in. The add events fire with `kind` and `source`. The node added, or `null` with no target or when a handler canceled |
+| `ge.setActiveTarget(node)` | Choose the node the toolbar adds to: the public method without its warnings. `true` when it took, `false` for a node that is not one with settings, or without `active_target`. A plugin that puts the choice back after it remade the canvas does not know the node is still one |
 | `ge.panelOpen()` | Whether a settings panel is open in a popover, an offcanvas or a modal, or one is unfolded inline in a drawer, or the editor's dialog or delete confirmation is up. The sidebar does not count: it is always there |
 | `ge.contains(node)` | Whether a node is this editor's: in its canvas, its toolbar, its settings panels (the sidebar too, when it has it), its dialog or its confirmation |
 | `ge.toolbarItems(name)` | An array of the toolbar buttons the feature plugin `name` declared, for showing and hiding them |
@@ -349,7 +351,7 @@ node's kind as `{kind}` - or the label. `body` stays the panel's either way,
 so `ge.detailsOf(node)` finds what is in it.
 
 With `settings_panel: 'sidebar'` the panel has room, as the offcanvas does:
-the sections are in it, and `body` is in the sidebar while its node is selected.
+the sections are in it, and `body` is in the sidebar while its node is the target.
 
 A field made with `ge.utilityField` in a section follows the view and the
 classes field as the Responsive section's do, wherever the section is at the
@@ -362,16 +364,16 @@ with `ge.hostStyle`: in a breakpoint view the node's `style` holds the
 preview's `!important` values too, and they come off on `deinit` with
 whatever was written under them.
 
-### What the sidebar shows with nothing selected
+### What the sidebar shows with no target
 
 **`sidebarEmpty(ge)`**, which any kind of plugin can have, returns what the
-`'sidebar'` settings panel shows while nothing is selected -
+`'sidebar'` settings panel shows while there is no active target -
 `{ titleKey, body }`, a locale key for the title and an element - or null. It
-is called each time the sidebar is left with nothing selected. The host's own
+is called each time the sidebar is left with no target. The host's own
 `sidebar.empty` goes first; then the first plugin, in the order they were
 registered, that returns something; with none, the editor's message. A result
 without a `body` element counts as null. `body` is taken out of the sidebar,
-not destroyed, when a node is selected, so keep it and give it back.
+not destroyed, when a node becomes the target, so keep it and give it back.
 
 ### Settings of your own, saved on the node
 

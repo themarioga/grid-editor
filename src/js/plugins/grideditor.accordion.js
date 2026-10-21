@@ -130,6 +130,15 @@ GridEditor.containers.accordion = function(ge) {
         addPaneKey: 'container.add_accordion_item',
         paneKind: 'accordion-item',
 
+        // Where rows go: the body of the item that is open, or of the item
+        regionOf: function(container, item) {
+            var open = item || dom.all(container, ':scope > .accordion > .accordion-item').filter(function(each) {
+                return dom.hasClass(collapseOf(each), 'show');
+            })[0];
+
+            return open ? dom.one(open, '.accordion-body') : null;
+        },
+
         create: function(options) {
             var container = dom.element('div', { 'data-ge-container': 'accordion' });
             var labels = options.labels || [];

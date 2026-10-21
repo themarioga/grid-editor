@@ -328,9 +328,7 @@ var METHODS = {
   getUtility: { value: true },
   setUtility: { value: true },
   getActiveTarget: { value: true },
-  setActiveTarget: {},
-  getSelected: { value: true },
-  setSelected: {}
+  setActiveTarget: {}
 };
 var PLACEMENTS = ["appendTo", "prependTo", "insertAfter", "insertBefore"];
 var REFERENCES = [
@@ -686,7 +684,6 @@ function build(instance, baseElem, optionsOrMethod) {
   var sortables = [];
   var instanceId = ++editorCounter;
   var destroyed = false;
-  var selected = null;
   var sidebarCollapsed = null;
   var pluginHandle = null;
   if (settings.settings_panel === "sidebar") {
@@ -1129,8 +1126,7 @@ function build(instance, baseElem, optionsOrMethod) {
     var signal = { signal: lifetime.signal };
     window.addEventListener("scroll", onScroll, signal);
     delegate(canvas, "click", ".ge-content", onContentClick, signal);
-    var sidebarMode = panelMode() === "sidebar";
-    if (settings.active_target || sidebarMode) {
+    if (settings.active_target) {
       var pressed = null;
       canvas.addEventListener("pointerdown", function(e) {
         pressed = { x: e.clientX, y: e.clientY };
@@ -1144,12 +1140,7 @@ function build(instance, baseElem, optionsOrMethod) {
         if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) {
           return;
         }
-        if (settings.active_target) {
-          clickTarget(e);
-        }
-        if (sidebarMode && canvas.contains(e.target)) {
-          changeSelection(settingsNodeAt(e.target));
-        }
+        clickTarget(e);
       }, signal);
       document.addEventListener("keydown", function(e) {
         if (e.key !== "Escape" || openSettingsState || dialogState) {
@@ -1162,23 +1153,28 @@ function build(instance, baseElem, optionsOrMethod) {
         if (focus && (is(focus, "input, textarea, select") || focus.isContentEditable)) {
           return;
         }
-        if (selected && isEditing()) {
-          changeSelection(null);
-        } else if (activeTarget) {
+        if (activeTarget) {
           changeTarget(null);
         }
       }, signal);
-    }
-    if (sidebarMode) {
       canvas.addEventListener("focusin", function(e) {
         var node = isEditing() ? settingsNodeAt(e.target) : null;
         if (node) {
-          changeSelection(node);
+          changeTarget(node);
         }
       }, signal);
+      var pressedOn = null;
+      document.addEventListener("pointerdown", function(e) {
+        pressedOn = e.target;
+      }, { capture: true, signal: signal.signal });
       document.addEventListener("click", function(e) {
         var target = e.target;
-        if (!selected || !isEditing() || !target || target.nodeType !== 1) {
+        var from = pressedOn;
+        pressedOn = null;
+        if (!activeTarget || !isEditing() || !target || target.nodeType !== 1) {
+          return;
+        }
+        if (from && from.nodeType === 1 && (canvas.contains(from) || closest(from, EDITOR_CONTROLS))) {
           return;
         }
         if (!attached(target) || canvas.contains(target)) {
@@ -1187,17 +1183,22 @@ function build(instance, baseElem, optionsOrMethod) {
         if (closest(target, EDITOR_CONTROLS) || canvas.querySelector(".ge-rte-active")) {
           return;
         }
-        changeSelection(null);
+        changeTarget(null);
       }, signal);
+    }
+    if (panelMode() === "sidebar") {
       window.addEventListener("resize", reserveSidebarRoom, signal);
     }
     function clickTarget(e) {
-      var region = closest(e.target, targetSelector());
-      if (region && region === activeTarget && (e.target === region || e.target === child(region, ".ge-tools-drawer"))) {
+      if (!canvas.contains(e.target)) {
+        return;
+      }
+      var node = settingsNodeAt(e.target);
+      if (node && node === activeTarget && (e.target === drawerOf(node) || e.target === node && !hasClass(node, "ge-content"))) {
         changeTarget(null);
         return;
       }
-      changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+      changeTarget(node);
     }
   }
   function textReady(block) {
@@ -1682,13 +1683,11 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     var placed = made;
     if (item.inColumn) {
-      if (!is(where.region, ".column")) {
-        placed = inRowOfItsOwn(made);
-      }
+      placed = wrapFor(where.region, made);
     } else if (!acceptsBlock(where.region, made)) {
-      var ancestors = where.region === canvas ? [] : parentsUntil(where.region, canvas).reverse().concat([where.region]);
-      var top = ancestors[0] || null;
-      where = { region: canvas, before: top ? top.nextElementSibling : null };
+      where = canvasAfterTopOf(where.region);
+    } else if (is(where.region, ".row")) {
+      placed = wrapFor(where.region, made);
     }
     return addNode(item.kind, made, function() {
       if (where.before) {
@@ -1698,10 +1697,32 @@ function build(instance, baseElem, optionsOrMethod) {
       }
     }, { parent: where.region, source: item.source || source || "dragdrop" });
   }
+  function canvasAfterTopOf(region) {
+    var ancestors = region === canvas ? [] : parentsUntil(region, canvas).reverse().concat([region]);
+    var top = ancestors[0] || null;
+    return { region: canvas, before: top ? top.nextElementSibling : null };
+  }
+  function placeInTarget(node, kind, source) {
+    if (!activeTarget) {
+      return null;
+    }
+    var where = { region: effectiveRegion(activeTarget), before: null };
+    var placed = wrapFor(where.region, node);
+    var holder = placed === node ? null : node.parentElement;
+    if (!acceptsBlock(where.region, placed) || holder && !acceptsBlock(holder, node)) {
+      where = canvasAfterTopOf(where.region);
+      placed = node;
+    }
+    return addNode(kind, node, function() {
+      if (where.before) {
+        where.before.parentNode.insertBefore(placed, where.before);
+      } else {
+        where.region.appendChild(placed);
+      }
+    }, { parent: where.region, source: source || "api" });
+  }
   function inRowOfItsOwn(node) {
-    var row = createRow();
-    row.appendChild(createColumn(MAX_COL_SIZE)).appendChild(node);
-    return row;
+    return rowHolding(createColumn(MAX_COL_SIZE), node);
   }
   function showDropMarker(pageX, pageY) {
     var where = dropPlaceAt(pageX, pageY);
@@ -1730,10 +1751,7 @@ function build(instance, baseElem, optionsOrMethod) {
     var container = button.getAttribute("data-ge-toolbar") === "container";
     var type = button.getAttribute("data-ge-container-type");
     var made = container ? CONTAINERS[type].create({}) : rowFromLayout(button.getAttribute("data-ge-layout"));
-    var placed = made;
-    if (container && !is(where.region, ".column")) {
-      placed = inRowOfItsOwn(made);
-    }
+    var placed = wrapFor(where.region, made);
     return addNode(container ? type : "row", made, function() {
       if (where.before) {
         where.before.parentNode.insertBefore(placed, where.before);
@@ -1996,7 +2014,6 @@ function build(instance, baseElem, optionsOrMethod) {
     setPreview(false);
     deinit();
     changeTarget(null);
-    changeSelection(null);
     htmlTextArea.style.height = 0.8 * document.documentElement.clientHeight + "px";
     htmlTextArea.value = canvas.innerHTML;
     show(htmlTextArea);
@@ -2012,11 +2029,8 @@ function build(instance, baseElem, optionsOrMethod) {
     init();
     hide(htmlTextArea);
   }
-  function targetSelector() {
-    return [".column"].concat(pluginHooks("regions")).join(", ");
-  }
   function isTarget(node) {
-    return !!node && node !== canvas && canvas.contains(node) && is(node, targetSelector());
+    return !!node && node !== canvas && canvas.contains(node) && detailsFor.has(node);
   }
   function changeTarget(node) {
     if (node === activeTarget) {
@@ -2024,16 +2038,63 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     var from = activeTarget;
     if (from) {
-      removeClass(from, "ge-active-target");
+      removeClass(from, "ge-selected");
     }
     activeTarget = node;
     if (node && hasClass(canvas, "ge-editing")) {
-      addClass(node, "ge-active-target");
+      addClass(node, "ge-selected");
     }
+    renderSidebar();
     emit("target-change", { canvas, target: node, from });
   }
+  function regionSelector() {
+    return [".column"].concat(pluginHooks("regions")).join(", ");
+  }
+  function effectiveRegion(target) {
+    if (is(target, ".row, " + regionSelector())) {
+      return target;
+    }
+    var inside = isContainerOrPane(target) ? paneRegionOf(target) : null;
+    return inside || closest(target.parentElement, regionSelector()) || canvas;
+  }
+  function isContainerOrPane(node) {
+    if (node.getAttribute("data-ge-container")) {
+      return true;
+    }
+    var container = closest(node.parentElement, "[data-ge-container]", canvas);
+    var definition = container && CONTAINERS[containerTypeOf(container)];
+    return !!definition && !!definition.paneKind && kindOf(node) === definition.paneKind;
+  }
+  function paneRegionOf(node) {
+    var isContainer = !!node.getAttribute("data-ge-container");
+    var container = isContainer ? node : closest(node.parentElement, "[data-ge-container]", canvas);
+    var definition = CONTAINERS[containerTypeOf(container)];
+    return definition && definition.regionOf ? definition.regionOf(container, isContainer ? null : node) || null : null;
+  }
+  function wrapFor(region, node) {
+    if (is(node, ".column")) {
+      return is(region, ".row") ? node : rowHolding(node);
+    }
+    if (is(region, ".row")) {
+      var column = createColumn(rowColsSource(region, leadingTier()) ? null : settings.add_column.size);
+      column.appendChild(node);
+      return column;
+    }
+    if (is(region, ".column") || is(node, ".row")) {
+      return node;
+    }
+    return rowHolding(createColumn(MAX_COL_SIZE), node);
+  }
+  function rowHolding(column, node) {
+    var row = createRow();
+    if (node) {
+      column.appendChild(node);
+    }
+    row.appendChild(column);
+    return row;
+  }
   function addToTarget(button, source) {
-    var made = insertFromToolbar(button, { region: activeTarget, before: null }, source);
+    var made = insertFromToolbar(button, { region: effectiveRegion(activeTarget), before: null }, source);
     if (made && made.scrollIntoView) {
       made.scrollIntoView({ behavior: "smooth" });
     }
@@ -2042,8 +2103,8 @@ function build(instance, baseElem, optionsOrMethod) {
     if (openSettingsState && !attached(openSettingsState.node)) {
       closeSettings();
     }
-    if (selected && !canvas.contains(selected)) {
-      changeSelection(null);
+    if (activeTarget && !canvas.contains(activeTarget)) {
+      changeTarget(null);
     }
     if (dialogState && dialogState.home && !attached(dialogState.home)) {
       closeDialog();
@@ -2067,7 +2128,7 @@ function build(instance, baseElem, optionsOrMethod) {
     if (activeTarget && !canvas.contains(activeTarget)) {
       changeTarget(null);
     } else if (activeTarget) {
-      addClass(activeTarget, "ge-active-target");
+      addClass(activeTarget, "ge-selected");
     }
     showSidebar();
   }
@@ -2076,7 +2137,7 @@ function build(instance, baseElem, optionsOrMethod) {
     hideSidebar();
     removeClass(canvas, "ge-editing ge-drag-drawer ge-dropping");
     if (activeTarget) {
-      removeClass(activeTarget, "ge-active-target");
+      removeClass(activeTarget, "ge-selected");
     }
     plugins("onBeforeDeinit");
     closeSizePicker();
@@ -2153,8 +2214,8 @@ function build(instance, baseElem, optionsOrMethod) {
     }
     var copy = copyCanvas();
     var root = copy.root;
-    [root].concat(all(root, ".ge-active-target, .ge-settings-target")).forEach(function(node) {
-      removeClass(node, "ge-active-target ge-settings-target");
+    [root].concat(all(root, ".ge-selected, .ge-settings-target")).forEach(function(node) {
+      removeClass(node, "ge-selected ge-settings-target");
       dropEmptyClass(node);
     });
     all(root, ".ge-drop-marker").forEach(function(marker) {
@@ -2236,7 +2297,6 @@ function build(instance, baseElem, optionsOrMethod) {
     setPreview(false);
     deinit();
     activeTarget = null;
-    selected = null;
     if (sidebarHolder === instance) {
       sidebarHolder = null;
     }
@@ -2317,6 +2377,9 @@ function build(instance, baseElem, optionsOrMethod) {
       addSettingsTool,
       deleteNode,
       place,
+      // A node made, added to the active target as the toolbar adds
+      // what it makes: null with no target, or when it was canceled
+      placeInTarget,
       createPaneControls,
       makeLabelEditable,
       labelIn,
@@ -2373,22 +2436,12 @@ function build(instance, baseElem, optionsOrMethod) {
       toolbarItems: function(name) {
         return mainControls ? all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]') : [];
       },
-      getSelected: function() {
-        return panelMode() === "sidebar" ? selected : null;
-      },
       getActiveTarget: function() {
         return settings.active_target ? activeTarget : null;
       },
       // True when it took: a node that cannot be, or no setting
       // for it, says nothing, since a plugin putting back what it
       // remembers cannot know the node is still one
-      setSelected: function(node) {
-        var chosen = panelMode() === "sidebar" && !!node && node !== canvas && canvas.contains(node) && detailsFor.has(node);
-        if (chosen) {
-          changeSelection(node);
-        }
-        return chosen;
-      },
       setActiveTarget: function(node) {
         var chosen = !!settings.active_target && isTarget(node);
         if (chosen) {
@@ -2396,7 +2449,7 @@ function build(instance, baseElem, optionsOrMethod) {
         }
         return chosen;
       },
-      // What keeps Escape from the selection and the target, and an
+      // What keeps Escape from the target, and an
       // inline panel unfolded in a drawer, which Escape leaves alone
       panelOpen: function() {
         if (openSettingsState || dialogState) {
@@ -3769,7 +3822,7 @@ function build(instance, baseElem, optionsOrMethod) {
     delegate(panel, "click", ".ge-settings-close", function(e) {
       e.preventDefault();
       if (mode === "sidebar") {
-        changeSelection(null);
+        changeTarget(null);
       } else {
         closeSettings();
       }
@@ -3890,7 +3943,7 @@ function build(instance, baseElem, optionsOrMethod) {
     if (!panel || !isEditing()) {
       return;
     }
-    var details = selected ? detailsOf(selected) : null;
+    var details = activeTarget ? detailsOf(activeTarget) : null;
     if (details ? sidebarShown && sidebarShown.details === details : !sidebarShown && sidebarEmpty) {
       return;
     }
@@ -3904,11 +3957,10 @@ function build(instance, baseElem, optionsOrMethod) {
       sidebarEmpty = { body };
       return;
     }
-    sidebarShown = { node: selected, details, home: details.parentElement, next: details.nextElementSibling };
-    setSidebarTitle(t("panel.title", { kind: kindLabel(selected) }));
+    sidebarShown = { node: activeTarget, details, home: details.parentElement, next: details.nextElementSibling };
+    setSidebarTitle(t("panel.title", { kind: kindLabel(activeTarget) }));
     holder.appendChild(details);
     show(details);
-    addClass(selected, "ge-settings-target");
   }
   function emptyContent() {
     var fromHost = settings.sidebar.empty;
@@ -3957,15 +4009,6 @@ function build(instance, baseElem, optionsOrMethod) {
       }
     }
     return null;
-  }
-  function changeSelection(node) {
-    if (node === selected) {
-      return;
-    }
-    var from = selected;
-    selected = node;
-    renderSidebar();
-    emit("selection-change", { canvas, node, from });
   }
   function placePopover(panel, gear) {
     if (!attached(gear)) {
@@ -5076,27 +5119,10 @@ function build(instance, baseElem, optionsOrMethod) {
     var node = nodeFrom(value);
     if (!isTarget(node)) {
       var named = typeof value === "string" ? value : node ? "<" + node.tagName.toLowerCase() + ">" : String(value);
-      warn("setActiveTarget: " + named + " is not a column or a region of the canvas");
+      warn("setActiveTarget: " + named + " is not a node of the canvas with settings");
       return;
     }
     changeTarget(node);
-  }
-  function apiSetSelected(value) {
-    if (panelMode() !== "sidebar") {
-      warnOnceHere("sidebar-api", 'setSelected needs settings_panel "sidebar": without it, it does nothing');
-      return;
-    }
-    if (value === null || value === void 0) {
-      changeSelection(null);
-      return;
-    }
-    var node = nodeFrom(value);
-    if (!node || node === canvas || !canvas.contains(node) || !detailsFor.has(node)) {
-      var named = typeof value === "string" ? value : node ? "<" + node.tagName.toLowerCase() + ">" : String(value);
-      warn("setSelected: " + named + " is not a node of the canvas with settings");
-      return;
-    }
-    changeSelection(node);
   }
   var own = {
     getHtml,
@@ -5136,11 +5162,7 @@ function build(instance, baseElem, optionsOrMethod) {
     getActiveTarget: function() {
       return settings.active_target ? activeTarget : null;
     },
-    setActiveTarget: apiSetActiveTarget,
-    getSelected: function() {
-      return panelMode() === "sidebar" ? selected : null;
-    },
-    setSelected: apiSetSelected
+    setActiveTarget: apiSetActiveTarget
   };
   Object.keys(own).forEach(function(name) {
     var value = !!(METHODS[name] && METHODS[name].value);

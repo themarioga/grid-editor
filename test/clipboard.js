@@ -737,7 +737,7 @@ async function shortcutSettingTests(t) {
         use(drawer('r1'));
         const taken = press('c');
         const clip = stored();
-        return { taken: taken, category: clip && clip.category, copies: copies.slice(), selected: ge.getSelected() && ge.getSelected().id };
+        return { taken: taken, category: clip && clip.category, copies: copies.slice(), selected: ge.getActiveTarget() && ge.getActiveTarget().id };
     `);
     t.check('with the sidebar and no clipboard setting, Ctrl+C copies the selected row and says so (AC-01, AC-38)',
         sidebar.taken && sidebar.category === 'row' && sidebar.selected === 'r1' && sidebar.copies.length === 1, sidebar);
@@ -1007,7 +1007,6 @@ async function shortcutPlaceTests(t) {
     var both = await page.eval(`
         start({ active_target: true });
         use(textIn('a'));
-        const selected = ge.getSelected();
         const target = ge.getActiveTarget();
         press('c');
         const copied = stored() && stored().category;
@@ -1015,13 +1014,13 @@ async function shortcutPlaceTests(t) {
         use(textIn('a'));
         press('v');
         return {
-            selectedIsText: !!selected && selected.matches('.ge-content, .ge-text-block'),
-            target: target && target.id, copied: copied, adds: adds.slice(), a: blocks(q('#a')),
+            targetIsText: !!target && target.matches('.ge-content, .ge-text-block'),
+            copied: copied, adds: adds.slice(), a: blocks(q('#a')),
         };
     `);
-    t.check('with a text clicked, the text is selected and its column the target: Ctrl+C copies the text (AC-18)',
-        both.selectedIsText && both.target === 'a' && both.copied === 'text', both);
-    t.check('and Ctrl+V pastes the row into the column (AC-19)',
+    t.check('with a text clicked, the text is the target: Ctrl+C copies the text (AC-18; active-target-selection AC-04)',
+        both.targetIsText && both.copied === 'text', both);
+    t.check('and Ctrl+V pastes the row into its column (AC-19; active-target-selection AC-17)',
         both.adds.length === 1 && both.adds[0].parent === 'a' && both.a === 'text,row:2', both);
 
     var top = await page.eval(`
@@ -1029,42 +1028,43 @@ async function shortcutPlaceTests(t) {
         copyByTool('#r1');
         use(drawer('r1'));
         const taken = press('v');
-        return { target: ge.getActiveTarget(), taken: taken, tried: tried, adds: adds.length };
+        const last = Array.from(q('#r1').children).filter(function(c) { return c.matches('.column'); }).pop();
+        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, taken: taken, adds: adds.slice(), holds: blocks(last) };
     `);
-    t.check('a top level row selected takes no row: nothing is pasted, not even tried (AC-20)',
-        top.target === null && !top.taken && top.tried === 0 && top.adds === 0, top);
+    t.check('a row pasted onto a top level row goes in a new column of it (AC-20 rev; active-target-selection AC-11)',
+        top.target === 'r1' && top.taken && top.adds.length === 1 && top.adds[0].kind === 'row' && top.adds[0].parent === 'r1' && top.holds === 'row:2', top);
 
     var textSelected = await page.eval(`
         start();
         copyText('a');
         use(drawer('r1'));
-        ge.setSelected(textIn('b'));
+        ge.setActiveTarget(textIn('b'));
         ge.setActiveTarget(null);
-        press('v');
-        return { selected: !!ge.getSelected(), target: ge.getActiveTarget(), adds: adds.length };
+        const taken = press('v');
+        return { target: ge.getActiveTarget(), taken: taken, adds: adds.length };
     `);
-    t.check('a text selected with no target takes no text (AC-21 rev v2)',
-        textSelected.selected && textSelected.target === null && textSelected.adds === 0, textSelected);
+    t.check('with the target cleared, a text is pasted nowhere (AC-21 rev v2; active-target-selection AC-27)',
+        textSelected.target === null && !textSelected.taken && textSelected.adds === 0, textSelected);
 
-    var noColumn = await page.eval(`
+    var columnInColumn = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
         copyByTool('#a');
         use(drawer('b'));
         press('v');
-        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, adds: adds.length };
+        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, adds: adds.slice(), b: blocks(q('#b')) };
     `);
-    t.check('a column copied, a column as the target: nothing is pasted (AC-22)',
-        noColumn.target === 'b' && noColumn.adds === 0, noColumn);
+    t.check('a column copied, a column as the target: it goes in a new row at its end (AC-22 rev; active-target-selection AC-13)',
+        columnInColumn.target === 'b' && columnInColumn.adds.length === 1 && columnInColumn.adds[0].kind === 'column' && columnInColumn.b === 'text,row:1', columnInColumn);
 
     var sectionTarget = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
         copyText('a');
         use(drawer('s'));
         press('v');
-        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, adds: adds.length };
+        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, adds: adds.slice(), s: blocks(q('#s')) };
     `);
-    t.check('a text copied, a section as the target: nothing is pasted (AC-23)',
-        sectionTarget.target === 's' && sectionTarget.adds === 0, sectionTarget);
+    t.check('a text copied, a section as the target: it goes in a row and a column of its own (AC-23 rev; active-target-selection AC-15)',
+        sectionTarget.target === 's' && sectionTarget.adds.length === 1 && sectionTarget.s === 'row:1,row:1', sectionTarget);
 
     var section = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
@@ -1091,12 +1091,12 @@ async function shortcutPlaceTests(t) {
         start();
         copyByTool('#r1');
         use(drawer('a'));
-        ge.setSelected(null);
+        ge.setActiveTarget(null);
         ge.setActiveTarget(null);
         const taken = press('v');
         return { taken: taken, adds: adds.length };
     `);
-    t.check('with nothing selected and no target, Ctrl+V pastes nothing (AC-26 rev v2)', !nothing.taken && nothing.adds === 0, nothing);
+    t.check('with no target, Ctrl+V pastes nothing (AC-26 rev v2)', !nothing.taken && nothing.adds === 0, nothing);
 
     var noTarget = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
@@ -1112,22 +1112,22 @@ async function shortcutPlaceTests(t) {
         start();
         use(drawer('a'));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        const after = { selected: ge.getSelected(), target: ge.getActiveTarget() && ge.getActiveTarget().id };
-        press('c');
-        return { after: after, category: stored() && stored().category };
+        const target = ge.getActiveTarget();
+        const taken = press('c');
+        return { target: target, taken: taken, stored: stored() };
     `);
-    t.check('with the selection cleared by Escape, Ctrl+C copies the target (AC-30)',
-        escaped.after.selected === null && escaped.after.target === 'a' && escaped.category === 'column', escaped);
+    t.check('Escape clears the target in one press, and Ctrl+C then copies nothing (AC-30 rev; active-target-selection AC-09)',
+        escaped.target === null && !escaped.taken && escaped.stored === null, escaped);
 
     var rowSelected = await page.eval(`
         start();
         copyByTool('#a');
         use(drawer('r1'));
         press('v');
-        return { selected: ge.getSelected() && ge.getSelected().id, target: ge.getActiveTarget(), r1: q('#r1').querySelectorAll(':scope > .column').length, adds: adds.slice() };
+        return { target: ge.getActiveTarget() && ge.getActiveTarget().id, r1: q('#r1').querySelectorAll(':scope > .column').length, adds: adds.slice() };
     `);
-    t.check('a row selected and no target: a column copied goes to its end (AC-31)',
-        rowSelected.selected === 'r1' && rowSelected.target === null && rowSelected.r1 === 3 &&
+    t.check('a row as the target: a column copied goes to its end (AC-31; active-target-selection AC-14)',
+        rowSelected.target === 'r1' && rowSelected.r1 === 3 &&
         rowSelected.adds.length === 1 && rowSelected.adds[0].kind === 'column', rowSelected);
 
     var pane = await page.eval(`
@@ -1135,7 +1135,7 @@ async function shortcutPlaceTests(t) {
         ge.createContainer('tabs', { appendTo: '#b' });
         const tab = q('#myGrid .ge-tab');
         use(kid(tab, '.ge-tools-drawer') || tab);
-        const kind = ge.getSelected() && ge.getSelected().matches('.ge-tab');
+        const kind = ge.getActiveTarget() && ge.getActiveTarget().matches('.ge-tab');
         const taken = press('c');
         return { pane: kind, taken: taken, stored: stored() };
     `);

@@ -186,7 +186,7 @@ async function handleTests(t) {
         let ge = window.fixture.init({ settings_panel: 'sidebar', confirm_delete: false, plugins: window.fixture.plugins(['probe']) });
         q('#a > .ge-tools-drawer').click();
         const mirrors = {
-            selected: window.probe.getSelected() === ge.getSelected() && !!ge.getSelected(),
+            gone: window.probe.getSelected === undefined && window.probe.setSelected === undefined,
             target: window.probe.getActiveTarget() === ge.getActiveTarget() && !!ge.getActiveTarget(),
         };
 
@@ -227,8 +227,53 @@ async function handleTests(t) {
         delete GridEditor.features.probe;
         return { mirrors: mirrors, contains: contains, open: open };
     `);
-    t.check('getSelected and getActiveTarget on the handle give what the public methods give (AC-41)',
-        state.mirrors.selected && state.mirrors.target, state.mirrors);
+    t.check('getActiveTarget on the handle gives what the public method gives, and getSelected/setSelected are gone (AC-41; active-target-selection §5)',
+        state.mirrors.gone && state.mirrors.target, state.mirrors);
+
+    var placed = await page.eval(`
+        GridEditor.features.probe = function(handle) { window.probe = handle; return {}; };
+        // A container of a third party, with no regionOf: as a target, it adds to its column
+        GridEditor.containers.box = function(handle) {
+            return {
+                labelKey: 'container.add_box',
+                create: function() {
+                    const box = document.createElement('div');
+                    box.setAttribute('data-ge-container', 'box');
+                    box.appendChild(handle.defaultRegion());
+                    return box;
+                },
+                mark: function() {},
+                unmark: function() {},
+                cleanMarkup: function() {},
+            };
+        };
+        const q = function(selector) { return document.querySelector(selector); };
+        q('#myGrid').innerHTML = '<div class="row" id="r1"><div class="column col-6" id="a"><p>A</p></div><div class="column col-6" id="b"><p>B</p></div></div>';
+        const ge = window.fixture.init({ active_target: true, plugins: window.fixture.plugins(['probe', 'box']) });
+        const adds = [];
+        q('#myGrid').addEventListener('grideditor:after-add', function(e) { adds.push(e.detail.kind + ':' + e.detail.source + ':' + (e.detail.parent && e.detail.parent.id)); });
+        const before = window.probe.placeInTarget(GridEditor.get('#myGrid').createRow([12]), 'row', 'api');
+        ge.setActiveTarget('#r1');
+        const row = document.createElement('div');
+        row.className = 'row';
+        const made = window.probe.placeInTarget(row, 'row', 'paste');
+        const last = Array.from(q('#r1').children).filter(function(c) { return c.matches('.column'); }).pop();
+        const result = { before: before, made: made === row, inColumn: row.parentElement === last, columns: q('#r1').querySelectorAll(':scope > .column').length, adds: adds.slice() };
+
+        const box = ge.createContainer('box', { appendTo: '#a' });
+        ge.setActiveTarget(box);
+        const text = window.probe.placeInTarget(GridEditor.get('#myGrid').createRow([6]), 'row', 'api');
+        result.boxAddsToColumn = !!text && text.parentElement === q('#a');
+        ge.destroy();
+        delete GridEditor.features.probe;
+        delete GridEditor.containers.box;
+        return result;
+    `);
+    t.check('placeInTarget on the handle adds a node to the target as the toolbar would, wrapped in the column it lacks (active-target-selection §5, AC-11)',
+        placed.before === null && placed.made && placed.inColumn && placed.columns === 3 &&
+        JSON.stringify(placed.adds.slice(-1)) === JSON.stringify(['row:paste:r1']), placed);
+    t.check('a container with no regionOf adds to its column when it is the target (active-target-selection D14)',
+        placed.boxAddsToColumn, placed);
     t.check('panelOpen is true with a popover panel, a dialog or the delete confirmation open, and false with none (AC-42)',
         !state.open.none && state.open.panel && !state.open.panelClosed && state.open.dialog && !state.open.dialogClosed &&
         state.open.confirm && !state.open.confirmClosed, state.open);
@@ -252,21 +297,21 @@ async function chooseTests(t) {
         console.warn = function() { warnings.push(Array.prototype.join.call(arguments, ' ')); };
         const changes = [];
         q('#myGrid').innerHTML = '<div class="row" id="r1"><div class="column col-6" id="a"><p>A</p></div><div class="column col-6" id="b"><p>B</p></div></div>';
-        q('#myGrid').addEventListener('grideditor:selection-change', function(e) { changes.push(e.detail.node && e.detail.node.id); });
+        q('#myGrid').addEventListener('grideditor:target-change', function(e) { changes.push(e.detail.target && e.detail.target.id); });
         let ge = window.fixture.init({ settings_panel: 'sidebar', plugins: window.fixture.plugins(['probe']) });
 
         const result = {
-            selected: window.probe.setSelected(q('#b')),
-            same: ge.getSelected() === q('#b'),
+            selected: window.probe.setActiveTarget(q('#b')),
+            same: ge.getActiveTarget() === q('#b'),
             shown: q('.ge-settings-sidebar .ge-id') && q('.ge-settings-sidebar .ge-id').value,
             target: window.probe.setActiveTarget(q('#a')),
             targetSame: ge.getActiveTarget() === q('#a'),
-            notOne: window.probe.setSelected(document.body),
-            notRegion: window.probe.setActiveTarget(q('#r1')),
+            notOne: window.probe.setActiveTarget(document.body),
+            row: window.probe.setActiveTarget(q('#r1')),
             changes: changes.slice(),
         };
         ge = window.fixture.init({ plugins: window.fixture.plugins(['probe']) });
-        result.withoutSidebar = window.probe.setSelected(q('#a'));
+        result.withoutSidebar = window.probe.setActiveTarget(q('#a'));
         result.withoutTarget = window.probe.setActiveTarget(q('#a'));
         result.warnings = warnings;
         console.warn = warn;
@@ -274,11 +319,11 @@ async function chooseTests(t) {
         delete GridEditor.features.probe;
         return result;
     `);
-    t.check('setSelected on the handle selects as the public method does: selection-change, the sidebar shows it (AC-44)',
+    t.check('setActiveTarget on the handle chooses as the public method does: target-change, the sidebar shows it (AC-44; active-target-selection §5)',
         chosen.selected === true && chosen.same && chosen.shown === 'b' && chosen.changes.indexOf('b') !== -1, chosen);
     t.check('setActiveTarget on the handle makes the target', chosen.target === true && chosen.targetSame, chosen);
-    t.check('a node that is not one, or no sidebar or active_target, answers false without a warning',
-        chosen.notOne === false && chosen.notRegion === false && chosen.withoutSidebar === false &&
+    t.check('a row is a target too; a node that is not one, or no active_target, answers false without a warning (active-target-selection AC-32)',
+        chosen.notOne === false && chosen.row === true && chosen.withoutSidebar === false &&
             chosen.withoutTarget === false && chosen.warnings.length === 0, chosen);
 
     var errors = page.errors();

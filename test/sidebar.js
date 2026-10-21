@@ -44,9 +44,9 @@ var SETUP = `
         window.changes = [];
         const grid = q('#myGrid');
         grid.innerHTML = html === undefined ? CANVAS : html;
-        if (window.onChange) { grid.removeEventListener('grideditor:selection-change', window.onChange); }
-        window.onChange = function(e) { window.changes.push({ node: e.detail.node && e.detail.node.id, from: e.detail.from && e.detail.from.id }); };
-        grid.addEventListener('grideditor:selection-change', window.onChange);
+        if (window.onChange) { grid.removeEventListener('grideditor:target-change', window.onChange); }
+        window.onChange = function(e) { window.changes.push({ node: e.detail.target && e.detail.target.id, from: e.detail.from && e.detail.from.id }); };
+        grid.addEventListener('grideditor:target-change', window.onChange);
         return window.fixture.init(Object.assign({
             content_types: ['tinymce'],
             settings_panel: 'sidebar',
@@ -59,7 +59,7 @@ var SETUP = `
     window.sidebar = function() { return q('.ge-settings-sidebar'); };
     window.toggle = function() { return q('.ge-sidebar-toggle'); };
     window.reserved = function() { return document.documentElement.classList.contains('ge-sidebar-open'); };
-    window.selected = function() { const node = ge().getSelected(); return node ? node.id : null; };
+    window.selected = function() { const node = ge().getActiveTarget(); return node ? node.id : null; };
     window.inSidebar = function() { return !!sidebar().querySelector('.ge-settings-body > .ge-details'); };
     window.home = function(id) { return !!q('#' + id + ' > .ge-tools-drawer > .ge-details'); };
 
@@ -170,7 +170,7 @@ async function markupTests(t) {
 
     var section = await page.eval(`
         start({ plugins: window.fixture.plugins(['sections', 'inline-style']) });
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         const holder = sidebar().querySelector('.ge-panel-section[data-ge-plugin="inline-style"]');
         return {
             there: !!holder,
@@ -185,7 +185,7 @@ async function markupTests(t) {
     var aria = await page.eval(`
         start();
         const empty = { role: sidebar().getAttribute('role'), label: sidebar().getAttribute('aria-label') };
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         return {
             empty: empty,
             selectedLabel: sidebar().getAttribute('aria-label'),
@@ -204,7 +204,7 @@ async function foldTests(t) {
     var page = await newPage(t);
     await width(page, 1200);
 
-    await page.eval(`start(); ge().setSelected('#a'); toggle().click(); return true;`);
+    await page.eval(`start(); ge().setActiveTarget('#a'); toggle().click(); return true;`);
     await t.sleep(500);
     var folded = await page.eval(`return Object.assign(layout(), { selected: selected() });`);
     t.check('the button folds the sidebar away: the page has its room back, and the button stays on the window’s edge, pointing left (AC-24)',
@@ -271,7 +271,7 @@ async function lifecycleTests(t) {
 
     var off = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         toggle().click();
         changes.length = 0;
         ge().deinit();
@@ -279,7 +279,7 @@ async function lifecycleTests(t) {
             sidebar: getComputedStyle(sidebar()).display,
             toggle: getComputedStyle(toggle()).display,
             reserved: reserved(),
-            marked: qa('.ge-settings-target').length,
+            marked: qa('.ge-selected').length,
             inSidebar: inSidebar(),
             selected: selected(),
         };
@@ -296,7 +296,7 @@ async function lifecycleTests(t) {
             folded: folded,
             selected: selected(),
             inSidebar: inSidebar(),
-            marked: qa('.ge-settings-target').map(function(node) { return node.id; }).join(','),
+            marked: qa('.ge-selected').map(function(node) { return node.id; }).join(','),
             reserved: reserved(),
             changes: changes.length,
         };
@@ -307,14 +307,14 @@ async function lifecycleTests(t) {
 
     var html = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         changes.length = 0;
         const saved = ge().getHtml();
         return {
-            leaked: /ge-settings-target|ge-settings-sidebar|ge-sidebar-toggle/.test(saved),
+            leaked: /ge-selected|ge-settings-target|ge-settings-sidebar|ge-sidebar-toggle/.test(saved),
             selected: selected(),
             inSidebar: inSidebar(),
-            marked: qa('.ge-settings-target').length,
+            marked: qa('.ge-selected').length,
             changes: changes.length,
         };
     `);
@@ -323,12 +323,12 @@ async function lifecycleTests(t) {
 
     var keep = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         const details = sidebar().querySelector('.ge-settings-body > .ge-details');
         changes.length = 0;
         const saved = ge().getHtml({ keepEditing: true });
         return {
-            leaked: /ge-settings-target/.test(saved),
+            leaked: /ge-selected|ge-settings-target/.test(saved),
             same: sidebar().querySelector('.ge-settings-body > .ge-details') === details,
             selected: selected(),
             changes: changes.length,
@@ -339,7 +339,7 @@ async function lifecycleTests(t) {
 
     var source = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         changes.length = 0;
         q('.ge-mainControls .gm-edit-mode').click();
         const open = {
@@ -368,11 +368,11 @@ async function lifecycleTests(t) {
 
     var deleted = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         changes.length = 0;
         q('#a > .ge-tools-drawer > .ge-delete-column').click();
         await sleep(800);
-        return { gone: !q('#a'), selected: ge().getSelected(), message: !!sidebar().querySelector('.ge-sidebar-empty'), changes: changes.slice() };
+        return { gone: !q('#a'), selected: ge().getActiveTarget(), message: !!sidebar().querySelector('.ge-sidebar-empty'), changes: changes.slice() };
     `);
     t.check('deleting the selected column shows the message, and says so (AC-39)',
         deleted.gone && deleted.selected === null && deleted.message &&
@@ -389,7 +389,7 @@ async function lifecycleTests(t) {
 
     var spanish = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         toggle().click();
         changes.length = 0;
         ge().setLocale('es');
@@ -412,7 +412,7 @@ async function lifecycleTests(t) {
 
     var destroyed = await page.eval(`
         start();
-        ge().setSelected('#a');
+        ge().setActiveTarget('#a');
         ge().destroy();
         return { left: qa('.ge-settings-sidebar, .ge-sidebar-toggle').length, reserved: reserved() };
     `);
@@ -494,7 +494,7 @@ async function targetTests(t) {
         q('#b > .ge-tools-drawer').click();
         const result = {
             target: ge().getActiveTarget() && ge().getActiveTarget().id,
-            marked: q('#b').classList.contains('ge-active-target'),
+            marked: q('#b').classList.contains('ge-selected'),
             selected: selected(),
             targets: targets.slice(),
         };
@@ -579,9 +579,9 @@ async function targetTests(t) {
         const second = { selected: selected(), target: ge().getActiveTarget() };
         return { first: first, second: second };
     `);
-    t.check('the first Escape clears the selection and leaves the target (sidebar-active-target AC-13)',
-        escaped.first.selected === null && escaped.first.target === 'a', escaped);
-    t.check('the second Escape clears the target (sidebar-active-target AC-14)',
+    t.check('the first Escape clears the target, which is what the sidebar shows (sidebar-active-target AC-13 rev; active-target-selection AC-09)',
+        escaped.first.selected === null && escaped.first.target === null, escaped);
+    t.check('a second Escape has nothing left to clear (sidebar-active-target AC-14)',
         escaped.second.selected === null && escaped.second.target === null, escaped);
 
     var second = await page.eval(`
@@ -613,6 +613,24 @@ async function targetTests(t) {
         second.settings === 'offcanvas' && second.warned === 1 && second.target === 'oc', second);
     t.check('a second editor asking for the sidebar with active_target false throws too (sidebar-active-target AC-09)',
         second.thrown && !second.editor, second);
+
+    var shown = await page.eval(`
+        start();
+        q('#r1 > .ge-tools-drawer').click();
+        const row = {
+            target: selected(),
+            title: sidebar().querySelector('.ge-settings-title').textContent,
+            inSidebar: inSidebar(),
+            selected: q('#r1').classList.contains('ge-selected'),
+            settings: q('#r1').classList.contains('ge-settings-target'),
+        };
+        sidebar().querySelector('.ge-settings-close').click();
+        return { row: row, closed: { target: ge().getActiveTarget(), message: !!sidebar().querySelector('.ge-sidebar-empty'), marked: qa('#myGrid .ge-selected').length } };
+    `);
+    t.check('a click on a row shows its settings in the sidebar, marked ge-selected and not ge-settings-target (active-target-selection AC-28)',
+        shown.row.target === 'r1' && /row/i.test(shown.row.title) && shown.row.inSidebar && shown.row.selected && !shown.row.settings, shown);
+    t.check('the sidebar\u2019s close button clears the target, and the sidebar shows its message (active-target-selection AC-29)',
+        shown.closed.target === null && shown.closed.message && shown.closed.marked === 0, shown);
 
     var errors = page.errors();
     t.check('the target tests logged no errors', errors.length === 0, errors.slice(0, 5));

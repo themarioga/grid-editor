@@ -368,6 +368,11 @@ GridEditor.containers.tabs = function(ge) {
         addPaneKey: 'container.add_tab',
         paneKind: 'tab',
 
+        // Where rows go: the pane showing, or the pane of the tab
+        regionOf: function(container, tab) {
+            return tab ? paneOf(container, tab) : dom.one(container, ':scope > .tab-content > .tab-pane.active');
+        },
+
         create: function(options) {
             var container = dom.element('div', { 'data-ge-container': 'tabs' });
             var labels = options.labels || [];

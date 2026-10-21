@@ -82,10 +82,10 @@ module.exports = {
                 return { title: 'Page', body: given };
             } } });
             const first = calls;
-            ge().setSelected('#a');
+            ge().setActiveTarget('#a');
             const selected = { body: showing().body, attached: page.isConnected, calls: calls };
             given = element('page-again');
-            ge().setSelected(null);
+            ge().setActiveTarget(null);
             return { first: first, selected: selected, after: showing(), calls: calls, handedEditor: window.handedEditor, kept: page.id === 'page' && !page.isConnected };
         `);
         t.check('a node selected takes the host’s body out, not destroyed; deselecting calls it again and shows what it gives (AC-44)',
@@ -129,7 +129,7 @@ module.exports = {
         var notFunction = await page.eval(`
             pluginContent = {};
             start({ sidebar: { empty: 'x' } });
-            ge().setSelected('#a').setSelected(null);
+            ge().setActiveTarget('#a').setActiveTarget(null);
             return { showing: showing(), warned: warnings.filter(function(w) { return /sidebar\\.empty/.test(w); }).length };
         `);
         t.check('a sidebar.empty that is not a function warns once and the message shows (AC-49)',

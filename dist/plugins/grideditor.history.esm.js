@@ -207,17 +207,12 @@ GridEditor.features.history = function(ge) {
     if (to < 0 || to >= stack.length) {
       return false;
     }
-    var selected = pathOf(ge.getSelected());
     var target = pathOf(ge.getActiveTarget());
     stopObserving();
     index = to;
     ge.setHtml(stack[index]);
     stack[index] = ge.snapshotHtml();
-    var node = resolve(selected);
-    if (node) {
-      ge.setSelected(node);
-    }
-    node = resolve(target);
+    var node = resolve(target);
     if (node) {
       ge.setActiveTarget(node);
     }

@@ -47,9 +47,7 @@
       getUtility: { value: true },
       setUtility: { value: true },
       getActiveTarget: { value: true },
-      setActiveTarget: {},
-      getSelected: { value: true },
-      setSelected: {}
+      setActiveTarget: {}
     };
     var TOOL_SETTINGS = [
       "row_tools",

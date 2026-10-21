@@ -36,6 +36,10 @@ GridEditor.containers.card = function(ge) {
   }
   return {
     labelKey: "container.add_card",
+    // Where rows go: the card's body
+    regionOf: function(container) {
+      return one(container, ".card-body");
+    },
     /**
      * A card is a header, a body and an optional footer. `header: false`
      * leaves the title out, `footer: true` or a string adds one; both are

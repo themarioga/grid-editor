@@ -629,6 +629,10 @@ GridEditor.containers.offcanvas = function(ge) {
   return {
     labelKey: "container.add_offcanvas",
     paneKind: "offcanvas",
+    // Where rows go: the offcanvas's body
+    regionOf: function(container) {
+      return one(container, ".offcanvas-body");
+    },
     // The ids a copy of an offcanvas has to rename together
     references: ["data-ge-offcanvas-id", "data-ge-offcanvas-target"],
     onInit: triggers.onInit,

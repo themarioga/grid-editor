@@ -5,6 +5,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.0.0-beta.6] - 2026-10-21
+
+### Changed
+- **BREAKING:** the selection and the active target are one. With
+  `active_target`, and so with `settings_panel: 'sidebar'`, a click - or the
+  focus coming into a node - makes the innermost node with settings the
+  target, in any panel mode: a row, a column, a section, a container or one of
+  its panes, a text, an element. A click on the page outside the editor clears
+  it, with every panel, and Escape clears it in one press. The sidebar shows the
+  target's settings and the clipboard's Ctrl+C copies it, so a container, a row
+  or an element can be copied from the keyboard.
+- **BREAKING:** `getSelected()`, `setSelected()`, the event `selection-change`
+  and `callbacks.selection_change` are removed, on the instance, on the plugin
+  handle and on the jQuery adapter. Use `getActiveTarget()`,
+  `setActiveTarget()` and `target-change`. `setActiveTarget` takes any node with
+  settings, and its warning says so.
+- **BREAKING:** the target's mark is the class `ge-selected`, in place of
+  `ge-active-target`. A node with its settings open in the sidebar no longer
+  has `ge-settings-target`.
+- The toolbar's buttons and Ctrl+V add inside the target, at the end of what it
+  holds, in the level it lacks: a row into a row goes in a new column of the
+  row, a pasted column into a column goes in a new row, a text or an element
+  target adds to its column, and a container adds to the pane it shows (the
+  open tab, accordion item, the slide showing, the body of a popup, an
+  offcanvas or a card). A section still goes to the canvas after the block the
+  target is in.
+
+### Added
+- A container plugin's definition can have `regionOf(container, pane)`, where
+  the rows of its visible pane, or of the pane given, go. The tabs, accordion,
+  carousel, popup, offcanvas and card plugins have it.
+- `ge.placeInTarget(node, kind, source)` on the plugin handle: a node made,
+  added to the target as the toolbar adds what it makes.
+
 ## [9.0.0-beta.5] - 2026-10-21
 
 ### Added

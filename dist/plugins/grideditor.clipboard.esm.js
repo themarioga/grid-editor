@@ -221,25 +221,10 @@ GridEditor.features.clipboard = function(ge) {
   }
   function pasteByShortcut() {
     var clip = read();
-    var target = ge.getActiveTarget();
-    var node = target || ge.getSelected();
-    if (!clip || !node) {
+    if (!clip || !ge.getActiveTarget() || !available(clip)) {
       return false;
     }
-    var placement = { appendTo: node, source: "paste" };
-    if (target && clip.category === "section") {
-      if (!available(clip)) {
-        return false;
-      }
-      var top = target;
-      while (top.parentElement && top.parentElement !== ge.canvas) {
-        top = top.parentElement;
-      }
-      placement = { insertAfter: top, source: "paste" };
-    } else if (!fits(clip, TARGETS[ge.kindOf(node)] || [])) {
-      return false;
-    }
-    var made = ge.place(ge.freshNode(clip.html), clip.kind, placement);
+    var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, "paste");
     if (made && made.scrollIntoView) {
       made.scrollIntoView({ behavior: "smooth" });
     }
@@ -249,7 +234,7 @@ GridEditor.features.clipboard = function(ge) {
     if (textSelected()) {
       return false;
     }
-    var node = ge.getSelected() || ge.getActiveTarget();
+    var node = ge.getActiveTarget();
     var kind = node && ge.kindOf(node);
     if (!kind || !categoryOf(kind)) {
       return false;

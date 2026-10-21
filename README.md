@@ -183,10 +183,8 @@ has, with the options it was made with, and warns once.
 | `destroy` | — | `this` | Deinit, drop the controls, unbind, forget the instance |
 | `changeView` | `breakpoint` | `this` | `'xs'`…`'xxl'`, or `'all'` to edit every breakpoint at once, with one class |
 | `getView` | — | `String` | The view the editor is in |
-| `getActiveTarget` | — | `Element` | With `active_target` - which the `'sidebar'` panel turns on - the column or section the toolbar adds to, or `null` |
-| `setActiveTarget` | `node` | `this` | Make a column or section - an element or a selector - the one the toolbar adds to, or `null` for none |
-| `getSelected` | — | `Element` | With `settings_panel: 'sidebar'`, the node whose settings the sidebar shows, or `null`. Always `null` without it |
-| `setSelected` | `node` | `this` | With `settings_panel: 'sidebar'`, show the settings of a node with settings - an element or a selector - or `null` for none. It does not unfold a sidebar that is folded away, and does nothing without the `'sidebar'` panel |
+| `getActiveTarget` | — | `Element` | With `active_target` - which the `'sidebar'` panel turns on - the node the toolbar adds to and the sidebar shows, or `null` |
+| `setActiveTarget` | `node` | `this` | Make a node with settings - an element or a selector - the one the toolbar adds to, or `null` for none |
 | `setLocale` | `code` | `this` | Switch language and re-render the controls |
 | `createRow` | `layout?`, `options?` | `Element` | A row, optionally with columns: `createRow([8, 4])`, `createRow(['auto', 'equal'])`, `createRow({ row_cols: { xs: 1, md: 3 }, columns: 6 })` |
 | `createColumn` | `size`, `options?` | `Element` | An empty column: units, `'equal'` or `'auto'`; no size into a row with row-cols takes the row's share. `options`: `offset`, `content` - a text of the first editor offered, or plain content with none |
@@ -399,7 +397,17 @@ new GridEditor('#myGrid', {
 });
 ```
 
-__`active_target`:__ Whether a click in a column or a section makes it where the toolbar's buttons add. Default `false`, and the toolbar adds at the end of the canvas. With `settings_panel: 'sidebar'` it is on without being asked, and giving `false` with the sidebar throws a `TypeError`: both follow the node last clicked. With `true`, the column or section clicked last - marked with a dashed outline - gets what a button makes at its end, as if the button had been dropped there: a text or a container goes into a column as it is, and into a section in a row of its own; a row goes into a column as a nested row; a section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click in the canvas on no column or section, a click again on the target's own background or drawer (not on a tool or on what it holds), or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go.
+__`active_target`:__ Whether a click on a node makes it the target: where the toolbar's buttons add, and what the sidebar shows. Default `false`, and the toolbar adds at the end of the canvas. With `settings_panel: 'sidebar'` it is on without being asked, and giving `false` with the sidebar throws a `TypeError`: both follow the node last clicked. With `true`, the innermost node with settings under a click - a row, a column, a section, a container or one of its panes, a text, an element - becomes the target, marked with a dashed outline (`ge-selected`), whatever the panel. So does the node the focus comes into. The toolbar's buttons and Ctrl+V add at the end of what the target holds, in the level it lacks:
+
+| Target | A button's block goes |
+| --- | --- |
+| A column | in the column: a text, a container or an element as it is, a row nested, a pasted column in a row of its own |
+| A row | in a column of it, of the width *Add column* would give: a row, a text, a container, an element; a pasted column as it is |
+| A section, or a container's pane | at its end: a row as it is, a pasted column in a row, anything else in a row and a column of its own |
+| A container | as in the pane it shows: the tab that is open, the open accordion item, the slide showing, the body of a popup, an offcanvas or a card |
+| A text or an element | as in its column |
+
+A section, which only the canvas takes, goes to the canvas just after the block the target is in. The toolbar's paste button pastes there too. Escape, a click on the page outside the editor, a click in the canvas on no node with settings, a click again on the target's own background or drawer (not on a tool or on what it holds), or deleting the target clears it, and the toolbar adds at the end of the canvas again; dragging a button still drops it where it is let go. `getActiveTarget()` and `setActiveTarget()` read and set it.
 
 ```javascript
 const ge = new GridEditor('#myGrid', { active_target: true });
@@ -480,7 +488,7 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 | `'popover'` | A Bootstrap popover under the gear, or over it when there is more room there; a press anywhere else puts it away |
 | `'modal'` | A Bootstrap modal |
 | `'inline'` | Unfolded in the drawer itself |
-| `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear. It turns `active_target` on, so the node clicked is also where the toolbar adds; `active_target: false` with it is an error |
+| `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear. It turns `active_target` on, so the node clicked is the target, and also where the toolbar adds; `active_target: false` with it is an error |
 
 Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
 
@@ -488,9 +496,9 @@ Each is titled after its node ("Column settings"), the node is outlined while it
 new GridEditor('#myGrid', { settings_panel: 'popover' });
 ```
 
-The sidebar has a button on its left edge with an arrow that folds it away - it stays on the window's edge - and unfolds it again; the choice is not kept between page loads. Below 576px it covers the page instead of making room, and starts folded away. Clicking the canvas's background, the sidebar's close button, the page outside the editor, or pressing Escape deselects, and the sidebar shows a message. A page has one sidebar: a second editor asking for it warns once and uses `'offcanvas'`. The `grideditor:selection-change` event, with `node` and `from`, says when what is selected changes.
+The sidebar has a button on its left edge with an arrow that folds it away - it stays on the window's edge - and unfolds it again; the choice is not kept between page loads. Below 576px it covers the page instead of making room, and starts folded away. Clicking the canvas's background, the sidebar's close button, the page outside the editor, or pressing Escape clears the target, and the sidebar shows a message. A page has one sidebar: a second editor asking for it warns once and uses `'offcanvas'`. The `grideditor:target-change` event, with `target` and `from`, says when it changes.
 
-__`sidebar`:__ Settings of the `'sidebar'` panel. `empty` is a `function(ge)` called whenever nothing is selected, that returns `{ title, body }` - the title is text, the body an element, which the editor moves out of the sidebar and back without destroying it - to show that instead of the message, such as the page's own properties. Return `null` for the message. Plugins can do the same with a `sidebarEmpty` hook, after this one.
+__`sidebar`:__ Settings of the `'sidebar'` panel. `empty` is a `function(ge)` called whenever there is no target, that returns `{ title, body }` - the title is text, the body an element, which the editor moves out of the sidebar and back without destroying it - to show that instead of the message, such as the page's own properties. Return `null` for the message. Plugins can do the same with a `sidebarEmpty` hook, after this one.
 
 ```javascript
 new GridEditor('#myGrid', {
@@ -846,13 +854,11 @@ A paste is an add like any other: `before-add-*` and `after-add-*` with
 `grideditor:after-copy`.
 
 With `active_target` - which `settings_panel: 'sidebar'` turns on - there are
-shortcuts too, Ctrl+C and Ctrl+V (⌘C and ⌘V on a Mac). Ctrl+C copies the node
-selected in the sidebar or, with none, the target, as its *Copy* tool would.
-Ctrl+V pastes into the target as the toolbar's paste button would - a row at
-its end, a section after the block it is in - and a text, a container or an
-element at the end of a target column, as its *Paste* tool would; with no
-target, into the node selected, as its *Paste* tool would. What does not fit
-there is not pasted anywhere else. They go to the editor used last, and leave
+shortcuts too, Ctrl+C and Ctrl+V (⌘C and ⌘V on a Mac). Ctrl+C copies the
+target, as its *Copy* tool would, whatever its level: a container, a row, an
+element, a text. Ctrl+V pastes into the target as the toolbar adds to it - at
+the end of what it holds, in the row or the column it lacks, a section after
+the block it is in. With no target, they do nothing. They go to the editor used last, and leave
 the keys to the browser while a field or a text is being edited, while text
 is selected (for Ctrl+C), while a settings panel, a dialog or the delete
 confirmation is open, and outside editing. They use the same store as the
@@ -961,8 +967,8 @@ The keys stay the browser's, or the text editor's, while a field or a text is
 edited, while a panel or a dialog is open, and while the canvas is in preview or
 showing its source; what was typed becomes a step when it is done. They go to
 the editor used last. Going to a step makes the canvas again, so an open text
-closes, and the node selected in the sidebar and the target are chosen again by
-where they were: nothing is selected if there is no node there any more.
+closes, and the target is chosen again by where it was: nothing is if there is
+no node there any more.
 
 | Method | Returns | What it does |
 | --- | --- | --- |

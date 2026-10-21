@@ -38,8 +38,6 @@ var METHODS = {
     setUtility:       { value: true },
     getActiveTarget:  { value: true },
     setActiveTarget:  {},
-    getSelected:      { value: true },
-    setSelected:      {},
 };
 
 /**
@@ -443,8 +441,8 @@ function build(instance, baseElem, optionsOrMethod) {
             settings[name] = Object.assign({}, NESTED_SETTINGS[name], settings[name]);
         });
 
-        // The sidebar shows what is selected and the toolbar adds to the
-        // target: both follow the node last clicked, so one asks for the other.
+        // The sidebar shows the target and the toolbar adds to it: both
+        // follow the node last clicked, so one asks for the other.
         // Read from what the host gave, as the default is already in settings
         if (settings.settings_panel === 'sidebar') {
             if (optionsOrMethod && optionsOrMethod.active_target === false) {
@@ -469,7 +467,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var sourceOpen = false; // Whether the canvas is being edited as html
         var previewing = false; // Whether the preview button is pressed: not while the mouse is only over it
         var dropMarker = null; // The line showing where a dragged toolbar button would land
-        var activeTarget = null; // The column or region the toolbar adds to, with active_target
+        var activeTarget = null; // The node the toolbar adds to, and the sidebar shows, with active_target
         var toolbarLifetime = null; // Aborted when the toolbar is rebuilt or taken away
         var closeOverflowMenu = function() {}; // Folds the toolbar's overflow menu away, when it has one
         var refitToolbar = function() {}; // Works out again what the toolbar's overflow menu holds, when it has one
@@ -480,7 +478,6 @@ function build(instance, baseElem, optionsOrMethod) {
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
         var destroyed = false;
-        var selected = null; // The node whose settings the sidebar shows, with settings_panel 'sidebar'
         var sidebarCollapsed = null; // Folded away, once the sidebar has been shown: the window's width decides the first time
         var pluginHandle = null; // What the plugins were handed, for the hooks that call them back
 
@@ -1098,9 +1095,7 @@ function build(instance, baseElem, optionsOrMethod) {
             /* A click on the host's plain content offers to make it a text */
             dom.delegate(canvas, 'click', '.ge-content', onContentClick, signal);
 
-            var sidebarMode = panelMode() === 'sidebar';
-
-            if (settings.active_target || sidebarMode) {
+            if (settings.active_target) {
                 // The click a drag ends in - a resize, a move - is not one:
                 // it comes where the pointer let go, not where it pressed
                 var pressed = null;
@@ -1113,66 +1108,73 @@ function build(instance, baseElem, optionsOrMethod) {
                     if (!dom.hasClass(canvas, 'ge-editing')) { return; }
                     if (from && Math.abs(e.clientX - from.x) + Math.abs(e.clientY - from.y) > settings.drag.threshold) { return; }
 
-                    if (settings.active_target) { clickTarget(e); }
-                    // A tool that took its node off the canvas says nothing of where the click was
-                    if (sidebarMode && canvas.contains(e.target)) { changeSelection(settingsNodeAt(e.target)); }
+                    clickTarget(e);
                 }, signal);
 
                 // Escape is the panel's, the dialog's, and a field's or a
                 // text's while one has the focus; after those, it is the
-                // selection's, and then the target's
+                // target's
                 document.addEventListener('keydown', function(e) {
                     if (e.key !== 'Escape' || openSettingsState || dialogState) { return; }
                     if (confirmDialog && dom.hasClass(confirmDialog, 'show')) { return; }
                     var focus = document.activeElement;
                     if (focus && (dom.is(focus, 'input, textarea, select') || focus.isContentEditable)) { return; }
 
-                    if (selected && isEditing()) {
-                        changeSelection(null);
-                    } else if (activeTarget) {
-                        changeTarget(null);
-                    }
+                    if (activeTarget) { changeTarget(null); }
                 }, signal);
-            }
 
-            if (sidebarMode) {
-                // The focus coming into a node selects it, as a click does
+                // The focus coming into a node makes it the target, as a click does
                 canvas.addEventListener('focusin', function(e) {
                     var node = isEditing() ? settingsNodeAt(e.target) : null;
-                    if (node) { changeSelection(node); }
+                    if (node) { changeTarget(node); }
                 }, signal);
 
                 // A click on the page, away from the canvas and the editor's own
-                // controls, puts the selection away - not while a text is open,
-                // whose editor has controls of its own out there
+                // controls, puts the target away - not while a text is open,
+                // whose editor has controls of its own out there. Nor the
+                // click a drag from the toolbar ends in, which the browser
+                // gives to what holds both the toolbar and the canvas
+                var pressedOn = null;
+                document.addEventListener('pointerdown', function(e) { pressedOn = e.target; }, { capture: true, signal: signal.signal });
                 document.addEventListener('click', function(e) {
                     var target = e.target;
-                    if (!selected || !isEditing() || !target || target.nodeType !== 1) { return; }
+                    var from = pressedOn;
+                    pressedOn = null;
+                    if (!activeTarget || !isEditing() || !target || target.nodeType !== 1) { return; }
+                    if (from && from.nodeType === 1 && (canvas.contains(from) || dom.closest(from, EDITOR_CONTROLS))) { return; }
                     if (!dom.attached(target) || canvas.contains(target)) { return; }
                     if (dom.closest(target, EDITOR_CONTROLS) || canvas.querySelector('.ge-rte-active')) { return; }
 
-                    changeSelection(null);
+                    changeTarget(null);
                 }, signal);
+            }
 
+            if (panelMode() === 'sidebar') {
                 window.addEventListener('resize', reserveSidebarRoom, signal);
             }
 
             /* Whatever the click was for - a text, a tool - it also says
-               where the toolbar adds next. A click on no column or region
-               says nowhere, and the toolbar adds to the canvas again. */
+               where the toolbar adds next: the innermost node with settings
+               under it. A click on none says nowhere, and the toolbar adds
+               to the canvas again. */
             function clickTarget(e) {
-                var region = dom.closest(e.target, targetSelector());
+                // A tool that took its node off the canvas says nothing of where the click was
+                if (!canvas.contains(e.target)) { return; }
+
+                var node = settingsNodeAt(e.target);
 
                 // The target's own background, or its drawer's, clicked
                 // again takes it back. What is in it - a text, a tool, a
-                // nested column - keeps it, or makes that the target
-                if (region && region === activeTarget &&
-                    (e.target === region || e.target === dom.child(region, '.ge-tools-drawer'))) {
+                // nested column - keeps it, or makes that the target. A
+                // text has no background of its own: where it is clicked
+                // is where it opens
+                if (node && node === activeTarget &&
+                    (e.target === drawerOf(node) || (e.target === node && !dom.hasClass(node, 'ge-content')))) {
                     changeTarget(null);
                     return;
                 }
 
-                changeTarget(region && region !== canvas && canvas.contains(region) ? region : null);
+                changeTarget(node);
             }
         }
 
@@ -1800,13 +1802,13 @@ function build(instance, baseElem, optionsOrMethod) {
             var placed = made;
 
             if (item.inColumn) {
-                // Where it lands in a column, or in a row and a column of its
-                // own anywhere else
-                if (!dom.is(where.region, '.column')) { placed = inRowOfItsOwn(made); }
+                // Where it lands in a column, in a column of a row, or in a
+                // row and a column of its own anywhere else
+                placed = wrapFor(where.region, made);
             } else if (!acceptsBlock(where.region, made)) {
-                var ancestors = where.region === canvas ? [] : dom.parentsUntil(where.region, canvas).reverse().concat([where.region]);
-                var top = ancestors[0] || null;
-                where = { region: canvas, before: top ? top.nextElementSibling : null };
+                where = canvasAfterTopOf(where.region);
+            } else if (dom.is(where.region, '.row')) {
+                placed = wrapFor(where.region, made);
             }
 
             return addNode(item.kind, made, function() {
@@ -1818,12 +1820,45 @@ function build(instance, baseElem, optionsOrMethod) {
             }, { parent: where.region, source: item.source || source || 'dragdrop' });
         }
 
+        /** The canvas, just after the top level block `region` is in: where a block goes that the region will not have. */
+        function canvasAfterTopOf(region) {
+            var ancestors = region === canvas ? [] : dom.parentsUntil(region, canvas).reverse().concat([region]);
+            var top = ancestors[0] || null;
+
+            return { region: canvas, before: top ? top.nextElementSibling : null };
+        }
+
+        /**
+         * A node already made - a paste, say - added to the active target,
+         * as the toolbar's buttons add what they make. Null with no target,
+         * or when a handler canceled the add.
+         */
+        function placeInTarget(node, kind, source) {
+            if (!activeTarget) { return null; }
+
+            var where = { region: effectiveRegion(activeTarget), before: null };
+            var placed = wrapFor(where.region, node);
+
+            // Wrapped in a column, a block still has to be one the column
+            // will have: a section is not, however it is wrapped
+            var holder = placed === node ? null : node.parentElement;
+            if (!acceptsBlock(where.region, placed) || (holder && !acceptsBlock(holder, node))) {
+                where = canvasAfterTopOf(where.region);
+                placed = node;
+            }
+
+            return addNode(kind, node, function() {
+                if (where.before) {
+                    where.before.parentNode.insertBefore(placed, where.before);
+                } else {
+                    where.region.appendChild(placed);
+                }
+            }, { parent: where.region, source: source || 'api' });
+        }
+
         /** A detached row with one full width column holding `node`. */
         function inRowOfItsOwn(node) {
-            var row = createRow();
-            row.appendChild(createColumn(MAX_COL_SIZE)).appendChild(node);
-
-            return row;
+            return rowHolding(createColumn(MAX_COL_SIZE), node);
         }
 
         /** A line where the block would go, following the pointer. */
@@ -1863,9 +1898,9 @@ function build(instance, baseElem, optionsOrMethod) {
                 : rowFromLayout(button.getAttribute('data-ge-layout'));
 
             // A container belongs in a column: dropped straight onto the
-            // canvas it brings a row and a column of its own
-            var placed = made;
-            if (container && !dom.is(where.region, '.column')) { placed = inRowOfItsOwn(made); }
+            // canvas it brings a row and a column of its own, and in a row
+            // a column. A row in a row brings a column too
+            var placed = wrapFor(where.region, made);
 
             return addNode(container ? type : 'row', made, function() {
                 if (where.before) {
@@ -2187,7 +2222,6 @@ function build(instance, baseElem, optionsOrMethod) {
             deinit();
             // The canvas is made again from the html when it comes back
             changeTarget(null);
-            changeSelection(null);
             htmlTextArea.style.height = (0.8 * document.documentElement.clientHeight) + 'px';
             htmlTextArea.value = canvas.innerHTML;
             dom.show(htmlTextArea);
@@ -2211,15 +2245,13 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /**
-         * What can be the active target: a column, or a plugin's region - a
-         * section. Not the canvas, which is where the toolbar adds without one.
+         * What can be the active target: a node of the canvas with settings -
+         * a row, a column, a section, a container or one of its panes, a
+         * text, an element. Not the canvas, which is where the toolbar adds
+         * without one.
          */
-        function targetSelector() {
-            return ['.column'].concat(pluginHooks('regions')).join(', ');
-        }
-
         function isTarget(node) {
-            return !!node && node !== canvas && canvas.contains(node) && dom.is(node, targetSelector());
+            return !!node && node !== canvas && canvas.contains(node) && detailsFor.has(node);
         }
 
         /** The one way the active target changes, told only when it does. */
@@ -2227,19 +2259,89 @@ function build(instance, baseElem, optionsOrMethod) {
             if (node === activeTarget) { return; }
 
             var from = activeTarget;
-            if (from) { dom.removeClass(from, 'ge-active-target'); }
+            if (from) { dom.removeClass(from, 'ge-selected'); }
             activeTarget = node;
-            if (node && dom.hasClass(canvas, 'ge-editing')) { dom.addClass(node, 'ge-active-target'); }
+            if (node && dom.hasClass(canvas, 'ge-editing')) { dom.addClass(node, 'ge-selected'); }
+            renderSidebar();
 
             emit('target-change', { canvas: canvas, target: node, from: from });
         }
 
+        /** The regions a block can be added to: a column, and a plugin's region such as a section. */
+        function regionSelector() {
+            return ['.column'].concat(pluginHooks('regions')).join(', ');
+        }
+
+        /**
+         * Where what is added to `target` goes in: the node itself when it
+         * holds blocks, the pane showing when it is a container or one of
+         * its panes, and the column around it when it holds nothing - a text,
+         * an element, a container with no pane showing.
+         */
+        function effectiveRegion(target) {
+            if (dom.is(target, '.row, ' + regionSelector())) { return target; }
+
+            var inside = isContainerOrPane(target) ? paneRegionOf(target) : null;
+
+            return inside || dom.closest(target.parentElement, regionSelector()) || canvas;
+        }
+
+        function isContainerOrPane(node) {
+            if (node.getAttribute('data-ge-container')) { return true; }
+
+            var container = dom.closest(node.parentElement, '[data-ge-container]', canvas);
+            var definition = container && CONTAINERS[containerTypeOf(container)];
+
+            return !!definition && !!definition.paneKind && kindOf(node) === definition.paneKind;
+        }
+
+        /** What a container plugin says: where the rows of a container's visible pane, or of one of its panes, go. */
+        function paneRegionOf(node) {
+            var isContainer = !!node.getAttribute('data-ge-container');
+            var container = isContainer ? node : dom.closest(node.parentElement, '[data-ge-container]', canvas);
+            var definition = CONTAINERS[containerTypeOf(container)];
+
+            return definition && definition.regionOf ? definition.regionOf(container, isContainer ? null : node) || null : null;
+        }
+
+        /**
+         * What is put in `region` for `node`: the node itself when it fits
+         * there, or the level it lacks around it. A row in a row is a row in
+         * a new column of it, and a column in a column or in a section is a
+         * column in a new row; anything else goes in a column of a row, and
+         * a row of a column.
+         */
+        function wrapFor(region, node) {
+            if (dom.is(node, '.column')) {
+                return dom.is(region, '.row') ? node : rowHolding(node);
+            }
+            if (dom.is(region, '.row')) {
+                // The width a column added to the row with its own tool has
+                var column = createColumn(rowColsSource(region, leadingTier()) ? null : settings.add_column.size);
+                column.appendChild(node);
+                return column;
+            }
+            if (dom.is(region, '.column') || dom.is(node, '.row')) { return node; }
+
+            return rowHolding(createColumn(MAX_COL_SIZE), node);
+        }
+
+        /** A detached row holding `column`, or a new full width column holding `node`. */
+        function rowHolding(column, node) {
+            var row = createRow();
+            if (node) { column.appendChild(node); }
+            row.appendChild(column);
+
+            return row;
+        }
+
         /**
          * A toolbar button's click with an active target: what it makes goes
-         * where a drop at the target's end would put it.
+         * where a drop at the end of the target's region would put it, in
+         * whatever it lacks to be there.
          */
         function addToTarget(button, source) {
-            var made = insertFromToolbar(button, { region: activeTarget, before: null }, source);
+            var made = insertFromToolbar(button, { region: effectiveRegion(activeTarget), before: null }, source);
             if (made && made.scrollIntoView) { made.scrollIntoView({ behavior: 'smooth' }); }
         }
 
@@ -2249,9 +2351,9 @@ function build(instance, baseElem, optionsOrMethod) {
             if (openSettingsState && !dom.attached(openSettingsState.node)) {
                 closeSettings();
             }
-            // The same for the selected node, which the sidebar stops showing
-            if (selected && !canvas.contains(selected)) {
-                changeSelection(null);
+            // The same for the target, which the sidebar stops showing
+            if (activeTarget && !canvas.contains(activeTarget)) {
+                changeTarget(null);
             }
             // And a dialog showing part of a panel that is gone
             if (dialogState && dialogState.home && !dom.attached(dialogState.home)) {
@@ -2280,7 +2382,7 @@ function build(instance, baseElem, optionsOrMethod) {
             if (activeTarget && !canvas.contains(activeTarget)) {
                 changeTarget(null);
             } else if (activeTarget) {
-                dom.addClass(activeTarget, 'ge-active-target');
+                dom.addClass(activeTarget, 'ge-selected');
             }
 
             showSidebar();
@@ -2292,7 +2394,7 @@ function build(instance, baseElem, optionsOrMethod) {
             hideSidebar();
             dom.removeClass(canvas, 'ge-editing ge-drag-drawer ge-dropping');
             // The mark goes, the target stays: getHtml comes straight back
-            if (activeTarget) { dom.removeClass(activeTarget, 'ge-active-target'); }
+            if (activeTarget) { dom.removeClass(activeTarget, 'ge-selected'); }
             // Before the drawers and the text blocks come off: an editor
             // plugin closes its editors here, and finds them where it left them
             plugins('onBeforeDeinit');
@@ -2394,8 +2496,8 @@ function build(instance, baseElem, optionsOrMethod) {
             var copy = copyCanvas();
             var root = copy.root;
 
-            [root].concat(dom.all(root, '.ge-active-target, .ge-settings-target')).forEach(function(node) {
-                dom.removeClass(node, 'ge-active-target ge-settings-target');
+            [root].concat(dom.all(root, '.ge-selected, .ge-settings-target')).forEach(function(node) {
+                dom.removeClass(node, 'ge-selected ge-settings-target');
                 dom.dropEmptyClass(node);
             });
             dom.all(root, '.ge-drop-marker').forEach(function(marker) { marker.remove(); });
@@ -2501,7 +2603,6 @@ function build(instance, baseElem, optionsOrMethod) {
             setPreview(false);
             deinit();
             activeTarget = null;
-            selected = null;
             if (sidebarHolder === instance) { sidebarHolder = null; }
             removeConfirmModal();
             removeSettingsPanels();
@@ -2600,6 +2701,9 @@ function build(instance, baseElem, optionsOrMethod) {
                 addSettingsTool: addSettingsTool,
                 deleteNode: deleteNode,
                 place: place,
+                // A node made, added to the active target as the toolbar adds
+                // what it makes: null with no target, or when it was canceled
+                placeInTarget: placeInTarget,
                 createPaneControls: createPaneControls,
                 makeLabelEditable: makeLabelEditable,
                 labelIn: labelIn,
@@ -2652,22 +2756,16 @@ function build(instance, baseElem, optionsOrMethod) {
                         ? dom.all(mainControls, '[data-ge-toolbar="feature"][data-ge-feature="' + name + '"]')
                         : [];
                 },
-                getSelected: function() { return panelMode() === 'sidebar' ? selected : null; },
                 getActiveTarget: function() { return settings.active_target ? activeTarget : null; },
                 // True when it took: a node that cannot be, or no setting
                 // for it, says nothing, since a plugin putting back what it
                 // remembers cannot know the node is still one
-                setSelected: function(node) {
-                    var chosen = panelMode() === 'sidebar' && !!node && node !== canvas && canvas.contains(node) && detailsFor.has(node);
-                    if (chosen) { changeSelection(node); }
-                    return chosen;
-                },
                 setActiveTarget: function(node) {
                     var chosen = !!settings.active_target && isTarget(node);
                     if (chosen) { changeTarget(node); }
                     return chosen;
                 },
-                // What keeps Escape from the selection and the target, and an
+                // What keeps Escape from the target, and an
                 // inline panel unfolded in a drawer, which Escape leaves alone
                 panelOpen: function() {
                     if (openSettingsState || dialogState) { return true; }
@@ -4466,7 +4564,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
             dom.delegate(panel, 'click', '.ge-settings-close', function(e) {
                 e.preventDefault();
-                if (mode === 'sidebar') { changeSelection(null); } else { closeSettings(); }
+                if (mode === 'sidebar') { changeTarget(null); } else { closeSettings(); }
             });
 
             settingsPanels[mode] = document.body.appendChild(panel);
@@ -4567,7 +4665,7 @@ function build(instance, baseElem, optionsOrMethod) {
             applySidebar();
         }
 
-        /** Editing stops: out of sight, with the selected node's panel back in its drawer. The selection stays. */
+        /** Editing stops: out of sight, with the target's panel back in its drawer. The target stays. */
         function hideSidebar() {
             unshowDetails();
 
@@ -4606,7 +4704,7 @@ function build(instance, baseElem, optionsOrMethod) {
             var panel = settingsPanels.sidebar;
             if (!panel || !isEditing()) { return; }
 
-            var details = selected ? detailsOf(selected) : null;
+            var details = activeTarget ? detailsOf(activeTarget) : null;
             if (details ? sidebarShown && sidebarShown.details === details : !sidebarShown && sidebarEmpty) { return; }
 
             unshowSidebar();
@@ -4622,11 +4720,10 @@ function build(instance, baseElem, optionsOrMethod) {
                 return;
             }
 
-            sidebarShown = { node: selected, details: details, home: details.parentElement, next: details.nextElementSibling };
-            setSidebarTitle(t('panel.title', { kind: kindLabel(selected) }));
+            sidebarShown = { node: activeTarget, details: details, home: details.parentElement, next: details.nextElementSibling };
+            setSidebarTitle(t('panel.title', { kind: kindLabel(activeTarget) }));
             holder.appendChild(details);
             dom.show(details);
-            dom.addClass(selected, 'ge-settings-target');
         }
 
         /**
@@ -4688,17 +4785,6 @@ function build(instance, baseElem, optionsOrMethod) {
             }
 
             return null;
-        }
-
-        /** The one way the selection changes, told only when it does. */
-        function changeSelection(node) {
-            if (node === selected) { return; }
-
-            var from = selected;
-            selected = node;
-            renderSidebar();
-
-            emit('selection-change', { canvas: canvas, node: node, from: from });
         }
 
         /**
@@ -6336,28 +6422,11 @@ function build(instance, baseElem, optionsOrMethod) {
             var node = nodeFrom(value);
             if (!isTarget(node)) {
                 var named = typeof value === 'string' ? value : (node ? '<' + node.tagName.toLowerCase() + '>' : String(value));
-                warn('setActiveTarget: ' + named + ' is not a column or a region of the canvas');
+                warn('setActiveTarget: ' + named + ' is not a node of the canvas with settings');
                 return;
             }
 
             changeTarget(node);
-        }
-
-        function apiSetSelected(value) {
-            if (panelMode() !== 'sidebar') {
-                warnOnceHere('sidebar-api', 'setSelected needs settings_panel "sidebar": without it, it does nothing');
-                return;
-            }
-            if (value === null || value === undefined) { changeSelection(null); return; }
-
-            var node = nodeFrom(value);
-            if (!node || node === canvas || !canvas.contains(node) || !detailsFor.has(node)) {
-                var named = typeof value === 'string' ? value : (node ? '<' + node.tagName.toLowerCase() + '>' : String(value));
-                warn('setSelected: ' + named + ' is not a node of the canvas with settings');
-                return;
-            }
-
-            changeSelection(node);
         }
 
         var own = {
@@ -6393,8 +6462,6 @@ function build(instance, baseElem, optionsOrMethod) {
             setUtility: setUtility,
             getActiveTarget: function() { return settings.active_target ? activeTarget : null; },
             setActiveTarget: apiSetActiveTarget,
-            getSelected: function() { return panelMode() === 'sidebar' ? selected : null; },
-            setSelected: apiSetSelected,
         };
 
         Object.keys(own).forEach(function(name) {

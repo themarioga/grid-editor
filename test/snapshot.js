@@ -167,7 +167,7 @@ async function equivalence(t, page) {
         restart({ active_target: true });
         ge().setActiveTarget('#second');
         const kept = ge().getHtml({ keepEditing: true });
-        return { kept: /ge-active-target/.test(kept), marked: q('#second').classList.contains('ge-active-target') };
+        return { kept: /ge-selected/.test(kept), marked: q('#second').classList.contains('ge-selected') };
     `);
     t.check('the active target: not in the html, still marked on the canvas (AC-10)', !target.kept && target.marked, target);
 

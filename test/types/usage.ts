@@ -5,7 +5,7 @@
  * has to be an error, or tsc says the expectation is unused. So a type that
  * gets looser fails here as surely as one that gets wrong.
  */
-import GridEditor, { AutosaveDraft, CarouselOptions, OffcanvasOptions, OffcanvasOrphanPayload, AutosavePayload, GridEditorOptions, HistoryChangePayload, HistoryPayload, SelectionChangePayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
+import GridEditor, { AutosaveDraft, CarouselOptions, OffcanvasOptions, OffcanvasOrphanPayload, AutosavePayload, GridEditorOptions, HistoryChangePayload, HistoryPayload, TargetChangePayload, UtilityPayload } from '@themarioga/grid-editor';
 
 const options: GridEditorOptions = {
     new_row_layouts: [[12], [6, 6], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 6 }],
@@ -90,20 +90,18 @@ ge.canvas.addEventListener('grideditor:target-change', function(event) {
 
 const sidebar = new GridEditor('#other', {
     settings_panel: 'sidebar',
-    sidebar: { empty: function(editor) { return editor.getSelected() ? null : { title: 'Page', body: document.createElement('form') }; } },
-    callbacks: { selection_change: function(payload) { if (payload.node) { payload.node.classList.contains('column'); } } },
+    sidebar: { empty: function(editor) { return editor.getActiveTarget() ? null : { title: 'Page', body: document.createElement('form') }; } },
+    callbacks: { target_change: function(payload) { if (payload.target) { payload.target.classList.contains('column'); } } },
 });
 new GridEditor('#third', { sidebar: { empty: null } });
 // @ts-expect-error the sidebar's title is text, and its body an element
 new GridEditor('#third', { sidebar: { empty: function() { return { title: 'Page', body: '<form></form>' }; } } });
 // @ts-expect-error settings_panel is one of the five
 new GridEditor('#third', { settings_panel: 'drawer' });
-const picked: HTMLElement | null = sidebar.getSelected();
-sidebar.setSelected('#col').setSelected(picked).setSelected(null);
-sidebar.canvas.addEventListener('grideditor:selection-change', function(event) {
-    const payload: SelectionChangePayload = event.detail;
-    if (payload.from) { payload.from.classList.contains('row'); }
-});
+// @ts-expect-error the selection is the active target now
+sidebar.getSelected();
+// @ts-expect-error the selection is the active target now
+sidebar.setSelected('#col');
 
 ge.canvas.addEventListener('grideditor:before-delete', function(event) {
     if (event.detail.node.classList.contains('locked')) { event.preventDefault(); }

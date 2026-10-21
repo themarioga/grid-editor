@@ -1,7 +1,8 @@
 /**
- * Browser tests for the active target: with active_target on, a click in a
- * column or a section makes it where the toolbar's buttons add, as a drop at
- * its end would.
+ * Browser tests for the active target: with active_target on, a click on
+ * any node with settings makes it where the toolbar's buttons add, inside
+ * it and in the level it lacks (specs active-target and
+ * active-target-selection; the second wins where they differ).
  *
  * The texts use a stand-in for tinyMCE, as test/texts.js does, so the Text
  * button is there and a click on a text opens it.
@@ -79,9 +80,12 @@ var SETUP = `
         }).join(',');
     };
     window.target = function() { const node = ge().getActiveTarget(); return node ? node.id || 'new' : null; };
-    window.marked = function() { return qa('#myGrid .ge-active-target').map(function(node) { return node.id || 'new'; }).join(','); };
-    /** A click in a column or a section, on its drawer: what a click on its background does. */
+    window.marked = function() { return qa('#myGrid .ge-selected').map(function(node) { return node.id || 'new'; }).join(','); };
+    /** A click on a node's drawer: what a click on its background does. */
     window.clickIn = function(id) { q('#' + id + ' > .ge-tools-drawer').click(); };
+    /** A click on the drawer of a node that has no id. */
+    window.clickOn = function(node) { (node.querySelector(':scope > .ge-tools-drawer') || node).click(); };
+    window.textOf = function(id) { return q('#' + id + ' .ge-content'); };
     window.button = {
         text: function() { return q('.ge-mainControls .ge-add-text-button'); },
         row: function(layout) { return q('.ge-addRowGroup a[data-ge-layout="' + layout + '"]'); },
@@ -217,9 +221,9 @@ async function activationTests(t) {
 
     await page.eval(`start(); clickIn('b'); return true;`);
     await page.click('#c .ge-content');
-    var onText = await page.eval(`return { target: target(), started: fakeTinymce.started };`);
-    t.check('a click on a text opens its editor and makes its column the target (AC-10)',
-        onText.target === 'c' && onText.started > 0, onText);
+    var onText = await page.eval(`return { text: ge().getActiveTarget() === textOf('c'), started: fakeTinymce.started };`);
+    t.check('a click on a text opens its editor and makes the text the target (AC-10; active-target-selection AC-04)',
+        onText.text && onText.started > 0, onText);
 
     var nested = await page.eval(`
         start({}, '<div class="row" id="r1">' + col('outer', 12, '<div class="row" id="inner-row">' + col('inner', 6) + col('other', 6) + '</div>') + '</div>');
@@ -242,10 +246,10 @@ async function activationTests(t) {
         start();
         clickIn('b');
         changes.length = 0;
-        q('#r1 > .ge-tools-drawer').click();
+        q('#myGrid').click();
         return { target: target(), changes: changes.slice(), marked: marked() };
     `);
-    t.check('a click in the canvas on no column or section clears the target (AC-13)',
+    t.check('a click in the canvas on no node with settings clears the target (AC-13; active-target-selection AC-05)',
         off.target === null && off.marked === '' &&
         JSON.stringify(off.changes) === JSON.stringify([{ target: null, from: 'b', canvas: true }]), off);
 
@@ -290,15 +294,17 @@ async function activationTests(t) {
         await sleep(800);
         return { column: column, row: { gone: !q('#r2'), target: target(), changes: changes.slice() } };
     `);
-    t.check('deleting the target, or the row it is in, clears it and says so (AC-16)',
+    t.check('deleting the target, or the row it is in, clears it and says so (AC-16; active-target-selection AC-36)',
         deleted.column.gone && deleted.column.target === null && deleted.column.changes.length === 1 && deleted.column.changes[0].from === 'a' &&
-        deleted.row.gone && deleted.row.target === null && deleted.row.changes.length === 1 && deleted.row.changes[0].from === 'c', deleted);
+        deleted.row.gone && deleted.row.target === null &&
+        // The click on the row's tool makes the row the target first
+        JSON.stringify(deleted.row.changes.map(function(c) { return [c.target, c.from]; })) === JSON.stringify([['r2', 'c'], [null, 'r2']]), deleted);
 
     var html = await page.eval(`
         start();
         clickIn('b');
         const saved = ge().getHtml();
-        return { leaked: /ge-active-target/.test(saved), target: target(), marked: marked() };
+        return { leaked: /ge-selected|ge-active-target/.test(saved), target: target(), marked: marked() };
     `);
     t.check('getHtml has no mark, and the target is still marked afterwards (AC-18)',
         !html.leaked && html.target === 'b' && html.marked === 'b', html);
@@ -347,7 +353,7 @@ async function activationTests(t) {
         clickIn('b');
         changes.length = 0;
         ge().destroy();
-        return { leaked: /ge-active-target/.test(q('#myGrid').innerHTML), changes: changes.length };
+        return { leaked: /ge-selected/.test(q('#myGrid').innerHTML), changes: changes.length };
     `);
     t.check('destroy leaves no mark in the markup, and says nothing (AC-27)', !destroyed.leaked && destroyed.changes === 0, destroyed);
 
@@ -364,7 +370,8 @@ async function activationTests(t) {
         other.remove();
         return result;
     `);
-    t.check('two editors each keep their own target (AC-29)', two.first === 'b' && two.second === 'x', two);
+    t.check('two editors each have their own target, and a click in one clears the other\'s (AC-29; active-target-selection D18)',
+        two.first === null && two.second === 'x', two);
 
     var errors = page.errors();
     t.check('the activation tests logged no errors', errors.length === 0, errors.slice(0, 5));
@@ -392,13 +399,14 @@ async function apiTests(t) {
         ge().setActiveTarget('#b');
         changes.length = 0;
         warnings.length = 0;
-        ge().setActiveTarget(q('#r1'));
+        ge().setActiveTarget(q('#myGrid'));
         ge().setActiveTarget('#nothing');
+        ge().setActiveTarget(q('#b > .ge-tools-drawer'));
         return { target: target(), changes: changes.length, warnings: warnings.slice() };
     `);
-    t.check('a node that is not a column or a region warns and changes nothing (AC-23)',
-        refused.target === 'b' && refused.changes === 0 && refused.warnings.length === 2 &&
-        refused.warnings.every(function(w) { return /setActiveTarget: .* is not a column or a region of the canvas/.test(w); }), refused);
+    t.check('a node with no settings, the canvas or nothing warns and changes nothing (AC-23; active-target-selection AC-33)',
+        refused.target === 'b' && refused.changes === 0 && refused.warnings.length === 3 &&
+        refused.warnings.every(function(w) { return /setActiveTarget: .* is not a node of the canvas with settings/.test(w); }), refused);
 
     var off = await page.eval(`
         start({ active_target: false });
@@ -412,11 +420,12 @@ async function apiTests(t) {
     var same = await page.eval(`
         start();
         clickIn('b');
-        q('#b .ge-content').click();
+        q('#b > .ge-tools-drawer > a').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+        q('#b > .ge-tools-drawer > a').click();
         ge().setActiveTarget('#b');
         return changes.length;
     `);
-    t.check('the same target again, by a click in what it holds or by setActiveTarget, says nothing (AC-25 rev v2)', same === 1, same);
+    t.check('the same target again, by a tool of its drawer, the focus or setActiveTarget, says nothing (AC-25 rev v2)', same === 1, same);
 
     var toggled = await page.eval(`
         start();
@@ -443,6 +452,305 @@ async function apiTests(t) {
 
     var errors = page.errors();
     t.check('the api tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
+/**
+ * A target of any level (spec active-target-selection): what a click picks,
+ * and where the toolbar and Ctrl+V put things inside it.
+ */
+var ANY_LEVEL = `
+    /** A container of \`type\` made by the toolbar at the end of column #id. */
+    window.addContainer = function(type, id) {
+        ge().setActiveTarget('#' + id);
+        q('.ge-mainControls [data-ge-container-type="' + type + '"]').click();
+        return Array.from(q('#' + id).querySelectorAll(':scope > [data-ge-container="' + type + '"]')).pop();
+    };
+    window.inside = function(node) {
+        return Array.from(node.children).filter(function(child) { return !child.matches('.ge-tools-drawer, .ge-resize-handle'); });
+    };
+    /** Ctrl+key on the page, after a press on the canvas says this is the editor in use. */
+    window.press = function(letter) {
+        q('#myGrid').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        const e = new KeyboardEvent('keydown', { key: letter, code: 'Key' + letter.toUpperCase(), ctrlKey: true, bubbles: true, cancelable: true });
+        document.body.dispatchEvent(e);
+        return e.defaultPrevented;
+    };
+    window.ELEMENT_CANVAS = CANVAS + '<div class="row" id="r3">' + col('e', 12, '<blockquote data-ge-element="quote" id="el">Q</blockquote>') + '</div>';
+    return true;
+`;
+
+async function anyLevelTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(SETUP);
+    await page.eval(ANY_LEVEL);
+
+    var picked = await page.eval(`
+        start({}, ELEMENT_CANVAS);
+        const tabs = addContainer('tabs', 'a');
+        changes.length = 0;
+        clickOn(tabs);
+        const container = { target: ge().getActiveTarget() === tabs, marked: tabs.classList.contains('ge-selected'), told: changes.length === 1 };
+        clickIn('r1');
+        const row = target();
+        clickIn('el');
+        const element = target();
+        clickIn('s');
+        const section = target();
+        clickOn(tabs.querySelector('.ge-tab'));
+        const pane = ge().getActiveTarget() === tabs.querySelector('.ge-tab');
+        return { container: container, row: row, element: element, section: section, pane: pane, marks: qa('#myGrid .ge-selected').length };
+    `);
+    t.check('a click on a container\'s drawer makes the container the target, marked, and says so (AC-01)',
+        picked.container.target && picked.container.marked && picked.container.told, picked);
+    t.check('a click picks a row, an element, a section or a pane, one at a time (AC-02)',
+        picked.row === 'r1' && picked.element === 'el' && picked.section === 's' && picked.pane && picked.marks === 1, picked);
+
+    var again = await page.eval(`
+        start();
+        clickIn('r1');
+        clickIn('r1');
+        const byDrawer = target();
+        clickIn('r1');
+        q('#r1').click();
+        return { byDrawer: byDrawer, byBackground: target() };
+    `);
+    t.check('a row\'s drawer or background clicked again takes it back (AC-03)', again.byDrawer === null && again.byBackground === null, again);
+
+    var outside = await page.eval(`
+        start({ settings_panel: 'offcanvas' });
+        clickIn('b');
+        q('.ge-mainControls').click();
+        const toolbar = target();
+        document.body.click();
+        return { toolbar: toolbar, page: target() };
+    `);
+    t.check('a click on the toolbar keeps the target (AC-07)', outside.toolbar === 'b', outside);
+    t.check('a click on the page outside the editor clears it, with the offcanvas panel too (AC-06)', outside.page === null, outside);
+
+    var focused = await page.eval(`
+        start({ settings_panel: 'popover' });
+        q('#r1 > .ge-tools-drawer > a').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+        return target();
+    `);
+    t.check('the focus coming into a row\'s drawer makes it the target, with the popover panel (AC-08)', focused === 'r1', focused);
+
+    var escaped = await page.eval(`
+        start();
+        clickIn('r1');
+        escape();
+        return target();
+    `);
+    t.check('Escape clears a row target in one press (AC-09)', escaped === null, escaped);
+
+    var rowInRow = await page.eval(`
+        start();
+        clickIn('r1');
+        q('#myGrid').addEventListener('grideditor:before-add-column', function() { window.columnAdd = true; });
+        window.columnAdd = false;
+        window.befores = [];
+        q('#myGrid').addEventListener('grideditor:before-add-text', function(e) { window.befores.push(e.detail.parent && e.detail.parent.id); });
+        button.row('6,6').click();
+        const last = inside(q('#r1')).pop();
+        const row = { columns: inside(q('#r1')).length, isColumn: last.matches('.column'), holds: blocks(last), width: last.className };
+        button.text().click();
+        const textCol = inside(q('#r1')).pop();
+        return { row: row, text: blocks(textCol), befores: befores.slice(), columnAdd: columnAdd, adds: adds.slice(), target: target() };
+    `);
+    t.check('a row added to a row target goes in a new column of it, of the add column width (AC-11)',
+        rowInRow.row.columns === 3 && rowInRow.row.isColumn && rowInRow.row.holds === 'row:2' && /\bcol-12\b/.test(rowInRow.row.width), rowInRow);
+    t.check('a text added to a row fires its own add with the row as parent, and no column add (AC-40)',
+        rowInRow.text === 'text' && JSON.stringify(rowInRow.befores) === JSON.stringify(['r1']) && !rowInRow.columnAdd &&
+        rowInRow.adds.every(function(add) { return add.parent === 'r1' && add.source === 'tool'; }) && rowInRow.target === 'r1', rowInRow);
+
+    var rowCols = await page.eval(`
+        start({}, '<div class="row row-cols-2" id="rc">' + col('p', 6) + '</div>');
+        clickIn('rc');
+        button.text().click();
+        const last = inside(q('#rc')).pop();
+        return { holds: blocks(last), sized: /\\bcol-(sm-|md-|lg-|xl-|xxl-)?\\d+\\b/.test(last.className), className: last.className };
+    `);
+    t.check('in a row with row-cols the new column has no width of its own (AC-12)', rowCols.holds === 'text' && !rowCols.sized, rowCols);
+
+    var columns = await page.eval(`
+        start();
+        q('#b > .ge-tools-drawer > .ge-copy').click();
+        clickIn('c');
+        const intoColumn = press('v');
+        const inC = inside(q('#c')).map(function(n) { return n.matches('.row') ? 'row:' + inside(n).map(function(c) { return /col-6/.test(c.className) ? '6' : c.className; }).join() : blocks({ children: [n] }); });
+        clickIn('r1');
+        press('v');
+        const inRow = inside(q('#r1')).length;
+        clickIn('s');
+        press('v');
+        return { intoColumn: intoColumn, inC: inC, inRow: inRow, s: blocks(q('#s')), lastInS: inside(inside(q('#s')).pop()).length };
+    `);
+    t.check('a column pasted into a column goes in a new row, keeping its width (AC-13)',
+        columns.intoColumn && JSON.stringify(columns.inC) === JSON.stringify(['text', 'row:6']), columns);
+    t.check('a column pasted into a row is added to the row as it is (AC-14)', columns.inRow === 3, columns);
+    t.check('a column pasted into a section goes in a new row (AC-16)', columns.s === 'row:1,row:1' && columns.lastInS === 1, columns);
+
+    var sectionAndPane = await page.eval(`
+        start();
+        clickIn('s');
+        button.text().click();
+        const section = blocks(q('#s'));
+        const tabs = addContainer('tabs', 'a');
+        const tab = tabs.querySelector('.ge-tab');
+        clickOn(tab);
+        button.text().click();
+        const pane = q(tab.querySelector('.nav-link').getAttribute('data-bs-target'));
+        return { section: section, pane: blocks(pane) };
+    `);
+    t.check('a text added to a section or a pane goes in a row and a column of its own (AC-15)',
+        sectionAndPane.section === 'row:1,row:1' && sectionAndPane.pane === 'row:1,row:1', sectionAndPane);
+
+    var textTarget = await page.eval(`
+        start({}, ELEMENT_CANVAS);
+        ge().setActiveTarget(textOf('a'));
+        button.text().click();
+        const afterText = blocks(q('#a'));
+        button.row('6,6').click();
+        const afterRow = blocks(q('#a'));
+        const tabs = addContainer('tabs', 'b');
+        tabs.querySelector(':scope > .ge-tools-drawer > .ge-copy').click();
+        clickIn('el');
+        const pasted = press('v');
+        return { afterText: afterText, afterRow: afterRow, pasted: pasted, e: blocks(q('#e')) };
+    `);
+    t.check('with a text as the target, a text and a row go to the end of its column (AC-17)',
+        textTarget.afterText === 'text,text' && textTarget.afterRow === 'text,text,row:2', textTarget);
+    t.check('a container pasted onto an element goes to the end of the element\'s column (AC-18)',
+        textTarget.pasted && /,tabs$/.test(textTarget.e), textTarget);
+
+    var shown = await page.eval(`
+        start({ plugins: window.fixture.plugins(['sections', 'clipboard', 'carousel', 'offcanvas']) });
+        const tabs = addContainer('tabs', 'a');
+        const panes = tabs.querySelectorAll(':scope > .tab-content > .tab-pane');
+        panes.forEach(function(p) { p.classList.remove('active', 'show'); });
+        panes[1].classList.add('active', 'show');
+        clickOn(tabs);
+        button.text().click();
+        const tabsResult = [blocks(panes[0]), blocks(panes[1])];
+
+        const accordion = addContainer('accordion', 'b');
+        const collapses = accordion.querySelectorAll('.accordion-collapse');
+        collapses.forEach(function(c) { c.classList.remove('show'); });
+        collapses[collapses.length - 1].classList.add('show');
+        clickOn(accordion);
+        button.row('6,6').click();
+        const openBody = collapses[collapses.length - 1].querySelector('.accordion-body');
+
+        const bodies = {};
+        ['popup', 'offcanvas', 'card', 'carousel'].forEach(function(type) {
+            const made = addContainer(type, 'c');
+            clickOn(made);
+            button.row('6,6').click();
+            const region = type === 'carousel' ? made.querySelector('.carousel-item.active') || made.querySelector('.carousel-item')
+                : made.querySelector({ popup: '.modal-body', offcanvas: '.offcanvas-body', card: '.card-body' }[type]);
+            bodies[type] = blocks(region);
+        });
+
+        collapses.forEach(function(c) { c.classList.remove('show'); });
+        clickOn(accordion);
+        button.text().click();
+        const closed = blocks(q('#b'));
+        return { tabs: tabsResult, accordion: blocks(openBody), bodies: bodies, closed: closed };
+    `);
+    t.check('a container target adds to the tab that is open (AC-19)',
+        shown.tabs[0] === 'row:1' && shown.tabs[1] === 'row:1,row:1', shown);
+    t.check('it adds to the open accordion item, the slide showing, and the body of a popup, an offcanvas or a card (AC-20)',
+        shown.accordion === 'row:1,row:2' && ['popup', 'offcanvas', 'card', 'carousel'].every(function(type) { return shown.bodies[type] === 'row:1,row:2'; }), shown);
+    t.check('an accordion with every item closed adds to its column (AC-21)', /accordion,text$/.test(shown.closed), shown);
+
+    var section = await page.eval(`
+        start();
+        clickIn('r1');
+        button.section().click();
+        const fromRow = blocks(q('#myGrid'));
+        ge().setActiveTarget(textOf('c'));
+        button.section().click();
+        return { fromRow: fromRow, fromText: blocks(q('#myGrid')), r1Next: q('#r1').nextElementSibling.matches('.container'), r2Next: q('#r2').nextElementSibling.matches('.container') };
+    `);
+    t.check('a section with a row or a text as the target goes to the canvas after its top level block (AC-22)',
+        section.fromRow === 'row:2,section,row:1,section' && section.r1Next && section.r2Next, section);
+
+    var canceled = await page.eval(`
+        start();
+        clickIn('r1');
+        const cancel = function(e) { e.preventDefault(); };
+        q('#myGrid').addEventListener('grideditor:before-add-text', cancel);
+        button.text().click();
+        q('#myGrid').removeEventListener('grideditor:before-add-text', cancel);
+        return { columns: inside(q('#r1')).length, target: target() };
+    `);
+    t.check('a canceled add into a row adds no column either, and the target stays (AC-24)',
+        canceled.columns === 2 && canceled.target === 'r1', canceled);
+
+    var copied = await page.eval(`
+        start();
+        const tabs = addContainer('tabs', 'a');
+        clickOn(tabs);
+        copies = [];
+        q('#myGrid').addEventListener('grideditor:after-copy', function(e) { copies.push(e.detail.source + ':' + e.detail.kind); });
+        const taken = press('c');
+        const clip = JSON.parse(localStorage.getItem('grideditor.clipboard') || 'null');
+        clickOn(tabs.querySelector('.ge-tab'));
+        localStorage.removeItem('grideditor.clipboard');
+        const pane = press('c');
+        ge().setActiveTarget(null);
+        const none = [press('c'), press('v')];
+        return { taken: taken, category: clip && clip.category, copies: copies, pane: pane, stored: localStorage.getItem('grideditor.clipboard'), none: none };
+    `);
+    t.check('Ctrl+C copies a container target, from the shortcut (AC-25)',
+        copied.taken && copied.category === 'container' && copied.copies[0] === 'shortcut:tabs', copied);
+    t.check('Ctrl+C on a pane copies nothing and leaves the key to the browser (AC-26)', !copied.pane && copied.stored === null, copied);
+    t.check('with no target Ctrl+C and Ctrl+V do nothing (AC-27)', !copied.none[0] && !copied.none[1], copied);
+
+    var api = await page.eval(`
+        start();
+        ge().setActiveTarget(textOf('a'));
+        const text = ge().getActiveTarget() === textOf('a');
+        ge().setActiveTarget('#r1');
+        return { text: text, row: target(), getSelected: typeof ge().getSelected, setSelected: typeof ge().setSelected };
+    `);
+    t.check('setActiveTarget takes a text and a row selector (AC-32)', api.text && api.row === 'r1', api);
+    t.check('getSelected and setSelected are gone (AC-30)', api.getSelected === 'undefined' && api.setSelected === 'undefined', api);
+
+    var off = await page.eval(`
+        start({ active_target: false });
+        clickIn('r1');
+        return { target: ge().getActiveTarget(), marked: marked() };
+    `);
+    t.check('with active_target off a click on a row picks nothing (AC-34)', off.target === null && off.marked === '', off);
+
+    var html = await page.eval(`
+        start();
+        clickIn('r1');
+        const saved = ge().getHtml();
+        return { leaked: /ge-selected/.test(saved), marked: marked() };
+    `);
+    t.check('getHtml has no ge-selected, and a row target keeps its mark (AC-35)', !html.leaked && html.marked === 'r1', html);
+
+    var gear = await page.eval(`
+        start({ settings_panel: 'offcanvas' });
+        clickIn('b');
+        q('#r1 > .ge-tools-drawer > .ge-settings').click();
+        await sleep(400);
+        return { target: target(), selected: q('#r1').classList.contains('ge-selected'), settings: q('#r1').classList.contains('ge-settings-target') };
+    `);
+    t.check('the gear of a row makes it the target and opens its panel, with both marks (AC-39)',
+        gear.target === 'r1' && gear.selected && gear.settings, gear);
+
+    var tool = await page.eval(`
+        start();
+        clickIn('b');
+        q('#b > .ge-tools-drawer > .ge-copy').click();
+        return target();
+    `);
+    t.check('a tool of the target\'s own drawer keeps it (AC-41)', tool === 'b', tool);
+
+    var errors = page.errors();
+    t.check('the any level tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 /**
@@ -484,11 +792,12 @@ async function panelTests(t) {
 
 module.exports = {
     name: 'activetarget',
-    description: 'the active target: where the toolbar adds, chosen by a click in a column or a section',
+    description: 'the active target: where the toolbar adds, chosen by a click on any node with settings',
     run: async function(t) {
         await placementTests(t);
         await activationTests(t);
         await apiTests(t);
+        await anyLevelTests(t);
         await panelTests(t);
     },
 };

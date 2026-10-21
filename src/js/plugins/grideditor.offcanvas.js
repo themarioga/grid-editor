@@ -317,6 +317,11 @@ GridEditor.containers.offcanvas = function(ge) {
         labelKey: 'container.add_offcanvas',
         paneKind: 'offcanvas',
 
+        // Where rows go: the offcanvas's body
+        regionOf: function(container) {
+            return dom.one(container, '.offcanvas-body');
+        },
+
         // The ids a copy of an offcanvas has to rename together
         references: ['data-ge-offcanvas-id', 'data-ge-offcanvas-target'],
 

@@ -34,9 +34,10 @@
                 // tinyMCE 7 is GPL-2.0-or-later: 'gpl' accepts that licence.
                 // A commercial licence passes its own key here instead.
                 tinymce: { config: { license_key: 'gpl' } },
-                // A click in a column or a section makes it the target, which
-                // turns on Ctrl+C and Ctrl+V. clipboard: { shortcuts: false }
-                // would leave the keys to the browser
+                // A click on a node - a row, a column, a container, a text...
+                // - makes it the target, which turns on Ctrl+C and Ctrl+V.
+                // clipboard: { shortcuts: false } would leave the keys to
+                // the browser
                 active_target: true,
             };
 
@@ -81,16 +82,18 @@
             drag it to where the copy should land.
         </p>
         <p class="text-body-secondary">
-            With the keyboard: click a column or a section - its background or
-            its drawer, not a text, which opens the text for writing - and it
+            With the keyboard: click a node - a row, a column, a container, an
+            element, or a text - on its background or its drawer, and it
             becomes the target, with a dashed outline. <kbd>Ctrl</kbd>+<kbd>C</kbd>
             (<kbd>⌘</kbd>+<kbd>C</kbd> on a Mac) copies it, and
-            <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes what is copied into it, where
-            it fits: a row, a text, a container or an element at the end of a
-            column, a row into a section, a section after the block the target
+            <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes what is copied into it, at its
+            end and in the level it lacks: a row pasted into a row goes in a
+            new column of it, a column pasted into a column goes in a new row,
+            and a container or a text pasted into a container goes in the tab
+            or the item it shows. A section goes after the block the target
             is in. While you are writing in a text, or have text selected, the
-            keys copy and paste the text as usual. Escape, or a click on the
-            canvas outside any column, clears the target.
+            keys copy and paste the text as usual. Escape, or a click outside
+            the editor or on the canvas outside any node, clears the target.
         </p>
         <p class="text-body-secondary">
             What is copied is kept in the browser, so it can be pasted in the

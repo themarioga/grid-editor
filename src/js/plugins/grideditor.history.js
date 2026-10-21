@@ -12,8 +12,8 @@
  *
  * A step is the canvas's markup as ge.snapshotHtml() gives it, kept `delay`
  * ms after the last change: a drag or a burst of typing is one step. Going
- * to one puts its markup back with ge.setHtml(), and the node that was
- * selected, and the target, are chosen again by where they were.
+ * to one puts its markup back with ge.setHtml(), and the target is chosen
+ * again by where it was.
  *
  * Typing in a text is the text editor's own to undo while it has the focus:
  * the keys are left alone then, and what was typed becomes a step when it
@@ -227,7 +227,6 @@ GridEditor.features.history = function(ge) {
         var to = index + step;
         if (to < 0 || to >= stack.length) { return false; }
 
-        var selected = pathOf(ge.getSelected());
         var target = pathOf(ge.getActiveTarget());
 
         stopObserving();
@@ -236,9 +235,7 @@ GridEditor.features.history = function(ge) {
         // The step as the canvas reads it back, so that is what is compared with
         stack[index] = ge.snapshotHtml();
 
-        var node = resolve(selected);
-        if (node) { ge.setSelected(node); }
-        node = resolve(target);
+        var node = resolve(target);
         if (node) { ge.setActiveTarget(node); }
 
         observe();

@@ -358,6 +358,10 @@
     return {
       labelKey: "container.add_popup",
       paneKind: "popup",
+      // Where rows go: the popup's body
+      regionOf: function(container) {
+        return one(container, ".modal-body");
+      },
       // The ids a copy of a popup has to rename together
       references: ["data-ge-popup-id", "data-ge-popup-target"],
       onInit: triggers.onInit,
