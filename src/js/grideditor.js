@@ -467,6 +467,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var confirmDialog = null; // The delete confirmation, built when first needed
         var sizePicker = null; // The open column size picker, if there is one
         var sourceOpen = false; // Whether the canvas is being edited as html
+        var previewing = false; // Whether the preview button is pressed: not while the mouse is only over it
         var dropMarker = null; // The line showing where a dragged toolbar button would land
         var activeTarget = null; // The column or region the toolbar adds to, with active_target
         var toolbarLifetime = null; // Aborted when the toolbar is rebuilt or taken away
@@ -1338,21 +1339,20 @@ function build(instance, baseElem, optionsOrMethod) {
                 btnGroup.appendChild(htmlButton);
             }
 
+            // Over it, the canvas looks as the page will; pressed, it stays
+            // that way and the page's own controls work
             var previewButton = dom.create('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>');
-            var endPreview = function() {
-                if (!dom.hasClass(previewButton, 'active')) {
-                    dom.addClass(canvas, 'ge-editing');
-                }
-            };
             previewButton.setAttribute('title', t('tool.preview'));
+            dom.toggleClass(previewButton, 'active btn-danger', previewing);
             previewButton.addEventListener('mouseenter', function() {
                 dom.removeClass(canvas, 'ge-editing');
             });
             previewButton.addEventListener('click', function() {
-                dom.toggleClass(previewButton, 'active btn-danger');
-                endPreview();
+                setPreview(!previewing);
             });
-            previewButton.addEventListener('mouseleave', endPreview);
+            previewButton.addEventListener('mouseleave', function() {
+                if (!previewing) { dom.addClass(canvas, 'ge-editing'); }
+            });
             btnGroup.appendChild(previewButton);
 
             // Floated right after the source and preview buttons, so it
@@ -1467,14 +1467,8 @@ function build(instance, baseElem, optionsOrMethod) {
             // then - or taken away for good
             if (!mainControls || destroyed) { return; }
 
-            var previewing = !!dom.one(mainControls, '.gm-preview.active');
-
             removeMainControls();
             createMainControls();
-
-            if (previewing) {
-                dom.addClass(dom.one(mainControls, '.gm-preview'), 'active btn-danger');
-            }
             onScroll();
         }
 
@@ -2164,12 +2158,32 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /**
+         * The preview button pressed, or let go: the one way the preview
+         * changes, told only when it does. Pressed, the canvas stops looking
+         * edited and a plugin lets the page's own controls work - a popup's
+         * trigger opens it - until it is let go. Only hovering the button
+         * previews the look alone, and tells no one.
+         */
+        function setPreview(on) {
+            on = !!on;
+            if (on === previewing) { return; }
+
+            previewing = on;
+            var button = mainControls ? dom.one(mainControls, '.gm-preview') : null;
+            if (button) { dom.toggleClass(button, 'active btn-danger', on); }
+            dom.toggleClass(canvas, 'ge-editing', !on);
+            plugins('onPreviewChange', on);
+            emit('preview-change', { canvas: canvas, previewing: on });
+        }
+
+        /**
          * The canvas as html, in the textarea in its place, to edit by hand.
          * A feature plugin's onSourceOpen may put a code editor over the
          * textarea; its onSourceClose puts what it holds back in it, which is
          * what the canvas is made of again.
          */
         function openSource() {
+            setPreview(false);
             deinit();
             // The canvas is made again from the html when it comes back
             changeTarget(null);
@@ -2245,7 +2259,8 @@ function build(instance, baseElem, optionsOrMethod) {
             }
 
             runFilter(true);
-            dom.addClass(canvas, 'ge-editing');
+            // A getHtml in the middle of a preview comes back to it
+            dom.toggleClass(canvas, 'ge-editing', !previewing);
             dom.toggleClass(canvas, 'ge-drag-drawer', settings.drag_handle === 'drawer');
             addAllColClasses();
             var cutter = textCutter();
@@ -2465,6 +2480,8 @@ function build(instance, baseElem, optionsOrMethod) {
                 }
             }
 
+            // What a preview opened goes with the markup it was in
+            setPreview(false);
             deinit();
             dom.setHtml(canvas, html);
             init();
@@ -2481,6 +2498,7 @@ function build(instance, baseElem, optionsOrMethod) {
             plugins('onDestroy');
             // The html being edited is what the canvas is left with
             if (sourceOpen) { closeSource(); }
+            setPreview(false);
             deinit();
             activeTarget = null;
             selected = null;
@@ -2593,6 +2611,7 @@ function build(instance, baseElem, optionsOrMethod) {
                 operate: operate,
                 kindOf: kindOf,
                 view: getView,
+                previewing: function() { return previewing; },
                 viewTiers: function() {
                     return tiersFor(curView).map(function(tier) { return tier.key; });
                 },

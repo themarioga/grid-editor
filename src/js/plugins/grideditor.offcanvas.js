@@ -328,6 +328,9 @@ GridEditor.containers.offcanvas = function(ge) {
             dropTriggerMarks(ge.canvas);
         },
 
+        // The preview pressed, the triggers open the real thing; let go, it closes
+        onPreviewChange: triggers.onPreviewChange,
+
         // What onDeinit and unmark do, on a copy of the canvas
         cleanMarkup: function(root) {
             var definition = this;

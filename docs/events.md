@@ -92,6 +92,7 @@ about every insertion can bind `grideditor:before-add` and switch on
 | `grideditor:before-utility` | — | yes | before a utility class is written, from the panel, a plugin's tool or `setUtility` |
 | `grideditor:after-utility` | — | no | after the class is written and the preview redrawn, only if something changed |
 | `grideditor:view-change` | — | no | after the view changes, only if it actually changed |
+| `grideditor:preview-change` | — | no | after the preview button is pressed or let go; not while it is only hovered |
 | `grideditor:target-change` | — | no | with `active_target`, after the column or section the toolbar adds to changes, only if it actually changed |
 | `grideditor:selection-change` | — | no | with `settings_panel: 'sidebar'`, after the node whose settings the sidebar shows changes, only if it actually changed |
 | `grideditor:after-copy` | — | no | with the clipboard plugin, after a node is copied: `source: 'tool'` from its Copy tool, `'shortcut'` from Ctrl+C |
@@ -176,6 +177,11 @@ The autosave events carry no node: `after-autosave` has `canvas`, `html`,
 `savedAt` (an ISO 8601 date) and `source` - `change`, `pagehide`, `api` for
 `saveDraft()`, or `destroy` -, `after-restore-draft` has `canvas`, `html` and
 `savedAt`, and `autosave-error` has `canvas` and the `error` the storage threw.
+
+`preview-change` carries no node either: its payload is `canvas` and
+`previewing`, `true` when the button was pressed and `false` when it was let
+go - by a click, or by the editor itself when the source view opens, when a
+plugin replaces the canvas with `setHtml` (an undo does) and on `destroy`.
 
 `target-change` carries no node either: its payload is `canvas`, `target` - the
 column or section the toolbar adds to now, or `null` for the end of the canvas

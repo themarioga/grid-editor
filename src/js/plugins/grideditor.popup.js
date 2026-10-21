@@ -32,6 +32,8 @@ GridEditor.containers.popup = function(ge) {
 
         onInit: triggers.onInit,
         onDeinit: triggers.onDeinit,
+        // The preview pressed, the triggers open the real thing; let go, it closes
+        onPreviewChange: triggers.onPreviewChange,
 
         // What onDeinit and unmark do, on a copy of the canvas
         cleanMarkup: function(root) {

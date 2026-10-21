@@ -80,6 +80,7 @@ GridEditor.containers.gallery = function(ge) {
         tools: function(drawer, container) { … },        // optional, extra tools
         onInit: function() { … },                        // optional, per canvas init
         onDeinit: function() { … },                      // optional, per canvas deinit
+        onPreviewChange: function(previewing) { … },     // optional, the preview button pressed or let go
     };
 };
 ```
@@ -122,6 +123,14 @@ written for 6.x.
 - **`onInit`/`onDeinit`** are for work that is about the whole canvas rather
   than one container — the popup and offcanvas plugins wire up the host's
   `data-ge-popup-target` and `data-ge-offcanvas-target` triggers there.
+- **`onPreviewChange(previewing)`** is called when the preview button is
+  pressed (`true`) and let go (`false`), before the `preview-change` event; not
+  while it is only hovered. Pressed, the canvas has lost `ge-editing` and the
+  page's own controls may work: the popup and offcanvas plugins give their
+  triggers and close buttons back to Bootstrap, and on letting go close what
+  is open and put back what Bootstrap changed. A `getHtml` in the middle of a
+  preview runs `deinit` and `init` as ever, with `ge.previewing()` still true,
+  so an `onInit` can carry on with it.
 - **`references`** lists the attributes of the container's own that hold an id,
   as the id itself or as a `#selector`, which `ge.freshNode` renames along with
   the id they point at when a copy is made: a popup's `data-ge-popup-id` and
@@ -162,6 +171,7 @@ element, and where there may be several, an array.
 | `ge.operate(body)` | Run `body` as one operation, so a handler calling back in is queued |
 | `ge.kindOf(node)` | What an event calls a node: `row`, `column`, `element`, a container's type… |
 | `ge.view()` | The view being edited: a breakpoint key, or `'all'` |
+| `ge.previewing()` | Whether the preview button is pressed: not when it is only hovered |
 | `ge.viewTiers()` | The breakpoint key that view writes: the one being edited, or `xs` - the class with no breakpoint - in the all view |
 | `ge.breakpoints` | Every breakpoint key, smallest first |
 | `ge.getUtility(node, family, view?)` | A utility's value, as in the public method |

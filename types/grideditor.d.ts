@@ -396,6 +396,12 @@ export interface TargetChangePayload {
     from: HTMLElement | null;
 }
 
+/** The preview button was pressed (true) or let go (false). */
+export interface PreviewChangePayload {
+    canvas: HTMLElement;
+    previewing: boolean;
+}
+
 /** The selection changed, with settings_panel 'sidebar': the node whose settings the sidebar shows, or null. */
 export interface SelectionChangePayload {
     canvas: HTMLElement;
@@ -443,6 +449,7 @@ export interface GridEditorEventMap {
     'grideditor:popup-orphan': PopupOrphanPayload;
     'grideditor:offcanvas-orphan': OffcanvasOrphanPayload;
     'grideditor:view-change': ViewChangePayload;
+    'grideditor:preview-change': PreviewChangePayload;
     'grideditor:target-change': TargetChangePayload;
     'grideditor:selection-change': SelectionChangePayload;
     'grideditor:after-autosave': AutosavePayload;

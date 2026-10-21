@@ -1065,6 +1065,12 @@ is the button it makes, or any node carrying
 content in the page from that breakpoint up, so its own trigger gets
 `d-<breakpoint>-none`; a trigger of yours elsewhere is not touched.
 
+With the preview button pressed - the eye, clicked, not only hovered - a popup
+and an offcanvas are closed as on the page, and their triggers and close
+buttons work with Bootstrap's own javascript, so you can try them. Let go of
+the button, an open one closes, and each is unfolded in place again. The
+page needs Bootstrap's javascript loaded for that, as it does to show them.
+
 A carousel shows one slide at a time while editing, as it does on the page.
 The container's drawer has the arrows and says which slide it is on, and
 Bootstrap's own arrows are kept in the markup but not drawn, so they never sit

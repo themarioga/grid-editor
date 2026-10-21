@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.0.0-beta.5] - 2026-10-21
+
+### Added
+- With the preview button pressed - clicked, not only hovered - the popups and
+  offcanvases are closed as on the page, and their triggers and close buttons
+  open and close them with Bootstrap's own javascript. Let go, an open one
+  closes and each is unfolded in place again, as it was; ending the preview
+  in the middle of Bootstrap's animation waits for it. `getHtml` in the middle
+  of a preview gives them closed, and the preview goes on.
+- The event `preview-change`, with `previewing`, when the preview button is
+  pressed or let go. Opening the source view, a plugin's `setHtml` (an undo)
+  and `destroy` let it go first.
+- A plugin's `onPreviewChange(previewing)` hook, and `ge.previewing()` on the
+  plugin handle.
+
 ## [9.0.0-beta.4] - 2026-10-20
 
 ### Added

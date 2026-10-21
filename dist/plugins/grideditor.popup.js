@@ -9,6 +9,9 @@
   function all(root, selector) {
     return root ? Array.prototype.slice.call(root.querySelectorAll(selector)) : [];
   }
+  function one(root, selector) {
+    return root ? root.querySelector(selector) : null;
+  }
   function closest(node, selector, stopAt) {
     var found = node && node.nodeType === 1 ? node.closest(selector) : null;
     if (found && stopAt && found !== stopAt && !stopAt.contains(found)) {
@@ -96,8 +99,26 @@
     var triggerClass = "ge-" + kind + "-trigger";
     var orphanClass = "ge-" + kind + "-orphan";
     var listening = null;
+    var STATE_ATTRIBUTES = ["style", "aria-hidden", "aria-modal", "role"];
+    var STATE_CLASSES = ["show", "showing", "hiding"];
+    var before = /* @__PURE__ */ new Map();
+    var dismisses = [];
+    var saved = /* @__PURE__ */ new Map();
+    var phases = /* @__PURE__ */ new Map();
+    var watching = null;
+    var pending = /* @__PURE__ */ new Map();
+    var PHASES = { show: "opening", shown: "open", hide: "closing" };
     function idOf(container) {
       return container.getAttribute(idAttribute);
+    }
+    function targetOf(container) {
+      var id = idOf(container);
+      return all(container, "[id]").filter(function(node) {
+        return node.id === id;
+      })[0] || null;
+    }
+    function targets() {
+      return all(ge.canvas, "[" + idAttribute + "]").map(targetOf).filter(Boolean);
     }
     function exists(id, root) {
       return all(root || ge.canvas, "[" + idAttribute + "]").some(function(container) {
@@ -131,18 +152,150 @@
         });
       });
     }
-    function write(root) {
-      root = root || ge.canvas;
+    function arm(root) {
       all(root, "[" + targetAttribute + "]").forEach(function(trigger) {
         var wanted = trigger.getAttribute(targetAttribute);
-        removeClass(trigger, orphanClass);
-        dropEmptyClass(trigger);
         if (!exists(wanted, root)) {
           return;
         }
         trigger.setAttribute("data-bs-toggle", toggle);
         trigger.setAttribute("data-bs-target", "#" + wanted);
       });
+    }
+    function disarm() {
+      all(ge.canvas, "[" + targetAttribute + "]").forEach(function(trigger) {
+        trigger.removeAttribute("data-bs-toggle");
+        trigger.removeAttribute("data-bs-target");
+      });
+    }
+    function write(root) {
+      root = root || ge.canvas;
+      all(root, "[" + targetAttribute + "]").forEach(function(trigger) {
+        removeClass(trigger, orphanClass);
+        dropEmptyClass(trigger);
+      });
+      arm(root);
+      var quiet = /* @__PURE__ */ new Map();
+      before.forEach(function(state, target) {
+        quiet.set(target.id, state);
+      });
+      pending.forEach(function(state, target) {
+        quiet.set(target.id, state);
+      });
+      if (!quiet.size) {
+        return;
+      }
+      all(root, "[id]").forEach(function(node) {
+        if (quiet.has(node.id)) {
+          putState(node, quiet.get(node.id));
+        }
+      });
+    }
+    function stateOf(target) {
+      var state = { classes: STATE_CLASSES.filter(function(name) {
+        return hasClass(target, name);
+      }) };
+      STATE_ATTRIBUTES.forEach(function(name) {
+        state[name] = target.getAttribute(name);
+      });
+      return state;
+    }
+    function putState(target, state) {
+      STATE_CLASSES.forEach(function(name) {
+        toggleClass(target, name, state.classes.indexOf(name) !== -1);
+      });
+      STATE_ATTRIBUTES.forEach(function(name) {
+        target.getAttribute(name);
+        if (state[name] === null) {
+          target.removeAttribute(name);
+        } else {
+          target.setAttribute(name, state[name]);
+        }
+      });
+    }
+    function startPreview() {
+      dismisses = [];
+      targets().forEach(function(target) {
+        if (!before.has(target)) {
+          before.set(target, stateOf(target));
+        }
+        all(target, '[data-ge-bs-dismiss="' + toggle + '"]').forEach(function(dismiss) {
+          ge.resumeToggles(dismiss);
+          dismisses.push(dismiss);
+        });
+      });
+      arm(ge.canvas);
+      if (watching) {
+        watching.abort();
+      }
+      watching = new AbortController();
+      ["show", "shown", "hide", "hidden"].forEach(function(name) {
+        ge.canvas.addEventListener(name + ".bs." + toggle, function(e) {
+          if (!before.has(e.target)) {
+            return;
+          }
+          if (name === "hidden") {
+            phases.delete(e.target);
+          } else {
+            phases.set(e.target, PHASES[name]);
+          }
+        }, { signal: watching.signal });
+      });
+    }
+    function component() {
+      var bootstrap = window.bootstrap;
+      var name = toggle.charAt(0).toUpperCase() + toggle.slice(1);
+      return bootstrap && bootstrap[name] && bootstrap[name].getInstance ? bootstrap[name] : null;
+    }
+    function closer(target) {
+      var Component = component();
+      var instance = Component ? Component.getInstance(target) : null;
+      if (instance) {
+        return function() {
+          instance.hide();
+        };
+      }
+      var dismiss = one(target, '[data-bs-dismiss="' + toggle + '"], [data-ge-bs-dismiss="' + toggle + '"]');
+      if (!dismiss) {
+        return null;
+      }
+      return function() {
+        ge.resumeToggles(dismiss);
+        dismiss.click();
+        ge.suspendToggles(dismiss);
+      };
+    }
+    function endPreview() {
+      if (watching) {
+        watching.abort();
+      }
+      watching = null;
+      before.forEach(function(state, target) {
+        var phase = phases.get(target);
+        var close = phase && phase !== "closing" ? closer(target) : null;
+        var restore = function() {
+          pending.delete(target);
+          putState(target, state);
+        };
+        if (!phase || phase !== "closing" && !close) {
+          restore();
+          return;
+        }
+        pending.set(target, state);
+        target.addEventListener("hidden.bs." + toggle, restore, { once: true });
+        if (phase === "opening") {
+          target.addEventListener("shown.bs." + toggle, close, { once: true });
+        } else if (phase === "open") {
+          close();
+        }
+      });
+      before = /* @__PURE__ */ new Map();
+      phases = /* @__PURE__ */ new Map();
+      dismisses.forEach(function(dismiss) {
+        ge.suspendToggles(dismiss);
+      });
+      dismisses = [];
+      disarm();
     }
     return {
       write,
@@ -160,13 +313,35 @@
             e.preventDefault();
           }
         }, { signal: listening.signal });
+        if (ge.previewing()) {
+          var live = new Map(saved);
+          saved = /* @__PURE__ */ new Map();
+          startPreview();
+          live.forEach(function(state, target) {
+            if (ge.canvas.contains(target)) {
+              putState(target, state);
+            }
+          });
+        }
       },
       onDeinit: function() {
         if (listening) {
           listening.abort();
         }
         listening = null;
+        if (ge.previewing()) {
+          before.forEach(function(state, target) {
+            saved.set(target, stateOf(target));
+          });
+        }
         write();
+      },
+      onPreviewChange: function(previewing) {
+        if (previewing) {
+          startPreview();
+        } else {
+          endPreview();
+        }
       }
     };
   }
@@ -187,6 +362,8 @@
       references: ["data-ge-popup-id", "data-ge-popup-target"],
       onInit: triggers.onInit,
       onDeinit: triggers.onDeinit,
+      // The preview pressed, the triggers open the real thing; let go, it closes
+      onPreviewChange: triggers.onPreviewChange,
       // What onDeinit and unmark do, on a copy of the canvas
       cleanMarkup: function(root) {
         var definition = this;

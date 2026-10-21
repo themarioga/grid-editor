@@ -672,6 +672,7 @@
     var confirmDialog = null;
     var sizePicker = null;
     var sourceOpen = false;
+    var previewing = false;
     var dropMarker = null;
     var activeTarget = null;
     var toolbarLifetime = null;
@@ -1321,20 +1322,19 @@
         btnGroup.appendChild(htmlButton);
       }
       var previewButton = create('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>');
-      var endPreview = function() {
-        if (!hasClass(previewButton, "active")) {
-          addClass(canvas, "ge-editing");
-        }
-      };
       previewButton.setAttribute("title", t("tool.preview"));
+      toggleClass(previewButton, "active btn-danger", previewing);
       previewButton.addEventListener("mouseenter", function() {
         removeClass(canvas, "ge-editing");
       });
       previewButton.addEventListener("click", function() {
-        toggleClass(previewButton, "active btn-danger");
-        endPreview();
+        setPreview(!previewing);
       });
-      previewButton.addEventListener("mouseleave", endPreview);
+      previewButton.addEventListener("mouseleave", function() {
+        if (!previewing) {
+          addClass(canvas, "ge-editing");
+        }
+      });
       btnGroup.appendChild(previewButton);
       if (endItems.length) {
         var end = wrapper.appendChild(element("div", { "class": "pull-right ge-toolbar-end" }));
@@ -1426,12 +1426,8 @@
       if (!mainControls || destroyed) {
         return;
       }
-      var previewing = !!one(mainControls, ".gm-preview.active");
       removeMainControls();
       createMainControls();
-      if (previewing) {
-        addClass(one(mainControls, ".gm-preview"), "active btn-danger");
-      }
       onScroll();
     }
     function removeMainControls() {
@@ -1983,7 +1979,22 @@
       deinit();
       init();
     }
+    function setPreview(on2) {
+      on2 = !!on2;
+      if (on2 === previewing) {
+        return;
+      }
+      previewing = on2;
+      var button = mainControls ? one(mainControls, ".gm-preview") : null;
+      if (button) {
+        toggleClass(button, "active btn-danger", on2);
+      }
+      toggleClass(canvas, "ge-editing", !on2);
+      plugins("onPreviewChange", on2);
+      emit("preview-change", { canvas, previewing: on2 });
+    }
     function openSource() {
+      setPreview(false);
       deinit();
       changeTarget(null);
       changeSelection(null);
@@ -2039,7 +2050,7 @@
         closeDialog();
       }
       runFilter(true);
-      addClass(canvas, "ge-editing");
+      toggleClass(canvas, "ge-editing", !previewing);
       toggleClass(canvas, "ge-drag-drawer", settings.drag_handle === "drawer");
       addAllColClasses();
       var cutter = textCutter();
@@ -2213,6 +2224,7 @@
           });
         }
       }
+      setPreview(false);
       deinit();
       setHtml(canvas, html);
       init();
@@ -2222,6 +2234,7 @@
       if (sourceOpen) {
         closeSource();
       }
+      setPreview(false);
       deinit();
       activeTarget = null;
       selected = null;
@@ -2316,6 +2329,9 @@
         operate,
         kindOf,
         view: getView,
+        previewing: function() {
+          return previewing;
+        },
         viewTiers: function() {
           return tiersFor(curView).map(function(tier) {
             return tier.key;
