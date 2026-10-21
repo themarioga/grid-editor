@@ -5213,7 +5213,7 @@ GridEditor.t = translate;
 GridEditor._plainHtml = plainHtml;
 GridEditor.Sortable = null;
 GridEditor.bootstrap = null;
-GridEditor.version = false ? "dev" : "9.0.0-beta.5";
+GridEditor.version = false ? "dev" : "9.0.0-beta.6";
 GridEditor.locales = {
   en: {
     "tool.move": "Move",
