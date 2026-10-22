@@ -69,8 +69,11 @@
 .ge-mainControls .ge-toolbar-groups {
   flex: none;
   margin-right: 8px;
+  /* An outline button has no background of its own: with the toolbar
+           fixed over the canvas, the drawers would show through */
 }
 .ge-mainControls .ge-toolbar-groups > .btn {
+  --bs-btn-bg: var(--bs-body-bg, #fff);
   white-space: nowrap;
 }
 .ge-mainControls .ge-wrapper.ge-toolbar-menu {

@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- `toolbar_groups`: the category tabs have the page's background, rather than
+  none, so with the toolbar fixed at the top the canvas no longer shows through
+  them.
+
 ## [9.0.0-beta.8] - 2026-10-22
 
 ### Added

@@ -82,7 +82,10 @@
         flex: none;
         margin-right: 8px;
 
+        /* An outline button has no background of its own: with the toolbar
+           fixed over the canvas, the drawers would show through */
         > .btn {
+            --bs-btn-bg: var(--bs-body-bg, #fff);
             white-space: nowrap;
         }
     }
