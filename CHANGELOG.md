@@ -5,7 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [9.0.0] - 2026-10-22
+
+The first stable 9.0: what 9.0.0-beta.1 to 9.0.0-beta.8 below brought, and
+this change on top of beta.8. See [UPGRADING.md](UPGRADING.md).
 
 ### Fixed
 - `toolbar_groups`: the category tabs have the page's background, rather than
