@@ -718,9 +718,25 @@ new GridEditor('#myGrid', {
         },
         spacing: { values: ['0', '2', '4'], scale: [/* if you changed $spacers */] },
         visibility: { drawer: false },   // no eye in the drawers, the display field only
+        browse: function(done, context) {   // a button beside the background image opens your file browser
+            myBrowser.open(function(url) { done(url); });
+        },
     },
 });
 ```
+
+`browse` is your file browser, for the fields that take a url - the background
+image. Without it they are a text box; with it, a button beside the box calls
+`browse(done, { node, property, value })`, where `value` is what the field
+shows. Answer with `done(url)`, or return a promise of the url: the first
+answer counts. `done()`, `null`, an empty text and a promise that never
+answers leave the field as it was, and the url goes in as if it had been
+typed. An answer after the node left the canvas, or the editor was
+destroyed, is ignored. The editor does nothing for the browser's own window:
+a Bootstrap modal, a popup window or a `<input type="file">` work over an
+open panel, but a dialog written in the page that is not a Bootstrap modal
+can lose the focus to the panel's, and with `active_target` a click in it
+puts the selection away - in the sidebar, empties it.
 
 The sections are `size`, `spacing`, `border`, `background`, `text`,
 `typography`, `display`, `flex`, `position` and `custom`. `properties` chooses and

@@ -659,6 +659,22 @@ async function selectionTests(t, page) {
     t.check('the target is the node in the same place after an undo (AC-26)', target.target, target);
 }
 
+async function browseTests(t, page) {
+    var browsed = await page.eval(`
+        await start({}, {
+            plugins: window.fixture.plugins(['history', 'inline-style']),
+            inline_style: { browse: function(done) { done('a.jpg'); } },
+        });
+        q('#r1 > .ge-tools-drawer > .ge-details [data-ge-inline-style-property="background-image"] .ge-inline-style-browse').click();
+        const written = q('#r1').style.backgroundImage;
+        await wait(120);
+        const undone = ge.undo();
+        return { written: written, undone: undone, after: q('#r1').style.backgroundImage };
+    `);
+    t.check('a url from inline_style.browse is a step, and undo takes it off (file-browser AC-22)',
+        browsed.written === 'url("a.jpg")' && browsed.undone && browsed.after === '', browsed);
+}
+
 async function run(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     // In the background a page's transitions do not run, and the confirm modal does not show
@@ -669,9 +685,12 @@ async function run(t) {
     await stepTests(t, page);
     await settingTests(t, page);
     await selectionTests(t, page);
+    await browseTests(t, page);
 
     await page.eval(`if (window.fixture.editor()) { window.fixture.editor().destroy(); } localStorage.clear(); return true;`);
-    t.check('the history suite logged no page errors', page.errors().length === 0, page.errors().slice(0, 5));
+    // The background image the browse test writes is not there to load
+    var errors = page.errors([/a\.jpg/]);
+    t.check('the history suite logged no page errors', errors.length === 0, errors.slice(0, 5));
 }
 
 module.exports = {

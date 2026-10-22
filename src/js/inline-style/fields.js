@@ -313,11 +313,52 @@ function shadowControl(ge, node, property, changed) {
 }
 
 /**
+ * The button that opens the host's file browser: `browse(done, { node,
+ * property, value })`, answered by `done(url)` or by the promise it
+ * returns, whichever comes first. Nothing, an empty text or a value that is
+ * not a text leaves the field as it was, and so does an answer that comes
+ * when the node or the editor is gone. Errors are the host's: not caught.
+ */
+function browseButton(ge, node, property, context, current, apply) {
+    var button = dom.element('button', {
+        type: 'button',
+        'class': 'btn btn-outline-secondary ge-inline-style-browse',
+        title: ge.t('inline_style.browse'),
+        'aria-label': ge.t('inline_style.browse'),
+    });
+    button.appendChild(dom.element('i', { 'class': 'bi bi-folder2-open', 'aria-hidden': 'true' }));
+
+    button.addEventListener('click', function() {
+        var answered = false; // Each press takes one answer, the first
+
+        function answer(url) {
+            if (answered) { return; }
+            answered = true;
+
+            if (url === null || url === undefined) { return; }
+            if (typeof url !== 'string') {
+                ge.warn('inline_style.browse gave ' + typeof url + ', not a text: ignored');
+                return;
+            }
+            if (url.trim() === '' || context.destroyed || !ge.canvas.contains(node)) { return; }
+
+            apply(url.trim());
+        }
+
+        var result = context.browse(answer, { node: node, property: property.name, value: shownUrl(current()) });
+        if (result && typeof result.then === 'function') { result.then(answer); }
+    });
+
+    return button;
+}
+
+/**
  * The field for one property of a node. `changed` is called after every
  * write that went through, so the plugin can bring the rest of its
- * sections up to date.
+ * sections up to date. `context` is the plugin's, where the host's
+ * file browser is.
  */
-export function createStyleField(ge, node, property, changed) {
+export function createStyleField(ge, node, property, changed, context) {
     var field = dom.element('div', { 'class': 'ge-inline-style-field', 'data-ge-inline-style-property': property.name });
     var label = field.appendChild(dom.element('label', { 'class': 'ge-inline-style-label' }, ge.t(property.labelKey)));
     var render;
@@ -350,8 +391,20 @@ export function createStyleField(ge, node, property, changed) {
         field.appendChild(color.element);
         render = function() { color.set(current()); };
     } else if (property.type === 'url') {
-        var url = field.appendChild(textInput());
+        var url = textInput();
         url.addEventListener('change', function() { commit(urlValue(url.value), url); });
+
+        if (context && context.browse) {
+            var group = field.appendChild(dom.element('div', { 'class': 'input-group input-group-sm ge-inline-style-url' }));
+            group.appendChild(url);
+            group.appendChild(browseButton(ge, node, property, context, current, function(text) {
+                dom.removeClass(url, 'is-invalid');
+                url.value = text;
+                commit(urlValue(text), url);
+            }));
+        } else {
+            field.appendChild(url);
+        }
         render = function() { fill(url, shownUrl(current())); };
     } else if (property.type === 'shadow') {
         var shadow = shadowControl(ge, node, property.name, changed);

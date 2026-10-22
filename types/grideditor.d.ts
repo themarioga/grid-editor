@@ -140,6 +140,24 @@ export interface CreateOffcanvasOptions extends Placement, OffcanvasOptions {
     trigger_label?: string;
 }
 
+/** What a file browser is told about the field it was opened from. */
+export interface InlineStyleBrowseContext {
+    node: HTMLElement;
+    property: string;
+    /** What the field shows: the url, or the value as it is when it is not one. */
+    value: string;
+}
+
+/**
+ * The host's file browser. It answers with `done(url)`, or with a promise of
+ * the url: the first answer counts. Nothing, `null` or an empty text leaves
+ * the field as it was.
+ */
+export type InlineStyleBrowse = (
+    done: (url?: string | null) => void,
+    context: InlineStyleBrowseContext,
+) => void | Promise<string | null | undefined>;
+
 /** The inline-style plugin's settings. */
 export interface InlineStyleOptions {
     /** Every section is on unless it is turned off here. */
@@ -148,6 +166,8 @@ export interface InlineStyleOptions {
     spacing?: { values?: string[]; scale?: string[] };
     /** The eye that hides and shows a node, the display family's: false leaves it out of the drawers. */
     visibility?: { drawer?: boolean };
+    /** A file browser for the url fields: with it they have a button that opens it. */
+    browse?: InlineStyleBrowse;
 }
 
 /** What the sidebar shows while nothing is selected, instead of its message. */

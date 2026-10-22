@@ -5,6 +5,7 @@
  *       sections: { border: { properties: [...], catalog: false }, position: false, … },
  *       spacing: { values, scale },   // the values offered, and what 0 to 5 come to
  *       visibility: { drawer },       // false leaves the eye out of the drawers
+ *       browse: function(done, ctx),  // a file browser for the url fields: see fields.js
  *   }
  *
  * Every section is on unless it is turned off.
@@ -49,10 +50,21 @@ function resolveSections(ge, given) {
     return resolved;
 }
 
+/** The host's file browser, or null: anything but a function is ignored. */
+function resolveBrowse(ge, given) {
+    if (given === undefined || given === null) { return null; }
+    if (typeof given === 'function') { return given; }
+
+    ge.warn('inline_style.browse must be a function: ignored');
+
+    return null;
+}
+
 export function resolveOptions(ge) {
     var style = ge.settings.inline_style || {};
 
     return {
+        browse: resolveBrowse(ge, style.browse),
         sections: resolveSections(ge, style.sections),
         spacing: style.spacing,
         visibility: style.visibility,

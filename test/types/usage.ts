@@ -148,6 +148,11 @@ ge.remove();
 ge.settings.locale = 'es';
 // @ts-expect-error a setting takes its own values
 new GridEditor('#myGrid', { settings_panel: 'window' });
+// The host's file browser, answering with done or with a promise
+new GridEditor('#myGrid', { inline_style: { browse: function(done, context) { done(context.value || null); } } });
+new GridEditor('#myGrid', { inline_style: { browse: async function() { return 'img/a.jpg'; } } });
+// @ts-expect-error the file browser is a function
+new GridEditor('#myGrid', { inline_style: { browse: true } });
 // @ts-expect-error the inline-style plugin has no such section
 new GridEditor('#myGrid', { inline_style: { sections: { colours: true } } });
 // @ts-expect-error an unknown callback name is a mistake

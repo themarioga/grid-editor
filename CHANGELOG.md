@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- inline-style: `inline_style.browse`, the host's file browser. With it the
+  background image field has a *Browse…* button that calls it with
+  `(done, { node, property, value })`; the url it answers - `done(url)` or a
+  promise - goes in as if it had been typed. Without it, the field is the text
+  box it was.
+
 ## [9.0.0-beta.7] - 2026-10-21
 
 ### Added

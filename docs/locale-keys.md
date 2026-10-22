@@ -404,6 +404,7 @@ The inline-style plugin's accordion, in a node's settings panel or in the dialog
 | `inline_style.overridden` | The class {class} takes priority over this value | Note under an inline field whose property a Bootstrap utility on the node also sets. `{class}` is that class |
 | `inline_style.invalid` | Not a value this property takes | Tooltip of an inline field holding a value the browser refused |
 | `inline_style.catalog` | Bootstrap classes | Heading of a section's Bootstrap class chips |
+| `inline_style.browse` | Browse… | Title and label of the button beside a url field, the background image's, that opens the host's file browser: only there with `inline_style.browse` |
 | `inline_style.shadow_x` | X | A part of the shadow builder |
 | `inline_style.shadow_y` | Y | A part of the shadow builder |
 | `inline_style.shadow_blur` | Blur | A part of the shadow builder |

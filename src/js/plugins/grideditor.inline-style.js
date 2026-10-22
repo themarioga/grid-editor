@@ -23,6 +23,8 @@
  * inline_style.sections chooses the sections, and in each the properties and
  * whether it has a catalog; inline_style.spacing is the options of spacing, whose
  * scale the gaps share, and inline_style.visibility those of the eye.
+ * inline_style.browse is the host's file browser: with it, a url field - the
+ * background image - has a button that opens it, and takes the url it gives.
  */
 import { GridEditor } from '../grideditor.js';
 import { spacingPart } from '../inline-style/spacing.js';
@@ -52,6 +54,7 @@ Object.assign(GridEditor.locales.en, {
     'inline_style.overridden': 'The class {class} takes priority over this value',
     'inline_style.invalid': 'Not a value this property takes',
     'inline_style.catalog': 'Bootstrap classes',
+    'inline_style.browse': 'Browse…',
     'inline_style.shadow_x': 'X',
     'inline_style.shadow_y': 'Y',
     'inline_style.shadow_blur': 'Blur',
@@ -127,6 +130,8 @@ GridEditor.utilities['inline-style'] = function(ge) {
         sections: options.sections,
         parts: parts,
         state: { open: null },
+        browse: options.browse,
+        destroyed: false,
         opened: function(key) {
             accordions.forEach(function(entry) { entry.accordion.open(key); });
         },
@@ -177,6 +182,11 @@ GridEditor.utilities['inline-style'] = function(ge) {
         },
 
         drawerTools: each('drawerTools'),
+
+        // An answer from the host's browser can come after the editor is gone
+        onDestroy: function() {
+            context.destroyed = true;
+        },
 
         onDeinit: function() {
             each('onDeinit')();

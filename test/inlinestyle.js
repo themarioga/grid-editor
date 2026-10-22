@@ -664,6 +664,271 @@ async function locale(t, page) {
         spanish.sizes === 'Se aplica a todos los tamaños' && spanish.label === 'Margen superior', spanish);
 }
 
+async function browse(t, page) {
+    await page.eval(`
+        window.urlField = function() { return field(row(), 'background-image'); };
+        window.browseButton = function() { return urlField().querySelector('.ge-inline-style-browse'); };
+        window.urlInput = function() { return urlField().querySelector('input[type="text"]'); };
+        /** An editor whose browser keeps every call, to answer them later. */
+        window.keeping = function(html, more) {
+            window.calls = [];
+            start(html || '', Object.assign({ inline_style: { browse: function(done, context) {
+                window.calls.push({ done: done, context: context });
+            } } }, more || {}));
+        };
+        /** An editor whose browser answers at once, as \`answer\` does. */
+        window.answering = function(answer, html) {
+            start(html || '', { inline_style: { browse: answer } });
+            browseButton().click();
+        };
+        window.tick = function() { return new Promise(function(resolve) { setTimeout(resolve, 20); }); };
+        return true;
+    `);
+
+    var built = await page.eval(`
+        start('');
+        const none = { button: !!urlField().querySelector('.ge-inline-style-browse'), group: !!urlField().querySelector('.input-group'),
+            input: urlField().querySelector(':scope > input[type="text"]') === input(row(), 'background-image') };
+        keeping();
+        const button = browseButton();
+        const given = { button: !!button, title: button.title, label: button.getAttribute('aria-label'),
+            group: !!urlField().querySelector('.input-group.ge-inline-style-url > input[type="text"] + .ge-inline-style-browse') };
+        start('', { inline_style: { browse: true } });
+        const wrong = { warnings: window.warnings.filter(function(w) { return /inline_style\\.browse/.test(w); }).length,
+            button: !!browseButton(), group: !!urlField().querySelector('.input-group') };
+        start('', { inline_style: { browse: 'x' } });
+        wrong.text = window.warnings.some(function(w) { return /inline_style\\.browse/.test(w); }) && !browseButton();
+        start('', { inline_style: { browse: function() {}, sections: { background: { properties: ['background-color'] } } } });
+        const narrowed = !acc(row()).querySelector('.ge-inline-style-browse');
+        return { none: none, given: given, wrong: wrong, narrowed: narrowed };
+    `);
+    t.check('without inline_style.browse the background image is the text box alone (AC-01)',
+        !built.none.button && !built.none.group && built.none.input, built);
+    t.check('with it, a Browse… button beside the text box (AC-02)',
+        built.given.button && built.given.title === 'Browse…' && built.given.label === 'Browse…' && built.given.group, built);
+    t.check('a browse that is not a function is a warning, and no button (AC-04)',
+        built.wrong.warnings === 1 && !built.wrong.button && !built.wrong.group && built.wrong.text, built);
+    t.check('a background section without the background image has no button (AC-27)', built.narrowed, built);
+
+    var answered = await page.eval(`
+        keeping('<div class="row" style="background-image: url(&quot;a.jpg&quot;)"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+        browseButton().click();
+        const call = window.calls[0];
+        const context = { calls: window.calls.length, node: call.context.node === row(), property: call.context.property,
+            value: call.context.value, done: typeof call.done };
+        call.done('img/foto.jpg');
+        const done = { style: row().style.backgroundImage, shown: urlInput().value };
+
+        answering(function() { return Promise.resolve('img/foto.jpg'); });
+        await tick();
+        const promised = { style: row().style.backgroundImage, shown: urlInput().value };
+        return { context: context, done: done, promised: promised };
+    `);
+    t.check('the button calls browse once with done and { node, property, value } (AC-05)',
+        answered.context.calls === 1 && answered.context.node && answered.context.property === 'background-image' &&
+        answered.context.value === 'a.jpg' && answered.context.done === 'function', answered);
+    t.check('done(url) shows the url and writes url("…") (AC-06)',
+        answered.done.style === 'url("img/foto.jpg")' && answered.done.shown === 'img/foto.jpg', answered);
+    t.check('a promise of the url does the same (AC-07)',
+        answered.promised.style === 'url("img/foto.jpg")' && answered.promised.shown === 'img/foto.jpg', answered);
+
+    var nothing = await page.eval(`
+        const before = '<div class="row" style="background-image: url(&quot;old.jpg&quot;)"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>';
+        const left = function() { return { style: row().style.backgroundImage, shown: urlInput().value }; };
+        const out = {};
+        answering(function(done) { done(null); }, before);
+        out.nullDone = left();
+        answering(function(done) { done(); }, before);
+        out.emptyDone = left();
+        answering(function() { return Promise.resolve(undefined); }, before);
+        await tick();
+        out.undefinedPromise = left();
+        answering(function(done) { done(''); }, before);
+        out.empty = left();
+        answering(function(done) { done('   '); }, before);
+        out.spaces = left();
+        answering(function(done) { done(42); }, before);
+        out.number = left();
+        out.warned = window.warnings.some(function(w) { return /inline_style\\.browse/.test(w); });
+        return out;
+    `);
+    var same = function(left) { return left.style === 'url("old.jpg")' && left.shown === 'old.jpg'; };
+    t.check('done(null) and done() change nothing (AC-08)', same(nothing.nullDone) && same(nothing.emptyDone), nothing);
+    t.check('a promise of undefined changes nothing (AC-09)', same(nothing.undefinedPromise), nothing);
+    t.check('an empty text, or spaces, change nothing (AC-10)', same(nothing.empty) && same(nothing.spaces), nothing);
+    t.check('a value that is not a text is a warning and changes nothing (AC-11)', same(nothing.number) && nothing.warned, nothing);
+
+    var first = await page.eval(`
+        const out = {};
+        answering(function(done) { done('a.jpg'); done('b.jpg'); });
+        out.twice = row().style.backgroundImage;
+        answering(function(done) { done('a.jpg'); return Promise.resolve('b.jpg'); });
+        await tick();
+        out.doneThenPromise = row().style.backgroundImage;
+        answering(function(done) {
+            setTimeout(function() { done('a.jpg'); }, 10);
+            return Promise.resolve('b.jpg');
+        });
+        await tick();
+        out.promiseThenDone = row().style.backgroundImage;
+
+        keeping();
+        browseButton().click();
+        browseButton().click();
+        out.calls = window.calls.length;
+        window.calls[1].done('b.jpg');
+        window.calls[0].done('a.jpg');
+        out.lastArriving = row().style.backgroundImage;
+        return out;
+    `);
+    t.check('done twice: the first counts (AC-12)', first.twice === 'url("a.jpg")', first);
+    t.check('done, then a promise: done counts (AC-13)', first.doneThenPromise === 'url("a.jpg")', first);
+    t.check('a promise, then done: the promise counts (AC-14)', first.promiseThenDone === 'url("b.jpg")', first);
+    t.check('two presses are two calls, and the answer that comes last is the value (AC-25)',
+        first.calls === 2 && first.lastArriving === 'url("a.jpg")', first);
+
+    var written = await page.eval(`
+        const out = {};
+        answering(function(done) { done('linear-gradient(red, blue)'); });
+        out.gradient = row().style.backgroundImage;
+        answering(function(done) { done('a"b.jpg'); });
+        out.quoted = { style: row().getAttribute('style'), shown: urlInput().value };
+
+        keeping();
+        type(urlInput(), 'nope(');
+        out.refused = urlInput().classList.contains('is-invalid');
+        window.calls = [];
+        browseButton().click();
+        window.calls[0].done('a.jpg');
+        out.replaced = { invalid: urlInput().classList.contains('is-invalid'), shown: urlInput().value, style: row().style.backgroundImage };
+
+        start('<div class="row bg-gradient"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>',
+            { inline_style: { browse: function(done) { done('a.jpg'); } } });
+        const noteBefore = note(row(), 'background-image');
+        browseButton().click();
+        out.note = { before: noteBefore, after: note(row(), 'background-image') };
+        return out;
+    `);
+    t.check('a gradient goes in as it is (AC-15)', written.gradient === 'linear-gradient(red, blue)', written);
+    t.check('a quote in the url is escaped, and shown as it came (AC-16)',
+        /url\("a\\"b\.jpg"\)/.test(written.quoted.style) && written.quoted.shown === 'a"b.jpg', written);
+    t.check('a url from the browser takes the place of a refused text (AC-17)',
+        written.refused && !written.replaced.invalid && written.replaced.shown === 'a.jpg' && written.replaced.style === 'url("a.jpg")', written);
+    t.check('the rest of the accordion follows, as after typing: the conflict note (AC-28)',
+        written.note.before === '' && written.note.after === 'The class bg-gradient takes priority over this value', written);
+
+    var late = await page.eval(`
+        const out = {};
+        keeping();
+        browseButton().click();
+        const gone = row();
+        gone.remove();
+        let threw = null;
+        try { window.calls[0].done('a.jpg'); } catch (e) { threw = String(e); }
+        out.removed = { threw: threw, style: gone.style.backgroundImage,
+            any: Array.from(document.querySelectorAll('*')).some(function(each) { return /a\\.jpg/.test(each.style.backgroundImage); }) };
+
+        keeping();
+        browseButton().click();
+        window.fixture.teardown();
+        threw = null;
+        try { window.calls[0].done('a.jpg'); } catch (e) { threw = String(e); }
+        out.destroyed = { threw: threw, style: row().style.backgroundImage };
+
+        keeping();
+        row().querySelector(':scope > .ge-tools-drawer > .ge-settings').click();
+        document.querySelector('.ge-settings-panel [data-ge-inline-style-property="background-image"] .ge-inline-style-browse').click();
+        ge().getHtml();
+        out.closed = !document.querySelector('.ge-settings-panel.show');
+        window.calls[0].done('a.jpg');
+        out.closedStyle = row().style.backgroundImage;
+
+        keeping();
+        ge().changeView('md');
+        browseButton().click();
+        window.calls[0].done('a.jpg');
+        out.view = /url\\(&quot;a\\.jpg&quot;\\)|url\\("a\\.jpg"\\)/.test(ge().getHtml());
+        ge().changeView('all');
+        return out;
+    `);
+    t.check('an answer after the node left the canvas writes nothing, and throws nothing (AC-18)',
+        late.removed.threw === null && late.removed.style === '' && !late.removed.any, late);
+    t.check('an answer after destroy writes nothing, and throws nothing (AC-19)',
+        late.destroyed.threw === null && late.destroyed.style === '', late);
+    t.check('an answer after the panel closed, with the node still there, is written (AC-20)',
+        late.closed && late.closedStyle === 'url("a.jpg")', late);
+    t.check('in a breakpoint view the url is the host\'s style (AC-21)', late.view, late);
+
+    var failed = await page.eval(`
+        const out = {};
+        answering(function() { throw new Error('browse failed on purpose'); },
+            '<div class="row" style="background-image: url(&quot;old.jpg&quot;)"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+        out.thrown = row().style.backgroundImage;
+        answering(function() { return Promise.reject(new Error('browse refused on purpose')); },
+            '<div class="row" style="background-image: url(&quot;old.jpg&quot;)"><div class="column col-6"><div class="ge-content"><p>a</p></div></div></div>');
+        await tick();
+        out.rejected = row().style.backgroundImage;
+        return out;
+    `);
+    var reported = function(pattern) { return page.logs.some(function(entry) { return entry.kind === 'exception' && pattern.test(entry.text); }); };
+    t.check('an error thrown by browse reaches the browser, and nothing changes (AC-23)',
+        failed.thrown === 'url("old.jpg")' && reported(/browse failed on purpose/), failed);
+    t.check('a rejected promise changes nothing, and is left to the browser (AC-24)',
+        failed.rejected === 'url("old.jpg")' && reported(/browse refused on purpose/), failed);
+
+    // Typed for real, so leaving the box fires its change
+    await page.send('Page.bringToFront');
+    // The box has to be on show to take the focus: the row's panel is opened
+    await page.eval(`
+        keeping();
+        row().querySelector(':scope > .ge-tools-drawer > .ge-settings').click();
+        window.shownField = function() { return document.querySelector('.ge-settings-panel [data-ge-inline-style-property="background-image"]'); };
+        shownField().closest('.accordion-item').querySelector('.accordion-button').click();
+        await tick();
+        shownField().querySelector('input[type="text"]').focus();
+        return document.activeElement === shownField().querySelector('input[type="text"]');
+    `);
+    await page.send('Input.insertText', { text: 'x.jpg' });
+    var typed = await page.eval(`
+        const button = shownField().querySelector('.ge-inline-style-browse');
+        button.focus();
+        button.click();
+        const value = window.calls[0].context.value;
+        window.calls[0].done('a.jpg');
+        return { value: value, style: row().style.backgroundImage };
+    `);
+    t.check('a text typed and not yet left is in the context, and the answer wins (AC-29)',
+        typed.value === 'x.jpg' && typed.style === 'url("a.jpg")', typed);
+
+    var spanish = await page.eval(`
+        if (!GridEditor.locales.es) {
+            await new Promise(function(resolve, reject) {
+                const script = document.createElement('script');
+                script.src = '/dist/locales/grideditor.es.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('could not load the es locale'));
+                document.head.appendChild(script);
+            });
+        }
+        keeping('', { locale: 'es' });
+        return { title: browseButton().title, label: browseButton().getAttribute('aria-label') };
+    `);
+    t.check('in Spanish the button is Examinar… (AC-03)', spanish.title === 'Examinar…' && spanish.label === 'Examinar…', spanish);
+
+    var popover = await page.eval(`
+        start('', { settings_panel: 'popover', inline_style: { browse: function(done) { done('a.jpg'); } } });
+        row().querySelector(':scope > .ge-tools-drawer > .ge-settings').click();
+        document.querySelector('body > .ge-settings-popover .ge-panel-section[data-ge-plugin="inline-style"] > .ge-panel-section-open').click();
+        const button = document.querySelector('body > .ge-dialog [data-ge-inline-style-property="background-image"] .ge-inline-style-browse');
+        if (button) { button.click(); }
+        const out = { button: !!button, style: row().style.backgroundImage };
+        start('');
+        return out;
+    `);
+    t.check('in a popover, the button in the Style dialog does the same (AC-26)',
+        popover.button && popover.style === 'url("a.jpg")', popover);
+}
+
 module.exports = {
     name: 'inlinestyle',
     description: 'the inline-style plugin: inline style, the catalog and free css',
@@ -683,9 +948,10 @@ module.exports = {
         await custom(t, page);
         await settings(t, page);
         await locale(t, page);
+        await browse(t, page);
 
         // The background image the url test writes is not there to load
-        var errors = page.errors([/a%20b\.png/]);
+        var errors = page.errors([/a%20b\.png/, /browse (?:failed|refused) on purpose/, /\.jpg/]);
         t.check('the style tests logged no errors', errors.length === 0, errors.slice(0, 5));
     },
 };

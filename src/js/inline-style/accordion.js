@@ -54,8 +54,9 @@ function partContent(ge, part, node, kind) {
 
 /**
  * `context` is the plugin's: its resolved sections, its parts by name, the
- * state it keeps for the editor ({ open }) and `opened(key)`, called when
- * the user opens or closes a section.
+ * state it keeps for the editor ({ open }), `opened(key)`, called when
+ * the user opens or closes a section, the host's `browse` and whether the
+ * editor was `destroyed`.
  */
 export function createAccordion(ge, node, kind, context) {
     var inline = takesInlineStyle(node, kind);
@@ -122,7 +123,7 @@ export function createAccordion(ge, node, kind, context) {
 
             var grid = body.appendChild(dom.element('div', { 'class': 'ge-inline-style-fields' }));
             properties.forEach(function(property) {
-                var field = createStyleField(ge, node, property, changed);
+                var field = createStyleField(ge, node, property, changed, context);
                 fields.push(field);
                 grid.appendChild(field);
             });

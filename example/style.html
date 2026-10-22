@@ -35,7 +35,28 @@
             var grid = document.getElementById('myGrid');
             var panel = document.getElementById('panel');
             var narrow = document.getElementById('narrow');
+            var browser = document.getElementById('browser');
             var editor;
+
+            // A file browser of the page's own: a Bootstrap modal with some
+            // pictures. Closing it without choosing is a cancel
+            var pictures = document.getElementById('pictures');
+            var picturesModal = new bootstrap.Modal(pictures);
+            var onPicked = null;
+            pictures.addEventListener('click', function(e) {
+                var picture = e.target.closest('[data-url]');
+                if (!picture || !onPicked) { return; }
+                var done = onPicked;
+                onPicked = null;
+                picturesModal.hide();
+                done(picture.getAttribute('data-url'));
+            });
+            pictures.addEventListener('hidden.bs.modal', function() { onPicked = null; });
+
+            function browse(done) {
+                onPicked = done;
+                picturesModal.show();
+            }
 
             function start() {
                 editor = new GridEditor(grid, {
@@ -51,12 +72,12 @@
                     // Every section, unless the host says otherwise: this
                     // leaves out position and keeps the border section to
                     // three fields with no chips
-                    inline_style: narrow.checked ? {
+                    inline_style: Object.assign(narrow.checked ? {
                         sections: {
                             position: false,
                             border: { properties: ['border-width', 'border-style', 'border-color'], catalog: false },
                         },
-                    } : {},
+                    } : {}, browser.checked ? { browse: browse } : {}),
                 });
             }
             start();
@@ -70,6 +91,7 @@
             }
             panel.addEventListener('change', restart);
             narrow.addEventListener('change', restart);
+            browser.addEventListener('change', restart);
 
             // Every change to a utility is announced, like any other operation
             grid.addEventListener('grideditor:after-utility', function(e) {
@@ -102,6 +124,23 @@
     <!-- Back to the demo index -->
     <div class="container pt-3">
         <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <!-- The page's own file browser, given to the editor as inline_style.browse -->
+    <div class="modal fade" id="pictures" tabindex="-1" aria-labelledby="pictures-title" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h6" id="pictures-title">Pictures</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body d-flex gap-2">
+                    <button type="button" class="btn p-4" style="background: #f4a261" data-url="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23f4a261'/%3E%3C/svg%3E" title="sand"></button>
+                    <button type="button" class="btn p-4" style="background: #2a9d8f" data-url="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%232a9d8f'/%3E%3C/svg%3E" title="sea"></button>
+                    <button type="button" class="btn p-4" style="background: #264653" data-url="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23264653'/%3E%3C/svg%3E" title="night"></button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -171,6 +210,10 @@
                     <div class="form-check mb-0">
                         <input class="form-check-input" type="checkbox" id="narrow">
                         <label class="form-check-label" for="narrow">Fewer sections: no position, a shorter border</label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="browser">
+                        <label class="form-check-label" for="browser">A file browser for the background image</label>
                     </div>
                 </div>
                 <p class="form-text">Last utility change: <span id="last">none yet</span></p>
