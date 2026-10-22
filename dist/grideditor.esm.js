@@ -1548,16 +1548,25 @@ function build(instance, baseElem, optionsOrMethod) {
       var homes = shownAddButtons();
       homes.forEach(function(entry) {
         entry.home.appendChild(entry.button);
+        removeClass(entry.button, "ge-before-more");
       });
       removeClass(more, "ge-needed");
+      removeClass(wrapper, "ge-toolbar-overflowing");
       if (start.scrollWidth <= start.clientWidth) {
         openOverflow(false);
         return;
       }
       addClass(more, "ge-needed");
+      addClass(wrapper, "ge-toolbar-overflowing");
       for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
         var into = spareOf(homes[i].home);
         into.insertBefore(homes[i].button, into.firstChild);
+      }
+      var onLine = homes.filter(function(entry) {
+        return entry.button.parentNode === entry.home;
+      });
+      if (onLine.length) {
+        addClass(onLine[onLine.length - 1].button, "ge-before-more");
       }
     }
   }
@@ -5261,7 +5270,7 @@ GridEditor.t = translate;
 GridEditor._plainHtml = plainHtml;
 GridEditor.Sortable = null;
 GridEditor.bootstrap = null;
-GridEditor.version = false ? "dev" : "9.0.0-beta.7";
+GridEditor.version = false ? "dev" : "9.0.0-beta.8";
 GridEditor.locales = {
   en: {
     "tool.move": "Move",

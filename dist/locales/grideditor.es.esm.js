@@ -249,6 +249,7 @@ GridEditor.locales.es = {
   "inline_style.overridden": "La clase {class} tiene prioridad sobre este valor",
   "inline_style.invalid": "Esta propiedad no acepta ese valor",
   "inline_style.catalog": "Clases de Bootstrap",
+  "inline_style.browse": "Examinar\u2026",
   "inline_style.shadow_x": "X",
   "inline_style.shadow_y": "Y",
   "inline_style.shadow_blur": "Desenfoque",

@@ -11,6 +11,9 @@
        ones that don't fit go behind a button at its end. The right-hand
        buttons come before in the markup, so they are ordered back to how
        floating them puts them. */
+  /* As wide as its buttons, so the more button comes right after them;
+       the room left over pushes the right-hand buttons to the end, from
+       the line or, while it shows, from the more button */
 }
 .ge-mainControls .ge-wrapper {
   padding-top: 5px;
@@ -88,33 +91,51 @@
 }
 .ge-mainControls .ge-toolbar-start {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
+  margin-right: auto;
   overflow: hidden;
   /* A group as wide as its buttons and a button as wide as its label:
            squeezed, they would wrap their labels rather than overflow */
 }
 .ge-mainControls .ge-toolbar-start > .btn-group {
   flex: none;
+  /* All its buttons behind the more button: no margin left over */
+}
+.ge-mainControls .ge-toolbar-start > .btn-group:empty {
+  display: none;
 }
 .ge-mainControls .ge-toolbar-start .btn {
   white-space: nowrap;
+}
+.ge-mainControls .ge-toolbar-start .btn.ge-before-more {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ge-mainControls .ge-toolbar-overflowing > .ge-toolbar-start {
+  margin-right: 0;
 }
 .ge-mainControls .ge-toolbar-more {
   display: none;
   position: relative;
   flex: none;
-  margin: 0 5px 0 4px;
+  margin: 0 auto 0 -1px;
+  padding-right: 5px;
+  /* Joined to the last button on the line, as in a btn-group */
 }
 .ge-mainControls .ge-toolbar-more.ge-needed {
   display: block;
+}
+.ge-mainControls .ge-toolbar-more > .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 .ge-mainControls .ge-toolbar-overflow {
   display: none;
   position: absolute;
   z-index: 30;
   top: calc(100% + 4px);
-  right: 0;
+  right: 5px;
   flex-direction: column;
   gap: 6px;
   width: max-content;

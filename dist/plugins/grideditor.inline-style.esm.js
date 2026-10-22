@@ -1160,9 +1160,20 @@ function resolveSections(ge, given) {
   });
   return resolved;
 }
+function resolveBrowse(ge, given) {
+  if (given === void 0 || given === null) {
+    return null;
+  }
+  if (typeof given === "function") {
+    return given;
+  }
+  ge.warn("inline_style.browse must be a function: ignored");
+  return null;
+}
 function resolveOptions(ge) {
   var style = ge.settings.inline_style || {};
   return {
+    browse: resolveBrowse(ge, style.browse),
     sections: resolveSections(ge, style.sections),
     spacing: style.spacing,
     visibility: style.visibility
@@ -1448,7 +1459,41 @@ function shadowControl(ge, node, property, changed) {
     return ge.hostStyle(node, property).value;
   } };
 }
-function createStyleField(ge, node, property, changed) {
+function browseButton(ge, node, property, context, current, apply) {
+  var button = element("button", {
+    type: "button",
+    "class": "btn btn-outline-secondary ge-inline-style-browse",
+    title: ge.t("inline_style.browse"),
+    "aria-label": ge.t("inline_style.browse")
+  });
+  button.appendChild(element("i", { "class": "bi bi-folder2-open", "aria-hidden": "true" }));
+  button.addEventListener("click", function() {
+    var answered = false;
+    function answer(url) {
+      if (answered) {
+        return;
+      }
+      answered = true;
+      if (url === null || url === void 0) {
+        return;
+      }
+      if (typeof url !== "string") {
+        ge.warn("inline_style.browse gave " + typeof url + ", not a text: ignored");
+        return;
+      }
+      if (url.trim() === "" || context.destroyed || !ge.canvas.contains(node)) {
+        return;
+      }
+      apply(url.trim());
+    }
+    var result = context.browse(answer, { node, property: property.name, value: shownUrl(current()) });
+    if (result && typeof result.then === "function") {
+      result.then(answer);
+    }
+  });
+  return button;
+}
+function createStyleField(ge, node, property, changed, context) {
   var field = element("div", { "class": "ge-inline-style-field", "data-ge-inline-style-property": property.name });
   var label = field.appendChild(element("label", { "class": "ge-inline-style-label" }, ge.t(property.labelKey)));
   var render;
@@ -1489,10 +1534,21 @@ function createStyleField(ge, node, property, changed) {
       color.set(current());
     };
   } else if (property.type === "url") {
-    var url = field.appendChild(textInput());
+    var url = textInput();
     url.addEventListener("change", function() {
       commit(urlValue(url.value), url);
     });
+    if (context && context.browse) {
+      var group2 = field.appendChild(element("div", { "class": "input-group input-group-sm ge-inline-style-url" }));
+      group2.appendChild(url);
+      group2.appendChild(browseButton(ge, node, property, context, current, function(text) {
+        removeClass(url, "is-invalid");
+        url.value = text;
+        commit(urlValue(text), url);
+      }));
+    } else {
+      field.appendChild(url);
+    }
     render = function() {
       fill(url, shownUrl(current()));
     };
@@ -1754,7 +1810,7 @@ function createAccordion(ge, node, kind, context) {
       notes.push(note);
       var grid = body.appendChild(element("div", { "class": "ge-inline-style-fields" }));
       properties.forEach(function(property) {
-        var field = createStyleField(ge, node, property, changed);
+        var field = createStyleField(ge, node, property, changed, context);
         fields.push(field);
         grid.appendChild(field);
       });
@@ -1814,6 +1870,7 @@ Object.assign(GridEditor7.locales.en, {
   "inline_style.overridden": "The class {class} takes priority over this value",
   "inline_style.invalid": "Not a value this property takes",
   "inline_style.catalog": "Bootstrap classes",
+  "inline_style.browse": "Browse\u2026",
   "inline_style.shadow_x": "X",
   "inline_style.shadow_y": "Y",
   "inline_style.shadow_blur": "Blur",
@@ -1885,6 +1942,8 @@ GridEditor7.utilities["inline-style"] = function(ge) {
     sections: options.sections,
     parts,
     state: { open: null },
+    browse: options.browse,
+    destroyed: false,
     opened: function(key) {
       accordions.forEach(function(entry) {
         entry.accordion.open(key);
@@ -1934,6 +1993,10 @@ GridEditor7.utilities["inline-style"] = function(ge) {
       });
     },
     drawerTools: each2("drawerTools"),
+    // An answer from the host's browser can come after the editor is gone
+    onDestroy: function() {
+      context.destroyed = true;
+    },
     onDeinit: function() {
       each2("onDeinit")();
       accordions = [];
