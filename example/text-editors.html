@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+
+    <!-- Javascript dependencies. jQuery is summernote's: the editor itself
+         does not need it, and this page loads no jQuery adapter -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- TinyMCE 7 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.9.3/tinymce.min.js"></script>
+    <!-- CKEditor 5: its browser build, and its stylesheet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.css">
+    <script src="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.umd.js"></script>
+    <!-- Summernote, the Bootstrap 5 build -->
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.9.1/summernote-bs5.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.9.1/summernote-bs5.min.js"></script>
+
+    <!-- Grid editor CSS -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <!-- Grid editor javascript -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
+    <!-- Each text editor is a plugin of its own, loaded after the editor.
+         content_types chooses which of the loaded ones an editor offers -->
+    <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
+    <script src="../dist/plugins/grideditor.ckeditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.summernote.min.js"></script>
+
+    <!-- A text editor of the page's own. It is a feature plugin like any
+         other: the core knows nothing of text, and asks the plugins through
+         textTypes which types there are. This one edits with the browser's
+         own contenteditable. -->
+    <script id="simpletext-plugin">
+        (function() {
+
+            Object.assign(GridEditor.locales.en, {
+                'simpletext.label': 'Simple text',
+                'simpletext.add': 'Simple text',
+            });
+
+            var TYPE = 'simpletext';
+
+            GridEditor.features.simpletext = function(ge) {
+
+                /** A content area of this plugin's: its type is on it. */
+                function isOurs(area) {
+                    return !!area && area.getAttribute('data-ge-content-type') === TYPE;
+                }
+
+                function start(area) {
+                    if (area.classList.contains('ge-rte-active')) { return; }
+
+                    area.classList.add('ge-rte-active');
+                    area.setAttribute('contenteditable', 'true');
+                    area.focus();
+                }
+
+                // Whatever start put on the content area comes off: what is
+                // left is what getHtml saves
+                function stop(area) {
+                    area.classList.remove('ge-rte-active');
+                    area.removeAttribute('contenteditable');
+                }
+
+                /** The content area a text block holds. */
+                function areaOf(textBlock) {
+                    return textBlock.querySelector(':scope > .ge-content');
+                }
+
+                /**
+                 * A text's drawer. The editor wraps each content area of a
+                 * column in a .ge-text-block while editing, and leaves the
+                 * drawer of a type a plugin declares to that plugin.
+                 */
+                function createDrawer(textBlock) {
+                    var area = areaOf(textBlock);
+                    var drawer = document.createElement('div');
+                    drawer.className = 'ge-tools-drawer ge-text-drawer';
+                    textBlock.insertBefore(drawer, textBlock.firstChild);
+
+                    ge.createMoveTool(drawer);
+                    ge.createTool(drawer, ge.t('tool.delete_text'), 'ge-delete-text', 'bi bi-trash', function() {
+                        ge.deleteNode('text', area, ge.t('confirm.delete_text'), function(removed) {
+                            stop(area);
+                            // Folded away, then gone
+                            var fold = textBlock.animate(
+                                [{ height: textBlock.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }],
+                                { duration: 400, easing: 'ease-in-out' }
+                            );
+                            textBlock.style.overflow = 'hidden';
+                            fold.onfinish = function() {
+                                textBlock.remove();
+                                removed();
+                            };
+                        });
+                    });
+                }
+
+                function onClick(e) {
+                    var area = e.target.closest('.ge-content');
+                    if (area && ge.canvas.contains(area) && isOurs(area)) { start(area); }
+                }
+
+                return {
+                    // The types this plugin edits. The core uses them to know
+                    // whose a content area is, and to offer them when the
+                    // host's plain content is clicked: edit() is handed the
+                    // content area once the core has written the type on it
+                    textTypes: function() {
+                        return [{
+                            type: TYPE,
+                            label: ge.t('simpletext.label'),
+                            edit: function(area) {
+                                var textBlock = area.parentElement;
+                                if (textBlock.classList.contains('ge-text-block') &&
+                                        !textBlock.querySelector(':scope > .ge-tools-drawer')) {
+                                    createDrawer(textBlock);
+                                }
+
+                                start(area);
+                            },
+                        }];
+                    },
+
+                    // A button to make a new text, in a row of its own or
+                    // where it is dropped in a column
+                    toolbar: [{
+                        labelKey: 'simpletext.add',
+                        iconClass: 'bi bi-fonts',
+                        kind: 'text',
+                        inColumn: true,
+                        create: function() {
+                            var area = document.createElement('div');
+                            area.className = 'ge-content ge-content-type-' + TYPE;
+                            area.setAttribute('data-ge-content-type', TYPE);
+                            area.innerHTML = '<p>Write here</p>';
+                            return area;
+                        },
+                    }],
+
+                    onInit: function() {
+                        ge.canvas.querySelectorAll('.ge-text-block').forEach(function(textBlock) {
+                            if (textBlock.querySelector(':scope > .ge-tools-drawer')) { return; }
+                            if (isOurs(areaOf(textBlock))) { createDrawer(textBlock); }
+                        });
+
+                        // One listener, however many times the canvas is initialized
+                        ge.canvas.removeEventListener('click', onClick);
+                        ge.canvas.addEventListener('click', onClick);
+                    },
+
+                    // Before the drawers and the text blocks come off
+                    onBeforeDeinit: function() {
+                        ge.canvas.querySelectorAll('.ge-content').forEach(function(area) {
+                            if (isOurs(area)) { stop(area); }
+                        });
+                    },
+
+                    onDeinit: function() {
+                        ge.canvas.removeEventListener('click', onClick);
+                    },
+                };
+            };
+
+        })();
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var MODES = ['tinymce', 'ckeditor', 'summernote', 'simpletext', 'all'];
+            var mode = new URLSearchParams(location.search).get('editor');
+            if (MODES.indexOf(mode) === -1) { mode = 'tinymce'; }
+
+            document.querySelectorAll('[data-mode]').forEach(function(node) {
+                var on = node.getAttribute('data-mode') === mode;
+                if (node.classList.contains('nav-link')) {
+                    node.classList.toggle('active', on);
+                } else {
+                    node.hidden = !on;
+                }
+            });
+
+            // A text saved with each editor this mode uses, after one block
+            // of the host's plain content that a click makes a text
+            var shipped = ['tinymce', 'ckeditor', 'summernote'];
+            var types = mode === 'all' ? shipped.concat('simpletext') : [mode];
+            var grid = document.getElementById('myGrid');
+            var columns = types.map(function(type) {
+                return '<div class="col-md">' +
+                    '<div class="ge-content ge-content-type-' + type + '" data-ge-content-type="' + type + '">' +
+                    '<h3>' + document.querySelector('.nav-link[data-mode="' + type + '"]').textContent + '</h3>' +
+                    '<p>A text saved with this editor: a click edits it.</p></div></div>';
+            });
+            grid.innerHTML =
+                '<div class="row"><div class="col-12">' +
+                    '<h1>Plain content</h1>' +
+                    '<p>Loose markup of the page\'s own, with no text editor\'s type on it. ' +
+                    'Click it and it becomes a text' + (types.length > 1 ? ' of the editor you choose.' : '.') + '</p>' +
+                '</div></div>' +
+                '<div class="row">' + columns.join('') + '</div>';
+
+            var editor = new GridEditor(grid, {
+                new_row_layouts: [[12], [6, 6], [4, 4, 4]],
+
+                // The shipped editors this mode offers, in this order. The
+                // page's own editor is not one of them: it is a plugin, which
+                // the plugins setting chooses
+                content_types: types.filter(function(type) { return shipped.indexOf(type) !== -1; }),
+                plugins: types.indexOf('simpletext') !== -1 ? ['simpletext'] : [],
+
+                // tinyMCE 7 and CKEditor 5 are GPL-2.0-or-later: 'gpl' and
+                // 'GPL' accept that licence. A commercial licence passes its
+                // own key here instead
+                tinymce: { config: { license_key: 'gpl' } },
+                ckeditor: {
+                    // Anything InlineEditor.create takes, over the plugin's
+                    // own defaults: its plugins, toolbar and headings
+                    config: { licenseKey: 'GPL' },
+                },
+                // Anything summernote takes, over the plugin's own defaults
+                summernote: {
+                    config: {
+                        callbacks: {
+                            onInit: function() { console.log('summernote is open'); },
+                        },
+                    },
+                },
+            });
+
+            // The button shows the html in place of the editor, and pressed again,
+            // the editor
+            var output = document.getElementById('output');
+            var outputLabel = output.textContent;
+            output.addEventListener('click', function() {
+                var showing = document.body.classList.toggle('showing-html');
+                if (showing) { document.getElementById('html').textContent = editor.getHtml(); }
+                output.textContent = showing ? 'Back to the editor' : outputLabel;
+            });
+        });
+    </script>
+
+    <title>Grid Editor example - text editors</title>
+    <style>
+        /* The html, shown in place of the editor and its toolbar */
+        body:not(.showing-html) #html { display: none; }
+        .showing-html #myGrid, .showing-html .ge-mainControls { display: none; }
+    </style>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container pt-3">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container py-3">
+        <h2>Text editors</h2>
+        <p class="text-body-secondary">
+            What edits the text in a column is a plugin: TinyMCE, CKEditor and
+            summernote ship with grid-editor, and any other is a plugin of
+            your own. This page loads all four; <code>content_types</code>
+            chooses the shipped ones an editor offers, and the
+            <code>plugins</code> setting the page's own.
+        </p>
+
+        <ul class="nav nav-pills mb-3">
+            <li class="nav-item"><a class="nav-link" data-mode="tinymce" href="?editor=tinymce">TinyMCE</a></li>
+            <li class="nav-item"><a class="nav-link" data-mode="ckeditor" href="?editor=ckeditor">CKEditor 5</a></li>
+            <li class="nav-item"><a class="nav-link" data-mode="summernote" href="?editor=summernote">Summernote</a></li>
+            <li class="nav-item"><a class="nav-link" data-mode="simpletext" href="?editor=simpletext">Simple text</a></li>
+            <li class="nav-item"><a class="nav-link" data-mode="all" href="?editor=all">All together</a></li>
+        </ul>
+
+        <p class="text-body-secondary" data-mode="tinymce" hidden>
+            <a href="https://www.tiny.cloud/">TinyMCE</a> 7, inline:
+            <code>content_types: ['tinymce']</code>, and its config in
+            <code>tinymce.config</code>.
+        </p>
+        <p class="text-body-secondary" data-mode="ckeditor" hidden>
+            <a href="https://ckeditor.com/ckeditor-5/">CKEditor 5</a>, its
+            browser build: <code>content_types: ['ckeditor']</code>, and
+            anything <code>InlineEditor.create</code> takes in
+            <code>ckeditor.config</code>. It does not start without a
+            <code>licenseKey</code>, and the console says why.
+        </p>
+        <p class="text-body-secondary" data-mode="summernote" hidden>
+            <a href="https://summernote.org/">Summernote</a> 0.9, the
+            Bootstrap 5 build: <code>content_types: ['summernote']</code>, and
+            its options in <code>summernote.config</code>. Summernote needs
+            jQuery; grid-editor does not, and drives it without the jQuery
+            adapter.
+        </p>
+        <p class="text-body-secondary" data-mode="simpletext" hidden>
+            No shipped editor offered: <code>content_types: []</code>. The text
+            editor is the plugin in this page's source, a few dozen lines on
+            the browser's <code>contenteditable</code>, declaring its type
+            with the <code>textTypes</code> hook. See
+            <a href="../docs/plugins.md#text">docs/plugins.md</a>.
+        </p>
+        <p class="text-body-secondary" data-mode="all" hidden>
+            Every editor at once. The toolbar has a <em>Text</em> button per
+            editor, a click on the plain content asks which one to make it,
+            and each text opens with the editor it was saved with.
+        </p>
+
+        <div id="myGrid"></div>
+
+        <p class="mt-4">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="output">Show getHtml</button>
+        </p>
+        <pre class="bg-body-tertiary border rounded p-3 small" id="html"></pre>
+    </div>
+</body>
+</html>

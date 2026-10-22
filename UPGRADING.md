@@ -388,7 +388,7 @@ same from it.
   that loads none of the shipped editors: `texts` is their own registry. An
   editor of your own is a feature plugin that declares its type with
   `textTypes`; [docs/plugins.md](docs/plugins.md#text) has the contract, and
-  [example/custom_editor.html](example/custom_editor.html) is one in full.
+  [example/text-editors.html](example/text-editors.html?editor=simpletext) has one in full.
 
 * __No *Add text* tool in the columns' drawers.__ 5.3 put one there; a text
   is added with the toolbar's *Text* button, dragged into the column, or

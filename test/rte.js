@@ -303,8 +303,8 @@ async function tinymceTests(t) {
     // rather than leaning on the main bundle's copy
     var usingCopy = [];
     for (var example of ['basic', 'autosave', 'wrap_content', 'clipboard', 'attributes', 'elements',
-        'containers', 'ckeditor', 'summernote']) {
-        var loaded = await openPage(t, '/example/' + example + '.html', null, example);
+        'containers', 'text-editors.html?editor=ckeditor', 'text-editors.html?editor=summernote', 'text-editors.html?editor=all']) {
+        var loaded = await openPage(t, '/example/' + (example.indexOf('.') === -1 ? example + '.html' : example), null, example);
         var copies = await loaded.eval(`
             return Object.keys(GridEditor.texts).filter(function(type) {
                 return GridEditor.texts[type].bundled &&
@@ -535,11 +535,11 @@ async function containerTests(t) {
  * the other two examples through one edit cycle as well.
  */
 async function otherEditorTests(t) {
-    var page = await openPage(t, '/example/ckeditor.html',
+    var page = await openPage(t, '/example/text-editors.html?editor=ckeditor',
         `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page');
 
     var loaded = await page.eval(`return { version: CKEDITOR.version, v4: typeof CKEDITOR.inline };`);
-    t.check('example/ckeditor.html loads CKEditor 5, not CKEditor 4',
+    t.check('example/text-editors.html loads CKEditor 5, not CKEditor 4',
         /^48\./.test(loaded.version) && loaded.v4 === 'undefined', loaded);
 
     // A CKEditor of the page's own, outside the grid: closing a content area
@@ -608,7 +608,7 @@ async function otherEditorTests(t) {
 
     // on.instanceReady was CKEditor 4's, and 8.0 stops calling it: on goes
     // to CKEditor 5 as it is
-    var ready = await openPage(t, '/example/ckeditor.html',
+    var ready = await openPage(t, '/example/text-editors.html?editor=ckeditor',
         `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page, instanceReady');
     await ready.eval(`
         window.readyCalls = 0;
@@ -622,7 +622,8 @@ async function otherEditorTests(t) {
             return create.apply(this, arguments);
         };
         ge().destroy();
-        new GridEditor('#myGrid', { content_types: ['ckeditor'], ckeditor: { config: {
+        // plugins: [] leaves the page's own text editor out, as its ckeditor mode does
+        new GridEditor('#myGrid', { content_types: ['ckeditor'], plugins: [], ckeditor: { config: {
             licenseKey: 'GPL',
             on: { instanceReady: function() { window.readyCalls++; } },
         } } });
@@ -639,11 +640,11 @@ async function otherEditorTests(t) {
         instanceReady.calls === 0 && instanceReady.passed === true && instanceReady.warned === 0, instanceReady);
 
     // CKEditor 5 does not start without a licenseKey, and says why
-    var unlicensed = await openPage(t, '/example/ckeditor.html',
+    var unlicensed = await openPage(t, '/example/text-editors.html?editor=ckeditor',
         `window.CKEDITOR && CKEDITOR.InlineEditor && window.GridEditor && GridEditor.get('#myGrid')`, 'ckeditor page, no key');
     await unlicensed.eval(`
         ge().destroy();
-        new GridEditor('#myGrid', { content_types: ['ckeditor'], ckeditor: { config: {} } });
+        new GridEditor('#myGrid', { content_types: ['ckeditor'], plugins: [], ckeditor: { config: {} } });
         return true;
     `);
     await unlicensed.click('.ge-content');
@@ -658,15 +659,15 @@ async function otherEditorTests(t) {
         noKeyErrors.some(function(text) { return /CKEditor could not start: license-key-missing/.test(text); }),
         { state: noKey, errors: noKeyErrors.slice(0, 3) });
 
-    // Summernote needs jQuery itself, so its page loads jQuery 4 and
+    // Summernote needs jQuery itself, so the page loads jQuery 4 and
     // summernote - and not the adapter: the editor is driven natively. And
     // summernote 0.9.1 calls $.now(), which jQuery 4 removed: the plugin gives
     // it back, so summernote opens at all
-    var sn = await openPage(t, '/example/summernote.html',
+    var sn = await openPage(t, '/example/text-editors.html?editor=summernote',
         `window.jQuery && jQuery.fn.summernote && window.GridEditor && GridEditor.get('#myGrid')`, 'summernote page');
 
     var page6 = await sn.eval(`return { jquery: jQuery.fn.jquery, adapter: typeof jQuery.fn.gridEditor };`);
-    t.check('example/summernote.html has jQuery 4 and summernote, and no jQuery adapter',
+    t.check('example/text-editors.html has jQuery 4 and summernote, and no jQuery adapter',
         /^4\./.test(page6.jquery) && page6.adapter === 'undefined', page6);
 
     var snState = `return {
@@ -827,7 +828,8 @@ async function textAttributeTests(t) {
     var results = {};
 
     for (var example of ['basic', 'ckeditor', 'summernote']) {
-        var page = await openPage(t, '/example/' + example + '.html', null, example);
+        var url = example === 'basic' ? '/example/basic.html' : '/example/text-editors.html?editor=' + example;
+        var page = await openPage(t, url, null, example);
         await page.eval(`document.querySelector('#myGrid .ge-content').id = 'kept-id'; return true;`);
         await page.click('#kept-id');
         await sleep(1800);
@@ -883,8 +885,8 @@ async function textAttributeTests(t) {
 async function keepEditingTests(t) {
     var pages = [
         { name: 'tinymce', url: '/example/basic.html', ready: `window.tinymce && window.GridEditor && GridEditor.get('#myGrid')` },
-        { name: 'ckeditor', url: '/example/ckeditor.html', ready: `window.CKEDITOR && window.GridEditor && GridEditor.get('#myGrid')` },
-        { name: 'summernote', url: '/example/summernote.html', ready: `window.jQuery && jQuery.fn.summernote && window.GridEditor && GridEditor.get('#myGrid')` },
+        { name: 'ckeditor', url: '/example/text-editors.html?editor=ckeditor', ready: `window.CKEDITOR && window.GridEditor && GridEditor.get('#myGrid')` },
+        { name: 'summernote', url: '/example/text-editors.html?editor=summernote', ready: `window.jQuery && jQuery.fn.summernote && window.GridEditor && GridEditor.get('#myGrid')` },
     ];
 
     for (var each of pages) {

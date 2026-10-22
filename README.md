@@ -33,8 +33,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/autocols.html](example/autocols.html) | Equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/autocols.html) |
 | [example/utilities.html](example/utilities.html) | Bootstrap's responsive utilities, edited per breakpoint | [live](https://themarioga.github.io/grid-editor/example/utilities.html) |
 | [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher | [live](https://themarioga.github.io/grid-editor/example/locale.html) |
-| [example/ckeditor.html](example/ckeditor.html) | CKEditor instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/ckeditor.html) |
-| [example/summernote.html](example/summernote.html) | Summernote instead of tinyMCE | [live](https://themarioga.github.io/grid-editor/example/summernote.html) |
+| [example/text-editors.html](example/text-editors.html) | TinyMCE, CKEditor, summernote and a text editor of your own, one at a time or together | [live](https://themarioga.github.io/grid-editor/example/text-editors.html) |
 | [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
 | [example/history.html](example/history.html) | The history plugin: undo and redo, with the keyboard and the toolbar | [live](https://themarioga.github.io/grid-editor/example/history.html) |
@@ -1189,15 +1188,15 @@ same way, `codemirror.config` included, and a textarea without it.
 
 Grid editor comes with support for the following rich text editors (RTEs), each a plugin of its own to load after the editor:
 * [TinyMCE](http://www.tinymce.com/) 7 - `dist/plugins/grideditor.tinymce.min.js` - [(example)](example/basic.html)
-* [summernote](http://summernote.org/) 0.9 - `dist/plugins/grideditor.summernote.min.js` - [(example)](example/summernote.html)
-* [CKEditor](http://ckeditor.com/) 5 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/ckeditor.html)
+* [summernote](http://summernote.org/) 0.9 - `dist/plugins/grideditor.summernote.min.js` - [(example)](example/text-editors.html?editor=summernote)
+* [CKEditor](http://ckeditor.com/) 5 - `dist/plugins/grideditor.ckeditor.min.js` - [(example)](example/text-editors.html?editor=ckeditor)
 
 A text editor is chosen by `content_types`, not by the `plugins` setting: a page
 that names its containers in `plugins` still has its editor. Summernote 0.9.1
 calls `$.now()`, which jQuery 4 removed; its plugin gives it back, and only if
 it is missing. Another editor is a plugin of your own:
 [docs/plugins.md](docs/plugins.md#text) says how, and
-[example/custom_editor.html](example/custom_editor.html) is one.
+[example/text-editors.html](example/text-editors.html?editor=simpletext) is one.
 
 __`content_types`:__ Specify the RTEs to offer, in order. Valid values: any of `'tinymce'`, `'summernote'`, `'ckeditor'` whose plugin is loaded. Default value: every text editor loaded, in the order the page loaded them.
 
@@ -1209,7 +1208,7 @@ new GridEditor('#myGrid', {
 
 __`ckeditor.config`:__ Specify CKEditor 5 config, when using the `ckeditor` `content_types`:
 anything `InlineEditor.create` takes. See the [CKEditor documentation](https://ckeditor.com/docs/ckeditor5/latest/).
-Also check out the [ckeditor example](example/ckeditor.html).
+Also check out the [ckeditor example](example/text-editors.html?editor=ckeditor).
 
 Load CKEditor 5's browser build, which puts it on the page as `window.CKEDITOR`:
 
@@ -1247,7 +1246,7 @@ new GridEditor('#myGrid', {
 
 __`summernote.config`:__ Specify summernote config, when using the `summernote` `content_types`.
 See the [summernote documentation](http://summernote.org/deep-dive/). 
-Also check out the [summernote example](example/summernote.html).
+Also check out the [summernote example](example/text-editors.html?editor=summernote).
 
 ```javascript
 new GridEditor('#myGrid', {

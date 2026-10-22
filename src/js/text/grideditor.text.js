@@ -15,7 +15,7 @@
  *
  * Each editor registers under GridEditor.texts, which is this file's own
  * registry and not a contract: an editor of a host's own is a feature plugin
- * of its own, as example/custom_editor.html shows.
+ * of its own, as example/text-editors.html shows.
  */
 import { GridEditor } from '../grideditor.js';
 import * as dom from '../dom.js';

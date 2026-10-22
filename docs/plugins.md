@@ -578,8 +578,8 @@ with `inColumn: true` if it makes new ones, a click handler that opens its
 editor, and `onBeforeDeinit` to close it - and a `cleanMarkup` that reads its
 open texts on the copy, or the canvas leaves editing whenever it is read
 with `keepEditing`.
-[example/custom_editor.html](../example/custom_editor.html) is one, in full,
-on the browser's `contenteditable`, on a page that loads none of the shipped
+[example/text-editors.html](../example/text-editors.html?editor=simpletext) has one, in
+full, on the browser's `contenteditable`: alone, or beside the shipped
 editors.
 
 `GridEditor.texts` is the shipped editors' own registry, not a contract.
