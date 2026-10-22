@@ -197,6 +197,77 @@ async function markerTests(t) {
         afterCancel);
 }
 
+/**
+ * A drop on the marker at the foot of a nested column lands in that column.
+ * The marker and the gaps the drag opens take room: read once they have gone,
+ * the pointer is past the nested column, over the column it sits in. No
+ * bottom padding on the nested column, as in a tab's, so nothing of it is
+ * left under the pointer.
+ */
+async function nestedDropTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    await page.eval(canvasWith() + `
+        document.querySelector('#first > .column').insertAdjacentHTML('beforeend',
+            '<div class="row" id="nested"><div class="column col-12" id="inner" style="padding-bottom: 0"><div class="ge-content"><p>Inner</p></div></div></div>');
+        return true;
+    `);
+
+    var at = await page.eval(`
+        const box = document.querySelector('.ge-addRowGroup a[data-ge-layout="12"]').getBoundingClientRect();
+        const inner = document.querySelector('#inner').getBoundingClientRect();
+        return {
+            from: { x: box.left + box.width / 2, y: box.top + box.height / 2 },
+            to: { x: inner.left + inner.width / 2, y: inner.bottom - 3 },
+        };
+    `);
+
+    await page.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed', x: at.from.x, y: at.from.y, button: 'left', clickCount: 1,
+    });
+    for (var step = 1; step <= 6; step++) {
+        await page.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x: at.from.x + (at.to.x - at.from.x) * step / 6,
+            y: at.from.y + (at.to.y - at.from.y) * step / 6,
+            button: 'left',
+            buttons: 1,
+        });
+        await sleep(40);
+    }
+
+    // On the marker itself, as a user aims at it
+    var marker = await page.eval(`
+        const marker = document.querySelector('.ge-drop-marker');
+        if (!marker) { return null; }
+        const box = marker.getBoundingClientRect();
+        // Its lower edge: the marker's height and margins are what closes up
+        return { inInner: marker.parentElement.id === 'inner', x: box.left + box.width / 2, y: box.bottom - 1 };
+    `);
+    if (marker) {
+        await page.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved', x: marker.x, y: marker.y, button: 'left', buttons: 1,
+        });
+        await sleep(40);
+    }
+    var release = marker || at.to;
+    await page.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased', x: release.x, y: release.y, button: 'left', clickCount: 1,
+    });
+    await sleep(400);
+
+    var dropped = await page.eval(`
+        return {
+            inInner: document.querySelectorAll('#inner > .row').length,
+            afterNested: document.querySelectorAll('#first > .column > .row').length,
+            log: window.log,
+        };
+    `);
+    t.check('a drop on the marker at the foot of a nested column lands in that column',
+        !!marker && marker.inInner && dropped.inInner === 1 && dropped.afterNested === 1 &&
+        JSON.stringify(dropped.log) === JSON.stringify([['row', 'dragdrop']]),
+        { marker: marker, dropped: dropped });
+}
+
 async function settingTests(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
 
@@ -479,6 +550,7 @@ module.exports = {
     run: async function(t) {
         await paletteTests(t);
         await markerTests(t);
+        await nestedDropTests(t);
         await settingTests(t);
         await iconTests(t);
         await actionTests(t);

@@ -1797,6 +1797,12 @@ function build(instance, baseElem, optionsOrMethod) {
 
                 if (!helper) { return; }
 
+                // Where it lands is read before the canvas closes up: the
+                // marker and the opened gaps take room, and once they go the
+                // pointer may be over another region - the bottom of a column
+                // in a tab, say, becomes the column the tabs are in
+                var where = dropPlaceAt(up.pageX, up.pageY);
+
                 helper.remove();
                 dom.removeClass(canvas, 'ge-dropping');
                 hideDropMarker();
@@ -1814,7 +1820,6 @@ function build(instance, baseElem, optionsOrMethod) {
                 // nothing to swallow: the next click is a click
                 window.setTimeout(function() { window.removeEventListener('click', swallow, { capture: true }); }, 0);
 
-                var where = dropPlaceAt(up.pageX, up.pageY);
                 if (where) { insertFromToolbar(button, where); }
             }
 

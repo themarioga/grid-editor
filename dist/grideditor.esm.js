@@ -1695,6 +1695,7 @@ function build(instance, baseElem, optionsOrMethod) {
       if (!helper) {
         return;
       }
+      var where = dropPlaceAt(up.pageX, up.pageY);
       helper.remove();
       removeClass(canvas, "ge-dropping");
       hideDropMarker();
@@ -1709,7 +1710,6 @@ function build(instance, baseElem, optionsOrMethod) {
       window.setTimeout(function() {
         window.removeEventListener("click", swallow, { capture: true });
       }, 0);
-      var where = dropPlaceAt(up.pageX, up.pageY);
       if (where) {
         insertFromToolbar(button, where);
       }

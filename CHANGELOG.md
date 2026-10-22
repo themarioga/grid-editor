@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.2.1] - 2026-10-22
+
+### Fixed
+- A toolbar button dropped on the canvas lands where the marker showed. Where
+  it went was worked out once the canvas had closed up, and without the
+  marker and the gaps the drag opens the pointer could be over another
+  region: dropped at the foot of a column in a tab, the block went to the
+  column the tabs were in, after them.
+
 ## [9.2.0] - 2026-10-22
 
 ### Changed

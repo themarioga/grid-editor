@@ -322,10 +322,12 @@ async function activationTests(t) {
         view.md.target === 'b' && view.md.marked === 'b' && view.changes === 0, view);
 
     await page.eval(`start({ toolbar_drag: true }); clickIn('a'); changes.length = 0; return true;`);
-    await page.drag('.ge-addRowGroup a[data-ge-layout="12"]', '#c .ge-content', { yRatio: 0.9 });
+    // Aimed at the top of #c's text: the canvas opens up mid drag and moves
+    // the text down, and the drop goes where the marker shows, before it
+    await page.drag('.ge-addRowGroup a[data-ge-layout="12"]', '#c .ge-content', { yRatio: 0.1 });
     var dropped = await page.eval(`return { c: blocks(q('#c')), target: target(), changes: changes.length, a: blocks(q('#a')) };`);
     t.check('a toolbar button dropped somewhere goes there, and the target stays (AC-20)',
-        dropped.c === 'text,row:1' && dropped.a === 'text' && dropped.target === 'a' && dropped.changes === 0, dropped);
+        dropped.c === 'row:1,text' && dropped.a === 'text' && dropped.target === 'a' && dropped.changes === 0, dropped);
 
     await page.eval(`start(); clickIn('b'); changes.length = 0; return true;`);
     await page.dragBy('#a > .ge-resize-e', 120, 0);
