@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   promise - goes in as if it had been typed. Without it, the field is the text
   box it was.
 
+### Changed
+- `toolbar_overflow: 'menu'`: the more button comes right after the last add
+  button on the line, joined to it as one more button of its group, rather
+  than at the far end of the room the line had. The buttons on the right stay
+  at the end.
+
 ## [9.0.0-beta.7] - 2026-10-21
 
 ### Added

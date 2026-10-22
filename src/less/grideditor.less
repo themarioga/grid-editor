@@ -109,30 +109,53 @@
         }
     }
 
+    /* As wide as its buttons, so the more button comes right after them;
+       the room left over pushes the right-hand buttons to the end, from
+       the line or, while it shows, from the more button */
     .ge-toolbar-start {
         display: flex;
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         min-width: 0;
+        margin-right: auto;
         overflow: hidden;
 
         /* A group as wide as its buttons and a button as wide as its label:
            squeezed, they would wrap their labels rather than overflow */
         > .btn-group {
             flex: none;
+
+            /* All its buttons behind the more button: no margin left over */
+            &:empty {
+                display: none;
+            }
         }
         .btn {
             white-space: nowrap;
         }
+        .btn.ge-before-more {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+    }
+    .ge-toolbar-overflowing > .ge-toolbar-start {
+        margin-right: 0;
     }
 
     .ge-toolbar-more {
         display: none;
         position: relative;
         flex: none;
-        margin: 0 5px 0 4px;
+        margin: 0 auto 0 -1px;
+        padding-right: 5px;
 
         &.ge-needed {
             display: block;
+        }
+
+        /* Joined to the last button on the line, as in a btn-group */
+        > .btn {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
         }
     }
 
@@ -141,7 +164,7 @@
         position: absolute;
         z-index: 30;
         top: ~"calc(100% + 4px)";
-        right: 0;
+        right: 5px;
         flex-direction: column;
         gap: 6px;
         width: max-content;

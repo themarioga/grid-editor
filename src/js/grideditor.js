@@ -1608,8 +1608,12 @@ function build(instance, baseElem, optionsOrMethod) {
                 // Only the chosen category's, with toolbar_groups: the others
                 // wait in their stash
                 var homes = shownAddButtons();
-                homes.forEach(function(entry) { entry.home.appendChild(entry.button); });
+                homes.forEach(function(entry) {
+                    entry.home.appendChild(entry.button);
+                    dom.removeClass(entry.button, 'ge-before-more');
+                });
                 dom.removeClass(more, 'ge-needed');
+                dom.removeClass(wrapper, 'ge-toolbar-overflowing');
 
                 if (start.scrollWidth <= start.clientWidth) {
                     openOverflow(false);
@@ -1617,10 +1621,16 @@ function build(instance, baseElem, optionsOrMethod) {
                 }
 
                 dom.addClass(more, 'ge-needed');
+                dom.addClass(wrapper, 'ge-toolbar-overflowing');
                 for (var i = homes.length - 1; i >= 0 && start.scrollWidth > start.clientWidth; i--) {
                     var into = spareOf(homes[i].home);
                     into.insertBefore(homes[i].button, into.firstChild);
                 }
+
+                // The more button joins the last button left on the line, as
+                // one more button of its group
+                var onLine = homes.filter(function(entry) { return entry.button.parentNode === entry.home; });
+                if (onLine.length) { dom.addClass(onLine[onLine.length - 1].button, 'ge-before-more'); }
             }
         }
 
