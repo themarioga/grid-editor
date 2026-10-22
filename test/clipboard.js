@@ -1043,8 +1043,8 @@ async function shortcutPlaceTests(t) {
         const taken = press('v');
         return { target: ge.getActiveTarget(), taken: taken, adds: adds.length };
     `);
-    t.check('with the target cleared, a text is pasted nowhere (AC-21 rev v2; active-target-selection AC-27)',
-        textSelected.target === null && !textSelected.taken && textSelected.adds === 0, textSelected);
+    t.check('with the target cleared, a text is pasted at the end of the canvas (AC-21 rev v3; active-target-selection AC-27)',
+        textSelected.target === null && textSelected.taken && textSelected.adds === 1, textSelected);
 
     var columnInColumn = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
@@ -1094,19 +1094,36 @@ async function shortcutPlaceTests(t) {
         ge.setActiveTarget(null);
         ge.setActiveTarget(null);
         const taken = press('v');
-        return { taken: taken, adds: adds.length };
+        return { taken: taken, adds: adds.slice(), canvas: blocks(q('#myGrid')) };
     `);
-    t.check('with no target, Ctrl+V pastes nothing (AC-26 rev v2)', !nothing.taken && nothing.adds === 0, nothing);
+    t.check('with no target, Ctrl+V pastes at the end of the canvas (AC-26 rev v3)',
+        nothing.taken && nothing.adds.length === 1 && nothing.adds[0].kind === 'row' && nothing.adds[0].parent === 'myGrid' &&
+        nothing.canvas === 'row:2,section,row:2', nothing);
 
     var noTarget = await page.eval(`
         start({ settings_panel: 'offcanvas', active_target: true });
-        copyByTool('#r1');
+        copyText('b');
         use(q('#myGrid'));
         const taken = press('v');
-        return { target: ge.getActiveTarget(), taken: taken, adds: adds.length };
+        const last = q('#myGrid').lastElementChild;
+        return { target: ge.getActiveTarget(), taken: taken, adds: adds.slice(), canvas: blocks(q('#myGrid')),
+            wrapped: last.matches('.row') && blocks(last.querySelector(':scope > .column')) === 'text' };
     `);
-    t.check('with active_target and no target, Ctrl+V pastes nothing, not even at the end of the canvas (AC-27)',
-        noTarget.target === null && !noTarget.taken && noTarget.adds === 0, noTarget);
+    t.check('with active_target and no target, a text pasted goes at the end of the canvas in a row and column of its own (AC-27 rev)',
+        noTarget.target === null && noTarget.taken && noTarget.adds.length === 1 && noTarget.adds[0].kind === 'text' &&
+        noTarget.canvas === 'row:2,section,row:1' && noTarget.wrapped, noTarget);
+
+    var topCut = await page.eval(`
+        start();
+        use(drawer('r1'));
+        const cut = press('x');
+        await new Promise(function(resolve) { setTimeout(resolve, 900); });
+        const target = ge.getActiveTarget();
+        const taken = press('v');
+        return { cut: cut, target: target, taken: taken, canvas: blocks(q('#myGrid')) };
+    `);
+    t.check('a top-level row cut with Ctrl+X comes back at the end of the canvas with Ctrl+V',
+        topCut.cut && topCut.target === null && topCut.taken && topCut.canvas === 'section,row:2', topCut);
 
     var escaped = await page.eval(`
         start();

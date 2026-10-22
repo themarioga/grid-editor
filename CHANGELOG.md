@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.2.0] - 2026-10-22
+
+### Changed
+- clipboard: Ctrl+V with no target pastes at the end of the canvas, in the
+  row and column it lacks, as the toolbar's paste buttons do, rather than
+  doing nothing. A top-level row or section cut with Ctrl+X comes back with
+  Ctrl+V.
+
+### Added
+- `ge.placeInTarget(node, kind, source, { fallback: 'canvas' })` on the plugin
+  handle: with no target, the node goes at the end of the canvas rather than
+  nowhere.
+
 ## [9.1.1] - 2026-10-22
 
 ### Fixed

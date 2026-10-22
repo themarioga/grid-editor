@@ -875,7 +875,8 @@ fires `before-delete`, `after-copy` (with `cut: true`) and `after-delete`, and
 the two deletes have `source: 'cut'`. With `active_target`, the target goes to
 what held the node - a text's column, a column's row, a row's column or section,
 a container's pane's container - so a paste right after puts it back there; a
-top-level row or section leaves no target. A cut is one step for the history
+top-level row or section leaves no target, and a paste then puts it at the end
+of the canvas. A cut is one step for the history
 plugin, and what was cut stays in the clipboard after an undo. Tabs and
 accordion items have no *Cut*, as they have no *Copy*.
 
@@ -884,8 +885,9 @@ shortcuts too, Ctrl+C, Ctrl+X and Ctrl+V (⌘C, ⌘X and ⌘V on a Mac). Ctrl+C 
 the target, as its *Copy* tool would, whatever its level: a container, a row, an
 element, a text. Ctrl+X cuts it, as its *Cut* tool would. Ctrl+V pastes into the
 target as the toolbar adds to it - at the end of what it holds, in the row or the
-column it lacks, a section after the block it is in. With no target, they do
-nothing. They go to the editor used last, and leave the keys to the browser while
+column it lacks, a section after the block it is in. With no target, Ctrl+V
+pastes at the end of the canvas, as the toolbar's paste buttons do, and Ctrl+C
+and Ctrl+X do nothing. They go to the editor used last, and leave the keys to the browser while
 a field or a text is being edited, while text is selected (for Ctrl+C and
 Ctrl+X), while a settings panel, a dialog or the delete confirmation is open, and
 outside editing. They use the same store as the tools: the system clipboard is

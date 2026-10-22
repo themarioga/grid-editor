@@ -253,12 +253,16 @@ async function handleTests(t) {
         const adds = [];
         q('#myGrid').addEventListener('grideditor:after-add', function(e) { adds.push(e.detail.kind + ':' + e.detail.source + ':' + (e.detail.parent && e.detail.parent.id)); });
         const before = window.probe.placeInTarget(GridEditor.get('#myGrid').createRow([12]), 'row', 'api');
+        const loose = document.createElement('p');
+        const fallback = window.probe.placeInTarget(loose, 'element', 'api', { fallback: 'canvas' });
+        const atEnd = !!fallback && fallback === loose && q('#myGrid').lastElementChild.matches('.row') && q('#myGrid').lastElementChild.contains(loose);
+        if (fallback) { q('#myGrid').lastElementChild.remove(); }
         ge.setActiveTarget('#r1');
         const row = document.createElement('div');
         row.className = 'row';
         const made = window.probe.placeInTarget(row, 'row', 'paste');
         const last = Array.from(q('#r1').children).filter(function(c) { return c.matches('.column'); }).pop();
-        const result = { before: before, made: made === row, inColumn: row.parentElement === last, columns: q('#r1').querySelectorAll(':scope > .column').length, adds: adds.slice() };
+        const result = { before: before, atEnd: atEnd, made: made === row, inColumn: row.parentElement === last, columns: q('#r1').querySelectorAll(':scope > .column').length, adds: adds.slice() };
 
         const box = ge.createContainer('box', { appendTo: '#a' });
         ge.setActiveTarget(box);
@@ -272,6 +276,8 @@ async function handleTests(t) {
     t.check('placeInTarget on the handle adds a node to the target as the toolbar would, wrapped in the column it lacks (active-target-selection §5, AC-11)',
         placed.before === null && placed.made && placed.inColumn && placed.columns === 3 &&
         JSON.stringify(placed.adds.slice(-1)) === JSON.stringify(['row:paste:r1']), placed);
+    t.check('with no target and fallback: \'canvas\', placeInTarget adds at the end of the canvas in the row and column it lacks',
+        placed.atEnd, placed);
     t.check('a container with no regionOf adds to its column when it is the target (active-target-selection D14)',
         placed.boxAddsToColumn, placed);
 

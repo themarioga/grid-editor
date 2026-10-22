@@ -24,7 +24,8 @@
  * `source: 'paste'` - so a host can turn one away.
  *
  * With active_target (which the sidebar turns on), Ctrl+C copies the target,
- * Ctrl+X cuts it and Ctrl+V pastes into it, as the toolbar adds to it.
+ * Ctrl+X cuts it and Ctrl+V pastes into it, as the toolbar adds to it, or
+ * with no target at the end of the canvas.
  * `clipboard: { shortcuts: false }` turns them off. They go through the same
  * store as the tools, never the system clipboard.
  */
@@ -233,13 +234,14 @@ GridEditor.features.clipboard = function(ge) {
      * Ctrl+V: into the target, where the toolbar would add it - at the end
      * of what the target holds, in the row or column it lacks, a section on
      * the canvas after the block the target is in. What the target cannot
-     * take is not pasted anywhere else.
+     * take is not pasted anywhere else. With no target, at the end of the
+     * canvas, as the toolbar's paste buttons do.
      */
     function pasteByShortcut() {
         var clip = read();
-        if (!clip || !ge.getActiveTarget() || !available(clip)) { return false; }
+        if (!clip || !available(clip)) { return false; }
 
-        var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, 'paste');
+        var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, 'paste', { fallback: 'canvas' });
         if (made && made.scrollIntoView) { made.scrollIntoView({ behavior: 'smooth' }); }
 
         return true;

@@ -246,10 +246,10 @@
     }
     function pasteByShortcut() {
       var clip = read();
-      if (!clip || !ge.getActiveTarget() || !available(clip)) {
+      if (!clip || !available(clip)) {
         return false;
       }
-      var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, "paste");
+      var made = ge.placeInTarget(ge.freshNode(clip.html), clip.kind, "paste", { fallback: "canvas" });
       if (made && made.scrollIntoView) {
         made.scrollIntoView({ behavior: "smooth" });
       }

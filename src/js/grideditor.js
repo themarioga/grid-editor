@@ -1902,13 +1902,16 @@ function build(instance, baseElem, optionsOrMethod) {
 
         /**
          * A node already made - a paste, say - added to the active target,
-         * as the toolbar's buttons add what they make. Null with no target,
-         * or when a handler canceled the add.
+         * as the toolbar's buttons add what they make. With no target, at
+         * the end of the canvas when `options.fallback` is 'canvas', in the
+         * row and column it lacks; otherwise null, as when a handler
+         * canceled the add.
          */
-        function placeInTarget(node, kind, source) {
-            if (!activeTarget) { return null; }
+        function placeInTarget(node, kind, source, options) {
+            var toCanvas = !activeTarget && (options || {}).fallback === 'canvas';
+            if (!activeTarget && !toCanvas) { return null; }
 
-            var where = { region: effectiveRegion(activeTarget), before: null };
+            var where = { region: toCanvas ? canvas : effectiveRegion(activeTarget), before: null };
             var placed = wrapFor(where.region, node);
 
             // Wrapped in a column, a block still has to be one the column

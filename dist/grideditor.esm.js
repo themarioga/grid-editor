@@ -1770,11 +1770,12 @@ function build(instance, baseElem, optionsOrMethod) {
     var top = ancestors[0] || null;
     return { region: canvas, before: top ? top.nextElementSibling : null };
   }
-  function placeInTarget(node, kind, source) {
-    if (!activeTarget) {
+  function placeInTarget(node, kind, source, options) {
+    var toCanvas = !activeTarget && (options || {}).fallback === "canvas";
+    if (!activeTarget && !toCanvas) {
       return null;
     }
-    var where = { region: effectiveRegion(activeTarget), before: null };
+    var where = { region: toCanvas ? canvas : effectiveRegion(activeTarget), before: null };
     var placed = wrapFor(where.region, node);
     var holder = placed === node ? null : node.parentElement;
     if (!acceptsBlock(where.region, placed) || holder && !acceptsBlock(holder, node)) {
