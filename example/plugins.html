@@ -125,8 +125,14 @@
             document.querySelectorAll('.plugin-choice').forEach(function(box) {
                 box.addEventListener('change', start);
             });
-            document.getElementById('output').addEventListener('click', function() {
-                document.getElementById('html').textContent = GridEditor.get('#myGrid').getHtml();
+            // The button shows the html in place of the editor, and pressed again,
+            // the editor
+            var output = document.getElementById('output');
+            var outputLabel = output.textContent;
+            output.addEventListener('click', function() {
+                var showing = document.body.classList.toggle('showing-html');
+                if (showing) { document.getElementById('html').textContent = GridEditor.get('#myGrid').getHtml(); }
+                output.textContent = showing ? 'Back to the editor' : outputLabel;
             });
 
             start();
@@ -134,6 +140,11 @@
     </script>
 
     <title>Grid Editor plugins example</title>
+    <style>
+        /* The html, shown in place of the editor and its toolbar */
+        body:not(.showing-html) #html { display: none; }
+        .showing-html #myGrid, .showing-html .ge-mainControls { display: none; }
+    </style>
 </head>
 <body>
     <!-- Back to the demo index -->

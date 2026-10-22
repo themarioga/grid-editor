@@ -46,13 +46,23 @@
                 }
             });
 
+            // The button shows the html in place of the editor, and pressed again,
+            // the editor
+            var outputLabel = $('#output').text();
             $('#output').on('click', function() {
-                $('#html').text($('#myGrid').gridEditor('getHtml'));
+                var showing = $('body').toggleClass('showing-html').hasClass('showing-html');
+                if (showing) { $('#html').text($('#myGrid').gridEditor('getHtml')); }
+                $(this).text(showing ? 'Back to the editor' : outputLabel);
             });
         });
     </script>
 
     <title>Grid Editor jQuery API example</title>
+    <style>
+        /* The html, shown in place of the editor and its toolbar */
+        body:not(.showing-html) #html { display: none; }
+        .showing-html #myGrid, .showing-html .ge-mainControls { display: none; }
+    </style>
 </head>
 <body>
     <!-- Back to the demo index -->
