@@ -777,10 +777,15 @@
       }
       return !(hasClass(node, "row") && style.flexDirection === "row" && style.flexWrap === "wrap");
     }
-    function measure(node, drawer) {
-      var room = Math.ceil(drawer.offsetHeight) + GAP;
+    function roomOf(drawer) {
+      return Math.ceil(drawer.offsetHeight) + GAP;
+    }
+    function place(node, room) {
       rule(room);
       node.setAttribute(OUT_ATTR, String(room));
+    }
+    function measure(node, drawer) {
+      place(node, roomOf(drawer));
     }
     function watch(drawer) {
       if (typeof ResizeObserver === "undefined") {
@@ -799,23 +804,31 @@
       observer.observe(drawer);
     }
     function mark2(scope) {
-      selfAndAll(scope, NODES2).forEach(function(node) {
+      var nodes = selfAndAll(scope, NODES2).map(function(node) {
         var drawer = child(node, ".ge-tools-drawer");
-        if (!drawer) {
-          return;
-        }
-        if (laysOut(node)) {
-          addClass(node, OUT_CLASS);
-          measure(node, drawer);
-          watch(drawer);
-        } else if (hasClass(node, OUT_CLASS)) {
-          removeClass(node, OUT_CLASS);
-          node.removeAttribute(OUT_ATTR);
-          dropEmptyClass(node);
+        return drawer ? { node, drawer, out: laysOut(node) } : null;
+      }).filter(Boolean);
+      var out = nodes.filter(function(entry) {
+        return entry.out;
+      });
+      nodes.forEach(function(entry) {
+        if (entry.out) {
+          addClass(entry.node, OUT_CLASS);
+        } else if (hasClass(entry.node, OUT_CLASS)) {
+          removeClass(entry.node, OUT_CLASS);
+          entry.node.removeAttribute(OUT_ATTR);
+          dropEmptyClass(entry.node);
           if (observer) {
-            observer.unobserve(drawer);
+            observer.unobserve(entry.drawer);
           }
         }
+      });
+      out.forEach(function(entry) {
+        entry.room = roomOf(entry.drawer);
+      });
+      out.forEach(function(entry) {
+        place(entry.node, entry.room);
+        watch(entry.drawer);
       });
     }
     function unmarkNodes(root) {

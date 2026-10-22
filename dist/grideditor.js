@@ -1168,7 +1168,23 @@
       createMainControls();
       watchDrawers();
       var signal = { signal: lifetime.signal };
-      window.addEventListener("scroll", onScroll, signal);
+      var scrollFrame = null;
+      window.addEventListener("scroll", function() {
+        if (scrollFrame !== null) {
+          return;
+        }
+        scrollFrame = window.requestAnimationFrame(function() {
+          scrollFrame = null;
+          if (!destroyed && mainControls) {
+            onScroll();
+          }
+        });
+      }, signal);
+      lifetime.signal.addEventListener("abort", function() {
+        if (scrollFrame !== null) {
+          window.cancelAnimationFrame(scrollFrame);
+        }
+      });
       delegate(canvas, "click", ".ge-content", onContentClick, signal);
       if (settings.active_target) {
         var pressed = null;
@@ -2231,19 +2247,27 @@
       return names;
     }
     function copyCanvas() {
-      var copy = canvas.cloneNode(true);
       var toLive = /* @__PURE__ */ new Map();
       var toCopy = /* @__PURE__ */ new Map();
-      var live = document.createTreeWalker(canvas, NodeFilter.SHOW_ELEMENT);
-      var copied = document.createTreeWalker(copy, NodeFilter.SHOW_ELEMENT);
-      var a = live.currentNode;
-      var b = copied.currentNode;
-      while (a && b) {
-        toLive.set(b, a);
-        toCopy.set(a, b);
-        a = live.nextNode();
-        b = copied.nextNode();
+      function copyNode(live) {
+        var copied = live.cloneNode(live.nodeName === "TEMPLATE");
+        if (live.nodeType !== 1) {
+          return copied;
+        }
+        toLive.set(copied, live);
+        toCopy.set(live, copied);
+        if (live.nodeName === "TEMPLATE") {
+          return copied;
+        }
+        for (var child2 = live.firstChild; child2; child2 = child2.nextSibling) {
+          if (child2.nodeType === 1 && hasClass(child2, "ge-tools-drawer")) {
+            continue;
+          }
+          copied.appendChild(copyNode(child2));
+        }
+        return copied;
       }
+      var copy = copyNode(canvas);
       return {
         root: copy,
         liveOf: function(node) {
@@ -3476,15 +3500,15 @@
       }
       function flush() {
         frame = null;
-        var drawers = Array.from(due);
-        due.clear();
-        drawers.forEach(function(drawer) {
-          if (!drawer.isConnected) {
-            drawerResizes.unobserve(drawer);
-            return;
+        var drawers = Array.from(due).filter(function(drawer) {
+          if (drawer.isConnected) {
+            return true;
           }
-          fitDrawer(drawer);
+          drawerResizes.unobserve(drawer);
+          return false;
         });
+        due.clear();
+        fitDrawers(drawers);
       }
       var drawerResizes = new window.ResizeObserver(function(entries) {
         entries.forEach(function(entry) {
@@ -3526,36 +3550,58 @@
         }
       });
     }
-    function fitDrawer(drawer) {
-      var tools = children(drawer, "a").filter(function(tool) {
-        return !hasClass(tool, "ge-drawer-more");
-      });
-      var expanded = hasClass(drawer, "ge-drawer-expanded");
-      removeClass(drawer, "ge-drawer-overflow ge-drawer-expanded");
-      tools.forEach(function(tool) {
-        removeClass(tool, "ge-tool-overflow");
-      });
-      if (!drawerOverflows(drawer, tools)) {
-        return;
-      }
-      addClass(drawer, "ge-drawer-overflow");
-      if (!child(drawer, ".ge-drawer-more")) {
-        createTool(drawer, t("tool.more"), "ge-drawer-more", "bi bi-three-dots", function() {
-          toggleClass(drawer, "ge-drawer-expanded");
+    function fitDrawers(drawers) {
+      var fits = drawers.map(function(drawer) {
+        var fit = {
+          drawer,
+          tools: children(drawer, "a").filter(function(tool) {
+            return !hasClass(tool, "ge-drawer-more");
+          }),
+          expanded: hasClass(drawer, "ge-drawer-expanded")
+        };
+        removeClass(drawer, "ge-drawer-overflow ge-drawer-expanded");
+        fit.tools.forEach(function(tool) {
+          removeClass(tool, "ge-tool-overflow");
         });
-      }
-      for (var i = tools.length - 1; i >= 0 && drawerOverflows(drawer, tools); i--) {
-        addClass(tools[i], "ge-tool-overflow");
-      }
-      toggleClass(drawer, "ge-drawer-expanded", expanded);
-    }
-    function drawerOverflows(drawer, tools) {
-      var style = window.getComputedStyle(drawer);
-      var limit = drawer.getBoundingClientRect().right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
-      return tools.some(function(tool) {
-        var rects = tool.getClientRects();
-        return rects.length > 0 && rects[0].right > limit + 0.5;
+        return fit;
       });
+      var over = fits.filter(function(fit) {
+        fit.rights = fit.tools.map(function(tool) {
+          var rects = tool.getClientRects();
+          return rects.length ? rects[0].right : null;
+        });
+        return overflows(fit, roomOf(fit.drawer));
+      });
+      over.forEach(function(fit) {
+        addClass(fit.drawer, "ge-drawer-overflow");
+      });
+      over.forEach(function(fit) {
+        fit.room = roomOf(fit.drawer);
+      });
+      over.forEach(function(fit) {
+        for (var i = fit.tools.length - 1; i >= 0 && overflows(fit, fit.room, i); i--) {
+          addClass(fit.tools[i], "ge-tool-overflow");
+        }
+        if (!child(fit.drawer, ".ge-drawer-more")) {
+          createTool(fit.drawer, t("tool.more"), "ge-drawer-more", "bi bi-three-dots", function() {
+            toggleClass(fit.drawer, "ge-drawer-expanded");
+          });
+        }
+        toggleClass(fit.drawer, "ge-drawer-expanded", fit.expanded);
+      });
+    }
+    function roomOf(drawer) {
+      var style = window.getComputedStyle(drawer);
+      return drawer.getBoundingClientRect().right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+    }
+    function overflows(fit, room, last) {
+      last = last === void 0 ? fit.rights.length - 1 : last;
+      for (var i = 0; i <= last; i++) {
+        if (fit.rights[i] !== null && fit.rights[i] > room + 0.5) {
+          return true;
+        }
+      }
+      return false;
     }
     function createTool(drawer, title, className, iconClass, eventHandlers) {
       var tool = element("a", { title, "class": className });

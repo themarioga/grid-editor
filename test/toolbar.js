@@ -427,6 +427,52 @@ async function overflowTests(t) {
     t.check('the toolbar overflow tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * The toolbar stays at the top of the window while the canvas scrolls under
+ * it, and goes back above the canvas when the page is scrolled back up. Read
+ * once a frame, after the layout: a scroll is also what a getHtml sends when
+ * it takes the drawers off and puts them back.
+ */
+async function scrollTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+    // In the background a page gets no frames
+    await page.send('Page.bringToFront');
+
+    var state = await page.eval(`
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        let html = '';
+        for (let i = 0; i < 60; i++) { html += '<div class="row"><div class="col-12"><p>Row ' + i + '</p></div></div>'; }
+        document.querySelector('#myGrid').innerHTML = html;
+        const ge = window.fixture.init();
+        const wrapper = document.querySelector('.ge-mainControls .ge-wrapper');
+        // The scroll event comes with the next frame, and the toolbar moves in the one after
+        const frame = function() { return new Promise(function(resolve) { setTimeout(resolve, 150); }); };
+        const read = function() { return { fixed: wrapper.classList.contains('ge-fixed'), top: wrapper.classList.contains('ge-top') }; };
+
+        // Bootstrap scrolls smoothly, and the test would read halfway there
+        const scroll = function(y) { window.scrollTo({ top: y, behavior: 'instant' }); };
+        scroll(0);
+        await frame();
+        const start = read();
+        scroll(document.querySelector('#myGrid').offsetTop + 400);
+        await frame();
+        const down = read();
+        ge.getHtml();
+        await frame();
+        const afterGetHtml = read();
+        scroll(0);
+        await frame();
+        const up = read();
+        return { start: start, down: down, afterGetHtml: afterGetHtml, up: up };
+    `);
+    t.check('the toolbar is fixed while the canvas scrolls under it, and back on top when scrolled up',
+        state.start.top && !state.start.fixed && state.down.fixed && !state.down.top &&
+        state.afterGetHtml.fixed && state.up.top && !state.up.fixed, state);
+
+    var errors = page.errors();
+    t.check('the toolbar scroll tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'toolbar',
     description: 'dragging the toolbar buttons onto the canvas, their icons, action items, and the overflow menu',
@@ -437,6 +483,7 @@ module.exports = {
         await iconTests(t);
         await actionTests(t);
         await overflowTests(t);
+        await scrollTests(t);
     },
 };
 

@@ -111,11 +111,67 @@ async function overflowTests(t) {
     t.check('the drawer overflow tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/**
+ * Many drawers fitted in one frame, as a large canvas has them: each keeps
+ * to its line, and hides no more tools than it has to - the first one hidden,
+ * shown again, would not fit.
+ */
+async function manyTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var fitted = await page.eval(`
+        if (window.fixture.editor()) { window.fixture.editor().destroy(); }
+        document.querySelector('.container').style.width = '900px';
+        const widths = [[1, 11], [2, 10], [3, 9], [4, 4, 4], [2, 2, 8], [6, 6], [12]];
+        let html = '';
+        for (let i = 0; i < 40; i++) {
+            html += '<div class="row">' + widths[i % widths.length].map(function(width) {
+                return '<div class="column col-' + width + '"><div class="ge-content"><p>' + i + '</p></div></div>';
+            }).join('') + '</div>';
+        }
+        document.querySelector('#myGrid').innerHTML = html;
+        window.fixture.init({ default_view: 'xs' });
+        ${SETTLE}
+
+        const drawers = Array.from(document.querySelectorAll('#myGrid .ge-tools-drawer.ge-drawer-fit'));
+        const wrong = [];
+        let over = 0;
+        drawers.forEach(function(drawer, index) {
+            const style = getComputedStyle(drawer);
+            const room = drawer.getBoundingClientRect().right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+            const tools = Array.from(drawer.children).filter(function(node) {
+                return node.tagName === 'A' && !node.classList.contains('ge-drawer-more');
+            });
+            const shown = tools.filter(function(tool) { return tool.getClientRects().length > 0; });
+            const hidden = tools.filter(function(tool) { return tool.classList.contains('ge-tool-overflow'); });
+            const fits = shown.every(function(tool) { return tool.getClientRects()[0].right <= room + 0.5; });
+
+            let tight = true;
+            if (hidden.length) {
+                over++;
+                hidden[0].classList.remove('ge-tool-overflow');
+                tight = hidden[0].getClientRects()[0].right > room + 0.5;
+                hidden[0].classList.add('ge-tool-overflow');
+            }
+            const marked = drawer.classList.contains('ge-drawer-overflow') === hidden.length > 0;
+
+            if (!fits || !tight || !marked) { wrong.push({ index: index, fits: fits, tight: tight, marked: marked }); }
+        });
+        return { drawers: drawers.length, over: over, wrong: wrong.slice(0, 5) };
+    `);
+    t.check('many drawers fitted at once each keep to their line, hiding no more tools than they must',
+        fitted.drawers > 100 && fitted.over > 10 && fitted.over < fitted.drawers && fitted.wrong.length === 0, fitted);
+
+    var errors = page.errors();
+    t.check('the many drawers test logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'draweroverflow',
     description: 'the drawers keeping their tools to one line, behind a more tool',
     run: async function(t) {
         await overflowTests(t);
+        await manyTests(t);
     },
 };
 

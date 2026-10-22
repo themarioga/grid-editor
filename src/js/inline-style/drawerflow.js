@@ -55,11 +55,18 @@ export function drawerflowPart(ge) {
         return !(dom.hasClass(node, 'row') && style.flexDirection === 'row' && style.flexWrap === 'wrap');
     }
 
-    function measure(node, drawer) {
-        var room = Math.ceil(drawer.offsetHeight) + GAP;
+    /** The room a drawer takes above its node's content. */
+    function roomOf(drawer) {
+        return Math.ceil(drawer.offsetHeight) + GAP;
+    }
 
+    function place(node, room) {
         rule(room);
         node.setAttribute(OUT_ATTR, String(room));
+    }
+
+    function measure(node, drawer) {
+        place(node, roomOf(drawer));
     }
 
     /** A drawer that grows - its tools wrap, its settings unfold - takes more room. */
@@ -77,21 +84,35 @@ export function drawerflowPart(ge) {
         observer.observe(drawer);
     }
 
+    /**
+     * Every read, then every write: a node at a time, each read laid out the
+     * whole page again after the last node's write, which on a large canvas
+     * took longer than everything else a refresh does.
+     */
     function mark(scope) {
-        dom.selfAndAll(scope, NODES).forEach(function(node) {
+        var nodes = dom.selfAndAll(scope, NODES).map(function(node) {
             var drawer = dom.child(node, '.ge-tools-drawer');
-            if (!drawer) { return; }
+            return drawer ? { node: node, drawer: drawer, out: laysOut(node) } : null;
+        }).filter(Boolean);
 
-            if (laysOut(node)) {
-                dom.addClass(node, OUT_CLASS);
-                measure(node, drawer);
-                watch(drawer);
-            } else if (dom.hasClass(node, OUT_CLASS)) {
-                dom.removeClass(node, OUT_CLASS);
-                node.removeAttribute(OUT_ATTR);
-                dom.dropEmptyClass(node);
-                if (observer) { observer.unobserve(drawer); }
+        var out = nodes.filter(function(entry) { return entry.out; });
+
+        nodes.forEach(function(entry) {
+            if (entry.out) {
+                dom.addClass(entry.node, OUT_CLASS);
+            } else if (dom.hasClass(entry.node, OUT_CLASS)) {
+                dom.removeClass(entry.node, OUT_CLASS);
+                entry.node.removeAttribute(OUT_ATTR);
+                dom.dropEmptyClass(entry.node);
+                if (observer) { observer.unobserve(entry.drawer); }
             }
+        });
+
+        // Out of the flow its drawer is as wide as the node, and may wrap
+        out.forEach(function(entry) { entry.room = roomOf(entry.drawer); });
+        out.forEach(function(entry) {
+            place(entry.node, entry.room);
+            watch(entry.drawer);
         });
     }
 

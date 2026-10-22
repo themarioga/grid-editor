@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.1.1] - 2026-10-22
+
+### Fixed
+- `drawer_overflow: 'menu'`: the drawers are fitted all at once - every
+  write, then every read - rather than one at a time, each measure laying the
+  page out again. On a canvas of 150 rows a change of view takes half the
+  time it did, and a `getHtml()` nearly half.
+- inline-style: the drawers of flex and grid nodes are measured the same way,
+  every read before any write.
+- `getHtml({ keepEditing: true })`, and so history and autosave, copy the
+  canvas without its drawers rather than copying them only to take them off:
+  three times faster on a large canvas.
+- The toolbar follows the page's scrolling once a frame: a scroll also comes
+  when the page changes height, as it does in a `getHtml()`, and read there
+  and then it laid the page out again.
+
 ## [9.1.0] - 2026-10-22
 
 ### Changed

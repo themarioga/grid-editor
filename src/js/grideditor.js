@@ -1138,8 +1138,21 @@ function build(instance, baseElem, optionsOrMethod) {
 
             var signal = { signal: lifetime.signal };
 
-            // Make controls fixed on scroll
-            window.addEventListener('scroll', onScroll, signal);
+            // Make controls fixed on scroll. Once a frame, after the
+            // layout: a scroll also comes when the page changes height - a
+            // getHtml takes every drawer off and puts it back - and read
+            // there and then, the toolbar's position laid the page out again
+            var scrollFrame = null;
+            window.addEventListener('scroll', function() {
+                if (scrollFrame !== null) { return; }
+                scrollFrame = window.requestAnimationFrame(function() {
+                    scrollFrame = null;
+                    if (!destroyed && mainControls) { onScroll(); }
+                });
+            }, signal);
+            lifetime.signal.addEventListener('abort', function() {
+                if (scrollFrame !== null) { window.cancelAnimationFrame(scrollFrame); }
+            });
 
             /* A click on the host's plain content offers to make it a text */
             dom.delegate(canvas, 'click', '.ge-content', onContentClick, signal);
@@ -2505,25 +2518,34 @@ function build(instance, baseElem, optionsOrMethod) {
         }
 
         /**
-         * A copy of the canvas, and the way from each of its elements back to
-         * the one it was copied from. The two trees are walked side by side,
-         * which works because a deep clone has the same shape.
+         * A copy of the canvas without its drawers, and the way from each of
+         * its elements back to the one it was copied from.
+         *
+         * Copied node by node rather than cloned whole: the drawers are most
+         * of the canvas while it is edited, and a snapshot only took them off
+         * again. A template is the one node a shallow clone leaves empty, so
+         * it goes whole.
          */
         function copyCanvas() {
-            var copy = canvas.cloneNode(true);
             var toLive = new Map();
             var toCopy = new Map();
-            var live = document.createTreeWalker(canvas, NodeFilter.SHOW_ELEMENT);
-            var copied = document.createTreeWalker(copy, NodeFilter.SHOW_ELEMENT);
-            var a = live.currentNode;
-            var b = copied.currentNode;
 
-            while (a && b) {
-                toLive.set(b, a);
-                toCopy.set(a, b);
-                a = live.nextNode();
-                b = copied.nextNode();
+            function copyNode(live) {
+                var copied = live.cloneNode(live.nodeName === 'TEMPLATE');
+                if (live.nodeType !== 1) { return copied; }
+
+                toLive.set(copied, live);
+                toCopy.set(live, copied);
+                if (live.nodeName === 'TEMPLATE') { return copied; }
+
+                for (var child = live.firstChild; child; child = child.nextSibling) {
+                    if (child.nodeType === 1 && dom.hasClass(child, 'ge-tools-drawer')) { continue; }
+                    copied.appendChild(copyNode(child));
+                }
+                return copied;
             }
+
+            var copy = copyNode(canvas);
 
             return {
                 root: copy,
@@ -4127,15 +4149,13 @@ function build(instance, baseElem, optionsOrMethod) {
 
             function flush() {
                 frame = null;
-                var drawers = Array.from(due);
-                due.clear();
-                drawers.forEach(function(drawer) {
-                    if (!drawer.isConnected) {
-                        drawerResizes.unobserve(drawer);
-                        return;
-                    }
-                    fitDrawer(drawer);
+                var drawers = Array.from(due).filter(function(drawer) {
+                    if (drawer.isConnected) { return true; }
+                    drawerResizes.unobserve(drawer);
+                    return false;
                 });
+                due.clear();
+                fitDrawers(drawers);
             }
 
             var drawerResizes = new window.ResizeObserver(function(entries) {
@@ -4178,40 +4198,73 @@ function build(instance, baseElem, optionsOrMethod) {
             });
         }
 
-        /** Hide the tools that don't fit on the drawer's line, from the end, behind its more tool. */
-        function fitDrawer(drawer) {
-            var tools = dom.children(drawer, 'a').filter(function(tool) { return !dom.hasClass(tool, 'ge-drawer-more'); });
-            var expanded = dom.hasClass(drawer, 'ge-drawer-expanded');
+        /**
+         * Hide the tools that don't fit on each drawer's line, from the end,
+         * behind its more tool.
+         *
+         * All the drawers at once, in phases - every write, then every read -
+         * so the page is laid out three times however many drawers there
+         * are: a drawer at a time, each measure laid out the whole page
+         * again, and a canvas of a few hundred drawers took seconds. One
+         * measure of a drawer is enough: its tools are on one line, aligned
+         * left, so hiding the last ones or making room for the more tool at
+         * the end moves none of the others.
+         */
+        function fitDrawers(drawers) {
+            // Every tool back on the one line
+            var fits = drawers.map(function(drawer) {
+                var fit = {
+                    drawer: drawer,
+                    tools: dom.children(drawer, 'a').filter(function(tool) { return !dom.hasClass(tool, 'ge-drawer-more'); }),
+                    expanded: dom.hasClass(drawer, 'ge-drawer-expanded'),
+                };
+                dom.removeClass(drawer, 'ge-drawer-overflow ge-drawer-expanded');
+                fit.tools.forEach(function(tool) { dom.removeClass(tool, 'ge-tool-overflow'); });
+                return fit;
+            });
 
-            // Measured on one line, with every tool back on it
-            dom.removeClass(drawer, 'ge-drawer-overflow ge-drawer-expanded');
-            tools.forEach(function(tool) { dom.removeClass(tool, 'ge-tool-overflow'); });
-
-            if (!drawerOverflows(drawer, tools)) { return; }
-
-            dom.addClass(drawer, 'ge-drawer-overflow');
-            if (!dom.child(drawer, '.ge-drawer-more')) {
-                createTool(drawer, t('tool.more'), 'ge-drawer-more', 'bi bi-three-dots', function() {
-                    dom.toggleClass(drawer, 'ge-drawer-expanded');
+            // Where each tool ends, and whether any ends past the drawer's room
+            var over = fits.filter(function(fit) {
+                fit.rights = fit.tools.map(function(tool) {
+                    var rects = tool.getClientRects();
+                    return rects.length ? rects[0].right : null;
                 });
-            }
+                return overflows(fit, roomOf(fit.drawer));
+            });
 
-            for (var i = tools.length - 1; i >= 0 && drawerOverflows(drawer, tools); i--) {
-                dom.addClass(tools[i], 'ge-tool-overflow');
-            }
+            // The more tool takes its room at the end, and the tools that
+            // still end past it are hidden, from the last
+            over.forEach(function(fit) { dom.addClass(fit.drawer, 'ge-drawer-overflow'); });
+            over.forEach(function(fit) { fit.room = roomOf(fit.drawer); });
+            over.forEach(function(fit) {
+                for (var i = fit.tools.length - 1; i >= 0 && overflows(fit, fit.room, i); i--) {
+                    dom.addClass(fit.tools[i], 'ge-tool-overflow');
+                }
+                if (!dom.child(fit.drawer, '.ge-drawer-more')) {
+                    createTool(fit.drawer, t('tool.more'), 'ge-drawer-more', 'bi bi-three-dots', function() {
+                        dom.toggleClass(fit.drawer, 'ge-drawer-expanded');
+                    });
+                }
 
-            dom.toggleClass(drawer, 'ge-drawer-expanded', expanded);
+                // Unfolded it stays, while there is something to unfold
+                dom.toggleClass(fit.drawer, 'ge-drawer-expanded', fit.expanded);
+            });
         }
 
-        function drawerOverflows(drawer, tools) {
+        /** Where a drawer's tools have to end: its right edge, inside its border and padding. */
+        function roomOf(drawer) {
             var style = window.getComputedStyle(drawer);
-            var limit = drawer.getBoundingClientRect().right -
+            return drawer.getBoundingClientRect().right -
                 parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+        }
 
-            return tools.some(function(tool) {
-                var rects = tool.getClientRects();
-                return rects.length > 0 && rects[0].right > limit + 0.5;
-            });
+        /** Whether any of a drawer's tools up to `last` ends past `room`. */
+        function overflows(fit, room, last) {
+            last = last === undefined ? fit.rights.length - 1 : last;
+            for (var i = 0; i <= last; i++) {
+                if (fit.rights[i] !== null && fit.rights[i] > room + 0.5) { return true; }
+            }
+            return false;
         }
 
         /**
