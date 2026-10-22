@@ -59,7 +59,10 @@
     <script src="../dist/plugins/grideditor.codemirror-inline.min.js"></script>
 
     <style>
-        .pg-config .card-header { font-weight: 600; font-size: .875rem; }
+        .pg-config .accordion-button { font-weight: 600; font-size: .875rem; padding: .5rem .75rem; }
+        .pg-config .accordion-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 1.5rem; padding: .75rem; }
+        .pg-config .accordion-body > .pg-plugins { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+        .pg-config .pg-plugins > :not(.form-check) { grid-column: 1 / -1; }
         .pg-config .form-label, .pg-config .form-check-label { font-size: .8125rem; }
         .pg-config .form-text { font-size: .75rem; margin-top: 0; }
         .pg-config .pg-field { margin-bottom: .5rem; }
@@ -81,9 +84,6 @@
     <div class="container-fluid px-4 py-3 pg-config">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <h1 class="h4 mb-0 me-auto">Playground</h1>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#settings">
-                <i class="bi bi-sliders"></i> Settings
-            </button>
             <button class="btn btn-sm btn-outline-secondary" type="button" id="showCode"><i class="bi bi-code-slash"></i> Options as code</button>
             <button class="btn btn-sm btn-outline-secondary" type="button" id="showHtml"><i class="bi bi-filetype-html"></i> Html</button>
             <button class="btn btn-sm btn-outline-secondary" type="button" id="openPage"><i class="bi bi-box-arrow-up-right"></i> Open the result</button>
@@ -111,9 +111,8 @@
     </div>
 
     <div class="container-fluid px-4 pb-3 pg-config">
-        <div class="collapse show" id="settings">
-            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3" id="groups"></div>
-        </div>
+        <h2 class="h6 mb-2"><i class="bi bi-sliders"></i> Settings</h2>
+        <div class="accordion" id="groups"></div>
     </div>
 
     <div class="container-fluid px-4 pb-4">
@@ -703,14 +702,20 @@
         function render() {
             var root = document.getElementById('groups');
             root.innerHTML = '';
-            GROUPS.forEach(function(group) {
-                var col = document.createElement('div');
-                col.className = 'col';
-                col.innerHTML = '<div class="card h-100"><div class="card-header py-1">' + group.title + '</div><div class="card-body py-2"></div></div>';
-                var body = col.querySelector('.card-body');
-                if (group.id === 'plugins') { body.appendChild(pluginsNode()); }
+            // Each group folds on its own, so several can be open at once
+            GROUPS.forEach(function(group, i) {
+                var item = document.createElement('div');
+                item.className = 'accordion-item';
+                item.innerHTML =
+                    '<h3 class="accordion-header">' +
+                        '<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" ' +
+                            'data-bs-target="#group-' + i + '" aria-expanded="false" aria-controls="group-' + i + '">' + group.title + '</button>' +
+                    '</h3>' +
+                    '<div class="accordion-collapse collapse" id="group-' + i + '"><div class="accordion-body"></div></div>';
+                var body = item.querySelector('.accordion-body');
+                if (group.id === 'plugins') { body.appendChild(pluginsNode()).classList.add('pg-plugins'); }
                 group.fields.forEach(function(field) { body.appendChild(fieldNode(field)); });
-                root.appendChild(col);
+                root.appendChild(item);
             });
             refresh();
         }
