@@ -12,9 +12,8 @@
 
     <!-- Grid editor CSS -->
     <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
-
-    <!-- The editor, and the sections plugin: equal and auto sizes and
-         columns per row are the editor's own, sections are a plugin -->
+    <!-- Grid editor javascript, and sections: Bootstrap's containers, a
+         plugin since many pages put the whole canvas in one already -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="../dist/grideditor.min.js"></script>
     <script src="../dist/plugins/grideditor.sections.min.js"></script>
@@ -27,11 +26,18 @@
                 // Sizes are numbers, 'equal' (col) or 'auto' (col-auto), and a
                 // layout can be a row with columns per row
                 new_row_layouts: [
-                    [12], [6, 6], ['auto', 'equal'], ['equal', 'equal', 'equal'],
+                    [12], [6, 6], [4, 4, 4], [8, 4], ['auto', 'equal'],
                     { row_cols: { xs: 1, sm: 2, lg: 4 }, columns: 4 },
                 ],
 
-                default_view: 'lg',
+                // The default: a size or offset change is written once, as the
+                // class with no breakpoint, and replaces what the breakpoints
+                // said. Switch the dropdown to a single breakpoint to tune
+                // that one on its own.
+                default_view: 'all',
+
+                // A host that wants fewer views can offer fewer
+                // layout_modes: ['all', 'lg', 'sm', 'xs'],
             });
 
             // A width chosen anywhere - tools, edge, panel - is a resize
@@ -57,7 +63,7 @@
         });
     </script>
 
-    <title>Grid Editor column sizes and sections example</title>
+    <title>Grid Editor columns and breakpoints example</title>
     <style>
         /* The html, shown in place of the editor and its toolbar */
         body:not(.showing-html) #html { display: none; }
@@ -75,7 +81,20 @@
 
         <div class="row my-3">
             <div class="col-lg-8">
-                <h1 class="h4">Column sizes, columns per row, and sections</h1>
+                <h1 class="h4">Columns and breakpoints</h1>
+                <p class="form-text">
+                    <strong>Six breakpoints, and all sizes.</strong> The
+                    dropdown on the right of the toolbar picks the view. In
+                    <strong>All sizes</strong> the canvas renders as the
+                    browser would, and the width and indent tools write one
+                    class for every size (<code>col-4</code>), replacing what
+                    the breakpoints had. Pick a single breakpoint and the
+                    canvas narrows to its width, its classes become the
+                    effective ones whatever your window is doing, and the
+                    tools write only that breakpoint. The first row has a
+                    different size at each one, and the second an offset that
+                    changes from phone to desktop.
+                </p>
                 <p class="form-text">
                     <strong>Equal and auto.</strong> A column is a number of
                     twelfths, <em>equal</em> (<code>col</code>: an equal share
@@ -89,16 +108,16 @@
                 <p class="form-text">
                     <strong>Columns per row.</strong> A row's
                     <em>Columns per row</em> field shares the line out among
-                    the columns that have no size of their own. The second
-                    section's cards are one per line on phones, two on
+                    the columns that have no size of their own. The cards in
+                    the second section are one per line on phones, two on
                     tablets, four on desktops.
                 </p>
                 <p class="form-text">
                     <strong>Sections.</strong> Bootstrap's containers, grouping
                     rows. Drag rows in and out of them, choose their width in
                     their settings, and switch views to see each one as wide
-                    as its container would be. <strong>All sizes</strong>
-                    writes one class for every size.
+                    as its container would be. The first two rows are in
+                    none: drag one into a section.
                 </p>
                 <p class="form-text">Last width change: <span id="last">none yet</span></p>
                 <button class="btn btn-sm btn-secondary" id="output" type="button">Show the html this produces</button>
@@ -107,6 +126,24 @@
         </div>
 
         <div id="myGrid">
+
+            <div class="row">
+                <div class="col-3 col-sm-4 col-md-5 col-lg-6 col-xl-7 col-xxl-8">
+                    <h2 class="h5">Sized per breakpoint</h2>
+                    <p>3 on phone, 4 on tablet, 5 on small desktop, 6 on desktop, 7 on large, 8 on widescreen.</p>
+                </div>
+                <div class="col-9 col-sm-8 col-md-7 col-lg-6 col-xl-5 col-xxl-4">
+                    <h2 class="h5">And the rest of the row</h2>
+                    <p>The two columns always add up to twelve units.</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-8 offset-2 col-lg-4 offset-lg-8">
+                    <h2 class="h5">Indented</h2>
+                    <p>Centred on phone, pushed to the right on desktop.</p>
+                </div>
+            </div>
 
             <div class="container">
                 <div class="row">
@@ -131,13 +168,6 @@
                     <div class="col"><h2 class="h6">Card two</h2><p>Shared out by the row.</p></div>
                     <div class="col"><h2 class="h6">Card three</h2><p>Shared out by the row.</p></div>
                     <div class="col"><h2 class="h6">Card four</h2><p>Shared out by the row.</p></div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-12">
-                    <h2 class="h5">A row outside any section</h2>
-                    <p>Full width of the canvas. Drag it into one of the sections above.</p>
                 </div>
             </div>
 

@@ -302,7 +302,7 @@ async function tinymceTests(t) {
     // Every example loads its text editor as a plugin, the way 6.0 needs it,
     // rather than leaning on the main bundle's copy
     var usingCopy = [];
-    for (var example of ['basic', 'autosave', 'wrap_content', 'clipboard', 'attributes', 'elements',
+    for (var example of ['basic', 'autosave', 'wrap_content', 'clipboard', 'custom-plugins', 'elements',
         'containers', 'text-editors.html?editor=ckeditor', 'text-editors.html?editor=summernote', 'text-editors.html?editor=all']) {
         var loaded = await openPage(t, '/example/' + (example.indexOf('.') === -1 ? example + '.html' : example), null, example);
         var copies = await loaded.eval(`
@@ -699,14 +699,14 @@ async function otherEditorTests(t) {
 }
 
 /**
- * example/attributes.html: a plugin of the page's own that saves a modal's
+ * example/custom-plugins.html: a plugin of the page's own that saves a modal's
  * settings as an attribute, with a plain setAttribute(). On an element, which is a
  * block beside the texts; and on the very text tinyMCE is editing, whose
  * attributes tinyMCE puts back as it found them when it closes, and which
  * grid-editor keeps all the same. Both have to come out of getPlainHtml.
  */
 async function attributePluginTests(t) {
-    var page = await openPage(t, '/example/attributes.html',
+    var page = await openPage(t, '/example/custom-plugins.html',
         `window.tinymce && window.GridEditor && GridEditor.get('#myGrid')`);
 
     var tools = await page.eval(`
@@ -726,7 +726,7 @@ async function attributePluginTests(t) {
             othersPlain: tool(rows[1]).some(function(t) { return t.classList.contains('my-animation-set'); }),
         };
     `);
-    t.check('example/attributes.html puts its tool on rows, columns, texts, containers and elements, not on plain content',
+    t.check('example/custom-plugins.html puts its tool on rows, columns, texts, containers and elements, not on plain content',
         tools.rows && tools.columns && tools.texts && tools.plains && tools.card === 1 && tools.element === 1 &&
         tools.presetHighlighted && !tools.othersPlain,
         tools);
@@ -814,7 +814,7 @@ async function attributePluginTests(t) {
         exported);
 
     var errors = page.errors();
-    t.check('example/attributes.html logged no errors', errors.length === 0, errors.slice(0, 5));
+    t.check('example/custom-plugins.html logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
 /**

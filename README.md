@@ -25,13 +25,11 @@ from any web server, or from GitHub Pages, with no build step.
 | --- | --- | --- |
 | [example/playground.html](example/playground.html) | Every plugin on one canvas, with settings to turn things on and off and the options as code | [live](https://themarioga.github.io/grid-editor/example/playground.html) |
 | [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas | [live](https://themarioga.github.io/grid-editor/example/basic.html) |
-| [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view | [live](https://themarioga.github.io/grid-editor/example/breakpoints.html) |
-| [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
-| [example/attributes.html](example/attributes.html) | A plugin of your own: a drawer tool, a modal, and its settings saved as an attribute | [live](https://themarioga.github.io/grid-editor/example/attributes.html) |
+| [example/columns.html](example/columns.html) | The six breakpoints and the "all sizes" view, equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/columns.html) |
+| [example/custom-plugins.html](example/custom-plugins.html) | Plugins of your own: a container, and a drawer tool with a modal that saves an attribute | [live](https://themarioga.github.io/grid-editor/example/custom-plugins.html) |
 | [example/containers.html](example/containers.html) | Tabs, accordions, popups, offcanvases, carousels and cards, two levels deep | [live](https://themarioga.github.io/grid-editor/example/containers.html) |
 | [example/elements.html](example/elements.html) | Element level controls, including an element with no visual output | [live](https://themarioga.github.io/grid-editor/example/elements.html) |
-| [example/autocols.html](example/autocols.html) | Equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/autocols.html) |
-| [example/utilities.html](example/utilities.html) | Bootstrap's responsive utilities, edited per breakpoint | [live](https://themarioga.github.io/grid-editor/example/utilities.html) |
+| [example/style.html](example/style.html) | Inline style with Bootstrap's classes as chips, and the responsive utilities, edited per breakpoint | [live](https://themarioga.github.io/grid-editor/example/style.html) |
 | [example/locale.html](example/locale.html) | The interface in Spanish, with a language switcher | [live](https://themarioga.github.io/grid-editor/example/locale.html) |
 | [example/text-editors.html](example/text-editors.html) | TinyMCE, CKEditor, summernote and a text editor of your own, one at a time or together | [live](https://themarioga.github.io/grid-editor/example/text-editors.html) |
 | [example/clipboard.html](example/clipboard.html) | Copy and paste, within an editor, between two, and between tabs | [live](https://themarioga.github.io/grid-editor/example/clipboard.html) |
@@ -490,7 +488,7 @@ __`settings_panel`:__ Where the settings a gear opens are shown - a node's id, i
 | `'inline'` | Unfolded in the drawer itself |
 | `'sidebar'` | An offcanvas that stays on the right while you edit, and makes room for itself on the page. A click on any node of the canvas shows its settings, and there is no gear. It turns `active_target` on, so the node clicked is the target, and also where the toolbar adds; `active_target: false` with it is an error |
 
-Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/utilities.html](example/utilities.html) switches between the four.
+Each is titled after its node ("Column settings"), the node is outlined while its settings are open, and Escape closes them. The editor opens and places them itself, with Bootstrap's markup and css: a page needs neither Popper nor Bootstrap's javascript, and the modal is Bootstrap's own when Bootstrap is there. [example/style.html](example/style.html) switches between them.
 
 ```javascript
 new GridEditor('#myGrid', { settings_panel: 'popover' });
@@ -737,7 +735,7 @@ A node that is flex or grid in the view you are in - a column with `d-flex`,
 a row with `flex-nowrap` - has its drawer on top, out of the flow, so the
 canvas lays out its content as the page will.
 
-See [example/inline-style.html](example/inline-style.html).
+See [example/style.html](example/style.html).
 
 ### Responsive utilities
 
@@ -782,7 +780,7 @@ new GridEditor('#myGrid', {
 });
 ```
 
-See [example/utilities.html](example/utilities.html), and
+See [example/style.html](example/style.html), and
 [docs/plugins.md](docs/plugins.md#utility-plugins) for writing one.
 
 ### Sections

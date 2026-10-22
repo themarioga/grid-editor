@@ -39,9 +39,10 @@ never loaded logs one warning and changes nothing else. A container in the
 markup whose plugin is not loaded is left alone: no drawer, no tools, and
 `getHtml` gives it back as it found it.
 
-[example/plugins.html](../example/plugins.html) is this page as a working
-editor: the shipped plugins, a container plugin written in the page itself,
-and a checkbox per plugin so you can watch the toolbar and the canvas change.
+[example/playground.html](../example/playground.html) loads every shipped
+plugin with a switch for each, so you can watch the toolbar and the canvas
+change, and [example/custom-plugins.html](../example/custom-plugins.html) has
+a container plugin written in the page itself.
 
 
 The shape of a plugin
@@ -380,7 +381,7 @@ not destroyed, when a node becomes the target, so keep it and give it back.
 
 A tool that opens a dialog and saves what the user chose on the node is a
 feature plugin with `drawerTools` and nothing else.
-[example/attributes.html](../example/attributes.html) is one, in full: an
+[example/custom-plugins.html](../example/custom-plugins.html) has one, in full: an
 animation for rows, columns, containers and elements, kept in a
 `data-animation` attribute. Three things to get right:
 
