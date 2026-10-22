@@ -356,7 +356,7 @@
                   disabled: function(s) { return s.settings_panel === 'sidebar'; } },
                 { id: 'confirm_delete', label: 'Ask before deleting', type: 'check', default: true },
                 { id: 'edit_source', label: 'Source button on the toolbar', type: 'check', default: true },
-                { id: 'toolbar_groups', label: 'Toolbar in categories', type: 'check', default: false },
+                { id: 'toolbar_groups', label: 'Toolbar in categories', type: 'check', always: true, default: true },
                 { id: 'toolbar_overflow', label: 'Toolbar that does not fit', type: 'select', default: 'menu', options: [['menu', 'A ⋯ menu'], ['wrap', 'Wraps']] },
                 { id: 'drawer_overflow', label: 'Drawers that do not fit', type: 'select', default: 'menu', options: [['menu', 'A ⋯ tool'], ['wrap', 'Wrap']] },
             ] },
