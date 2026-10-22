@@ -97,21 +97,23 @@
             </div>
         </div>
         <p class="text-body-secondary small mb-2">
-            Everything the library does, on one canvas. Every plugin is loaded; the settings below
-            choose what the editor uses and how, and each change starts the editor again over the
+            Everything the library does, on one canvas. Every plugin is loaded; the settings under
+            the editor choose what it uses and how, and each change starts the editor again over the
             same content (<code>getHtml()</code>, <code>destroy()</code>, <code>new GridEditor()</code>).
             The settings are kept in this browser and in the link.
         </p>
-
-        <div class="collapse show" id="settings">
-            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3" id="groups"></div>
-        </div>
 
         <div class="alert alert-danger small mt-3 d-none" id="error"></div>
     </div>
 
     <div class="container py-3">
         <div id="myGrid"></div>
+    </div>
+
+    <div class="container-fluid px-4 pb-3 pg-config">
+        <div class="collapse show" id="settings">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3" id="groups"></div>
+        </div>
     </div>
 
     <div class="container-fluid px-4 pb-4">

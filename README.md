@@ -23,7 +23,6 @@ from any web server, or from GitHub Pages, with no build step.
 
 | Demo | What it shows | |
 | --- | --- | --- |
-| [example/playground.html](example/playground.html) | Every plugin on one canvas, with settings to turn things on and off and the options as code | [live](https://themarioga.github.io/grid-editor/example/playground.html) |
 | [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas | [live](https://themarioga.github.io/grid-editor/example/basic.html) |
 | [example/columns.html](example/columns.html) | The six breakpoints and the "all sizes" view, equal and auto columns, columns per row, and sections | [live](https://themarioga.github.io/grid-editor/example/columns.html) |
 | [example/custom-plugins.html](example/custom-plugins.html) | Plugins of your own: a container, and a drawer tool with a modal that saves an attribute | [live](https://themarioga.github.io/grid-editor/example/custom-plugins.html) |
@@ -36,6 +35,7 @@ from any web server, or from GitHub Pages, with no build step.
 | [example/wrap_content.html](example/wrap_content.html) | Non-bootstrap markup wrapped into the grid | [live](https://themarioga.github.io/grid-editor/example/wrap_content.html) |
 | [example/history.html](example/history.html) | The history plugin: undo and redo, with the keyboard and the toolbar | [live](https://themarioga.github.io/grid-editor/example/history.html) |
 | [example/autosave.html](example/autosave.html) | The autosave plugin: drafts kept as the user edits, offered back after a reload; import and export | [live](https://themarioga.github.io/grid-editor/example/autosave.html) |
+| [example/playground.html](example/playground.html) | Every plugin on one canvas, with settings to turn things on and off and the options as code | [live](https://themarioga.github.io/grid-editor/example/playground.html) |
 | [example/adapter.html](example/adapter.html) | A page written for 6.x, with jQuery, running unchanged through the adapter | [live](https://themarioga.github.io/grid-editor/example/adapter.html) |
 
 [example/angular](example/angular) is the editor in an Angular app, from the npm
