@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.css">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.9.1/summernote-bs5.min.css" />
+
+    <!-- Javascript dependencies. jQuery is summernote's alone: the editor
+         does not need it -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- The three text editors, so content_types can choose among them -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.9.3/tinymce.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ckeditor5@48.5.2/dist/browser/ckeditor5.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.9.1/summernote-bs5.min.js"></script>
+
+    <!-- CodeMirror 5 and its html mode, for the codemirror plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/xml/xml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/css/css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.21/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <!-- Grid editor -->
+    <link rel="stylesheet" type="text/css" href="../dist/grideditor.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="../dist/grideditor.min.js"></script>
+    <script src="../dist/locales/grideditor.es.js"></script>
+
+    <!-- Every plugin there is. The page loads them all, and the plugins
+         setting chooses which of them the editor uses -->
+    <script src="../dist/plugins/grideditor.tinymce.min.js"></script>
+    <script src="../dist/plugins/grideditor.ckeditor.min.js"></script>
+    <script src="../dist/plugins/grideditor.summernote.min.js"></script>
+    <script src="../dist/plugins/grideditor.sections.min.js"></script>
+    <script src="../dist/plugins/grideditor.tabs.min.js"></script>
+    <script src="../dist/plugins/grideditor.accordion.min.js"></script>
+    <script src="../dist/plugins/grideditor.popup.min.js"></script>
+    <script src="../dist/plugins/grideditor.offcanvas.min.js"></script>
+    <script src="../dist/plugins/grideditor.carousel.min.js"></script>
+    <script src="../dist/plugins/grideditor.card.min.js"></script>
+    <script src="../dist/plugins/grideditor.order.min.js"></script>
+    <script src="../dist/plugins/grideditor.alignment.min.js"></script>
+    <script src="../dist/plugins/grideditor.gutters.min.js"></script>
+    <!-- Float works on elements, so the elements plugin comes first -->
+    <script src="../dist/plugins/grideditor.elements.min.js"></script>
+    <script src="../dist/plugins/grideditor.inline-style.min.js"></script>
+    <script src="../dist/plugins/grideditor.clipboard.min.js"></script>
+    <script src="../dist/plugins/grideditor.history.min.js"></script>
+    <script src="../dist/plugins/grideditor.autosave.min.js"></script>
+    <script src="../dist/plugins/grideditor.codemirror.min.js"></script>
+    <script src="../dist/plugins/grideditor.codemirror-inline.min.js"></script>
+
+    <style>
+        .pg-config .card-header { font-weight: 600; font-size: .875rem; }
+        .pg-config .form-label, .pg-config .form-check-label { font-size: .8125rem; }
+        .pg-config .form-text { font-size: .75rem; margin-top: 0; }
+        .pg-config .pg-field { margin-bottom: .5rem; }
+        .pg-config .pg-off { opacity: .45; }
+        .pg-code { max-height: 22rem; overflow: auto; font-size: .75rem; }
+        #log { max-height: 14rem; overflow: auto; font-size: .75rem; }
+        .my-app-quote { border-left: 4px solid var(--bs-secondary-border-subtle); padding-left: 12px; font-style: italic; }
+        .my-app-highlight { background: var(--bs-warning-bg-subtle); }
+    </style>
+
+    <title>Grid Editor playground</title>
+</head>
+<body>
+    <!-- Back to the demo index -->
+    <div class="container-fluid pt-3 px-4">
+        <a class="link-secondary" href="index.html"><i class="bi bi-arrow-left"></i> All demos</a>
+    </div>
+
+    <div class="container-fluid px-4 py-3 pg-config">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <h1 class="h4 mb-0 me-auto">Playground</h1>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#settings">
+                <i class="bi bi-sliders"></i> Settings
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="showCode"><i class="bi bi-code-slash"></i> Options as code</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="showHtml"><i class="bi bi-filetype-html"></i> Html</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="openPage"><i class="bi bi-box-arrow-up-right"></i> Open the result</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="share"><i class="bi bi-link-45deg"></i> Copy a link</button>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown">Reset</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><button class="dropdown-item" type="button" id="resetSettings">The settings</button></li>
+                    <li><button class="dropdown-item" type="button" id="resetContent">The content</button></li>
+                </ul>
+            </div>
+        </div>
+        <p class="text-body-secondary small mb-2">
+            Everything the library does, on one canvas. Every plugin is loaded; the settings below
+            choose what the editor uses and how, and each change starts the editor again over the
+            same content (<code>getHtml()</code>, <code>destroy()</code>, <code>new GridEditor()</code>).
+            The settings are kept in this browser and in the link.
+        </p>
+
+        <div class="collapse show" id="settings">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3" id="groups"></div>
+        </div>
+
+        <div class="alert alert-danger small mt-3 d-none" id="error"></div>
+    </div>
+
+    <div class="container py-3">
+        <div id="myGrid"></div>
+    </div>
+
+    <div class="container-fluid px-4 pb-4">
+        <div class="card">
+            <div class="card-header d-flex align-items-center small">
+                <strong class="me-auto">Events</strong>
+                <button class="btn btn-sm btn-link p-0" type="button" id="clearLog">Clear</button>
+            </div>
+            <ul class="list-group list-group-flush font-monospace" id="log"></ul>
+        </div>
+    </div>
+
+    <!-- What the code and html buttons show -->
+    <div class="modal fade" id="output" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="outputTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="btn-group btn-group-sm mb-2 d-none" id="htmlKind">
+                        <input type="radio" class="btn-check" name="htmlKind" id="kindHtml" value="html" checked>
+                        <label class="btn btn-outline-secondary" for="kindHtml">getHtml()</label>
+                        <input type="radio" class="btn-check" name="htmlKind" id="kindPlain" value="plain">
+                        <label class="btn btn-outline-secondary" for="kindPlain">getPlainHtml()</label>
+                    </div>
+                    <pre class="pg-code bg-body-tertiary border rounded p-2 mb-0"><code id="outputCode"></code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-primary" id="copyOutput"><i class="bi bi-clipboard"></i> Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The content the playground starts with. __TEXT__ is the first text
+         editor chosen; with none, the texts are the host's plain content -->
+    <template id="sample">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="ge-content" data-ge-content-type="__TEXT__">
+                        <h2>Grid Editor playground</h2>
+                        <p>This row lives in a <strong>section</strong> (Bootstrap's <code>.container</code>). Drag, resize, copy, delete, and open any gear to see its settings.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 order-md-2">
+                    <div class="ge-content" data-ge-content-type="__TEXT__"><p>Units: <code>col-md-4</code>, and first on phones but last from tablet up (<code>order-md-2</code>).</p></div>
+                </div>
+                <div class="col-md">
+                    <div class="ge-content" data-ge-content-type="__TEXT__"><p>Equal: <code>col-md</code>, an equal share of what is left.</p></div>
+                </div>
+                <div class="col-md-auto">
+                    <div class="ge-content" data-ge-content-type="__TEXT__"><p>Auto: <code>col-md-auto</code>.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            <div class="col">
+                <div class="ge-content" data-ge-content-type="__TEXT__"><p>A row with <code>row-cols-md-3</code> and wide gutters (<code>g-4</code>).</p></div>
+            </div>
+            <div class="col">
+                <blockquote class="my-app-quote" data-ge-element="quote" data-ge-label="Pull quote">
+                    <p>An element: one block to move and delete, never part of a text.</p>
+                </blockquote>
+            </div>
+            <div class="col">
+                <div class="ge-content p-3 bg-body-tertiary rounded-3 text-center" data-ge-content-type="__TEXT__"><p>Inline style and Bootstrap's classes: <code>p-3 bg-body-tertiary rounded-3 text-center</code>.</p></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div data-ge-container="tabs">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#pg-tab-one" aria-controls="pg-tab-one" aria-selected="true">Tabs</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#pg-tab-two" aria-controls="pg-tab-two">Second</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="pg-tab-one" role="tabpanel" tabindex="0">
+                            <div class="row"><div class="col-12">
+                                <div class="ge-content" data-ge-content-type="__TEXT__"><p>Each tab is a region with rows and columns of its own.</p></div>
+                            </div></div>
+                        </div>
+                        <div class="tab-pane fade" id="pg-tab-two" role="tabpanel" tabindex="0">
+                            <div class="row"><div class="col-12">
+                                <div class="ge-content" data-ge-content-type="__TEXT__"><p>The second tab.</p></div>
+                            </div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div data-ge-container="accordion">
+                    <div class="accordion" id="pg-accordion">
+                        <div class="accordion-item ge-accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#pg-item-one" aria-expanded="true">An accordion</button>
+                            </h2>
+                            <div id="pg-item-one" class="accordion-collapse collapse show" data-bs-parent="#pg-accordion">
+                                <div class="accordion-body">
+                                    <div class="row"><div class="col-12">
+                                        <div class="ge-content" data-ge-content-type="__TEXT__"><p>Open in the authored page.</p></div>
+                                    </div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item ge-accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pg-item-two" aria-expanded="false">Closed</button>
+                            </h2>
+                            <div id="pg-item-two" class="accordion-collapse collapse" data-bs-parent="#pg-accordion">
+                                <div class="accordion-body">
+                                    <div class="row"><div class="col-12">
+                                        <div class="ge-content" data-ge-content-type="__TEXT__"><p>Closed in the authored page.</p></div>
+                                    </div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div data-ge-container="card">
+                    <div class="card">
+                        <div class="card-header">A card</div>
+                        <div class="card-body">
+                            <div class="row"><div class="col-12">
+                                <div class="ge-content" data-ge-content-type="__TEXT__"><p>Its body is one region. Double click the header to rewrite it.</p></div>
+                            </div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div data-ge-container="popup" data-ge-popup-id="pg-popup">
+                    <button type="button" class="btn btn-primary ge-popup-trigger" data-ge-popup-target="pg-popup">A popup</button>
+                    <div class="modal fade" id="pg-popup" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">A popup</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row"><div class="col-12">
+                                        <div class="ge-content" data-ge-content-type="__TEXT__"><p>Unfolded in place while editing; press the preview eye to try it closed.</p></div>
+                                    </div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div data-ge-container="offcanvas" data-ge-offcanvas-id="pg-offcanvas">
+                    <button type="button" class="btn btn-primary ge-offcanvas-trigger" data-ge-offcanvas-target="pg-offcanvas">An offcanvas</button>
+                    <div class="offcanvas offcanvas-end" tabindex="-1" id="pg-offcanvas" aria-labelledby="pg-offcanvas-label">
+                        <div class="offcanvas-header">
+                            <h5 class="offcanvas-title" id="pg-offcanvas-label">An offcanvas</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                        </div>
+                        <div class="offcanvas-body">
+                            <div class="row"><div class="col-12">
+                                <div class="ge-content" data-ge-content-type="__TEXT__"><p>Slides in from the end on the page.</p></div>
+                            </div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div data-ge-container="carousel">
+                    <div class="carousel slide" id="pg-carousel">
+                        <div class="carousel-indicators">
+                            <button type="button" data-bs-target="#pg-carousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                            <button type="button" data-bs-target="#pg-carousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                        </div>
+                        <div class="carousel-inner">
+                            <div class="carousel-item active">
+                                <div class="row"><div class="col-12">
+                                    <div class="ge-content p-5 text-center bg-body-secondary" data-ge-content-type="__TEXT__"><p>A carousel. Its drawer's arrows change the slide.</p></div>
+                                </div></div>
+                            </div>
+                            <div class="carousel-item">
+                                <div class="row"><div class="col-12">
+                                    <div class="ge-content p-5 text-center bg-body-secondary" data-ge-content-type="__TEXT__"><p>The second slide.</p></div>
+                                </div></div>
+                            </div>
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#pg-carousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#pg-carousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+    (function() {
+        var grid = document.getElementById('myGrid');
+        var STORE = 'grideditor.playground';
+        var editor = null;
+        var lastHtml;
+
+        var VIEWS = ['all', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'];
+
+        /*
+         * The settings, as fields. `path` is where the value goes in the
+         * options; a value equal to `default` is left out of them, so the
+         * code shown is only what differs from the library's defaults.
+         * `plugin` greys a field out while that plugin is off.
+         */
+        var GROUPS = [
+            { title: 'Interface', fields: [
+                { id: 'locale', label: 'Language', type: 'select', options: [['en', 'English'], ['es', 'Español']], default: 'en' },
+                { id: 'settings_panel', label: 'Settings open in', type: 'select', default: 'offcanvas',
+                  options: [['offcanvas', 'An offcanvas'], ['popover', 'A popover'], ['modal', 'A modal'], ['inline', 'The drawer (inline)'], ['sidebar', 'A sidebar that stays']] },
+                { id: 'active_target', label: 'A click makes a node the target', type: 'check', default: false,
+                  help: 'Where the toolbar adds, and Ctrl+C / X / V. The sidebar turns it on',
+                  disabled: function(s) { return s.settings_panel === 'sidebar'; } },
+                { id: 'confirm_delete', label: 'Ask before deleting', type: 'check', default: true },
+                { id: 'edit_source', label: 'Source button on the toolbar', type: 'check', default: true },
+                { id: 'toolbar_groups', label: 'Toolbar in categories', type: 'check', default: false },
+                { id: 'toolbar_overflow', label: 'Toolbar that does not fit', type: 'select', default: 'menu', options: [['menu', 'A ⋯ menu'], ['wrap', 'Wraps']] },
+                { id: 'drawer_overflow', label: 'Drawers that do not fit', type: 'select', default: 'menu', options: [['menu', 'A ⋯ tool'], ['wrap', 'Wrap']] },
+            ] },
+            { title: 'Grid', fields: [
+                { id: 'new_row_layouts', label: 'New row layouts (JSON)', type: 'json', always: true,
+                  default: [[12], [6, 6], [4, 4, 4], [8, 4], ['auto', 'equal'], { row_cols: { xs: 1, md: 3 }, columns: 3 }] },
+                { id: 'default_view', label: 'Starting view', type: 'select', default: 'all', options: VIEWS.map(function(v) { return [v, v === 'all' ? 'All sizes' : v]; }) },
+                { id: 'layout_modes', label: 'Views offered', type: 'multi', default: VIEWS.slice(), options: VIEWS },
+                { id: 'row_cols', label: 'Columns per row field', type: 'check', default: true },
+                { id: 'indent.tools', label: 'Indent tools', type: 'check', default: true },
+                { id: 'add_column.size', label: 'Add column adds', type: 'select', default: 12, options: [[12, '12 units'], [6, '6 units'], [4, '4 units'], ['equal', 'Equal'], ['auto', 'Auto']] },
+                { id: 'add_column.picker', label: 'Hold add column for a picker', type: 'check', default: true },
+            ] },
+            { title: 'Drag and resize', fields: [
+                { id: 'drag_handle', label: 'A drag starts from', type: 'select', default: 'tool', options: [['tool', 'The move tool'], ['drawer', 'The whole drawer']] },
+                { id: 'toolbar_drag', label: 'Drag toolbar buttons onto the canvas', type: 'select', default: 'auto', options: [['auto', 'Auto (with the drawer handle)'], [true, 'Yes'], [false, 'No']] },
+                { id: 'drag.animation', label: 'Reorder animation (ms)', type: 'number', default: 150 },
+                { id: 'drag.touch_delay', label: 'Touch hold before a drag (ms)', type: 'number', default: 100 },
+                { id: 'resize.enabled', label: 'Resize by dragging the edge', type: 'check', default: true },
+                { id: 'resize.tools', label: 'The − + tools', type: 'check', default: true },
+                { id: 'resize.handles', label: 'Resize handles', type: 'select', default: 'e', options: [['e', 'End'], ['w', 'Start'], ['e, w', 'Both']] },
+                { id: 'resize.balance', label: 'On resize', type: 'select', default: 'next', options: [['next', 'The next column makes up'], [false, 'The row wraps']] },
+            ] },
+            { title: 'Text editors', fields: [
+                { id: 'content_types', label: 'Offered, in this order', type: 'multi', always: true, default: ['tinymce'],
+                  options: [['tinymce', 'TinyMCE'], ['ckeditor', 'CKEditor 5'], ['summernote', 'Summernote']],
+                  help: 'None leaves the texts as plain content, edited in the source' },
+            ] },
+            { title: 'Plugins', id: 'plugins', fields: [] },
+            { title: 'Plugin options', fields: [
+                { id: 'history.buttons', plugin: 'history', label: 'Undo / redo buttons', type: 'check', default: true },
+                { id: 'history.shortcuts', plugin: 'history', label: 'Ctrl+Z / Ctrl+Y', type: 'check', default: true },
+                { id: 'clipboard.shortcuts', plugin: 'clipboard', label: 'Ctrl+C / X / V', type: 'check', default: true,
+                  help: 'Only with a target', disabled: function(s) { return !s.active_target && s.settings_panel !== 'sidebar'; } },
+                { id: 'autosave.enabled', plugin: 'autosave', label: 'Autosave drafts', type: 'check', default: true },
+                { id: 'autosave.storage', plugin: 'autosave', label: 'Drafts kept in', type: 'select', default: 'local', options: [['local', 'localStorage'], ['session', 'sessionStorage']] },
+                { id: 'elements.types', plugin: 'elements', label: 'Element buttons on the toolbar', type: 'check', default: false,
+                  value: function() { return ELEMENT_TYPES; } },
+                { id: 'inline_style.visibility.drawer', plugin: 'inline-style', label: 'Eye in the drawers', type: 'check', default: true },
+                { id: 'utilities.order.drawer', plugin: 'order', label: 'Order arrows in column drawers', type: 'check', default: true },
+                { id: 'sections.widths', plugin: 'sections', label: 'Section widths offered', type: 'multi', default: ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'],
+                  options: ['fixed', 'sm', 'md', 'lg', 'xl', 'xxl', 'fluid'] },
+            ] },
+            { title: 'New containers', fields: [
+                { id: 'tabs.variant', plugin: 'tabs', label: 'Tabs', type: 'select', default: 'tabs', options: [['tabs', 'Tabs'], ['pills', 'Pills'], ['underline', 'Underline']] },
+                { id: 'tabs.width', plugin: 'tabs', label: 'Tabs width', type: 'select', default: 'natural', options: [['natural', 'Natural'], ['fill', 'Fill'], ['justified', 'Justified']] },
+                { id: 'tabs.vertical', plugin: 'tabs', label: 'Tabs vertical', type: 'select', default: false, options: [[false, 'No'], [true, 'Always'], ['md', 'From md'], ['lg', 'From lg']] },
+                { id: 'carousel.fade', plugin: 'carousel', label: 'Carousel fades', type: 'check', default: false },
+                { id: 'carousel.dark', plugin: 'carousel', label: 'Dark carousel', type: 'check', default: false },
+                { id: 'carousel.slides', plugin: 'carousel', label: 'Carousel slides', type: 'number', default: 2 },
+                { id: 'offcanvas.placement', plugin: 'offcanvas', label: 'Offcanvas from', type: 'select', default: 'start', options: [['start', 'Start'], ['end', 'End'], ['top', 'Top'], ['bottom', 'Bottom']] },
+                { id: 'offcanvas.backdrop', plugin: 'offcanvas', label: 'Offcanvas backdrop', type: 'select', default: true, options: [[true, 'Yes'], [false, 'No'], ['static', 'Static']] },
+            ] },
+            { title: 'Host extensions', fields: [
+                { id: 'presets', label: 'Preset classes in the panels', type: 'check', default: false, help: 'row_classes, col_classes, text_classes' },
+                { id: 'tools', label: 'Host tools in the drawers', type: 'check', default: false, help: 'row_tools, col_tools, text_tools, element_tools' },
+                { id: 'cancel_delete', label: 'Cancel deleting the first row', type: 'check', default: false, help: 'callbacks.before_delete returning false' },
+            ] },
+        ];
+
+        var ELEMENT_TYPES = [
+            { type: 'quote', label: 'Quote', iconClass: 'bi bi-quote',
+              html: '<blockquote class="my-app-quote"><p>A new quote.</p></blockquote>' },
+            { type: 'divider', label: 'Divider', iconClass: 'bi bi-dash-lg', html: '<hr>' },
+            { type: 'button', label: 'Button', iconClass: 'bi bi-hand-index', html: '<a class="btn btn-primary" href="#">A button</a>' },
+        ];
+
+        // Every plugin the page loaded, but the text editors: content_types chooses those
+        var PLUGINS = [];
+        ['containers', 'features', 'utilities'].forEach(function(registry) {
+            Object.keys(GridEditor[registry]).forEach(function(name) {
+                if (GridEditor[registry][name].always !== true) { PLUGINS.push(name); }
+            });
+        });
+
+        var FIELDS = {};
+        GROUPS.forEach(function(group) {
+            group.fields.forEach(function(field) { FIELDS[field.id] = field; });
+        });
+
+        // ---- state ----------------------------------------------------
+
+        function defaults() {
+            var state = { plugins: PLUGINS.slice() };
+            Object.keys(FIELDS).forEach(function(id) { state[id] = FIELDS[id].default; });
+            return state;
+        }
+
+        function load() {
+            var saved = null;
+            try {
+                if (location.hash.length > 1) { saved = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1))))); }
+            } catch (e) { /* a link that is not ours */ }
+            if (!saved) {
+                try { saved = JSON.parse(localStorage.getItem(STORE)); } catch (e) { /* no storage */ }
+            }
+            return Object.assign(defaults(), saved || {});
+        }
+
+        function save() {
+            var changed = {};
+            var base = defaults();
+            Object.keys(state).forEach(function(id) {
+                if (JSON.stringify(state[id]) !== JSON.stringify(base[id])) { changed[id] = state[id]; }
+            });
+            try { localStorage.setItem(STORE, JSON.stringify(changed)); } catch (e) { /* no storage */ }
+            var hash = Object.keys(changed).length ? '#' + btoa(unescape(encodeURIComponent(JSON.stringify(changed)))) : '';
+            history.replaceState(null, '', location.pathname + location.search + hash);
+        }
+
+        var state = load();
+
+        // ---- the options ----------------------------------------------
+
+        function setPath(target, path, value) {
+            var keys = path.split('.');
+            keys.slice(0, -1).forEach(function(key) { target = target[key] = target[key] || {}; });
+            target[keys[keys.length - 1]] = value;
+        }
+
+        function pluginOn(name) { return state.plugins.indexOf(name) !== -1; }
+
+        function isDisabled(field) {
+            return (field.plugin && !pluginOn(field.plugin)) || (field.disabled && field.disabled(state));
+        }
+
+        function options() {
+            var opts = {};
+            var hostOnly = ['presets', 'tools', 'cancel_delete'];
+
+            Object.keys(FIELDS).forEach(function(id) {
+                var field = FIELDS[id];
+                if (hostOnly.indexOf(id) !== -1 || isDisabled(field)) { return; }
+                var value = state[id];
+                if (!field.always && JSON.stringify(value) === JSON.stringify(field.default)) { return; }
+                setPath(opts, id, field.value ? field.value() : value);
+            });
+
+            if (state.plugins.length !== PLUGINS.length) { opts.plugins = state.plugins.slice(); }
+
+            // Both editors are GPL-2.0-or-later, and these accept that licence.
+            // A commercial licence passes its own key here instead
+            if (state.content_types.indexOf('tinymce') !== -1) { opts.tinymce = { config: { license_key: 'gpl' } }; }
+            if (state.content_types.indexOf('ckeditor') !== -1) { opts.ckeditor = { config: { licenseKey: 'GPL' } }; }
+
+            if (state.presets) {
+                opts.row_classes = [{ label: 'Highlight', cssClass: 'my-app-highlight' }];
+                opts.col_classes = [{ label: 'Highlight', cssClass: 'my-app-highlight' }, { label: 'Shadow', cssClass: 'shadow' }];
+                opts.text_classes = [{ label: 'Lead', cssClass: 'lead' }];
+            }
+            if (state.tools) {
+                var tool = [{ title: 'A host tool', iconClass: 'bi bi-star',
+                              on: { click: function() { alert('The host decides what this does with ' + this.closest('[class]').className); } } }];
+                opts.row_tools = tool;
+                opts.col_tools = tool;
+                opts.text_tools = tool;
+                if (pluginOn('elements')) { opts.element_tools = tool; }
+            }
+            if (state.cancel_delete) {
+                opts.callbacks = {
+                    before_delete: function(payload) {
+                        var first = grid.querySelector('.row');
+                        if (payload.node === first) { alert('The host keeps the first row.'); return false; }
+                    },
+                };
+            }
+            return opts;
+        }
+
+        // The options as code to paste: functions as they are written
+        function toCode(value, indent) {
+            indent = indent || '';
+            var next = indent + '    ';
+            if (typeof value === 'function') { return value.toString().replace(/\n {24}/g, '\n' + indent); }
+            // What fits on a line goes on one
+            var inline = function(v) {
+                if (Array.isArray(v)) { return '[' + v.map(inline).join(', ') + ']'; }
+                if (v && typeof v === 'object') {
+                    return '{ ' + Object.keys(v).map(function(k) { return k + ': ' + inline(v[k]); }).join(', ') + ' }';
+                }
+                return toCode(v);
+            };
+            if (value && typeof value === 'object' && JSON.stringify(value).indexOf('"html"') === -1 &&
+                !/function/.test(inline(value)) && indent.length + inline(value).length < 90) {
+                return inline(value);
+            }
+            if (Array.isArray(value)) {
+                return '[\n' + value.map(function(v) { return next + toCode(v, next); }).join(',\n') + ',\n' + indent + ']';
+            }
+            if (value && typeof value === 'object') {
+                var keys = Object.keys(value);
+                if (!keys.length) { return '{}'; }
+                return '{\n' + keys.map(function(key) {
+                    var name = /^[a-z_$][\w$]*$/i.test(key) ? key : JSON.stringify(key);
+                    return next + name + ': ' + toCode(value[key], next);
+                }).join(',\n') + ',\n' + indent + '}';
+            }
+            return typeof value === 'string' ? "'" + value.replace(/'/g, "\\'") + "'" : String(value);
+        }
+
+        // ---- the editor -----------------------------------------------
+
+        function sample() {
+            var type = state.content_types[0];
+            var html = document.getElementById('sample').innerHTML;
+            return type ? html.replace(/__TEXT__/g, type) : html.replace(/ data-ge-content-type="__TEXT__"/g, '');
+        }
+
+        function start(html) {
+            var error = document.getElementById('error');
+            error.classList.add('d-none');
+            if (editor) {
+                html = html === undefined ? editor.getHtml() : html;
+                editor.destroy();
+            }
+            // After an editor that failed to start, what it was given
+            html = html === undefined ? lastHtml : html;
+            grid.innerHTML = lastHtml = html === undefined ? sample() : html;
+            try {
+                editor = new GridEditor(grid, options());
+            } catch (e) {
+                editor = null;
+                error.textContent = e.message;
+                error.classList.remove('d-none');
+            }
+            window.editor = editor;   // to try the methods from the console
+        }
+
+        // ---- the settings, drawn --------------------------------------
+
+        function optionValue(option) { return Array.isArray(option) ? option[0] : option; }
+        function optionLabel(option) { return Array.isArray(option) ? option[1] : option; }
+
+        function fieldNode(field) {
+            var wrap = document.createElement('div');
+            wrap.className = 'pg-field';
+            wrap.dataset.field = field.id;
+            var key = 'f-' + field.id.replace(/\W/g, '-');
+            var html = '';
+
+            if (field.type === 'check') {
+                html = '<div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="' + key + '">' +
+                       '<label class="form-check-label" for="' + key + '">' + field.label + '</label></div>';
+            } else if (field.type === 'select') {
+                html = '<label class="form-label mb-0" for="' + key + '">' + field.label + '</label>' +
+                       '<select class="form-select form-select-sm" id="' + key + '">' +
+                       field.options.map(function(o, i) { return '<option value="' + i + '">' + optionLabel(o) + '</option>'; }).join('') +
+                       '</select>';
+            } else if (field.type === 'number') {
+                html = '<label class="form-label mb-0" for="' + key + '">' + field.label + '</label>' +
+                       '<input class="form-control form-control-sm" type="number" min="0" id="' + key + '">';
+            } else if (field.type === 'json') {
+                html = '<label class="form-label mb-0" for="' + key + '">' + field.label + '</label>' +
+                       '<textarea class="form-control form-control-sm font-monospace" rows="3" id="' + key + '"></textarea>';
+            } else if (field.type === 'multi') {
+                html = '<div class="form-label mb-0">' + field.label + '</div><div>' +
+                       field.options.map(function(o, i) {
+                           return '<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="' + key + '-' + i + '" value="' + i + '">' +
+                                  '<label class="form-check-label" for="' + key + '-' + i + '">' + optionLabel(o) + '</label></div>';
+                       }).join('') + '</div>';
+            }
+            if (field.help) { html += '<div class="form-text">' + field.help + '</div>'; }
+            wrap.innerHTML = html;
+            wrap.addEventListener('change', function(e) { read(field, wrap, e.target); });
+            return wrap;
+        }
+
+        function read(field, wrap, input) {
+            if (field.type === 'check') {
+                state[field.id] = input.checked;
+            } else if (field.type === 'select') {
+                state[field.id] = optionValue(field.options[input.value]);
+            } else if (field.type === 'number') {
+                state[field.id] = input.value === '' ? field.default : Number(input.value);
+            } else if (field.type === 'json') {
+                try {
+                    state[field.id] = JSON.parse(input.value);
+                    input.classList.remove('is-invalid');
+                } catch (e) {
+                    input.classList.add('is-invalid');
+                    return;
+                }
+            } else if (field.type === 'multi') {
+                // In the order of the options, but content_types in the order ticked
+                var ticked = [].slice.call(wrap.querySelectorAll('input:checked')).map(function(box) {
+                    return optionValue(field.options[box.value]);
+                });
+                if (field.id === 'content_types') {
+                    var kept = state.content_types.filter(function(t) { return ticked.indexOf(t) !== -1; });
+                    ticked = kept.concat(ticked.filter(function(t) { return kept.indexOf(t) === -1; }));
+                }
+                state[field.id] = ticked;
+            }
+            changed();
+        }
+
+        function write(field, wrap) {
+            var value = state[field.id];
+            var input = wrap.querySelector('input, select, textarea');
+            var index = function(v) {
+                return field.options.findIndex(function(o) { return optionValue(o) === v; });
+            };
+            if (field.type === 'check') {
+                input.checked = field.disabled && field.disabled(state) && field.id === 'active_target' ? true : !!value;
+            } else if (field.type === 'select') {
+                input.value = String(Math.max(0, index(value)));
+            } else if (field.type === 'number') {
+                input.value = value;
+            } else if (field.type === 'json') {
+                if (document.activeElement !== input) { input.value = JSON.stringify(value); }
+            } else if (field.type === 'multi') {
+                wrap.querySelectorAll('input').forEach(function(box) {
+                    box.checked = value.indexOf(optionValue(field.options[box.value])) !== -1;
+                });
+            }
+            var off = isDisabled(field);
+            wrap.classList.toggle('pg-off', !!off);
+            wrap.querySelectorAll('input, select, textarea').forEach(function(i) { i.disabled = !!off; });
+        }
+
+        function pluginsNode() {
+            var wrap = document.createElement('div');
+            wrap.innerHTML =
+                '<div class="d-flex gap-2 mb-1"><button type="button" class="btn btn-link btn-sm p-0" data-all="1">All</button>' +
+                '<button type="button" class="btn btn-link btn-sm p-0" data-all="0">None</button></div>' +
+                PLUGINS.map(function(name) {
+                    return '<div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="p-' + name + '" value="' + name + '">' +
+                           '<label class="form-check-label" for="p-' + name + '">' + name + '</label></div>';
+                }).join('') +
+                '<div class="form-text">The <code>plugins</code> setting: what is not named is loaded but not used</div>';
+            wrap.addEventListener('change', function() {
+                state.plugins = [].slice.call(wrap.querySelectorAll('input:checked')).map(function(box) { return box.value; });
+                changed();
+            });
+            wrap.querySelectorAll('[data-all]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    state.plugins = button.dataset.all === '1' ? PLUGINS.slice() : [];
+                    changed();
+                });
+            });
+            return wrap;
+        }
+
+        function render() {
+            var root = document.getElementById('groups');
+            root.innerHTML = '';
+            GROUPS.forEach(function(group) {
+                var col = document.createElement('div');
+                col.className = 'col';
+                col.innerHTML = '<div class="card h-100"><div class="card-header py-1">' + group.title + '</div><div class="card-body py-2"></div></div>';
+                var body = col.querySelector('.card-body');
+                if (group.id === 'plugins') { body.appendChild(pluginsNode()); }
+                group.fields.forEach(function(field) { body.appendChild(fieldNode(field)); });
+                root.appendChild(col);
+            });
+            refresh();
+        }
+
+        function refresh() {
+            Object.keys(FIELDS).forEach(function(id) {
+                write(FIELDS[id], document.querySelector('[data-field="' + id + '"]'));
+            });
+            PLUGINS.forEach(function(name) {
+                document.getElementById('p-' + name).checked = pluginOn(name);
+            });
+        }
+
+        var timer;
+        function changed() {
+            refresh();
+            save();
+            clearTimeout(timer);
+            timer = setTimeout(function() { start(); }, 150);
+        }
+
+        // ---- the buttons ----------------------------------------------
+
+        var modal = new bootstrap.Modal(document.getElementById('output'));
+        var outputCode = document.getElementById('outputCode');
+        var htmlKind = document.getElementById('htmlKind');
+
+        function showHtml() {
+            if (!editor) { return; }
+            var plain = document.getElementById('kindPlain').checked;
+            outputCode.textContent = plain ? editor.getPlainHtml({ keepEditing: true }) : editor.getHtml({ keepEditing: true });
+        }
+
+        document.getElementById('showCode').addEventListener('click', function() {
+            document.getElementById('outputTitle').textContent = 'The options';
+            htmlKind.classList.add('d-none');
+            outputCode.textContent = "var editor = new GridEditor('#myGrid', " + toCode(options()) + ');';
+            modal.show();
+        });
+
+        document.getElementById('showHtml').addEventListener('click', function() {
+            document.getElementById('outputTitle').textContent = 'The html';
+            htmlKind.classList.remove('d-none');
+            showHtml();
+            modal.show();
+        });
+        htmlKind.addEventListener('change', showHtml);
+
+        document.getElementById('copyOutput').addEventListener('click', function() {
+            navigator.clipboard.writeText(outputCode.textContent);
+        });
+
+        document.getElementById('openPage').addEventListener('click', function() {
+            if (!editor) { return; }
+            var html = editor.getPlainHtml({ keepEditing: true });
+            var page = window.open('', '_blank');
+            // The output in a page with Bootstrap and nothing else: tabs,
+            // accordion, popup, offcanvas and carousel run on Bootstrap's own JS
+            page.document.write(
+                '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">' +
+                '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">' +
+                '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"><\/script>' +
+                '<style>' + document.querySelector('style').textContent + '</style>' +
+                '</head><body><div class="container py-4">' + html + '</div></body></html>'
+            );
+            page.document.close();
+        });
+
+        document.getElementById('share').addEventListener('click', function() {
+            navigator.clipboard.writeText(location.href);
+            this.innerHTML = '<i class="bi bi-check2"></i> Copied';
+            var button = this;
+            setTimeout(function() { button.innerHTML = '<i class="bi bi-link-45deg"></i> Copy a link'; }, 1500);
+        });
+
+        document.getElementById('resetSettings').addEventListener('click', function() {
+            state = defaults();
+            changed();
+        });
+
+        document.getElementById('resetContent').addEventListener('click', function() {
+            start(sample());
+            if (editor && editor.clearDraft) { editor.clearDraft(); }
+            if (editor && editor.clearHistory) { editor.clearHistory(); }
+        });
+
+        // ---- the events -----------------------------------------------
+
+        var log = document.getElementById('log');
+        var EVENTS = ['after-add', 'after-delete', 'after-move', 'after-resize', 'after-indent', 'after-utility',
+                      'after-convert', 'after-edit-html', 'after-copy', 'view-change', 'preview-change', 'target-change',
+                      'after-undo', 'after-redo', 'after-autosave', 'after-restore-draft'];
+
+        function describe(node) {
+            if (!node || !node.tagName) { return node === null ? 'null' : ''; }
+            return node.tagName.toLowerCase() + (node.id ? '#' + node.id : '') +
+                [].slice.call(node.classList, 0, 3).map(function(c) { return '.' + c; }).join('');
+        }
+
+        EVENTS.forEach(function(name) {
+            grid.addEventListener('grideditor:' + name, function(e) {
+                var d = e.detail || {};
+                var parts = [];
+                ['kind', 'source', 'family', 'breakpoint', 'view', 'from', 'to', 'pressed', 'cut'].forEach(function(key) {
+                    if (d[key] === undefined || (key !== 'from' && key !== 'to' && typeof d[key] === 'object')) { return; }
+                    parts.push(key + '=' + (typeof d[key] === 'object' ? describe(d[key]) : d[key]));
+                });
+                if (d.node) { parts.push(describe(d.node)); }
+                if (name === 'target-change') { parts.push('→ ' + describe(d.target)); }
+                var item = document.createElement('li');
+                item.className = 'list-group-item py-1';
+                item.innerHTML = '<span class="text-body-secondary">' + new Date().toLocaleTimeString() + '</span> ' +
+                                 '<strong></strong> <span></span>';
+                item.querySelector('strong').textContent = name;
+                item.lastChild.textContent = parts.join('  ');
+                log.prepend(item);
+                while (log.children.length > 100) { log.lastChild.remove(); }
+            });
+        });
+        document.getElementById('clearLog').addEventListener('click', function() { log.innerHTML = ''; });
+
+        render();
+        start();
+    })();
+    </script>
+</body>
+</html>

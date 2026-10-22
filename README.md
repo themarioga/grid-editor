@@ -23,6 +23,7 @@ from any web server, or from GitHub Pages, with no build step.
 
 | Demo | What it shows | |
 | --- | --- | --- |
+| [example/playground.html](example/playground.html) | Every plugin on one canvas, with settings to turn things on and off and the options as code | [live](https://themarioga.github.io/grid-editor/example/playground.html) |
 | [example/basic.html](example/basic.html) | The editor with tinyMCE in the content areas | [live](https://themarioga.github.io/grid-editor/example/basic.html) |
 | [example/breakpoints.html](example/breakpoints.html) | The six breakpoints and the "all sizes" view | [live](https://themarioga.github.io/grid-editor/example/breakpoints.html) |
 | [example/plugins.html](example/plugins.html) | The plugin model, with one written in the page itself | [live](https://themarioga.github.io/grid-editor/example/plugins.html) |
