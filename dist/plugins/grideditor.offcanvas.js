@@ -416,6 +416,12 @@
       return key !== "xs";
     });
     var sections = [];
+    function rememberSection(entry) {
+      sections = sections.filter(function(each) {
+        return each.element.isConnected;
+      });
+      sections.push(entry);
+    }
     var triggers = triggersFor(ge, "offcanvas", "data-ge-offcanvas-id", "data-ge-offcanvas-target", "offcanvas");
     var CHECKS = {
       placement: function(value) {
@@ -627,7 +633,7 @@
         });
       }
       render();
-      sections.push({ node: container, element: body, render });
+      rememberSection({ node: container, element: body, render });
       return body;
     }
     return {

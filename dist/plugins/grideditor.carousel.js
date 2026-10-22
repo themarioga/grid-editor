@@ -204,6 +204,12 @@
   GridEditor.containers.carousel = function(ge) {
     var shown = /* @__PURE__ */ new WeakMap();
     var sections = [];
+    function rememberSection(entry) {
+      sections = sections.filter(function(each) {
+        return each.element.isConnected;
+      });
+      sections.push(entry);
+    }
     function carouselOf(container) {
       return child(container, ".carousel");
     }
@@ -660,7 +666,7 @@
         inputs.pause.disabled = values.ride === false;
       }
       render();
-      sections.push({ node: container, element: body, render });
+      rememberSection({ node: container, element: body, render });
       return body;
     }
     function createItemSection(item) {
@@ -668,7 +674,7 @@
       var interval = intervalField(item);
       body.appendChild(field(INTERVAL_LABEL.labelKey, interval.input, interval.id));
       interval.render();
-      sections.push({ node: item, element: body, render: interval.render });
+      rememberSection({ node: item, element: body, render: interval.render });
       return body;
     }
     return {

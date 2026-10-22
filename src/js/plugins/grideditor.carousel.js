@@ -120,6 +120,13 @@ GridEditor.containers.carousel = function(ge) {
     var shown = new WeakMap(); // The slide each carousel shows, whatever its markup says
     var sections = []; // { node, element, render } for every panel section built
 
+    // A panel's sections are built when it opens and taken away when it
+    // closes: the ones gone are forgotten here as well as on a refresh
+    function rememberSection(entry) {
+        sections = sections.filter(function(each) { return each.element.isConnected; });
+        sections.push(entry);
+    }
+
     function carouselOf(container) {
         return dom.child(container, '.carousel');
     }
@@ -644,7 +651,7 @@ GridEditor.containers.carousel = function(ge) {
         }
 
         render();
-        sections.push({ node: container, element: body, render: render });
+        rememberSection({ node: container, element: body, render: render });
 
         return body;
     }
@@ -656,7 +663,7 @@ GridEditor.containers.carousel = function(ge) {
 
         body.appendChild(field(INTERVAL_LABEL.labelKey, interval.input, interval.id));
         interval.render();
-        sections.push({ node: item, element: body, render: interval.render });
+        rememberSection({ node: item, element: body, render: interval.render });
 
         return body;
     }

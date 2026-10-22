@@ -80,6 +80,13 @@ GridEditor.containers.tabs = function(ge) {
 
     var sections = []; // { container, render } for every panel section built
 
+    // A panel's sections are built when it opens and taken away when it
+    // closes: the ones gone are forgotten here as well as on a refresh
+    function rememberSection(entry) {
+        sections = sections.filter(function(each) { return each.element.isConnected; });
+        sections.push(entry);
+    }
+
     /** The strip: the container's first .nav, whatever its style. */
     function stripOf(container) {
         return dom.child(container, '.nav');
@@ -294,7 +301,7 @@ GridEditor.containers.tabs = function(ge) {
         }
 
         render();
-        sections.push({ container: container, element: body, render: render });
+        rememberSection({ container: container, element: body, render: render });
 
         return body;
     }

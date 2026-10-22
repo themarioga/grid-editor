@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+- A settings panel's plugin sections and *Responsive* section are built when
+  the panel opens and taken away when it closes, rather than built into every
+  drawer up front. With inline-style they were most of the canvas: in the
+  playground's sample, 42,000 of its 42,200 elements, now 2,300, with an add
+  down from over 100 ms to under 10, and `getHtml({ keepEditing: true })` from
+  60 ms to 2. `panelSection(node, kind)` is called each time the node's panel
+  opens, from the node as it is then.
+- `ge.detailsOf(node)` builds the rest of a panel that was not open;
+  `ge.detailsOf(node, { build: false })` hands it back as it is.
+
+### Fixed
+- Every add, and every other change that brings the canvas up to date, made
+  every row, column and region sortable again without undoing the instances
+  already there, so each list gathered one more SortableJS instance, and its
+  listeners, per change. A list made sortable keeps its one instance, and a
+  list taken off the canvas loses its own.
+
 ## [9.0.0] - 2026-10-22
 
 The first stable 9.0: what 9.0.0-beta.1 to 9.0.0-beta.8 below brought, and

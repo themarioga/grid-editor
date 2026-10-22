@@ -1593,7 +1593,7 @@ function classesOf2(node) {
   return (node.getAttribute("class") || "").split(/\s+/).filter(Boolean);
 }
 function choose(ge, node, group2, name) {
-  var details = ge.detailsOf(node);
+  var details = ge.detailsOf(node, { build: false });
   var input = details ? one(details, ".ge-classes") : null;
   if (!input) {
     return;
@@ -1973,6 +1973,9 @@ GridEditor7.utilities["inline-style"] = function(ge) {
       if (!accordion) {
         return null;
       }
+      accordions = accordions.filter(function(entry) {
+        return entry.accordion.element.isConnected;
+      });
       accordions.push({ node, accordion });
       return { labelKey: "inline_style.section_title", titleKey: "inline_style.dialog_title", body: accordion.element };
     },

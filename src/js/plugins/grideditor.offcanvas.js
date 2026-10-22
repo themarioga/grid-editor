@@ -86,6 +86,13 @@ GridEditor.containers.offcanvas = function(ge) {
     var RESPONSIVE = ge.breakpoints.filter(function(key) { return key !== 'xs'; });
     var sections = []; // { node, element, render } for every panel section built
 
+    // A panel's sections are built when it opens and taken away when it
+    // closes: the ones gone are forgotten here as well as on a refresh
+    function rememberSection(entry) {
+        sections = sections.filter(function(each) { return each.element.isConnected; });
+        sections.push(entry);
+    }
+
     var triggers = triggersFor(ge, 'offcanvas', 'data-ge-offcanvas-id', 'data-ge-offcanvas-target', 'offcanvas');
 
     var CHECKS = {
@@ -308,7 +315,7 @@ GridEditor.containers.offcanvas = function(ge) {
         }
 
         render();
-        sections.push({ node: container, element: body, render: render });
+        rememberSection({ node: container, element: body, render: render });
 
         return body;
     }

@@ -127,6 +127,48 @@ async function handleTests(t) {
     t.check('the sorting tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+async function reinitTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    // Every add runs init() over the whole canvas, and init makes the canvas
+    // sortable: a list already made keeps its instance rather than gather one
+    // more per change, and a list taken off the canvas loses its own
+    var made = await page.eval(NESTED + `
+        window.fixture.init({ confirm_delete: false });
+        let created = 0;
+        const create = Sortable.create;
+        Sortable.create = function() { created++; return create.apply(this, arguments); };
+        const add = function() {
+            const before = created;
+            document.querySelector('.ge-addRowGroup a').click();
+            return created - before;
+        };
+        const firstAdd = add();
+        const secondAdd = add();
+        const thirdAdd = add();
+        const removed = document.querySelector('#two');
+        removed.querySelector('.ge-delete-row').click();
+        await new Promise(function(resolve) { setTimeout(resolve, 600); });
+        add();
+        Sortable.create = create;
+        return {
+            firstAdd: firstAdd, secondAdd: secondAdd, thirdAdd: thirdAdd,
+            removedGone: !document.body.contains(removed),
+            removedKeepsInstance: !!Sortable.get(removed.querySelector('.column')),
+            outerKeepsInstance: !!Sortable.get(document.querySelector('#outer')),
+        };
+    `);
+    t.check('an add makes only the new lists sortable, however many adds came before',
+        made.firstAdd > 0 && made.secondAdd === made.firstAdd && made.thirdAdd === made.firstAdd, made);
+    t.check('a list taken off the canvas loses its instance, the others keep theirs',
+        made.removedGone && !made.removedKeepsInstance && made.outerKeepsInstance, made);
+
+    // And the lists that were already there still drag
+    await page.drag('#one > .ge-tools-drawer .ge-move', '#outer > .ge-tools-drawer', { yRatio: 0.1 });
+    var order = await page.eval(CHILDREN);
+    t.check('after several adds a list still drags', order.indexOf('ge-tools-drawer,one') === 0, order);
+}
+
 module.exports = {
     name: 'sorting',
     description: 'the drag mechanics every feature relies on',
@@ -134,6 +176,7 @@ module.exports = {
         await drawerTests(t);
         await ownChildrenTests(t);
         await handleTests(t);
+        await reinitTests(t);
     },
 };
 

@@ -17,7 +17,7 @@ function classesOf(node) {
 
 /** Put a class on or off through the node's classes field. */
 function choose(ge, node, group, name) {
-    var details = ge.detailsOf(node);
+    var details = ge.detailsOf(node, { build: false });
     var input = details ? dom.one(details, '.ge-classes') : null;
     if (!input) { return; }
 

@@ -686,6 +686,7 @@
     var toolbarGroup = null;
     var warnedHere = {};
     var sortables = [];
+    var sortableKinds = /* @__PURE__ */ new WeakMap();
     var instanceId = ++editorCounter;
     var destroyed = false;
     var sidebarCollapsed = null;
@@ -699,6 +700,7 @@
       }
     }
     var detailsFor = /* @__PURE__ */ new WeakMap();
+    var panelBodies = /* @__PURE__ */ new WeakMap();
     var toolActions = /* @__PURE__ */ new WeakMap();
     var pendingDelete = null;
     var moves = /* @__PURE__ */ new WeakMap();
@@ -2477,8 +2479,16 @@
         attachPicker,
         openPicker,
         closePicker: closeSizePicker,
-        // A node's settings panel, in its drawer or open outside it
-        detailsOf,
+        // A node's settings panel, in its drawer or open outside it,
+        // whole: { build: false } for it as it is, without what is
+        // built only while it is open
+        detailsOf: function(node, options) {
+          var details = detailsOf(node);
+          if (details && !(options && options.build === false)) {
+            buildPanelBody(details);
+          }
+          return details;
+        },
         // A node's drawer: its first child, or for a content area the
         // one beside it in its text block
         drawerOf,
@@ -3669,14 +3679,42 @@
         });
         classGroup.appendChild(btn);
       });
-      pluginSections(container).forEach(function(section) {
-        detailsDiv.appendChild(section);
-      });
-      var utilities = createUtilitiesSection(container);
-      if (utilities) {
-        detailsDiv.appendChild(utilities);
-      }
+      var anchor = detailsDiv.appendChild(document.createComment(" ge-details-body "));
+      panelBodies.set(detailsDiv, { node: container, anchor, nodes: null });
       return detailsDiv;
+    }
+    function buildPanelBody(details) {
+      var body = panelBodies.get(details);
+      if (!body || body.nodes) {
+        return;
+      }
+      var nodes = pluginSections(body.node);
+      var utilities = createUtilitiesSection(body.node);
+      if (utilities) {
+        nodes.push(utilities);
+      }
+      nodes.forEach(function(node) {
+        details.insertBefore(node, body.anchor);
+      });
+      body.nodes = nodes;
+    }
+    function dropPanelBody(details) {
+      var body = panelBodies.get(details);
+      if (!body || !body.nodes) {
+        return;
+      }
+      if (dialogState && dialogState.home && details.contains(dialogState.home)) {
+        closeDialog();
+      }
+      body.nodes.forEach(function(node) {
+        node.remove();
+      });
+      body.nodes = null;
+      pluginFields.forEach(function(fieldNode, field) {
+        if (!field.isConnected) {
+          pluginFields.delete(field);
+        }
+      });
     }
     function sectionTitle(text) {
       return element("h6", { "class": "ge-section-title" }, text);
@@ -3744,7 +3782,13 @@
     function toggleSettings(node, details, gear) {
       var mode = panelMode();
       if (mode === "inline") {
-        toggle(details);
+        if (visible(details)) {
+          hide(details);
+          dropPanelBody(details);
+        } else {
+          buildPanelBody(details);
+          show(details);
+        }
         return;
       }
       var same = openSettingsState && openSettingsState.details === details;
@@ -3766,6 +3810,7 @@
         listening
       };
       one(panel, ".ge-settings-title").textContent = t("panel.title", { kind: kindLabel(node) });
+      buildPanelBody(details);
       one(panel, ".ge-settings-body").appendChild(details);
       show(details);
       addClass(node, "ge-settings-target");
@@ -3832,6 +3877,7 @@
       returnPanel(open);
     }
     function returnPanel(open) {
+      dropPanelBody(open.details);
       removeClass(open.node, "ge-settings-target");
       open.details.style.removeProperty("display");
       dropEmptyStyle(open.details);
@@ -4017,6 +4063,7 @@
       }
       sidebarShown = { node: activeTarget, details, home: details.parentElement, next: details.nextElementSibling };
       setSidebarTitle(t("panel.title", { kind: kindLabel(activeTarget) }));
+      buildPanelBody(details);
       holder.appendChild(details);
       show(details);
     }
@@ -4509,7 +4556,17 @@
       var wholeDrawer = settings.drag_handle === "drawer";
       var cancel = dragCancelSelector();
       var soloGroup = 0;
+      var kind = options.draggable + "|" + (options.group || "");
+      dropDetachedSortables();
       lists.forEach(function(list) {
+        var kinds = sortableKinds.get(list);
+        if (kinds && kinds.has(kind)) {
+          return;
+        }
+        if (!kinds) {
+          sortableKinds.set(list, kinds = /* @__PURE__ */ new Set());
+        }
+        kinds.add(kind);
         var group = options.group ? { name: groupName(options.group) } : { name: groupName(options.draggable + "-" + ++soloGroup), pull: false, put: false };
         if (options.group && options.accepts) {
           group.put = function(to, from, dragged) {
@@ -4819,6 +4876,17 @@
         sortableInstance.destroy();
       });
       sortables = [];
+      sortableKinds = /* @__PURE__ */ new WeakMap();
+    }
+    function dropDetachedSortables() {
+      sortables = sortables.filter(function(sortableInstance) {
+        if (canvas.contains(sortableInstance.el)) {
+          return true;
+        }
+        sortableInstance.destroy();
+        sortableKinds.delete(sortableInstance.el);
+        return false;
+      });
     }
     function createRow() {
       return element("div", { "class": "row" });

@@ -91,7 +91,7 @@ GridEditor.features.sections = function(ge) {
             });
 
             if (!ge.emit('before-utility', payload)) {
-                var select = dom.one(ge.detailsOf(section), '.ge-section-width select');
+                var select = dom.one(ge.detailsOf(section, { build: false }), '.ge-section-width select');
                 if (select) { select.value = from; }
                 return false;
             }

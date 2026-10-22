@@ -182,7 +182,7 @@
           source: source || "api"
         });
         if (!ge.emit("before-utility", payload)) {
-          var select = one(ge.detailsOf(section), ".ge-section-width select");
+          var select = one(ge.detailsOf(section, { build: false }), ".ge-section-width select");
           if (select) {
             select.value = from;
           }

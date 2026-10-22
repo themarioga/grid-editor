@@ -216,7 +216,7 @@ GridEditor.features.clipboard = function(ge) {
                 if (source !== 'tool' && !(target && node.contains(target))) { return; }
 
                 var parent = node.parentElement;
-                while (parent && parent !== ge.canvas && !ge.detailsOf(parent)) { parent = parent.parentElement; }
+                while (parent && parent !== ge.canvas && !ge.detailsOf(parent, { build: false })) { parent = parent.parentElement; }
                 ge.setActiveTarget(parent && parent !== ge.canvas ? parent : null);
             },
         });

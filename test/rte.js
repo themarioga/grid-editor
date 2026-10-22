@@ -440,7 +440,9 @@ async function utilityTests(t) {
 
     var open = await page.eval(`
         const element = document.querySelector('#myGrid .ge-element');
-        const select = element.querySelector(':scope > .ge-tools-drawer .ge-utility select');
+        // Its panel's Responsive section is built when the panel opens
+        element.querySelector(':scope > .ge-tools-drawer .ge-settings').click();
+        const select = document.querySelector('.ge-settings-panel .ge-settings-body .ge-utility select');
         return {
             editorOpen: tinymce.get().length === 1,
             classKept: element.classList.contains('order-md-2'),

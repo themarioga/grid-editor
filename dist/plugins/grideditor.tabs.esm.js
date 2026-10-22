@@ -175,6 +175,12 @@ function classValues(map) {
 }
 GridEditor.containers.tabs = function(ge) {
   var sections = [];
+  function rememberSection(entry) {
+    sections = sections.filter(function(each) {
+      return each.element.isConnected;
+    });
+    sections.push(entry);
+  }
   function stripOf(container) {
     return child(container, ".nav");
   }
@@ -351,7 +357,7 @@ GridEditor.containers.tabs = function(ge) {
       fields.align.field.disabled = values.vertical !== false || values.width !== "natural";
     }
     render();
-    sections.push({ container, element: body, render });
+    rememberSection({ container, element: body, render });
     return body;
   }
   function addTabTo(container, options) {

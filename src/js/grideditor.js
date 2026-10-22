@@ -476,6 +476,7 @@ function build(instance, baseElem, optionsOrMethod) {
         var toolbarGroup = null; // The category shown, with toolbar_groups. Kept when the toolbar is rebuilt
         var warnedHere = {}; // Some warnings are worth saying once per instance, not once per call
         var sortables = []; // Every list made sortable, so deinit destroys exactly those
+        var sortableKinds = new WeakMap(); // What each of those lists sorts already, so init does not make it twice
         var instanceId = ++editorCounter; // Scopes the sortable groups to this editor
         var destroyed = false;
         var sidebarCollapsed = null; // Folded away, once the sidebar has been shown: the window's width decides the first time
@@ -495,6 +496,7 @@ function build(instance, baseElem, optionsOrMethod) {
         // be jQuery data: a node's settings panel, a drag or a resize in
         // progress. Kept off the markup, and gone with the node.
         var detailsFor = new WeakMap(); // node -> its settings panel
+        var panelBodies = new WeakMap(); // A panel -> { node, anchor, nodes }: the part built only while it is open
         var toolActions = new WeakMap(); // A tool -> what its click does, to do it without one
         var pendingDelete = null; // What removeNode asks of the delete the tool it runs makes, for that call only
         var moves = new WeakMap(); // dragged node -> { from, canceled }
@@ -2801,8 +2803,14 @@ function build(instance, baseElem, optionsOrMethod) {
                 attachPicker: attachPicker,
                 openPicker: openPicker,
                 closePicker: closeSizePicker,
-                // A node's settings panel, in its drawer or open outside it
-                detailsOf: detailsOf,
+                // A node's settings panel, in its drawer or open outside it,
+                // whole: { build: false } for it as it is, without what is
+                // built only while it is open
+                detailsOf: function(node, options) {
+                    var details = detailsOf(node);
+                    if (details && !(options && options.build === false)) { buildPanelBody(details); }
+                    return details;
+                },
                 // A node's drawer: its first child, or for a content area the
                 // one beside it in its text block
                 drawerOf: drawerOf,
@@ -4356,12 +4364,49 @@ function build(instance, baseElem, optionsOrMethod) {
                 classGroup.appendChild(btn);
             });
 
-            pluginSections(container).forEach(function(section) { detailsDiv.appendChild(section); });
-
-            var utilities = createUtilitiesSection(container);
-            if (utilities) { detailsDiv.appendChild(utilities); }
+            // What plugins add and the Responsive section are most of a
+            // panel - hundreds of fields with inline-style - and a panel is
+            // seldom opened: they are built when it opens, here, and taken
+            // away when it closes. Fields a plugin adds to the panel itself go
+            // after them, as ever.
+            var anchor = detailsDiv.appendChild(document.createComment(' ge-details-body '));
+            panelBodies.set(detailsDiv, { node: container, anchor: anchor, nodes: null });
 
             return detailsDiv;
+        }
+
+        /**
+         * The part of a panel built only while it is open: the plugins'
+         * sections and the Responsive section, made from the node as it is
+         * now, so nothing has to keep them up to date while nobody sees them.
+         */
+        function buildPanelBody(details) {
+            var body = panelBodies.get(details);
+            if (!body || body.nodes) { return; }
+
+            var nodes = pluginSections(body.node);
+            var utilities = createUtilitiesSection(body.node);
+            if (utilities) { nodes.push(utilities); }
+
+            nodes.forEach(function(node) { details.insertBefore(node, body.anchor); });
+            body.nodes = nodes;
+        }
+
+        /** And taken away again, with its listeners, when the panel closes. */
+        function dropPanelBody(details) {
+            var body = panelBodies.get(details);
+            if (!body || !body.nodes) { return; }
+
+            // A dialog showing one of its sections goes first, or it would
+            // put the section back into what is being taken away
+            if (dialogState && dialogState.home && details.contains(dialogState.home)) { closeDialog(); }
+
+            body.nodes.forEach(function(node) { node.remove(); });
+            body.nodes = null;
+
+            pluginFields.forEach(function(fieldNode, field) {
+                if (!field.isConnected) { pluginFields.delete(field); }
+            });
         }
 
         /** The heading of one of a panel's sections. */
@@ -4463,7 +4508,13 @@ function build(instance, baseElem, optionsOrMethod) {
             var mode = panelMode();
 
             if (mode === 'inline') {
-                dom.toggle(details);
+                if (dom.visible(details)) {
+                    dom.hide(details);
+                    dropPanelBody(details);
+                } else {
+                    buildPanelBody(details);
+                    dom.show(details);
+                }
                 return;
             }
 
@@ -4487,6 +4538,7 @@ function build(instance, baseElem, optionsOrMethod) {
             };
 
             dom.one(panel, '.ge-settings-title').textContent = t('panel.title', { kind: kindLabel(node) });
+            buildPanelBody(details);
             dom.one(panel, '.ge-settings-body').appendChild(details);
             dom.show(details);
             dom.addClass(node, 'ge-settings-target');
@@ -4554,6 +4606,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
         /** A node's panel back where it was in its drawer, and the node no longer marked. */
         function returnPanel(open) {
+            dropPanelBody(open.details);
             dom.removeClass(open.node, 'ge-settings-target');
             open.details.style.removeProperty('display');
             dom.dropEmptyStyle(open.details);
@@ -4784,6 +4837,7 @@ function build(instance, baseElem, optionsOrMethod) {
 
             sidebarShown = { node: activeTarget, details: details, home: details.parentElement, next: details.nextElementSibling };
             setSidebarTitle(t('panel.title', { kind: kindLabel(activeTarget) }));
+            buildPanelBody(details);
             holder.appendChild(details);
             dom.show(details);
         }
@@ -5507,8 +5561,20 @@ function build(instance, baseElem, optionsOrMethod) {
             var wholeDrawer = settings.drag_handle === 'drawer';
             var cancel = dragCancelSelector();
             var soloGroup = 0;
+            var kind = options.draggable + '|' + (options.group || '');
+
+            // init() runs after every add, and makes the canvas sortable
+            // again: the lists it already made keep their instance, and the
+            // ones taken off the canvas since lose theirs. Without this every
+            // list gathered one more instance, and its listeners, per change.
+            dropDetachedSortables();
 
             lists.forEach(function(list) {
+                var kinds = sortableKinds.get(list);
+                if (kinds && kinds.has(kind)) { return; }
+                if (!kinds) { sortableKinds.set(list, kinds = new Set()); }
+                kinds.add(kind);
+
                 // A list with no group sorts only within itself, which is what
                 // a tab strip wants: a name of its own, closed both ways
                 var group = options.group
@@ -5939,6 +6005,18 @@ function build(instance, baseElem, optionsOrMethod) {
             sortables.forEach(function(sortableInstance) { sortableInstance.destroy(); });
 
             sortables = [];
+            sortableKinds = new WeakMap();
+        }
+
+        /** Destroy the instances of the lists no longer in the canvas. */
+        function dropDetachedSortables() {
+            sortables = sortables.filter(function(sortableInstance) {
+                if (canvas.contains(sortableInstance.el)) { return true; }
+
+                sortableInstance.destroy();
+                sortableKinds.delete(sortableInstance.el);
+                return false;
+            });
         }
 
         function createRow() {

@@ -160,8 +160,8 @@ element, and where there may be several, an array.
 | `ge.defaultRegion()` | A row with one full width column: what an empty pane starts as |
 | `ge.createTool(drawer, title, className, iconClass, handlers)` | A tool in a drawer, which it returns. `handlers` is a click handler or `{ eventName: handler }`; each gets the DOM event, with `this` the tool |
 | `ge.createMoveTool(drawer)` | The drag handle, unless `drag_handle` says the whole drawer is one; the tool, or null |
-| `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens. Returns the panel, to add fields to |
-| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover, modal or sidebar `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none |
+| `ge.addSettingsTool(drawer, node, presets)` | The gear, and the id and class panel it opens. Returns the panel, to add fields to: they go after the plugins' sections and *Responsive*, which are built when the panel opens |
+| `ge.detailsOf(node)` | A node's settings panel, wherever it is: in its drawer, or open in the offcanvas, popover, modal or sidebar `settings_panel` names, outside the canvas. Find a panel's fields through it, never through the drawer. Null for a node with none. Whole: the plugins' sections and *Responsive*, built only while the panel is open, are built if they were not. `ge.detailsOf(node, { build: false })` hands it back as it is, without building them - for a plugin that only refreshes what may be showing, or asks whether a node has a panel at all |
 | `ge.deleteNode(kind, node, confirmText, animate)` | Remove a node: ask, animate, announce |
 | `ge.place(node, kind, options)` | Put a created node where `appendTo` and friends say, through the add events. `options.source` is the payload's `source`, `api` by default |
 | `ge.createPaneControls(pane, kind, hostTools, confirmText, remove)` | The drawer a pane gets: move, the host's tools, delete. Returns the drawer, for a plugin that wants other tools in it |
@@ -351,6 +351,14 @@ the panel. A popover, or a panel inline in the drawer, gets a button with the
 label instead, and `body` opens in the dialog, titled `titleKey` - with the
 node's kind as `{kind}` - or the label. `body` stays the panel's either way,
 so `ge.detailsOf(node)` finds what is in it.
+
+The sections are built when the panel opens, not when the node's drawer is:
+`panelSection` is called each time the node's panel opens - shown in the
+sidebar, unfolded inline, opened in the offcanvas, popover or modal - and
+`body` is taken away when it closes. So `body` is made from the node as it is
+at that moment, and needs no keeping up to date while it is closed. A plugin
+that keeps its sections in a list, to refresh them, forgets the ones no longer
+connected (`body.isConnected`).
 
 With `settings_panel: 'sidebar'` the panel has room, as the offcanvas does:
 the sections are in it, and `body` is in the sidebar while its node is the target.

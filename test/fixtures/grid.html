@@ -94,6 +94,22 @@
             },
         };
 
+        // A panel's plugin sections and Responsive section are built when it
+        // opens. The suites about what is in them read them in the drawer
+        // without opening it, so the fixture builds every panel whenever the
+        // canvas is brought up to date - the way ge.detailsOf(node) builds
+        // one. A suite about the building itself sets eagerPanels to false.
+        window.fixture.eagerPanels = true;
+        GridEditor.features['fixture-panels'] = function(ge) {
+            return {
+                onInit: function() {
+                    if (!window.fixture.eagerPanels) { return; }
+                    ge.canvas.querySelectorAll('*').forEach(function(node) { ge.detailsOf(node); });
+                },
+            };
+        };
+        GridEditor.features['fixture-panels'].always = true;
+
         document.addEventListener('DOMContentLoaded', function() {
             if (new URLSearchParams(window.location.search).get('init') !== 'manual') {
                 window.fixture.init();

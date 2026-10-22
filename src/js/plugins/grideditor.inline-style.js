@@ -161,6 +161,9 @@ GridEditor.utilities['inline-style'] = function(ge) {
             var accordion = createAccordion(ge, node, kind, context);
             if (!accordion) { return null; }
 
+            // Built when the panel opens and taken away when it closes: the
+            // ones gone are forgotten here as well as on a refresh
+            accordions = accordions.filter(function(entry) { return entry.accordion.element.isConnected; });
             accordions.push({ node: node, accordion: accordion });
 
             return { labelKey: 'inline_style.section_title', titleKey: 'inline_style.dialog_title', body: accordion.element };

@@ -226,7 +226,7 @@ GridEditor.features.clipboard = function(ge) {
           return;
         }
         var parent = node.parentElement;
-        while (parent && parent !== ge.canvas && !ge.detailsOf(parent)) {
+        while (parent && parent !== ge.canvas && !ge.detailsOf(parent, { build: false })) {
           parent = parent.parentElement;
         }
         ge.setActiveTarget(parent && parent !== ge.canvas ? parent : null);
