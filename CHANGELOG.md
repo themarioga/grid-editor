@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- A block's html edited in place (the codemirror-inline plugin) in a flex or
+  grid column no longer has the blocks below it laid over it. With the
+  inline-style plugin, a flex or grid node takes its drawer out of the flow,
+  and the editor, a drawer by class, was taken out with it. It now stays in
+  the flow, where the block was.
+
 ## [9.2.2] - 2026-10-23
 
 ### Fixed

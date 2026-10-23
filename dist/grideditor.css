@@ -5131,8 +5131,10 @@ html.ge-sidebar-open {
   position: relative;
   border-top-style: solid !important;
   border-top-color: transparent !important;
+  /* Not a block's html being edited, with the codemirror-inline plugin:
+       a drawer only in name, it stands where the block was, in the flow */
 }
-.ge-canvas.ge-editing .ge-drawer-out > .ge-tools-drawer {
+.ge-canvas.ge-editing .ge-drawer-out > .ge-tools-drawer:not(.ge-code-inline) {
   position: absolute;
   left: 0;
   right: 0;

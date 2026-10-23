@@ -45,10 +45,10 @@ var HELPERS = `
         };
     };
     window.near = function(a, b) { return Math.abs(a - b) < 1.5; };
-    window.start = function(html) {
+    window.start = function(html, plugins) {
         if (window.fixture.editor()) { window.fixture.teardown(); }
         document.querySelector('#myGrid').innerHTML = html;
-        window.fixture.init({ plugins: window.fixture.plugins(['inline-style']) });
+        window.fixture.init({ plugins: window.fixture.plugins(['inline-style'].concat(plugins || [])) });
     };
     window.column = function(classes) {
         return '<div class="row"><div class="column col-12 ' + classes + '">' +
@@ -130,6 +130,24 @@ async function run(t, page) {
     t.check('the column\'s padding is kept below the drawer (AC-55)',
         padded.out && Math.abs(padded.items[0].left - padded.inner.left - 16) < 1.5 &&
         padded.items[0].top >= padded.drawer.bottom && Math.abs(padded.paddingTop - 16) < 0.5, padded);
+
+    var inline = await page.eval(`
+        start(column('d-flex flex-column gap-3'), ['codemirror-inline']);
+        col().querySelector('.ge-text-block > .ge-tools-drawer .ge-edit-html').click();
+        const editor = col().querySelector(':scope > .ge-code-inline');
+        const below = editor.nextElementSibling.getBoundingClientRect();
+        const result = {
+            position: getComputedStyle(editor).position,
+            bottom: editor.getBoundingClientRect().bottom,
+            next: below.top,
+            drawerBottom: drawer(col()).getBoundingClientRect().bottom,
+            top: editor.getBoundingClientRect().top,
+        };
+        col().querySelector('.ge-code-cancel').click();
+        return result;
+    `);
+    t.check('a block\'s html edited in place in a flex column stays in the flow, under the drawer and above the next block',
+        inline.position !== 'absolute' && inline.top >= inline.drawerBottom - 0.5 && inline.next >= inline.bottom, inline);
 
     var exported = await page.eval(`
         start(column('d-flex') + '<div class="row flex-nowrap"><div class="column col-6"><div class="ge-content"><p>x</p></div></div></div>');

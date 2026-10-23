@@ -41,7 +41,7 @@ export function drawerflowPart(ge) {
         var node = '.ge-canvas.ge-editing [' + OUT_ATTR + '="' + room + '"]';
         sheet.appendChild(document.createTextNode(
             node + ' { border-top-width: ' + room + 'px !important; }\n' +
-            node + ' > .ge-tools-drawer { top: -' + room + 'px; }\n'
+            node + ' > .ge-tools-drawer:not(.ge-code-inline) { top: -' + room + 'px; }\n'
         ));
     }
 
