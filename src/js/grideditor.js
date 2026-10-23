@@ -1408,15 +1408,35 @@ function build(instance, baseElem, optionsOrMethod) {
             var previewButton = dom.create('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>');
             previewButton.setAttribute('title', t('tool.preview'));
             dom.toggleClass(previewButton, 'active btn-danger', previewing);
+            // The look can move the button off the pointer - a scrollbar
+            // goes, the toolbar reflows - and the look put back moves it
+            // under again, over and over. So it holds until the pointer
+            // leaves where the button was when it came in.
+            var hoverRect = null;
+            function endHover(e) {
+                var r = hoverRect;
+                // Out of the window, nothing holds it
+                var outOfWindow = e.currentTarget === document.documentElement;
+                var overButton = e.type === 'pointermove' && previewButton.contains(e.target);
+                if (r && !outOfWindow && (overButton || e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom)) {
+                    document.addEventListener('pointermove', endHover, { signal: lifetime.signal });
+                    document.documentElement.addEventListener('mouseleave', endHover, { signal: lifetime.signal });
+                    return;
+                }
+                hoverRect = null;
+                document.removeEventListener('pointermove', endHover);
+                document.documentElement.removeEventListener('mouseleave', endHover);
+                if (!previewing) { dom.addClass(canvas, 'ge-editing'); }
+            }
             previewButton.addEventListener('mouseenter', function() {
+                if (hoverRect) { return; }
+                hoverRect = previewButton.getBoundingClientRect();
                 dom.removeClass(canvas, 'ge-editing');
             });
             previewButton.addEventListener('click', function() {
                 setPreview(!previewing);
             });
-            previewButton.addEventListener('mouseleave', function() {
-                if (!previewing) { dom.addClass(canvas, 'ge-editing'); }
-            });
+            previewButton.addEventListener('mouseleave', endHover);
             btnGroup.appendChild(previewButton);
 
             // Floated right after the source and preview buttons, so it

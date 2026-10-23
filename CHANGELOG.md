@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [9.2.2] - 2026-10-23
+
+### Fixed
+- The canvas no longer flickers with the pointer still between the source
+  and preview buttons. The preview look could move the buttons (a scrollbar
+  going, the toolbar reflowing) off the pointer, putting the editing look
+  back, which moved them under it again. Hovering now holds the look until
+  the pointer leaves where the preview button was when it came in.
+
 ## [9.2.1] - 2026-10-22
 
 ### Fixed

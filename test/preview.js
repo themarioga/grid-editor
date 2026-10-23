@@ -76,6 +76,23 @@ async function hoverTests(t, page) {
     `);
     t.check('hovering the preview button only looks: the triggers open nothing, and no preview-change',
         hover.looking && hover.toggle === null && !hover.shown && hover.changes.length === 0 && hover.back, hover);
+
+    // The look moved the button off a pointer that stayed put: it holds until
+    // the pointer itself leaves where the button was
+    var moved = await page.eval(`
+        start();
+        const r = eye().getBoundingClientRect();
+        const x = r.left + r.width / 2, y = r.top + r.height / 2;
+        eye().dispatchEvent(new MouseEvent('mouseenter', { clientX: x, clientY: y }));
+        eye().dispatchEvent(new MouseEvent('mouseleave', { clientX: x, clientY: y }));
+        const held = !editing();
+        document.dispatchEvent(new PointerEvent('pointermove', { clientX: x + 1, clientY: y }));
+        const still = !editing();
+        document.dispatchEvent(new PointerEvent('pointermove', { clientX: r.right + 20, clientY: r.bottom + 20 }));
+        return { held: held, still: still, back: editing() };
+    `);
+    t.check('a hover look that moves the button holds until the pointer leaves where it was',
+        moved.held && moved.still && moved.back, moved);
 }
 
 async function offcanvasTests(t, page) {

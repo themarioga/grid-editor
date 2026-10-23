@@ -1383,17 +1383,34 @@ function build(instance, baseElem, optionsOrMethod) {
     var previewButton = create('<button type="button" class="btn btn-sm btn-primary gm-preview"><i class="bi bi-eye-fill"></i></button>');
     previewButton.setAttribute("title", t("tool.preview"));
     toggleClass(previewButton, "active btn-danger", previewing);
+    var hoverRect = null;
+    function endHover(e) {
+      var r = hoverRect;
+      var outOfWindow = e.currentTarget === document.documentElement;
+      var overButton = e.type === "pointermove" && previewButton.contains(e.target);
+      if (r && !outOfWindow && (overButton || e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom)) {
+        document.addEventListener("pointermove", endHover, { signal: lifetime.signal });
+        document.documentElement.addEventListener("mouseleave", endHover, { signal: lifetime.signal });
+        return;
+      }
+      hoverRect = null;
+      document.removeEventListener("pointermove", endHover);
+      document.documentElement.removeEventListener("mouseleave", endHover);
+      if (!previewing) {
+        addClass(canvas, "ge-editing");
+      }
+    }
     previewButton.addEventListener("mouseenter", function() {
+      if (hoverRect) {
+        return;
+      }
+      hoverRect = previewButton.getBoundingClientRect();
       removeClass(canvas, "ge-editing");
     });
     previewButton.addEventListener("click", function() {
       setPreview(!previewing);
     });
-    previewButton.addEventListener("mouseleave", function() {
-      if (!previewing) {
-        addClass(canvas, "ge-editing");
-      }
-    });
+    previewButton.addEventListener("mouseleave", endHover);
     btnGroup.appendChild(previewButton);
     if (endItems.length) {
       var end = wrapper.appendChild(element("div", { "class": "pull-right ge-toolbar-end" }));
