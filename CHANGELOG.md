@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- Plugins: a `plainMarkup(root, options)` hook, called by `getPlainHtml` on
+  the markup it read, before grid-editor's own marking comes off, so a
+  plugin can publish its content another way. A plugin returning `false`
+  makes `getPlainHtml` answer `null`. Nothing changes without a plugin that
+  has the hook.
+- Plugins: `ge.reinit()`, the canvas out of editing and back in as `getHtml`
+  does it, for a plugin that shows the same markup another way.
+
 ## [9.2.3] - 2026-10-23
 
 ### Fixed

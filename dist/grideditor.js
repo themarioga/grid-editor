@@ -512,9 +512,12 @@
     var bootstrap = GridEditor.bootstrap || window.bootstrap;
     return bootstrap && bootstrap.Modal ? bootstrap.Modal : null;
   }
-  function plainHtml(html) {
+  function plainHtml(html, prepare) {
     var root = document.implementation.createHTMLDocument("").body;
     root.innerHTML = html;
+    if (prepare && prepare(root) === false) {
+      return null;
+    }
     var emptied = [];
     all(root, "*").forEach(function(node) {
       var marked = false;
@@ -2368,7 +2371,9 @@
       return html;
     }
     function getPlainHtml(options) {
-      return plainHtml(getHtml(options));
+      return plainHtml(getHtml(options), function(root) {
+        return pluginsAccept("plainMarkup", root, options);
+      });
     }
     function setHtml2(html) {
       if (sourceOpen) {
@@ -2458,6 +2463,13 @@
         });
       });
     }
+    function pluginsAccept(hook, argument, extra) {
+      return [CONTAINERS, FEATURES, UTILITIES].every(function(registry) {
+        return Object.keys(registry).every(function(name) {
+          return !registry[name][hook] || registry[name][hook](argument, extra) !== false;
+        });
+      });
+    }
     function pluginApi() {
       return {
         canvas,
@@ -2512,6 +2524,16 @@
         // The markup as getHtml gives it, with the canvas left editing
         snapshotHtml,
         setHtml: setHtml2,
+        // The canvas out of editing and back in, as getHtml does it,
+        // for a plugin that shows the same markup another way. Not
+        // with the source view open, or after destroy
+        reinit: function() {
+          if (sourceOpen || destroyed) {
+            return;
+          }
+          deinit();
+          init();
+        },
         // A question in the editor's confirm modal
         confirm: confirmWith,
         // A text editor has rewritten a content area, so whatever the

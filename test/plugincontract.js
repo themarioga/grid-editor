@@ -395,6 +395,59 @@ async function chooseTests(t) {
     t.check('the choose tests logged no errors', errors.length === 0, errors.slice(0, 5));
 }
 
+/** ge.reinit() on the handle: the canvas out of editing and back in (multilang plan T-02). */
+async function reinitTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var result = await page.eval(`
+        GridEditor.features.probe = function(handle) { window.probe = handle; return { onInit: function() { inits++; }, onDeinit: function() { deinits++; } }; };
+        let inits = 0;
+        let deinits = 0;
+        const q = function(selector) { return document.querySelector(selector); };
+        q('#myGrid').innerHTML = '<div class="row" id="r1"><div class="column col-12" id="a"><p>A</p></div></div>';
+        const ge = window.fixture.init({ settings_panel: 'sidebar', plugins: window.fixture.plugins(['probe']) });
+        ge.setActiveTarget('#a');
+        const out = { type: typeof window.probe.reinit };
+
+        const html = ge.getHtml();
+        inits = 0; deinits = 0;
+        const events = [];
+        ['before-add', 'after-add', 'before-delete', 'after-delete', 'before-move', 'after-move'].forEach(function(name) {
+            q('#myGrid').addEventListener('grideditor:' + name, function() { events.push(name); });
+        });
+        window.probe.reinit();
+        out.passes = { inits: inits, deinits: deinits };
+        out.same = ge.getHtml() === html;
+        out.editing = q('#myGrid').classList.contains('ge-editing') && !!q('#myGrid .ge-tools-drawer');
+        out.target = ge.getActiveTarget() === q('#a');
+        out.events = events;
+
+        // With the source view open the canvas is not the markup: nothing happens
+        q('.gm-edit-mode').click();
+        inits = 0; deinits = 0;
+        window.probe.reinit();
+        out.whileSource = { inits: inits, deinits: deinits };
+        q('.gm-edit-mode').click();
+
+        ge.destroy();
+        inits = 0; deinits = 0;
+        window.probe.reinit();
+        out.afterDestroy = { inits: inits, deinits: deinits };
+        delete GridEditor.features.probe;
+        return out;
+    `);
+    t.check('reinit is on the handle', result.type === 'function', result);
+    t.check('reinit takes the canvas out of editing and back in once, keeping the markup and the target, firing no add, delete or move',
+        result.passes.inits === 1 && result.passes.deinits === 1 && result.same && result.editing &&
+        result.target && result.events.length === 0, result);
+    t.check('reinit does nothing with the source view open, nor after destroy',
+        result.whileSource.inits === 0 && result.whileSource.deinits === 0 &&
+        result.afterDestroy.inits === 0 && result.afterDestroy.deinits === 0, result);
+
+    var errors = page.errors();
+    t.check('the reinit tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'plugincontract',
     description: 'what every shipped plugin is handed and hands back is DOM',
@@ -402,6 +455,7 @@ module.exports = {
         await run(t);
         await handleTests(t);
         await chooseTests(t);
+        await reinitTests(t);
     },
 };
 

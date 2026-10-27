@@ -189,6 +189,7 @@ element, and where there may be several, an array.
 | `ge.nodeHtml(node)` | One node's markup as `getHtml` would give it. The canvas leaves editing to read it and comes back, as it does for `getHtml` |
 | `ge.snapshotHtml()` | The canvas's markup as `getHtml` gives it, read on a copy so the canvas never leaves editing: what `getHtml({ keepEditing: true })` is. See [Reading on a copy](#reading-on-a-copy) |
 | `ge.setHtml(html)` | The canvas made of other markup, and edited again: the source view closed if it is open, `deinit`, the markup in, `init`. No add or delete events: it is replaced as a whole. A `<script>` in it does not run in the editor |
+| `ge.reinit()` | The canvas out of editing and back in - `deinit` then `init`, as `getHtml` does around its read - for a plugin that shows the same markup another way and wants it painted again. Does nothing with the source view open, and after `destroy` |
 | `ge.confirm(message, options, answer)` | A question in the editor's confirm modal, the one deleting asks in. `options`: `title`, `ok`, `cancel` - the texts, the locale's by default - and `danger`, a red ok button. `answer(true)` for ok, `answer(false)` for cancel, the close button or Escape, `answer(null)` when the modal is taken away unanswered: `setLocale`, `destroy`, or another question. The browser's `confirm` without Bootstrap's javascript |
 | `ge.refreshToolbar()` | The toolbar built again, from what the feature plugins' `toolbar`s hold now: for a plugin whose buttons come and go. The category shown with `toolbar_groups`, the preview and the source view stay as they are. Does nothing before the toolbar is first built, and after `destroy` |
 | `ge.getActiveTarget()` | The node the toolbar adds to and the sidebar shows - any node with settings - as the public method gives it: `null` without `active_target` |
@@ -222,6 +223,7 @@ GridEditor.features.elements = function(ge) {
         onDeinit: function() { … },      // every deinit: take it out again
         onBeforeDeinit: function() { … },  // every deinit, before the drawers come off: close what you opened
         cleanMarkup: function(root, liveOf) { … },  // what onDeinit and onBeforeDeinit take off, off a copy
+        plainMarkup: function(root, options) { … },  // the markup getPlainHtml is about to clean, to change first
         onDestroy: function() { … },       // destroy, first, while the editor is whole
         onSourceOpen: function(textarea) { … },   // the source view opened: the canvas's html is in the textarea
         onSourceClose: function(textarea) { … },  // and is closing: put what you edited back in the textarea
@@ -465,6 +467,17 @@ rather than remembering anything about it.
   goes over the textarea on open and puts its value back in it on close, which
   is all the codemirror plugin does; `destroy` with the source open closes it
   first.
+- **`plainMarkup(root, options)`** is called by `getPlainHtml(options)`, for
+  every kind of plugin in the order `deinit` calls them, with the markup
+  `getHtml` read, parsed in a document of its own that does not run scripts
+  or load images, and still carrying grid-editor's marking: the `data-ge-*`
+  attributes and `ge-*` classes come off after every plugin has had its turn.
+  Change `root` as the published page should be. `options` is what
+  `getPlainHtml` was given, which a plugin may read its own keys from. Return
+  `false` to make `getPlainHtml` answer `null` - for a request the plugin
+  cannot serve - and the plugins after it are not called. An error it throws
+  reaches the caller of `getPlainHtml`. Not called for the jQuery adapter's
+  html that is not on a canvas, nor after `destroy`.
 - **`plainTools(drawer, block)`** puts tools in the drawer of the host's plain
   content, between move and delete. That drawer has no gear, so
   `drawerTools` never runs for it: plain content gets no utility, no copy and

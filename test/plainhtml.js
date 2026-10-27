@@ -140,12 +140,95 @@ async function contentTypeTests(t) {
         html.slice(0, 400));
 }
 
+/**
+ * The plainMarkup hook: a plugin changes the markup getPlainHtml read before
+ * the editor's marking comes off, and can refuse the request.
+ */
+async function hookTests(t) {
+    var page = await t.page(FIXTURE, `window.fixture`);
+
+    var result = await page.eval(`
+        const q = function(selector) { return document.querySelector(selector); };
+        q('#myGrid').innerHTML = '<div class="row"><div class="col-12"><div class="ge-content">' +
+            '<p data-ge-i18n=\\'{"en":"Hello"}\\' data-ge-lang="es">Hola</p></div></div></div>';
+
+        // Without a plugin that has the hook, the data-ge-* attributes just go
+        const bare = window.fixture.init();
+        const without = bare.getPlainHtml();
+        bare.destroy();
+
+        const seen = [];
+        GridEditor.features.zzfirst = function() {
+            return {
+                plainMarkup: function(root, options) {
+                    const p = root.querySelector('p');
+                    seen.push({
+                        isBody: root.tagName === 'BODY',
+                        inert: root.ownerDocument !== document,
+                        stillMarked: p.hasAttribute('data-ge-i18n'),
+                        gridMarking: !!root.querySelector('.row, .ge-content, [data-ge-content-type], .column'),
+                        options: options && JSON.stringify(options),
+                    });
+                    if (options && options.lang === 'en') { p.textContent = JSON.parse(p.getAttribute('data-ge-i18n')).en; }
+                    if (options && options.lang === 'nope') { return false; }
+                    if (options && options.lang === 'boom') { throw new Error('write failed'); }
+                },
+            };
+        };
+        let later = 0;
+        GridEditor.features.zzsecond = function() {
+            return { plainMarkup: function() { later++; } };
+        };
+        const ge = window.fixture.init({ plugins: window.fixture.plugins(['zzfirst', 'zzsecond']) });
+
+        const out = { without: without };
+        out.en = ge.getPlainHtml({ lang: 'en' });
+        out.fallback = ge.getPlainHtml();
+        out.laterAfterTwo = later;
+        out.refused = ge.getPlainHtml({ lang: 'nope' });
+        out.laterAfterRefused = later;
+        try { ge.getPlainHtml({ lang: 'boom' }); out.thrown = null; } catch (error) { out.thrown = error.message; }
+        out.html = ge.getHtml();
+        out.editing = q('#myGrid').classList.contains('ge-editing');
+        out.seen = seen;
+        ge.destroy();
+        const afterDestroy = later;
+        out.afterDestroy = ge.getPlainHtml({ lang: 'en' });
+        out.laterAfterDestroy = later - afterDestroy;
+        delete GridEditor.features.zzfirst;
+        delete GridEditor.features.zzsecond;
+        return out;
+    `);
+
+    t.check('without a plugin, getPlainHtml gives the default language: the data-ge-* attributes just go (multilang AC-53)',
+        result.without.indexOf('data-ge-') === -1 && result.without.indexOf('Hola') !== -1 && result.without.indexOf('Hello') === -1,
+        result.without);
+    t.check('a plugin\'s plainMarkup changes the markup, and the editor\'s marking comes off after it',
+        result.en.indexOf('Hello') !== -1 && result.en.indexOf('Hola') === -1 && result.en.indexOf('data-ge-') === -1,
+        result.en);
+    t.check('plainMarkup gets the markup in an inert document, still marked, and the options getPlainHtml was given',
+        result.seen[0].isBody && result.seen[0].inert && result.seen[0].stillMarked &&
+        result.seen[0].gridMarking && result.seen[0].options === '{"lang":"en"}' && result.seen[1].options === undefined,
+        result.seen);
+    t.check('every plugin with the hook is asked, and an editor that is back editing is not left changed',
+        result.laterAfterTwo === 2 && result.html.indexOf('Hola') !== -1 && result.editing, result);
+    t.check('false from a hook makes getPlainHtml answer null, and the plugins after it are not asked',
+        result.refused === null && result.laterAfterRefused === result.laterAfterTwo, result);
+    t.check('an error a hook throws reaches the caller', result.thrown === 'write failed', result);
+    t.check('after destroy getPlainHtml reads the element as it is: no hook runs',
+        result.afterDestroy.indexOf('Hola') !== -1 && result.laterAfterDestroy === 0, result);
+
+    var errors = page.errors();
+    t.check('the hook tests logged no errors', errors.length === 0, errors.slice(0, 5));
+}
+
 module.exports = {
     name: 'plainhtml',
     description: 'getPlainHtml, the markup without the editor\'s marking',
     run: async function(t) {
         await plainTests(t);
         await contentTypeTests(t);
+        await hookTests(t);
     },
 };
 

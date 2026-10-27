@@ -294,12 +294,16 @@ function modalLibrary() {
  *
  * The marking is what lets the editor read its markup back, so this is for
  * publishing, not for saving something to edit again.
+ *
+ * `prepare(root)` sees the markup in the inert document before the marking
+ * comes off, and can change it; false from it gives null instead of the html.
  */
-function plainHtml(html) {
+function plainHtml(html, prepare) {
     // Parsed in a document of its own, which is inert: no script in the
     // markup runs and no image starts loading while it is being cleaned
     var root = document.implementation.createHTMLDocument('').body;
     root.innerHTML = html;
+    if (prepare && prepare(root) === false) { return null; }
     var emptied = [];
 
     dom.all(root, '*').forEach(function(node) {
@@ -2668,9 +2672,15 @@ function build(instance, baseElem, optionsOrMethod) {
             return html;
         }
 
-        /** getHtml with grid-editor's own classes and attributes taken off. */
+        /**
+         * getHtml with grid-editor's own classes and attributes taken off.
+         * A plugin's plainMarkup(root, options) may change the markup first,
+         * while the marking is still on it; false from one makes this null.
+         */
         function getPlainHtml(options) {
-            return plainHtml(getHtml(options));
+            return plainHtml(getHtml(options), function(root) {
+                return pluginsAccept('plainMarkup', root, options);
+            });
         }
 
         /**
@@ -2795,6 +2805,18 @@ function build(instance, baseElem, optionsOrMethod) {
             });
         }
 
+        /**
+         * plugins(), for a hook that can refuse: false as soon as one says
+         * false, the rest not asked.
+         */
+        function pluginsAccept(hook, argument, extra) {
+            return [CONTAINERS, FEATURES, UTILITIES].every(function(registry) {
+                return Object.keys(registry).every(function(name) {
+                    return !registry[name][hook] || registry[name][hook](argument, extra) !== false;
+                });
+            });
+        }
+
         /** What a plugin is handed. See docs/plugins.md. */
         function pluginApi() {
             return {
@@ -2844,6 +2866,14 @@ function build(instance, baseElem, optionsOrMethod) {
                 // The markup as getHtml gives it, with the canvas left editing
                 snapshotHtml: snapshotHtml,
                 setHtml: setHtml,
+                // The canvas out of editing and back in, as getHtml does it,
+                // for a plugin that shows the same markup another way. Not
+                // with the source view open, or after destroy
+                reinit: function() {
+                    if (sourceOpen || destroyed) { return; }
+                    deinit();
+                    init();
+                },
                 // A question in the editor's confirm modal
                 confirm: confirmWith,
                 // A text editor has rewritten a content area, so whatever the
