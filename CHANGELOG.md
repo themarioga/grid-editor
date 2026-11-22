@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- Autosave: `clearDraft` now makes the html there is the base of the drafts
+  that follow. A page that saved, then kept editing, and was loaded again
+  with the html it saved was not offered the draft of those later changes:
+  the draft still named the html the editor started from. With the source
+  view open, the base is what `getHtml` gives, and what is typed in the
+  source after it is a draft once the view closes. While the restore
+  question is up the base does not change.
+
 ## [9.2.4] - 2026-10-27
 
 ### Added

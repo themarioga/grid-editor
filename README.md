@@ -945,7 +945,7 @@ drafts, so the second saves nothing and says so in the console.
 | `disableAutosave()` | `Boolean` | Stops saving; the draft is kept |
 | `saveDraft()` | `Boolean` | Saves now, if the html changed, even when disabled; `true` when it wrote |
 | `getDraft()` | `Object` | `{ html, savedAt }`, or `null` |
-| `clearDraft()` | `Boolean` | Takes the draft away, as a page does once it has saved to its server. A save still waiting is dropped, and what there is now is where a new draft starts from: only a change after it saves again |
+| `clearDraft()` | `Boolean` | Takes the draft away, as a page does once it has saved to its server. A save still waiting is dropped, and what there is now is where a new draft starts from: only a change after it saves again, and that draft is offered to an editor started again from the html there is now |
 
 The methods are there only when the plugin is loaded, and answer `false` or
 `null` when the browser gives the page no storage - a private window may not -

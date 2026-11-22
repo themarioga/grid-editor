@@ -340,7 +340,18 @@ GridEditor.features.autosave = function(ge) {
 
             // What there is now is not a draft any more - a page calls this
             // once it has saved to its server - so the save waiting does not
-            // write it back, and only a change from here makes a new draft
+            // write it back, and only a change from here makes a new draft.
+            // What there is now is also the base of the drafts that follow:
+            // the page, loaded again, starts from the html it saved, and a
+            // draft made after this is offered to it.
+            //
+            // With the source view open the canvas reads as getHtml gives it -
+            // what the page saved - so that is the base; what is typed in the
+            // source and not saved is a change from it, and saved as a draft
+            // once the view closes.
+            //
+            // Not while it asks: the canvas is not what was offered yet, and
+            // the base stays the html the editor started from.
             clearDraft: function() {
                 if (state === 'unavailable') { return false; }
 
@@ -348,11 +359,11 @@ GridEditor.features.autosave = function(ge) {
                 timer = null;
                 remove();
 
-                // Not while it asks: the canvas is not what was offered yet
-                if (base !== null && state !== 'asking' && !sourceOpen) {
+                if (base !== null && state !== 'asking') {
                     var watching = !!observer && state === 'enabled';
                     if (watching) { observer.disconnect(); }
                     last = ge.snapshotHtml();
+                    base = fingerprint(last);
                     if (watching) { watch(); }
                 }
                 return true;

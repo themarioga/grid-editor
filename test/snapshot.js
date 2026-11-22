@@ -315,6 +315,27 @@ async function states(t, page) {
     `);
     t.check('with the source view open: what getHtml gives, the source view still open (AC-18)',
         source.same && source.stillOpen, source);
+
+    // The autosave plugin's base: what a page saves from snapshotHtml and
+    // loads again, by setHtml or a new editor, reads back the same
+    var trip = await page.eval(`
+        const markup = window.MARKUP +
+            '<div class="row justify-content-center" data-kind="band" style="margin-top: 8px;">' +
+                '<div class="col-sm-6 col-md-4 offset-md-2" id="attrs" data-x="1" title="A &amp; B">' +
+                    '<div class="ge-content ge-content-type-tinymce" data-ge-content-type="tinymce">' +
+                        '<p><strong>Bold</strong> &amp; <a href="/x?a=1&amp;b=2">link</a></p><ul><li>One</li></ul></div></div>' +
+                '<div class="col-sm-6 col-md-4"><div class="row"><div class="col-12"><p>Nested</p></div></div></div></div>';
+        restart({}, markup);
+        q('#text').click();
+        const first = handle.snapshotHtml();
+        handle.setHtml(first);
+        const bySetHtml = handle.snapshotHtml();
+        restart({}, first);
+        const byInit = handle.snapshotHtml();
+        return { setHtml: bySetHtml === first, init: byInit === first, rows: (first.match(/class="row/g) || []).length };
+    `);
+    t.check('snapshotHtml, loaded again with setHtml or a new editor, reads back the same: rows, columns, tinyMCE content, attributes',
+        trip.setHtml && trip.init && trip.rows === 5, trip);
 }
 
 async function handleTests(t, page) {

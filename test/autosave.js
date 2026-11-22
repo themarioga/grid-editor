@@ -742,6 +742,130 @@ async function lifecycle(t, page) {
     await page.eval(`ge().setLocale('en'); return true;`);
 }
 
+/**
+ * clearDraft as a page calls it once it has saved: what there is then is the
+ * base of the drafts that follow, so the page loaded again with the html it
+ * saved is offered them.
+ */
+async function rebasing(t, page) {
+    // Started on A, saved as B, edited to C, loaded again on B
+    var saved = await page.eval(`
+        fresh({ delay: 50 });
+        await wait(50);
+        change('edit-b');
+        await wait(150);
+        ge().clearDraft();
+        const B = ge().getHtml();
+        change('edit-c');
+        await wait(150);
+        const draft = stored();
+        start({ delay: 50 }, B);
+        await wait(400);
+        return { B: B, shown: modalShown(), draftC: !!draft && draft.html.indexOf('edit-c') !== -1 };
+    `);
+    t.check('after clearDraft, a draft is offered to the editor loaded again with the html saved',
+        saved.shown && saved.draftC, saved);
+    await sleep(300);
+    await page.click('.ge-confirm .ge-confirm-ok');
+    await sleep(500);
+    var restored = await page.eval(`return { b: !!q('#edit-b'), c: !!q('#edit-c'), shown: modalShown() };`);
+    t.check('and restoring it gives the canvas as it was left', restored.b && restored.c && !restored.shown, restored);
+    var baseOfB = await page.eval(`return baseOf(${JSON.stringify(saved.B)}) === stored().base;`);
+    t.check('its base is the fingerprint of the html saved', baseOfB, baseOfB);
+
+    var nothing = await page.eval(`
+        fresh({ delay: 50 });
+        await wait(50);
+        change('edit-b');
+        await wait(150);
+        ge().clearDraft();
+        const B = ge().getHtml();
+        await wait(150);
+        window.dispatchEvent(new Event('pagehide'));
+        const left = stored();
+        start({ delay: 50 }, B);
+        await wait(400);
+        return { left: left, shown: modalShown() };
+    `);
+    t.check('after clearDraft and no change, loaded again with the same html: nothing offered',
+        nothing.left === null && !nothing.shown, nothing);
+
+    var unsaved = await page.eval(`
+        fresh({ delay: 50 });
+        await wait(50);
+        change('edit-b');
+        await wait(150);
+        ge().clearDraft();
+        change('edit-c');
+        await wait(150);
+        start({ delay: 50 }, MARKUP);
+        await wait(400);
+        const kept = ge().getDraft();
+        return { shown: modalShown(), kept: !!kept && kept.html.indexOf('edit-c') !== -1 };
+    `);
+    t.check('loaded again with the html from before the save: not offered, it is of another base, and left alone',
+        !unsaved.shown && unsaved.kept, unsaved);
+
+    // With the source view open: what getHtml gives then is what the page saved
+    await page.eval(`fresh({ delay: 50 }); await wait(50); change('edit-b'); await wait(150); return true;`);
+    await page.click('.gm-edit-mode');
+    var openUntouched = await page.eval(`
+        ge().clearDraft();
+        window.savedB = ge().getHtml();
+        return true;
+    `);
+    await page.click('.gm-edit-mode');
+    var untouched = await page.eval(`
+        await wait(300);
+        const left = stored();
+        start({ delay: 50 }, window.savedB);
+        await wait(400);
+        return { left: left, shown: modalShown() };
+    `);
+    t.check('clearDraft with the source view open, closed unchanged: nothing saved, nothing offered on the html saved',
+        openUntouched && untouched.left === null && !untouched.shown, untouched);
+
+    await page.eval(`fresh({ delay: 50 }); await wait(50); change('edit-b'); await wait(150); return true;`);
+    await page.click('.gm-edit-mode');
+    await page.eval(`
+        ge().clearDraft();
+        window.savedB = ge().getHtml();
+        const textarea = q('.ge-html-output');
+        textarea.value = textarea.value + '<div class="row" id="typed-after-save"><div class="col-md-12"><p>Typed</p></div></div>';
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+    `);
+    await page.click('.gm-edit-mode');
+    var typed = await page.eval(`
+        await wait(300);
+        const draft = stored();
+        start({ delay: 50 }, window.savedB);
+        await wait(400);
+        return { draft: !!draft && draft.html.indexOf('typed-after-save') !== -1, shown: modalShown() };
+    `);
+    t.check('clearDraft with the source view open, then typed in it: closed, it is a draft offered on the html saved',
+        typed.draft && typed.shown, typed);
+    await page.click('.ge-confirm .ge-confirm-cancel');
+    await sleep(500);
+
+    // While it asks: no rebase
+    await page.eval(DRAFTED);
+    var asking = await page.eval(`
+        const answer = ge().clearDraft();
+        return { answer: answer, stored: stored() };
+    `);
+    await page.click('.ge-confirm .ge-confirm-cancel');
+    await sleep(500);
+    var afterAsking = await page.eval(`
+        change('after-asking');
+        await wait(200);
+        const draft = stored();
+        return { base: draft && draft.base, start: BASE };
+    `);
+    t.check('clearDraft while it asks takes the draft away, and the base stays the html it started from',
+        asking.answer === true && asking.stored === null && afterAsking.base === afterAsking.start, { asking: asking, after: afterAsking });
+}
+
 async function run(t) {
     var page = await t.page(FIXTURE, `window.fixture`);
     await page.eval(`
@@ -760,6 +884,7 @@ async function run(t) {
     await restoring(t, page);
     await documents(t, page);
     await lifecycle(t, page);
+    await rebasing(t, page);
 
     await page.eval(`if (ge()) { ge().destroy(); } localStorage.clear(); sessionStorage.clear(); return true;`);
     t.check('the autosave suite logged no page errors', page.errors().length === 0, page.errors().slice(0, 5));
