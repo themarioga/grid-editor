@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- `getHtml({ keepEditing: true })`, `getPlainHtml({ keepEditing: true })`
+  and the autosave plugin, which read through it, no longer load the
+  canvas's images or run their `onerror`. The copy they read was made in the
+  page's document, where an `<img src>` starts loading even detached; it is
+  now made in an inert document, as `getPlainHtml` already parses. The same
+  goes for what an open text's editor holds, put into the copy. A plugin's
+  `cleanMarkup` is handed that copy: a node it makes with `document` and
+  puts into it is taken in as before, but `root.ownerDocument` is no longer
+  `document`.
+
 ## [9.2.5] - 2026-11-22
 
 ### Fixed

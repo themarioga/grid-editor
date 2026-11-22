@@ -2270,8 +2270,9 @@
     function copyCanvas() {
       var toLive = /* @__PURE__ */ new Map();
       var toCopy = /* @__PURE__ */ new Map();
+      var inert = document.implementation.createHTMLDocument("");
       function copyNode(live) {
-        var copied = live.cloneNode(live.nodeName === "TEMPLATE");
+        var copied = inert.importNode(live, live.nodeName === "TEMPLATE");
         if (live.nodeType !== 1) {
           return copied;
         }

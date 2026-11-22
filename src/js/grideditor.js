@@ -2557,13 +2557,19 @@ function build(instance, baseElem, optionsOrMethod) {
          * of the canvas while it is edited, and a snapshot only took them off
          * again. A template is the one node a shallow clone leaves empty, so
          * it goes whole.
+         *
+         * Copied into a document of its own, which is inert, as plainHtml
+         * parses: a copy in the page's document starts loading an <img src>,
+         * and runs its onerror, even detached - and so does markup a plugin's
+         * cleanMarkup puts into the copy.
          */
         function copyCanvas() {
             var toLive = new Map();
             var toCopy = new Map();
+            var inert = document.implementation.createHTMLDocument('');
 
             function copyNode(live) {
-                var copied = live.cloneNode(live.nodeName === 'TEMPLATE');
+                var copied = inert.importNode(live, live.nodeName === 'TEMPLATE');
                 if (live.nodeType !== 1) { return copied; }
 
                 toLive.set(copied, live);

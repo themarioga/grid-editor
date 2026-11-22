@@ -336,6 +336,51 @@ async function states(t, page) {
     `);
     t.check('snapshotHtml, loaded again with setHtml or a new editor, reads back the same: rows, columns, tinyMCE content, attributes',
         trip.setHtml && trip.init && trip.rows === 5, trip);
+
+    // The copy is made in an inert document: an image in it - in the canvas,
+    // or in what an open text's editor holds - does not load, nor run its onerror
+    var inert = await page.eval(`
+        const pause = function(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); };
+        window.imgErrors = 0;
+        const markup =
+            '<div class="row"><div class="col-md-6"><div class="ge-content ge-content-type-tinymce" data-ge-content-type="tinymce" id="text">' +
+                '<p>Text</p><img src="data:image/png;base64,AAAA" onerror="window.imgErrors++"></div></div>' +
+            '<div class="col-md-6"><img id="broken" src="data:image/png;base64,AAAB" onerror="window.imgErrors++"></div></div>';
+        restart({}, markup);
+        q('#text').click();
+        await pause(500);
+        const live = window.imgErrors;
+        const kept = [];
+        for (let i = 0; i < 3; i++) { kept.push(ge().getHtml({ keepEditing: true })); }
+        const plain = ge().getPlainHtml({ keepEditing: true });
+        await pause(500);
+        const during = window.imgErrors - live;
+        const textOpen = window.fakeTinymce.open.size;
+        const left = ge().getHtml();
+        return { live: live, during: during, same: kept.every(function(html) { return html === left; }),
+            images: (left.match(/<img/g) || []).length, plainImages: (plain.match(/<img/g) || []).length,
+            textOpen: textOpen };
+    `);
+    t.check('getHtml and getPlainHtml with keepEditing: no image of the canvas or of an open text loads on the copy, the html as before',
+        inert.live > 0 && inert.during === 0 && inert.same && inert.images === 2 && inert.plainImages === 2 && inert.textOpen === 1, inert);
+
+    var owner = await page.eval(`
+        GridEditor.features.zzinert = function() {
+            return {
+                cleanMarkup: function(root) {
+                    window.copyOwner = root.ownerDocument;
+                    const added = document.createElement('span');
+                    added.id = 'zz-added';
+                    root.appendChild(added);
+                },
+            };
+        };
+        restart({ plugins: window.fixture.plugins(['zzhandle', 'tinymce', 'zzinert']) });
+        const html = ge().getHtml({ keepEditing: true });
+        return { inert: !!window.copyOwner && window.copyOwner !== document, added: html.indexOf('id="zz-added"') !== -1 };
+    `);
+    t.check('a cleanMarkup is handed the copy in another document, and a node it makes in the page’s is taken in',
+        owner.inert && owner.added, owner);
 }
 
 async function handleTests(t, page) {

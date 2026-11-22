@@ -316,6 +316,10 @@ on the canvas, the plugin takes off, with **`cleanMarkup(root, liveOf)`**:
   put on the canvas - the same as your `unmark`, `onDeinit` and
   `onBeforeDeinit` do, but only to markup: listeners, observers and what you
   remember stay as they are, because the canvas is still being edited.
+  The copy is in an inert document of its own, not the page's, so an image
+  in it does not load nor run its `onerror`: `root.ownerDocument` is not
+  `document`. A node made with `document.createElement` and put into it is
+  taken in as usual.
 - `liveOf(node)` is the canvas's node a node of the copy was copied from, or
   `null` for one made on the copy. It is for state kept by node: the text
   feature reads an open editor's content through it.
